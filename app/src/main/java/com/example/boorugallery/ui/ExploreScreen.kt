@@ -59,11 +59,6 @@ import com.example.boorugallery.SortOrder
 import com.example.boorugallery.data.AppLanguage
 import com.example.boorugallery.data.Strings
 
-private val POPULAR_TAGS = listOf(
-    "anime", "fantasy", "scenery", "genshin_impact", "highres",
-    "cat_ears", "solo", "original", "weapon", "cyberpunk", "wide_image", "uniform"
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExploreScreen(
@@ -749,48 +744,6 @@ fun ExploreScreen(
                             Spacer(Modifier.height(16.dp))
                         }
 
-                        Card(
-                            shape = RoundedCornerShape(24.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainer
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(Modifier.padding(16.dp)) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        Icons.Rounded.LocalFireDepartment,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                    Spacer(Modifier.width(10.dp))
-                                    Text(
-                                        Strings.popularTags(lang),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-
-                                Spacer(Modifier.height(12.dp))
-
-                                OptInFlowRow(
-                                    tags = POPULAR_TAGS,
-                                    onTagClick = { tag ->
-                                        localQuery = tag
-                                        vm.search(vm.source, tag, vm.safeMode)
-                                        searchExpanded = false
-                                        vm.clearTagSuggestions()
-                                    }
-                                )
-                            }
-                        }
-
-                        Spacer(Modifier.height(16.dp))
 
                         if (vm.searchHistory.isNotEmpty()) {
                             Card(
@@ -905,44 +858,7 @@ fun ExploreScreen(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun OptInFlowRow(
-    tags: List<String>,
-    onTagClick: (String) -> Unit
-) {
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        tags.forEach { tag ->
-            AssistChip(
-                onClick = { onTagClick(tag) },
-                label = {
-                    Text(
-                        tag,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        Icons.Rounded.Tag,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                },
-                shape = CircleShape,
-                colors = AssistChipDefaults.assistChipColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    labelColor = MaterialTheme.colorScheme.onSurface
-                ),
-                border = null
-            )
-        }
-    }
-}
+
 
 @Composable
 private fun MediaCard(

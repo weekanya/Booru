@@ -31,11 +31,6 @@ object Strings {
         AppLanguage.RUSSIAN -> "Подсказки тегов"
     }
 
-    fun popularTags(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Popular Categories & Tags"
-        AppLanguage.RUSSIAN -> "Популярные категории и теги"
-    }
-
     fun recentSearches(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Recent Searches"
         AppLanguage.RUSSIAN -> "Недавние запросы"
