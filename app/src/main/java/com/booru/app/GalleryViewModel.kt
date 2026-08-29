@@ -31,6 +31,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var updateInfo by mutableStateOf<AppUpdateInfo?>(null); private set
     var isCheckingUpdate by mutableStateOf(false); private set
     var manualCheckResult by mutableStateOf<String?>(null); private set
+    var isDownloadingUpdate by mutableStateOf(false); private set
+    var updateDownloadProgress by androidx.compose.runtime.mutableFloatStateOf(0f); private set
+    var updateDownloadProgressText by mutableStateOf(""); private set
+    var updateDownloadError by mutableStateOf<String?>(null); private set
+    var downloadedApkFile by mutableStateOf<java.io.File?>(null); private set
 
     var cacheSizeFormatted by mutableStateOf("0 B"); private set
     var isClearingCache by mutableStateOf(false); private set
@@ -199,15 +204,125 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun downloadAndInstallUpdate(context: android.content.Context, info: AppUpdateInfo) {
+        val targetUrl = info.apkDownloadUrl ?: info.releaseUrl
+        if (info.apkDownloadUrl.isNullOrBlank()) {
+            runCatching {
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(targetUrl)).apply {
+                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(intent)
+            }
+            dismissUpdate()
+            return
+        }
+
+        viewModelScope.launch(Dispatchers.IO) {
+            isDownloadingUpdate = true
+            updateDownloadProgress = 0f
+            updateDownloadProgressText = "0%"
+            updateDownloadError = null
+
+            try {
+                val updatesDir = java.io.File(context.cacheDir, "updates").apply { mkdirs() }
+                val targetFile = java.io.File(updatesDir, "Booru_${info.latestVersion}.apk")
+                if (targetFile.exists()) {
+                    targetFile.delete()
+                }
+
+                val client = okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+                    .followRedirects(true)
+                    .followSslRedirects(true)
+                    .build()
+
+                val request = okhttp3.Request.Builder()
+                    .url(info.apkDownloadUrl)
+                    .header("User-Agent", "BooruApp/${info.latestVersion}")
+                    .build()
+
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        throw java.io.IOException("HTTP error: ${response.code}")
+                    }
+
+                    val body = response.body ?: throw java.io.IOException("Empty response body")
+                    val contentLength = body.contentLength()
+                    val inputStream = body.byteStream()
+                    val outputStream = targetFile.outputStream()
+
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    var totalRead = 0L
+                    var lastUpdateMs = System.currentTimeMillis()
+
+                    outputStream.use { out ->
+                        inputStream.use { input ->
+                            while (input.read(buffer).also { bytesRead = it } != -1) {
+                                out.write(buffer, 0, bytesRead)
+                                totalRead += bytesRead
+                                val now = System.currentTimeMillis()
+                                if (contentLength > 0 && now - lastUpdateMs > 100) {
+                                    val progress = (totalRead.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f)
+                                    val readMb = String.format(java.util.Locale.US, "%.1f", totalRead / (1024f * 1024f))
+                                    val totalMb = String.format(java.util.Locale.US, "%.1f", contentLength / (1024f * 1024f))
+                                    kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                        updateDownloadProgress = progress
+                                        updateDownloadProgressText = "${(progress * 100).toInt()}% ($readMb MB / $totalMb MB)"
+                                    }
+                                    lastUpdateMs = now
+                                }
+                            }
+                        }
+                    }
+
+                    kotlinx.coroutines.withContext(Dispatchers.Main) {
+                        updateDownloadProgress = 1f
+                        updateDownloadProgressText = "100%"
+                        downloadedApkFile = targetFile
+                        isDownloadingUpdate = false
+                        installApk(context, targetFile)
+                    }
+                }
+            } catch (e: Exception) {
+                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                    isDownloadingUpdate = false
+                    updateDownloadError = e.message ?: "Download failed"
+                }
+            }
+        }
+    }
+
+    fun installApk(context: android.content.Context, file: java.io.File) {
+        try {
+            val apkUri = androidx.core.content.FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                file
+            )
+            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+                setDataAndType(apkUri, "application/vnd.android.package-archive")
+                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+            }
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            updateDownloadError = "Installation error: ${e.message}"
+        }
+    }
+
     fun ignoreUpdate(version: String) {
         viewModelScope.launch {
             prefs.setIgnoredUpdateVersion(version)
-            updateInfo = null
+            dismissUpdate()
         }
     }
 
     fun dismissUpdate() {
         updateInfo = null
+        isDownloadingUpdate = false
+        updateDownloadError = null
+        downloadedApkFile = null
     }
 
     fun clearManualCheckResult() {

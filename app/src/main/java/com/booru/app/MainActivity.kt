@@ -38,6 +38,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import com.booru.app.data.AppLanguage
+import com.booru.app.ui.bouncyPress
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.booru.app.data.Strings
@@ -248,14 +250,27 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
         vm.updateInfo?.let { info ->
             val context = LocalContext.current
             AlertDialog(
-                onDismissRequest = { vm.dismissUpdate() },
+                onDismissRequest = {
+                    if (!vm.isDownloadingUpdate) {
+                        vm.dismissUpdate()
+                    }
+                },
+                shape = RoundedCornerShape(28.dp),
                 icon = {
-                    Icon(
-                        Icons.Rounded.SystemUpdate,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(28.dp)
-                    )
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Rounded.SystemUpdate,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
                 },
                 title = {
                     Text(
@@ -270,57 +285,168 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                             .fillMaxWidth()
                             .verticalScroll(rememberScrollState())
                     ) {
-                        Text(
-                            text = Strings.updateAvailableDesc(lang, info.latestVersion),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        if (info.releaseNotes.isNotBlank()) {
-                            Spacer(Modifier.height(12.dp))
+                        if (vm.isDownloadingUpdate) {
+                            Text(
+                                text = Strings.downloadingUpdate(lang),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            LinearProgressIndicator(
+                                progress = { vm.updateDownloadProgress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(CircleShape),
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = vm.updateDownloadProgressText,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else if (vm.updateDownloadError != null) {
                             Surface(
                                 shape = RoundedCornerShape(12.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                color = MaterialTheme.colorScheme.errorContainer,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text(
-                                    text = info.releaseNotes,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.padding(12.dp)
-                                )
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = Strings.updateDownloadFailed(lang),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        text = vm.updateDownloadError ?: "",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
+                            }
+                        } else if (vm.downloadedApkFile != null) {
+                            Text(
+                                text = if (lang == AppLanguage.RUSSIAN) "Обновление скачано и готово к установке." else "Update is downloaded and ready to install.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        } else {
+                            Text(
+                                text = Strings.updateAvailableDesc(lang, info.latestVersion),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (info.releaseNotes.isNotBlank()) {
+                                Spacer(Modifier.height(12.dp))
+                                Surface(
+                                    shape = RoundedCornerShape(16.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = info.releaseNotes,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.padding(14.dp)
+                                    )
+                                }
                             }
                         }
                     }
                 },
                 confirmButton = {
-                    Button(
-                        onClick = {
-                            val targetUrl = info.apkDownloadUrl ?: info.releaseUrl
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
-                            context.startActivity(intent)
-                            vm.dismissUpdate()
+                    if (vm.isDownloadingUpdate) {
+                        Button(
+                            onClick = {},
+                            enabled = false,
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.bouncyPress()
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(Strings.downloadingUpdate(lang))
                         }
-                    ) {
-                        Text(Strings.updateButton(lang))
+                    } else if (vm.downloadedApkFile != null) {
+                        Button(
+                            onClick = {
+                                vm.installApk(context, vm.downloadedApkFile!!)
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.bouncyPress()
+                        ) {
+                            Text(Strings.installUpdate(lang), fontWeight = FontWeight.Bold)
+                        }
+                    } else if (vm.updateDownloadError != null) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FilledTonalButton(
+                                onClick = {
+                                    val targetUrl = info.apkDownloadUrl ?: info.releaseUrl
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
+                                    context.startActivity(intent)
+                                    vm.dismissUpdate()
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.bouncyPress()
+                            ) {
+                                Text(Strings.openInBrowser(lang))
+                            }
+                            Button(
+                                onClick = {
+                                    vm.downloadAndInstallUpdate(context, info)
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.bouncyPress()
+                            ) {
+                                Text(Strings.updateButton(lang), fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                vm.downloadAndInstallUpdate(context, info)
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.bouncyPress()
+                        ) {
+                            Text(Strings.updateButton(lang), fontWeight = FontWeight.Bold)
+                        }
                     }
                 },
                 dismissButton = {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextButton(
-                            onClick = {
-                                vm.ignoreUpdate(info.latestVersion)
-                            }
+                    if (!vm.isDownloadingUpdate) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                Strings.dontRemindAgain(lang),
-                                color = MaterialTheme.colorScheme.outline
-                            )
-                        }
-                        TextButton(onClick = { vm.dismissUpdate() }) {
-                            Text(Strings.closeBtn(lang))
+                            TextButton(
+                                onClick = {
+                                    vm.ignoreUpdate(info.latestVersion)
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.bouncyPress()
+                            ) {
+                                Text(
+                                    Strings.dontRemindAgain(lang),
+                                    color = MaterialTheme.colorScheme.outline
+                                )
+                            }
+                            TextButton(
+                                onClick = { vm.dismissUpdate() },
+                                shape = RoundedCornerShape(16.dp),
+                                modifier = Modifier.bouncyPress()
+                            ) {
+                                Text(Strings.closeBtn(lang))
+                            }
                         }
                     }
                 }

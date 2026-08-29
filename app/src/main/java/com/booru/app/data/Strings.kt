@@ -202,8 +202,28 @@ object Strings {
     }
 
     fun updateButton(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Update"
-        AppLanguage.RUSSIAN -> "Обновить"
+        AppLanguage.ENGLISH -> "Download & Install"
+        AppLanguage.RUSSIAN -> "Скачать и обновить"
+    }
+
+    fun downloadingUpdate(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Downloading update..."
+        AppLanguage.RUSSIAN -> "Загрузка обновления..."
+    }
+
+    fun installUpdate(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Install"
+        AppLanguage.RUSSIAN -> "Установить"
+    }
+
+    fun updateDownloadFailed(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Failed to download update APK"
+        AppLanguage.RUSSIAN -> "Не удалось скачать APK обновления"
+    }
+
+    fun openInBrowser(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Open in Browser"
+        AppLanguage.RUSSIAN -> "Открыть в браузере"
     }
 
     fun dontRemindAgain(lang: AppLanguage) = when (lang) {
