@@ -13,6 +13,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
@@ -39,6 +41,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -92,6 +95,17 @@ fun ExploreScreen(
         vm.clearTagSuggestions()
     }
 
+    val bgScale by animateFloatAsState(
+        targetValue = if (searchExpanded) 0.96f else 1f,
+        animationSpec = spring(dampingRatio = 0.85f, stiffness = 400f),
+        label = "bgScale"
+    )
+    val bgAlpha by animateFloatAsState(
+        targetValue = if (searchExpanded) 0.45f else 1f,
+        animationSpec = tween(durationMillis = 200),
+        label = "bgAlpha"
+    )
+
     val gridState = rememberLazyStaggeredGridState()
 
     val shouldLoadMore by remember {
@@ -119,6 +133,11 @@ fun ExploreScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = bgScale
+                    scaleY = bgScale
+                    alpha = bgAlpha
+                }
                 .padding(top = 70.dp)
         ) {
 
@@ -565,15 +584,25 @@ fun ExploreScreen(
 
         AnimatedVisibility(
             visible = searchExpanded,
-            enter = fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) +
+            enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                    scaleIn(
+                        initialScale = 0.94f,
+                        transformOrigin = TransformOrigin(0.5f, 0.05f),
+                        animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f)
+                    ) +
                     slideInVertically(
-                        initialOffsetY = { -it / 6 },
-                        animationSpec = tween(220, easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f))
+                        initialOffsetY = { -it / 12 },
+                        animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f)
                     ),
-            exit = fadeOut(animationSpec = tween(140, easing = FastOutLinearInEasing)) +
+            exit = fadeOut(animationSpec = tween(170, easing = FastOutLinearInEasing)) +
+                   scaleOut(
+                       targetScale = 0.94f,
+                       transformOrigin = TransformOrigin(0.5f, 0.05f),
+                       animationSpec = tween(170, easing = FastOutSlowInEasing)
+                   ) +
                    slideOutVertically(
-                       targetOffsetY = { -it / 8 },
-                       animationSpec = tween(160, easing = FastOutLinearInEasing)
+                       targetOffsetY = { -it / 14 },
+                       animationSpec = tween(170, easing = FastOutSlowInEasing)
                    ),
             modifier = Modifier.fillMaxSize()
         ) {
