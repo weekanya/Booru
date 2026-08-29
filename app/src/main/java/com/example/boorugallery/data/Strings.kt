@@ -307,8 +307,8 @@ object Strings {
     }
 
     fun loadingText(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Loading high quality images..."
-        AppLanguage.RUSSIAN -> "Загрузка изображений высокого качества..."
+        AppLanguage.ENGLISH -> "Loading..."
+        AppLanguage.RUSSIAN -> "Загрузка..."
     }
 
     fun nothingFound(lang: AppLanguage) = when (lang) {
