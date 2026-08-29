@@ -554,6 +554,7 @@ fun ExploreScreen(
             },
             expanded = searchExpanded,
             onExpandedChange = { searchExpanded = it },
+            windowInsets = WindowInsets(0, 0, 0, 0),
             colors = SearchBarDefaults.colors(
                 containerColor = if (searchExpanded) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerHigh,
                 dividerColor = Color.Transparent
@@ -570,6 +571,7 @@ fun ExploreScreen(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .imePadding()
             ) {
                 if (vm.tagSuggestions.isNotEmpty()) {
                     Card(
@@ -1086,8 +1088,11 @@ fun SourceSelectionSheet(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         dragHandle = { BottomSheetDefaults.DragHandle() },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
@@ -1097,6 +1102,7 @@ fun SourceSelectionSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 36.dp)
+                .verticalScroll(rememberScrollState())
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
