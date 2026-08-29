@@ -1,4 +1,4 @@
-# Booru Gallery
+# Booru
 
 [![Platform](https://img.shields.io/badge/Platform-Android-3DDC84.svg?logo=android&logoColor=white)](https://www.android.com/)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-7F52FF.svg?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
@@ -53,7 +53,7 @@ A modern, fast, and elegant Android client for exploring and managing art, anima
 
 ### Build from source
 ```bash
-git clone https://github.com/your-username/booru-gallery.git
+git clone https://github.com/weekanya/booru-gallery.git
 cd booru-gallery
 ./gradlew assembleRelease
 ```
