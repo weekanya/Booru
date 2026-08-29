@@ -1,13 +1,20 @@
 package com.example.boorugallery.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -15,6 +22,9 @@ import androidx.compose.foundation.lazy.staggeredgrid.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -24,12 +34,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
@@ -64,29 +79,18 @@ fun ExploreScreen(
         localQuery = vm.query
     }
 
-    val searchContentAlpha by animateFloatAsState(
-        targetValue = if (searchExpanded) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = if (searchExpanded) 200 else 110,
-            easing = FastOutSlowInEasing
-        ),
-        label = "searchContentAlpha"
-    )
-    val searchCornerRadius by animateDpAsState(
-        targetValue = if (searchExpanded) 0.dp else 28.dp,
-        animationSpec = tween(durationMillis = 280, easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)),
-        label = "searchCornerRadius"
-    )
-    val searchPadH by animateDpAsState(
-        targetValue = if (searchExpanded) 0.dp else 16.dp,
-        animationSpec = tween(durationMillis = 280, easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)),
-        label = "searchPadH"
-    )
-    val searchPadT by animateDpAsState(
-        targetValue = if (searchExpanded) 0.dp else 6.dp,
-        animationSpec = tween(durationMillis = 280, easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)),
-        label = "searchPadT"
-    )
+    val focusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(searchExpanded) {
+        if (searchExpanded) {
+            focusRequester.requestFocus()
+        }
+    }
+
+    BackHandler(enabled = searchExpanded) {
+        searchExpanded = false
+        vm.clearTagSuggestions()
+    }
 
     val gridState = rememberLazyStaggeredGridState()
 
@@ -507,38 +511,95 @@ fun ExploreScreen(
             }
         }
 
-        SearchBar(
-            inputField = {
-                SearchBarDefaults.InputField(
-                    query = localQuery,
-                    onQueryChange = {
-                        localQuery = it
-                        vm.fetchTagSuggestions(it)
-                    },
-                    onSearch = { q ->
-                        localQuery = q.trim()
-                        vm.search(vm.source, localQuery, vm.safeMode)
-                        searchExpanded = false
-                        vm.clearTagSuggestions()
-                    },
-                    expanded = searchExpanded,
-                    onExpandedChange = { expanded ->
-                        searchExpanded = expanded
-                        if (expanded && localQuery.isNotBlank()) {
-                            vm.fetchTagSuggestions(localQuery)
-                        } else if (!expanded) {
+        Surface(
+            onClick = { searchExpanded = true },
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .height(56.dp)
+                .bouncyPress()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    Icons.Rounded.Search,
+                    contentDescription = "Search",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(22.dp)
+                )
+                Spacer(Modifier.width(14.dp))
+                Text(
+                    text = if (localQuery.isNotBlank()) localQuery else Strings.searchPlaceholder(lang),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (localQuery.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (localQuery.isNotBlank()) {
+                    IconButton(
+                        onClick = {
+                            localQuery = ""
                             vm.clearTagSuggestions()
-                        }
-                    },
-                    placeholder = {
-                        Text(
-                            Strings.searchPlaceholder(lang),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            vm.search(vm.source, "", vm.safeMode)
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = "Clear",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
                         )
-                    },
-                    leadingIcon = {
-                        if (searchExpanded) {
+                    }
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = searchExpanded,
+            enter = fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) +
+                    slideInVertically(
+                        initialOffsetY = { -it / 6 },
+                        animationSpec = tween(220, easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f))
+                    ),
+            exit = fadeOut(animationSpec = tween(140, easing = FastOutLinearInEasing)) +
+                   slideOutVertically(
+                       targetOffsetY = { -it / 8 },
+                       animationSpec = tween(160, easing = FastOutLinearInEasing)
+                   ),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .imePadding()
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                            .height(56.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             IconButton(onClick = {
                                 searchExpanded = false
                                 vm.clearTagSuggestions()
@@ -549,16 +610,40 @@ fun ExploreScreen(
                                     tint = MaterialTheme.colorScheme.onSurface
                                 )
                             }
-                        } else {
-                            Icon(
-                                Icons.Rounded.Search,
-                                contentDescription = "Search",
-                                tint = MaterialTheme.colorScheme.primary
+                            BasicTextField(
+                                value = localQuery,
+                                onValueChange = {
+                                    localQuery = it
+                                    vm.fetchTagSuggestions(it)
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .focusRequester(focusRequester),
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                    color = MaterialTheme.colorScheme.onSurface
+                                ),
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(onSearch = {
+                                    localQuery = localQuery.trim()
+                                    vm.search(vm.source, localQuery, vm.safeMode)
+                                    searchExpanded = false
+                                    vm.clearTagSuggestions()
+                                }),
+                                decorationBox = { innerTextField ->
+                                    Box(contentAlignment = Alignment.CenterStart) {
+                                        if (localQuery.isEmpty()) {
+                                            Text(
+                                                text = Strings.searchPlaceholder(lang),
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        innerTextField()
+                                    }
+                                }
                             )
-                        }
-                    },
-                    trailingIcon = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
                             if (localQuery.isNotEmpty()) {
                                 IconButton(onClick = {
                                     localQuery = ""
@@ -573,267 +658,242 @@ fun ExploreScreen(
                                 }
                             }
                         }
-                    },
-                    colors = SearchBarDefaults.inputFieldColors(
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        cursorColor = MaterialTheme.colorScheme.primary
-                    )
-                )
-            },
-            expanded = searchExpanded,
-            onExpandedChange = { expanded ->
-                searchExpanded = expanded
-                if (!expanded) {
-                    vm.clearTagSuggestions()
-                }
-            },
-            windowInsets = WindowInsets(0, 0, 0, 0),
-            colors = SearchBarDefaults.colors(
-                containerColor = if (searchExpanded) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerHigh,
-                dividerColor = Color.Transparent
-            ),
-            shape = RoundedCornerShape(searchCornerRadius),
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .padding(horizontal = searchPadH)
-                .padding(top = searchPadT)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer { alpha = searchContentAlpha }
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .imePadding()
-            ) {
-                if (vm.tagSuggestions.isNotEmpty()) {
-                    Card(
-                        shape = RoundedCornerShape(24.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(Modifier.padding(vertical = 8.dp)) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Rounded.AutoAwesome,
-                                    null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(Modifier.width(10.dp))
-                                Text(
-                                    Strings.tagSuggestions(lang),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
+                    }
 
-                            vm.tagSuggestions.forEach { suggestion ->
-                                Surface(
-                                    onClick = {
-                                        localQuery = suggestion.value
-                                        vm.search(vm.source, suggestion.value, vm.safeMode)
-                                        searchExpanded = false
-                                        vm.clearTagSuggestions()
-                                    },
-                                    color = Color.Transparent,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        if (vm.tagSuggestions.isNotEmpty()) {
+                            Card(
+                                shape = RoundedCornerShape(24.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(Modifier.padding(vertical = 8.dp)) {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.weight(1f)
-                                        ) {
-                                            Icon(
-                                                Icons.Rounded.Tag,
-                                                null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                            Spacer(Modifier.width(14.dp))
-                                            Text(
-                                                suggestion.value,
-                                                style = MaterialTheme.typography.bodyLarge,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        }
+                                        Icon(
+                                            Icons.Rounded.AutoAwesome,
+                                            null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(Modifier.width(10.dp))
+                                        Text(
+                                            Strings.tagSuggestions(lang),
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
 
-                                        if (suggestion.count > 0) {
-                                            Surface(
-                                                shape = CircleShape,
-                                                color = MaterialTheme.colorScheme.secondaryContainer
+                                    vm.tagSuggestions.forEach { suggestion ->
+                                        Surface(
+                                            onClick = {
+                                                localQuery = suggestion.value
+                                                vm.search(vm.source, suggestion.value, vm.safeMode)
+                                                searchExpanded = false
+                                                vm.clearTagSuggestions()
+                                            },
+                                            color = Color.Transparent,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
-                                                Text(
-                                                    "${suggestion.count}",
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                                    fontWeight = FontWeight.Bold,
-                                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                                )
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Rounded.Tag,
+                                                        null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                    Spacer(Modifier.width(14.dp))
+                                                    Text(
+                                                        suggestion.value,
+                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                }
+
+                                                if (suggestion.count > 0) {
+                                                    Surface(
+                                                        shape = CircleShape,
+                                                        color = MaterialTheme.colorScheme.secondaryContainer
+                                                    ) {
+                                                        Text(
+                                                            "${suggestion.count}",
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                            fontWeight = FontWeight.Bold,
+                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                                        )
+                                                    }
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
+                            Spacer(Modifier.height(16.dp))
                         }
-                    }
-                    Spacer(Modifier.height(16.dp))
-                }
 
-                Card(
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainer
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
+                        Card(
+                            shape = RoundedCornerShape(24.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer
+                            ),
+                            modifier = Modifier.fillMaxWidth()
                         ) {
-                            Icon(
-                                Icons.Rounded.LocalFireDepartment,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                            Spacer(Modifier.width(10.dp))
-                            Text(
-                                Strings.popularTags(lang),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-
-                        Spacer(Modifier.height(12.dp))
-
-                        OptInFlowRow(
-                            tags = POPULAR_TAGS,
-                            onTagClick = { tag ->
-                                localQuery = tag
-                                vm.search(vm.source, tag, vm.safeMode)
-                                searchExpanded = false
-                                vm.clearTagSuggestions()
-                            }
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(16.dp))
-
-                if (vm.searchHistory.isNotEmpty()) {
-                    Card(
-                        shape = RoundedCornerShape(24.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(Modifier.padding(vertical = 8.dp)) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
                                     Icon(
-                                        Icons.Rounded.History,
+                                        Icons.Rounded.LocalFireDepartment,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(22.dp)
                                     )
                                     Spacer(Modifier.width(10.dp))
                                     Text(
-                                        Strings.recentSearches(lang),
+                                        Strings.popularTags(lang),
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.onSurface
                                     )
                                 }
 
-                                TextButton(
-                                    onClick = { vm.clearHistory() },
-                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                                ) {
-                                    Text(Strings.clearAll(lang), style = MaterialTheme.typography.labelMedium)
-                                }
-                            }
+                                Spacer(Modifier.height(12.dp))
 
-                            vm.searchHistory.take(8).forEach { hist ->
-                                Surface(
-                                    onClick = {
-                                        localQuery = hist
-                                        vm.search(vm.source, hist, vm.safeMode)
+                                OptInFlowRow(
+                                    tags = POPULAR_TAGS,
+                                    onTagClick = { tag ->
+                                        localQuery = tag
+                                        vm.search(vm.source, tag, vm.safeMode)
                                         searchExpanded = false
                                         vm.clearTagSuggestions()
-                                    },
-                                    color = Color.Transparent,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
+                                    }
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(16.dp))
+
+                        if (vm.searchHistory.isNotEmpty()) {
+                            Card(
+                                shape = RoundedCornerShape(24.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainer
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(Modifier.padding(vertical = 8.dp)) {
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                            .padding(horizontal = 16.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier.weight(1f)
-                                        ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
                                             Icon(
                                                 Icons.Rounded.History,
-                                                null,
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(20.dp)
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(22.dp)
                                             )
-                                            Spacer(Modifier.width(14.dp))
+                                            Spacer(Modifier.width(10.dp))
                                             Text(
-                                                hist,
-                                                style = MaterialTheme.typography.bodyMedium,
-                                                fontWeight = FontWeight.Medium
+                                                Strings.recentSearches(lang),
+                                                style = MaterialTheme.typography.titleMedium,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSurface
                                             )
                                         }
 
-                                        IconButton(
-                                            onClick = { vm.removeFromHistory(hist) },
-                                            modifier = Modifier.size(32.dp)
+                                        TextButton(
+                                            onClick = { vm.clearHistory() },
+                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
                                         ) {
-                                            Icon(
-                                                Icons.Rounded.Close,
-                                                contentDescription = "Delete",
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(18.dp)
-                                            )
+                                            Text(Strings.clearAll(lang), style = MaterialTheme.typography.labelMedium)
+                                        }
+                                    }
+
+                                    vm.searchHistory.take(8).forEach { hist ->
+                                        Surface(
+                                            onClick = {
+                                                localQuery = hist
+                                                vm.search(vm.source, hist, vm.safeMode)
+                                                searchExpanded = false
+                                                vm.clearTagSuggestions()
+                                            },
+                                            color = Color.Transparent,
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            Row(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    modifier = Modifier.weight(1f)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Rounded.History,
+                                                        null,
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                    Spacer(Modifier.width(14.dp))
+                                                    Text(
+                                                        hist,
+                                                        style = MaterialTheme.typography.bodyMedium,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                }
+
+                                                IconButton(
+                                                    onClick = { vm.removeFromHistory(hist) },
+                                                    modifier = Modifier.size(32.dp)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Rounded.Close,
+                                                        contentDescription = "Delete",
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
+
+                        Spacer(Modifier.height(32.dp))
                     }
                 }
-
-                Spacer(Modifier.height(32.dp))
             }
         }
 
