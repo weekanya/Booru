@@ -68,14 +68,19 @@ fun ExploreScreen(
         vm.clearTagSuggestions()
     }
 
+    val searchCornerRadius by animateDpAsState(
+        targetValue = if (searchExpanded) 0.dp else 28.dp,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "searchCornerRadius"
+    )
     val searchPadH by animateDpAsState(
         targetValue = if (searchExpanded) 0.dp else 16.dp,
-        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "searchPadH"
     )
     val searchPadT by animateDpAsState(
         targetValue = if (searchExpanded) 0.dp else 6.dp,
-        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "searchPadT"
     )
 
@@ -579,7 +584,7 @@ fun ExploreScreen(
                 containerColor = if (searchExpanded) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerHigh,
                 dividerColor = Color.Transparent
             ),
-            shape = if (searchExpanded) MaterialTheme.shapes.extraLarge else CircleShape,
+            shape = RoundedCornerShape(searchCornerRadius),
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
