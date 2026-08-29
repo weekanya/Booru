@@ -37,6 +37,7 @@ class BooruPreferences(private val context: Context) {
         val KEY_GELBOORU_USER_ID = stringPreferencesKey("gelbooru_user_id")
         val KEY_GELBOORU_API_KEY = stringPreferencesKey("gelbooru_api_key")
         val KEY_TAG_BLACKLIST = stringSetPreferencesKey("tag_blacklist")
+        val KEY_IGNORED_UPDATE_VERSION = stringPreferencesKey("ignored_update_version")
     }
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
@@ -101,9 +102,17 @@ class BooruPreferences(private val context: Context) {
         prefs[KEY_TAG_BLACKLIST]?.toList() ?: emptyList()
     }
 
+    val ignoredUpdateVersion: Flow<String?> = context.dataStore.data.map { prefs ->
+        prefs[KEY_IGNORED_UPDATE_VERSION]
+    }
+
     val favorites: Flow<List<RemoteMedia>> = context.dataStore.data.map { prefs ->
         val jsonStr = prefs[KEY_FAVORITES_JSON] ?: "[]"
         deserializeFavorites(jsonStr)
+    }
+
+    suspend fun setIgnoredUpdateVersion(version: String) {
+        context.dataStore.edit { it[KEY_IGNORED_UPDATE_VERSION] = version }
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {

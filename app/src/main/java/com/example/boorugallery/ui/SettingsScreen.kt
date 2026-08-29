@@ -670,6 +670,46 @@ fun SettingsScreen(
                     }
                 }
             )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+
+            SettingRowItem(
+                title = Strings.checkUpdatesTitle(lang),
+                subtitle = Strings.checkUpdatesDesc(lang),
+                icon = Icons.Rounded.SystemUpdate,
+                onClick = {
+                    if (!vm.isCheckingUpdate) {
+                        vm.checkForUpdates(isAutoCheck = false)
+                    }
+                },
+                trailing = {
+                    if (vm.isCheckingUpdate) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.5.dp
+                        )
+                    } else {
+                        FilledTonalButton(
+                            onClick = { vm.checkForUpdates(isAutoCheck = false) },
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            )
+                        ) {
+                            Text(
+                                text = Strings.checkUpdatesTitle(lang),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            )
         }
 
         Spacer(Modifier.height(84.dp))

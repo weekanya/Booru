@@ -1,5 +1,7 @@
 package com.example.boorugallery
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -12,12 +14,18 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -217,6 +226,130 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                     }
                 }
             }
+        }
+
+        vm.updateInfo?.let { info ->
+            val context = LocalContext.current
+            AlertDialog(
+                onDismissRequest = { vm.dismissUpdate() },
+                icon = {
+                    Icon(
+                        Icons.Rounded.SystemUpdate,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(28.dp)
+                    )
+                },
+                title = {
+                    Text(
+                        text = Strings.updateAvailableTitle(lang, info.latestVersion),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Text(
+                            text = Strings.updateAvailableDesc(lang, info.latestVersion),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (info.releaseNotes.isNotBlank()) {
+                            Spacer(Modifier.height(12.dp))
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = info.releaseNotes,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(12.dp)
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            val targetUrl = info.apkDownloadUrl ?: info.releaseUrl
+                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
+                            context.startActivity(intent)
+                            vm.dismissUpdate()
+                        }
+                    ) {
+                        Text(Strings.updateButton(lang))
+                    }
+                },
+                dismissButton = {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = {
+                                vm.ignoreUpdate(info.latestVersion)
+                            }
+                        ) {
+                            Text(
+                                Strings.dontRemindAgain(lang),
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                        TextButton(onClick = { vm.dismissUpdate() }) {
+                            Text(Strings.closeBtn(lang))
+                        }
+                    }
+                }
+            )
+        }
+
+        vm.manualCheckResult?.let { result ->
+            AlertDialog(
+                onDismissRequest = { vm.clearManualCheckResult() },
+                icon = {
+                    if (result == "UP_TO_DATE") {
+                        Icon(
+                            Icons.Rounded.CheckCircle,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    } else {
+                        Icon(
+                            Icons.Rounded.ErrorOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                },
+                title = {
+                    Text(
+                        text = if (result == "UP_TO_DATE") Strings.upToDateTitle(lang) else Strings.updateCheckFailedTitle(lang),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = if (result == "UP_TO_DATE") Strings.upToDateDesc(lang) else Strings.updateCheckFailedDesc(lang),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                confirmButton = {
+                    Button(onClick = { vm.clearManualCheckResult() }) {
+                        Text("OK")
+                    }
+                }
+            )
         }
     }
 }

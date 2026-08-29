@@ -226,6 +226,61 @@ object Strings {
         AppLanguage.RUSSIAN -> "Booru • Версия 2.0"
     }
 
+    fun checkUpdatesTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Check for Updates"
+        AppLanguage.RUSSIAN -> "Проверить обновления"
+    }
+
+    fun checkUpdatesDesc(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Tap to check GitHub for new releases"
+        AppLanguage.RUSSIAN -> "Нажмите для проверки свежих релизов"
+    }
+
+    fun updateAvailableTitle(lang: AppLanguage, version: String) = when (lang) {
+        AppLanguage.ENGLISH -> "Update Available ($version)"
+        AppLanguage.RUSSIAN -> "Доступно обновление ($version)"
+    }
+
+    fun updateAvailableDesc(lang: AppLanguage, version: String) = when (lang) {
+        AppLanguage.ENGLISH -> "A new version ($version) is available on GitHub. Would you like to download it?"
+        AppLanguage.RUSSIAN -> "На GitHub вышла новая версия ($version). Хотите скачать обновление?"
+    }
+
+    fun updateButton(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Update"
+        AppLanguage.RUSSIAN -> "Обновить"
+    }
+
+    fun dontRemindAgain(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Don't remind again"
+        AppLanguage.RUSSIAN -> "Больше не напоминать"
+    }
+
+    fun upToDateTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Latest Version Installed"
+        AppLanguage.RUSSIAN -> "Установлена последняя версия"
+    }
+
+    fun upToDateDesc(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "You are already using the newest version of Booru."
+        AppLanguage.RUSSIAN -> "У вас уже установлена самая актуальная версия Booru."
+    }
+
+    fun updateCheckFailedTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Check Failed"
+        AppLanguage.RUSSIAN -> "Ошибка проверки"
+    }
+
+    fun updateCheckFailedDesc(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Could not reach GitHub servers. Please check your internet connection."
+        AppLanguage.RUSSIAN -> "Не удалось связаться с серверами GitHub. Проверьте интернет-соединение."
+    }
+
+    fun checkingUpdates(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Checking for updates..."
+        AppLanguage.RUSSIAN -> "Проверка обновлений..."
+    }
+
     fun savedPostsCount(count: Int, lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "$count saved posts"
         AppLanguage.RUSSIAN -> "$count сохранённых постов"

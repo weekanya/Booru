@@ -7,7 +7,9 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.boorugallery.data.AppLanguage
+import com.example.boorugallery.data.AppUpdateInfo
 import com.example.boorugallery.data.BooruPreferences
+import com.example.boorugallery.data.UpdateChecker
 import com.example.boorugallery.ui.AppPalette
 import com.example.boorugallery.ui.ThemeMode
 import kotlinx.coroutines.Job
@@ -18,6 +20,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     private val repo = BooruRepository()
     val prefs = BooruPreferences(application)
+
+    var updateInfo by mutableStateOf<AppUpdateInfo?>(null); private set
+    var isCheckingUpdate by mutableStateOf(false); private set
+    var manualCheckResult by mutableStateOf<String?>(null); private set
 
     var results     by mutableStateOf<List<RemoteMedia>>(emptyList()); private set
     var loading     by mutableStateOf(false);                           private set
@@ -125,6 +131,57 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             palette = initialPalette
             search(source, "", safeMode)
         }
+
+        viewModelScope.launch {
+            checkForUpdates(isAutoCheck = true)
+        }
+    }
+
+    fun checkForUpdates(isAutoCheck: Boolean = false) {
+        viewModelScope.launch {
+            isCheckingUpdate = true
+            manualCheckResult = null
+            try {
+                val currentVer = try {
+                    val pInfo = getApplication<Application>().packageManager.getPackageInfo(getApplication<Application>().packageName, 0)
+                    pInfo.versionName ?: "2.0"
+                } catch (e: Exception) {
+                    "2.0"
+                }
+                val remoteInfo = UpdateChecker.fetchLatestRelease()
+                if (remoteInfo != null && UpdateChecker.isNewerVersion(remoteInfo.latestVersion, currentVer)) {
+                    if (isAutoCheck) {
+                        val ignored = prefs.ignoredUpdateVersion.first()
+                        if (ignored != remoteInfo.latestVersion) {
+                            updateInfo = remoteInfo
+                        }
+                    } else {
+                        updateInfo = remoteInfo
+                    }
+                } else if (!isAutoCheck) {
+                    manualCheckResult = if (remoteInfo != null) "UP_TO_DATE" else "ERROR"
+                }
+            } catch (e: Exception) {
+                if (!isAutoCheck) manualCheckResult = "ERROR"
+            } finally {
+                isCheckingUpdate = false
+            }
+        }
+    }
+
+    fun ignoreUpdate(version: String) {
+        viewModelScope.launch {
+            prefs.setIgnoredUpdateVersion(version)
+            updateInfo = null
+        }
+    }
+
+    fun dismissUpdate() {
+        updateInfo = null
+    }
+
+    fun clearManualCheckResult() {
+        manualCheckResult = null
     }
 
     private fun updateFavoritesState(list: List<RemoteMedia>) {
