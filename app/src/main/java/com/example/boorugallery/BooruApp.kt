@@ -41,10 +41,7 @@ class BooruApplication : Application(), ImageLoaderFactory {
                     else -> "${originalRequest.url.scheme}://${originalRequest.url.host}/"
                 }
 
-                val userAgent = when {
-                    url.contains("donmai.us") -> "BooruGallery/1.0 (by weekanya)"
-                    else -> "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-                }
+                val userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 
                 val newRequest = originalRequest.newBuilder()
                     .header("User-Agent", userAgent)

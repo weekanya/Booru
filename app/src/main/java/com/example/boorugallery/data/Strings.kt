@@ -227,8 +227,8 @@ object Strings {
     }
 
     fun aboutAppDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Booru • Version 1.0"
-        AppLanguage.RUSSIAN -> "Booru • Версия 1.0"
+        AppLanguage.ENGLISH -> "Booru • Version 2.0"
+        AppLanguage.RUSSIAN -> "Booru • Версия 2.0"
     }
 
     fun savedPostsCount(count: Int, lang: AppLanguage) = when (lang) {
@@ -389,11 +389,6 @@ object Strings {
         AppLanguage.RUSSIAN -> "Ключи сохранены!"
     }
 
-    fun danbooruKeysSavedToast(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Danbooru credentials saved!"
-        AppLanguage.RUSSIAN -> "Данные Danbooru сохранены!"
-    }
-
     fun historyClearedToast(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "History cleared"
         AppLanguage.RUSSIAN -> "История очищена"
@@ -409,28 +404,13 @@ object Strings {
         AppLanguage.RUSSIAN -> "Укажите User ID и API Key для поиска на Gelbooru."
     }
 
-    fun danbooruDialogDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Provide Username (Login) and API Key to search Danbooru."
-        AppLanguage.RUSSIAN -> "Укажите Username (Login) и API Key для Danbooru."
-    }
-
     fun getKeyFromSite(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Get key from website"
         AppLanguage.RUSSIAN -> "Получить ключ на сайте"
     }
 
-    fun getDanbooruKeyFromSite(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Get API key from profile"
-        AppLanguage.RUSSIAN -> "Получить ключ на сайте (в профиле)"
-    }
-
     fun tapToEnterKeys(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Tap to enter User ID & API Key"
-        AppLanguage.RUSSIAN -> "Нажмите для ввода ключей"
-    }
-
-    fun tapToEnterDanbooruKeys(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Tap to enter Username & API Key"
         AppLanguage.RUSSIAN -> "Нажмите для ввода ключей"
     }
 

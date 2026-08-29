@@ -301,7 +301,7 @@ fun SettingsScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
-            .padding(top = 16.dp, bottom = 100.dp)
+            .padding(top = 4.dp)
     ) {
         Text(
             text = Strings.navSettings(lang),
@@ -671,6 +671,8 @@ fun SettingsScreen(
                 }
             )
         }
+
+        Spacer(Modifier.height(84.dp))
     }
 }
 
