@@ -42,26 +42,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        hideStatusBar()
         setContent { BooruApp() }
-    }
-
-    override fun onWindowFocusChanged(hasFocus: Boolean) {
-        super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) {
-            hideStatusBar()
-        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         (application as? BooruApplication)?.cleanAppCache()
-    }
-
-    private fun hideStatusBar() {
-        val insetsController = WindowCompat.getInsetsController(window, window.decorView)
-        insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        insetsController.hide(WindowInsetsCompat.Type.statusBars())
     }
 }
 
@@ -96,6 +82,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .statusBarsPadding()
                     .navigationBarsPadding()
             ) {
                 Crossfade(
