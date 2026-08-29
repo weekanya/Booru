@@ -1,8 +1,12 @@
 package com.example.boorugallery.ui
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -58,6 +62,22 @@ fun ExploreScreen(
     LaunchedEffect(vm.query) {
         localQuery = vm.query
     }
+
+    BackHandler(enabled = searchExpanded) {
+        searchExpanded = false
+        vm.clearTagSuggestions()
+    }
+
+    val searchPadH by animateDpAsState(
+        targetValue = if (searchExpanded) 0.dp else 16.dp,
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        label = "searchPadH"
+    )
+    val searchPadT by animateDpAsState(
+        targetValue = if (searchExpanded) 0.dp else 6.dp,
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        label = "searchPadT"
+    )
 
     val gridState = rememberLazyStaggeredGridState()
 
@@ -563,8 +583,8 @@ fun ExploreScreen(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .padding(horizontal = if (searchExpanded) 0.dp else 16.dp)
-                .padding(top = if (searchExpanded) 0.dp else 8.dp)
+                .padding(horizontal = searchPadH)
+                .padding(top = searchPadT)
         ) {
             Column(
                 modifier = Modifier
@@ -1034,30 +1054,32 @@ private fun MediaCard(
                 }
             }
 
-            Surface(
-                shape = CircleShape,
-                color = Color.Black.copy(alpha = 0.45f),
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(8.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+            if (media.score > 0) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.45f),
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(8.dp)
                 ) {
-                    Icon(
-                        Icons.Rounded.Star,
-                        null,
-                        tint = Color(0xFFFFD700),
-                        modifier = Modifier.size(13.dp)
-                    )
-                    Text(
-                        text = "${media.score}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Star,
+                            null,
+                            tint = Color(0xFFFFD700),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Text(
+                            text = "${media.score}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
