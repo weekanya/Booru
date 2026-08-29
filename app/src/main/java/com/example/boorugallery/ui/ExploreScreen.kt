@@ -1,6 +1,7 @@
 package com.example.boorugallery.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
@@ -68,19 +69,27 @@ fun ExploreScreen(
         vm.clearTagSuggestions()
     }
 
+    val searchContentAlpha by animateFloatAsState(
+        targetValue = if (searchExpanded) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = if (searchExpanded) 200 else 110,
+            easing = FastOutSlowInEasing
+        ),
+        label = "searchContentAlpha"
+    )
     val searchCornerRadius by animateDpAsState(
         targetValue = if (searchExpanded) 0.dp else 28.dp,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = tween(durationMillis = 280, easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)),
         label = "searchCornerRadius"
     )
     val searchPadH by animateDpAsState(
         targetValue = if (searchExpanded) 0.dp else 16.dp,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = tween(durationMillis = 280, easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)),
         label = "searchPadH"
     )
     val searchPadT by animateDpAsState(
         targetValue = if (searchExpanded) 0.dp else 6.dp,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = tween(durationMillis = 280, easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)),
         label = "searchPadT"
     )
 
@@ -594,6 +603,7 @@ fun ExploreScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .graphicsLayer { alpha = searchContentAlpha }
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 12.dp)
                     .imePadding()
