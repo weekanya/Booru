@@ -36,6 +36,7 @@ class BooruPreferences(private val context: Context) {
         val KEY_RULE34_API_KEY = stringPreferencesKey("rule34_api_key")
         val KEY_GELBOORU_USER_ID = stringPreferencesKey("gelbooru_user_id")
         val KEY_GELBOORU_API_KEY = stringPreferencesKey("gelbooru_api_key")
+        val KEY_TAG_BLACKLIST = stringSetPreferencesKey("tag_blacklist")
     }
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
@@ -94,6 +95,10 @@ class BooruPreferences(private val context: Context) {
 
     val gelbooruApiKey: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[KEY_GELBOORU_API_KEY] ?: ""
+    }
+
+    val tagBlacklist: Flow<List<String>> = context.dataStore.data.map { prefs ->
+        prefs[KEY_TAG_BLACKLIST]?.toList() ?: emptyList()
     }
 
     val favorites: Flow<List<RemoteMedia>> = context.dataStore.data.map { prefs ->
@@ -181,6 +186,29 @@ class BooruPreferences(private val context: Context) {
 
     suspend fun clearSearchHistory() {
         context.dataStore.edit { it.remove(KEY_SEARCH_HISTORY) }
+    }
+
+    suspend fun addTagToBlacklist(tag: String) {
+        val clean = tag.trim().lowercase()
+        if (clean.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val current = prefs[KEY_TAG_BLACKLIST]?.toMutableSet() ?: mutableSetOf()
+            current.add(clean)
+            prefs[KEY_TAG_BLACKLIST] = current
+        }
+    }
+
+    suspend fun removeTagFromBlacklist(tag: String) {
+        val clean = tag.trim().lowercase()
+        context.dataStore.edit { prefs ->
+            val current = prefs[KEY_TAG_BLACKLIST]?.toMutableSet() ?: return@edit
+            current.remove(clean)
+            prefs[KEY_TAG_BLACKLIST] = current
+        }
+    }
+
+    suspend fun clearTagBlacklist() {
+        context.dataStore.edit { it.remove(KEY_TAG_BLACKLIST) }
     }
 
     suspend fun saveFavorites(favs: List<RemoteMedia>) {

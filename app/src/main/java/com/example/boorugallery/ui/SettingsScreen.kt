@@ -49,6 +49,8 @@ fun SettingsScreen(
 
     var showRule34Dialog by remember { mutableStateOf(false) }
     var showGelbooruDialog by remember { mutableStateOf(false) }
+    var showBlacklistDialog by remember { mutableStateOf(false) }
+    var newBlacklistTag by remember { mutableStateOf("") }
 
     if (showRule34Dialog) {
         AlertDialog(
@@ -194,6 +196,106 @@ fun SettingsScreen(
         )
     }
 
+    if (showBlacklistDialog) {
+        AlertDialog(
+            onDismissRequest = { showBlacklistDialog = false },
+            shape = RoundedCornerShape(28.dp),
+            icon = {
+                Icon(
+                    Icons.Rounded.Block,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(Strings.tagBlacklistTitle(lang), style = MaterialTheme.typography.titleLarge)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text(
+                        Strings.tagBlacklistDesc(lang),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = newBlacklistTag,
+                            onValueChange = { newBlacklistTag = it },
+                            placeholder = { Text(Strings.addTagPlaceholder(lang)) },
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.weight(1f)
+                        )
+                        FilledTonalButton(
+                            onClick = {
+                                if (newBlacklistTag.isNotBlank()) {
+                                    vm.addBlacklistedTag(newBlacklistTag)
+                                    newBlacklistTag = ""
+                                }
+                            },
+                            shape = RoundedCornerShape(14.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
+                        ) {
+                            Text(Strings.addTagBtn(lang), fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    if (vm.tagBlacklist.isEmpty()) {
+                        Text(
+                            Strings.noBlacklistedTags(lang),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    } else {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(vm.tagBlacklist) { tag ->
+                                InputChip(
+                                    selected = false,
+                                    onClick = { vm.removeBlacklistedTag(tag) },
+                                    label = { Text(tag) },
+                                    trailingIcon = {
+                                        Icon(
+                                            Icons.Rounded.Close,
+                                            contentDescription = "Remove",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    },
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { showBlacklistDialog = false },
+                    shape = CircleShape
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                if (vm.tagBlacklist.isNotEmpty()) {
+                    TextButton(
+                        onClick = { vm.clearBlacklist() }
+                    ) {
+                        Text(Strings.clearAllBlacklist(lang), color = MaterialTheme.colorScheme.error)
+                    }
+                }
+            }
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -316,6 +418,15 @@ fun SettingsScreen(
                 checked = vm.excludeSafe,
                 onCheckedChange = { vm.setExcludeSafeEnabled(it) },
                 isDangerous = true
+            )
+
+            SettingsDivider()
+
+            SettingRowItem(
+                title = Strings.tagBlacklistTitle(lang),
+                subtitle = if (vm.tagBlacklist.isEmpty()) Strings.noBlacklistedTags(lang) else "${vm.tagBlacklist.size} tags blocked",
+                icon = Icons.Rounded.Block,
+                onClick = { showBlacklistDialog = true }
             )
         }
 

@@ -114,6 +114,7 @@ fun ExploreScreen(
                             BooruRepository.SOURCE_ALL -> Icons.Rounded.Layers
                             BooruRepository.SOURCE_GELBOORU -> Icons.Rounded.Image
                             BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit
+                            BooruRepository.SOURCE_REALBOORU -> Icons.Rounded.VideoLibrary
                             BooruRepository.SOURCE_XBOORU -> Icons.Rounded.PhotoLibrary
                             BooruRepository.SOURCE_TBIB -> Icons.Rounded.Public
                             BooruRepository.SOURCE_YANDE -> Icons.Rounded.Collections
@@ -960,7 +961,7 @@ private fun MediaCard(
                     )
             )
 
-            if (media.isVideo || media.isGif) {
+            if (media.isVideo) {
                 Surface(
                     shape = CircleShape,
                     color = Color.Black.copy(alpha = 0.65f),
@@ -974,16 +975,36 @@ private fun MediaCard(
                         horizontalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         Icon(
-                            if (media.isVideo) Icons.Rounded.PlayArrow else Icons.Rounded.Gif,
+                            Icons.Rounded.PlayArrow,
                             contentDescription = null,
                             tint = Color.White,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
-                            text = if (media.isVideo) "VIDEO" else "GIF",
+                            text = "VIDEO",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White,
                             fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            } else if (media.isGif) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.65f),
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 3.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Rounded.Gif,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
@@ -1101,6 +1122,7 @@ fun SourceSelectionSheet(
                     BooruRepository.SOURCE_ALL -> Pair(Icons.Rounded.Layers, "Search all available boorus")
                     BooruRepository.SOURCE_RULE34 -> Pair(Icons.Rounded.Explicit, "Rule34 imageboard database")
                     BooruRepository.SOURCE_GELBOORU -> Pair(Icons.Rounded.Image, "Huge anime & art collection")
+                    BooruRepository.SOURCE_REALBOORU -> Pair(Icons.Rounded.VideoLibrary, "Realbooru media board")
                     BooruRepository.SOURCE_XBOORU -> Pair(Icons.Rounded.PhotoLibrary, "Massive anime & game gallery")
                     BooruRepository.SOURCE_TBIB -> Pair(Icons.Rounded.Public, "The Big ImageBoard (28M+ posts)")
                     BooruRepository.SOURCE_YANDE -> Pair(Icons.Rounded.Collections, "High-resolution wallpapers & art")

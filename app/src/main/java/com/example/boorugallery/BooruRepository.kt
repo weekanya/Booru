@@ -92,6 +92,7 @@ class BooruRepository {
         const val SOURCE_YANDE = "Yande.re"
         const val SOURCE_RULE34 = "Rule34"
         const val SOURCE_GELBOORU = "Gelbooru"
+        const val SOURCE_REALBOORU = "Realbooru"
         const val SOURCE_XBOORU = "Xbooru"
         const val SOURCE_TBIB = "TBIB"
         const val SOURCE_KONACHAN = "Konachan"
@@ -100,6 +101,7 @@ class BooruRepository {
             SOURCE_ALL,
             SOURCE_RULE34,
             SOURCE_GELBOORU,
+            SOURCE_REALBOORU,
             SOURCE_XBOORU,
             SOURCE_TBIB,
             SOURCE_YANDE,
@@ -123,10 +125,11 @@ class BooruRepository {
             SOURCE_YANDE     -> listOf("yande")
             SOURCE_RULE34    -> listOf("rule34")
             SOURCE_GELBOORU  -> listOf("gelbooru")
+            SOURCE_REALBOORU -> listOf("realbooru")
             SOURCE_XBOORU    -> listOf("xbooru")
             SOURCE_TBIB      -> listOf("tbib")
             SOURCE_KONACHAN  -> listOf("konachan")
-            else             -> if (excludeSafe) listOf("rule34", "gelbooru", "xbooru") else listOf("rule34", "gelbooru", "xbooru", "tbib", "yande")
+            else             -> if (excludeSafe) listOf("rule34", "gelbooru", "realbooru", "xbooru") else listOf("rule34", "gelbooru", "realbooru", "xbooru", "tbib", "yande")
         }
 
         if (targets.isEmpty() && excludeSafe && source == SOURCE_SAFEBOORU) {
@@ -271,21 +274,21 @@ class BooruRepository {
             when (key) {
                 "yande", "konachan" -> parts.add("rating:s")
                 "gelbooru"          -> parts.add("rating:general")
-                "rule34", "xbooru", "tbib" -> parts.add("rating:safe")
+                "rule34", "xbooru", "tbib", "realbooru" -> parts.add("rating:safe")
                 "safebooru"         -> Unit
             }
         } else if (excludeSafe) {
             when (key) {
                 "yande", "konachan" -> parts.add("-rating:s")
                 "gelbooru"          -> parts.add("-rating:general")
-                "rule34", "xbooru", "tbib" -> parts.add("-rating:safe")
+                "rule34", "xbooru", "tbib", "realbooru" -> parts.add("-rating:safe")
                 "safebooru"         -> Unit
             }
         }
 
         if (noAi) {
             when (key) {
-                "gelbooru", "rule34", "xbooru", "tbib", "safebooru" -> {
+                "gelbooru", "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> {
                     parts.add("-ai_generated")
                     parts.add("-novelai")
                 }
@@ -299,13 +302,13 @@ class BooruRepository {
             SortOrder.SCORE -> {
                 when (key) {
                     "yande", "konachan" -> parts.add("order:score")
-                    "gelbooru", "rule34", "xbooru", "tbib", "safebooru" -> parts.add("sort:score:desc")
+                    "gelbooru", "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> parts.add("sort:score:desc")
                 }
             }
             SortOrder.RANDOM -> {
                 when (key) {
                     "yande", "konachan" -> parts.add("order:random")
-                    "gelbooru", "rule34", "xbooru", "tbib", "safebooru" -> parts.add("sort:random")
+                    "gelbooru", "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> parts.add("sort:random")
                 }
             }
             SortOrder.NEWEST -> Unit
@@ -325,6 +328,27 @@ class BooruRepository {
         credentials: BooruCredentials
     ): List<RemoteMedia> {
         val tagQuery = buildTagQuery(userTags, safe, excludeSafe, noAi, key, sortOrder)
+
+        if (key == "realbooru") {
+            val urlBuilder = "https://realbooru.com/index.php".toHttpUrl().newBuilder().apply {
+                addQueryParameter("page", "post")
+                addQueryParameter("s", "list")
+                if (tagQuery.isNotBlank()) addQueryParameter("tags", tagQuery)
+                addQueryParameter("pid", (page * 42).toString())
+            }
+            val fullUrl = urlBuilder.build()
+            Log.d(TAG, "[realbooru] GET $fullUrl")
+            val req = Request.Builder()
+                .url(fullUrl)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 BooruClient/1.0")
+                .header("Referer", "https://realbooru.com/")
+                .build()
+
+            return client.newCall(req).execute().use { response ->
+                val body = response.body?.string() ?: ""
+                parseRealbooruHtml(body, noAi)
+            }
+        }
 
         val baseUrl = when (key) {
             "safebooru" -> "https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1"
@@ -535,12 +559,65 @@ class BooruRepository {
         return results
     }
 
+    private val REALBOORU_ITEM_REGEX = Regex(
+        """<div\s+class="col\s+thumb"\s+id="s(\d+)">\s*<a\s+id="p\d+"\s+href="[^"]*">\s*<img\s+src="(https://realbooru\.com/thumbnails/([^/]+/[^/]+)/thumbnail_([a-f0-9]+)\.jpg)"\s+title="([^"]*)"""",
+        RegexOption.IGNORE_CASE
+    )
+
+    private fun parseRealbooruHtml(html: String, noAi: Boolean): List<RemoteMedia> {
+        val results = mutableListOf<RemoteMedia>()
+        val matches = REALBOORU_ITEM_REGEX.findAll(html)
+
+        for (m in matches) {
+            val id = m.groupValues[1]
+            val thumbUrl = m.groupValues[2]
+            val dir = m.groupValues[3]
+            val hash = m.groupValues[4]
+            val tags = m.groupValues[5].trim()
+
+            if (noAi) {
+                val tagList = tags.split(" ", ",").map { it.trim().lowercase() }
+                if (tagList.any { it == "ai_generated" || it == "novelai" || it == "ai" }) continue
+            }
+
+            val tagsLower = tags.lowercase()
+            val isVideo = tagsLower.contains("video") || tagsLower.contains("webm") || tagsLower.contains("mp4")
+            val isGif = tagsLower.contains("gif")
+
+            val fileUrl = when {
+                isVideo -> "https://realbooru.com/images/$dir/$hash.mp4"
+                isGif   -> "https://realbooru.com/images/$dir/$hash.gif"
+                else    -> "https://realbooru.com/images/$dir/$hash.jpeg"
+            }
+
+            val sample = if (isGif) fileUrl else "https://realbooru.com/samples/$dir/sample_$hash.jpg"
+            val preview = thumbUrl
+
+            results.add(
+                RemoteMedia(
+                    url = fileUrl,
+                    preview = preview,
+                    sample = sample,
+                    tags = tags,
+                    score = 0,
+                    source = SOURCE_REALBOORU,
+                    rating = "explicit",
+                    id = "realbooru_$id",
+                    width = 0,
+                    height = 0
+                )
+            )
+        }
+        return results
+    }
+
     fun getSourceDisplayName(key: String): String {
         return when (key) {
             "safebooru" -> SOURCE_SAFEBOORU
             "yande"     -> SOURCE_YANDE
             "rule34"    -> SOURCE_RULE34
             "gelbooru"  -> SOURCE_GELBOORU
+            "realbooru" -> SOURCE_REALBOORU
             "xbooru"    -> SOURCE_XBOORU
             "tbib"      -> SOURCE_TBIB
             "konachan"  -> SOURCE_KONACHAN

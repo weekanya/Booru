@@ -352,7 +352,7 @@ private fun FavoriteCard(
                     )
             )
 
-            if (media.isVideo || media.isGif) {
+            if (media.isVideo) {
                 Surface(
                     shape = CircleShape,
                     color = Color.Black.copy(alpha = 0.65f),
@@ -366,16 +366,36 @@ private fun FavoriteCard(
                         horizontalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         Icon(
-                            if (media.isVideo) Icons.Rounded.PlayArrow else Icons.Rounded.Gif,
+                            Icons.Rounded.PlayArrow,
                             contentDescription = null,
                             tint = Color.White,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
-                            text = if (media.isVideo) "VIDEO" else "GIF",
+                            text = "VIDEO",
                             style = MaterialTheme.typography.labelSmall,
                             color = Color.White,
                             fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            } else if (media.isGif) {
+                Surface(
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.65f),
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 3.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Rounded.Gif,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }

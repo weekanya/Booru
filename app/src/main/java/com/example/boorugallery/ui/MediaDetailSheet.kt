@@ -48,6 +48,8 @@ import coil.request.ImageRequest
 import com.example.boorugallery.GalleryViewModel
 import com.example.boorugallery.RemoteMedia
 import com.example.boorugallery.data.AppLanguage
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import com.example.boorugallery.data.Strings
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -512,11 +514,17 @@ fun BooruVideoPlayer(
     var isPlaying by remember { mutableStateOf(true) }
     var isMuted by remember { mutableStateOf(false) }
     var isReady by remember { mutableStateOf(false) }
+    var showControls by remember { mutableStateOf(true) }
+    var currentPosMs by remember { mutableLongStateOf(0L) }
+    var durationMs by remember { mutableLongStateOf(0L) }
+    var isSeeking by remember { mutableStateOf(false) }
+    var seekRatio by remember { mutableFloatStateOf(0f) }
 
     val exoPlayer = remember(videoUrl) {
         val referer = when {
             videoUrl.contains("gelbooru.com") -> "https://gelbooru.com/"
             videoUrl.contains("rule34.xxx") -> "https://rule34.xxx/"
+            videoUrl.contains("realbooru.com") -> "https://realbooru.com/"
             videoUrl.contains("xbooru.com") -> "https://xbooru.com/"
             videoUrl.contains("tbib.org") -> "https://tbib.org/"
             videoUrl.contains("safebooru.org") -> "https://safebooru.org/"
@@ -549,14 +557,36 @@ fun BooruVideoPlayer(
                     override fun onPlaybackStateChanged(playbackState: Int) {
                         if (playbackState == Player.STATE_READY) {
                             isReady = true
+                            if (duration > 0L) durationMs = duration
                         }
                     }
                     override fun onRenderedFirstFrame() {
                         isReady = true
                     }
+                    override fun onIsPlayingChanged(playing: Boolean) {
+                        isPlaying = playing
+                    }
                 })
                 prepare()
             }
+    }
+
+    LaunchedEffect(exoPlayer, isPlaying) {
+        while (isActive) {
+            if (!isSeeking) {
+                currentPosMs = exoPlayer.currentPosition.coerceAtLeast(0L)
+                val dur = exoPlayer.duration
+                if (dur > 0L) durationMs = dur
+            }
+            delay(200)
+        }
+    }
+
+    LaunchedEffect(showControls, isPlaying, isSeeking) {
+        if (showControls && isPlaying && !isSeeking) {
+            delay(4000)
+            showControls = false
+        }
     }
 
     DisposableEffect(exoPlayer) {
@@ -565,9 +595,14 @@ fun BooruVideoPlayer(
         }
     }
 
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .clickable { showControls = !showControls },
+        contentAlignment = Alignment.Center
+    ) {
 
-        if (previewUrl.isNotBlank()) {
+        if (previewUrl.isNotBlank() && !isReady) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(previewUrl)
@@ -590,17 +625,7 @@ fun BooruVideoPlayer(
                     )
                 }
             },
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable {
-                    if (exoPlayer.isPlaying) {
-                        exoPlayer.pause()
-                        isPlaying = false
-                    } else {
-                        exoPlayer.play()
-                        isPlaying = true
-                    }
-                }
+            modifier = Modifier.fillMaxSize()
         )
 
         if (!isReady) {
@@ -611,47 +636,170 @@ fun BooruVideoPlayer(
             )
         }
 
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showControls || !isPlaying,
+            enter = androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.fadeOut()
         ) {
-            FilledTonalIconButton(
-                onClick = {
-                    isMuted = !isMuted
-                    exoPlayer.volume = if (isMuted) 0f else 1f
-                },
-                shape = CircleShape,
-                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = Color.Black.copy(alpha = 0.6f)
-                ),
-                modifier = Modifier.size(36.dp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                Icon(
-                    imageVector = if (isMuted) Icons.Rounded.VolumeOff else Icons.Rounded.VolumeUp,
-                    contentDescription = if (isMuted) "Unmute" else "Mute",
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-
-        if (!isPlaying) {
-            Surface(
-                shape = CircleShape,
-                color = Color.Black.copy(alpha = 0.55f),
-                modifier = Modifier.size(54.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
+                FilledTonalIconButton(
+                    onClick = {
+                        val target = (exoPlayer.currentPosition - 10000L).coerceAtLeast(0L)
+                        exoPlayer.seekTo(target)
+                        currentPosMs = target
+                    },
+                    modifier = Modifier.size(46.dp),
+                    shape = CircleShape,
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = Color.Black.copy(alpha = 0.6f)
+                    )
+                ) {
                     Icon(
-                        Icons.Rounded.PlayArrow,
-                        contentDescription = "Play",
+                        Icons.Rounded.Replay10,
+                        contentDescription = "Rewind 10s",
                         tint = Color.White,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(26.dp)
+                    )
+                }
+
+                FilledTonalIconButton(
+                    onClick = {
+                        if (exoPlayer.isPlaying) {
+                            exoPlayer.pause()
+                            isPlaying = false
+                        } else {
+                            exoPlayer.play()
+                            isPlaying = true
+                        }
+                    },
+                    modifier = Modifier.size(60.dp),
+                    shape = CircleShape,
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
+
+                FilledTonalIconButton(
+                    onClick = {
+                        val dur = if (durationMs > 0) durationMs else Long.MAX_VALUE
+                        val target = (exoPlayer.currentPosition + 10000L).coerceAtMost(dur)
+                        exoPlayer.seekTo(target)
+                        currentPosMs = target
+                    },
+                    modifier = Modifier.size(46.dp),
+                    shape = CircleShape,
+                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                        containerColor = Color.Black.copy(alpha = 0.6f)
+                    )
+                ) {
+                    Icon(
+                        Icons.Rounded.Forward10,
+                        contentDescription = "Forward 10s",
+                        tint = Color.White,
+                        modifier = Modifier.size(26.dp)
                     )
                 }
             }
         }
+
+        androidx.compose.animation.AnimatedVisibility(
+            visible = showControls || !isPlaying,
+            enter = androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+                        )
+                    )
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                val sliderPosition = when {
+                    isSeeking -> seekRatio
+                    durationMs > 0L -> (currentPosMs.toFloat() / durationMs).coerceIn(0f, 1f)
+                    else -> 0f
+                }
+
+                Slider(
+                    value = sliderPosition,
+                    onValueChange = {
+                        isSeeking = true
+                        seekRatio = it
+                    },
+                    onValueChangeFinished = {
+                        isSeeking = false
+                        if (durationMs > 0L) {
+                            val target = (seekRatio * durationMs).toLong()
+                            exoPlayer.seekTo(target)
+                            currentPosMs = target
+                        }
+                    },
+                    colors = SliderDefaults.colors(
+                        thumbColor = MaterialTheme.colorScheme.primary,
+                        activeTrackColor = MaterialTheme.colorScheme.primary,
+                        inactiveTrackColor = Color.White.copy(alpha = 0.35f)
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    val displayPos = if (isSeeking && durationMs > 0L) (seekRatio * durationMs).toLong() else currentPosMs
+                    val timeText = "${formatVideoTime(displayPos)} / ${formatVideoTime(durationMs)}"
+
+                    Text(
+                        text = timeText,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    FilledTonalIconButton(
+                        onClick = {
+                            isMuted = !isMuted
+                            exoPlayer.volume = if (isMuted) 0f else 1f
+                        },
+                        shape = CircleShape,
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = Color.Black.copy(alpha = 0.5f)
+                        ),
+                        modifier = Modifier.size(34.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isMuted) Icons.Rounded.VolumeOff else Icons.Rounded.VolumeUp,
+                            contentDescription = if (isMuted) "Unmute" else "Mute",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+        }
     }
+}
+
+private fun formatVideoTime(ms: Long): String {
+    val totalSeconds = (ms / 1000).coerceAtLeast(0)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format("%02d:%02d", minutes, seconds)
 }

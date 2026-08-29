@@ -448,4 +448,34 @@ object Strings {
         AppLanguage.ENGLISH -> "Light theme"
         AppLanguage.RUSSIAN -> "Светлая тема"
     }
+
+    fun tagBlacklistTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Tag Blacklist"
+        AppLanguage.RUSSIAN -> "Чёрный список тегов"
+    }
+
+    fun tagBlacklistDesc(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Hide posts containing specific tags from results"
+        AppLanguage.RUSSIAN -> "Скрывать посты с указанными тегами из поиска"
+    }
+
+    fun addTagBtn(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Add"
+        AppLanguage.RUSSIAN -> "Добавить"
+    }
+
+    fun addTagPlaceholder(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Enter tag to block..."
+        AppLanguage.RUSSIAN -> "Введите тег для скрытия..."
+    }
+
+    fun noBlacklistedTags(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "No blocked tags added yet"
+        AppLanguage.RUSSIAN -> "Список заблокированных тегов пуст"
+    }
+
+    fun clearAllBlacklist(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Clear all"
+        AppLanguage.RUSSIAN -> "Очистить всё"
+    }
 }

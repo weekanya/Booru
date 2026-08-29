@@ -50,6 +50,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     var searchHistory  by mutableStateOf<List<String>>(emptyList());        private set
     var tagSuggestions by mutableStateOf<List<TagSuggestion>>(emptyList()); private set
+    var tagBlacklist   by mutableStateOf<List<String>>(emptyList());        private set
 
     private var currentPage = 0
     private var hasMore = true
@@ -80,6 +81,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
         viewModelScope.launch {
             prefs.searchHistory.collect { searchHistory = it }
+        }
+        viewModelScope.launch {
+            prefs.tagBlacklist.collect { bl ->
+                tagBlacklist = bl
+                if (results.isNotEmpty()) {
+                    results = results.filterNot { isBlacklisted(it, bl) }
+                }
+            }
         }
         viewModelScope.launch {
             prefs.rule34UserId.collect { rule34UserId = it }
@@ -133,6 +142,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         gelbooruApiKey = gelbooruApiKey
     )
 
+    fun isBlacklisted(media: RemoteMedia, blacklist: List<String> = tagBlacklist): Boolean {
+        if (blacklist.isEmpty()) return false
+        val mediaTags = media.tags.lowercase().split("\\s+".toRegex()).toSet()
+        return blacklist.any { bl ->
+            val clean = bl.trim().lowercase()
+            clean.isNotBlank() && (clean in mediaTags || media.tags.contains(clean, ignoreCase = true))
+        }
+    }
+
     fun search(newSource: String, newQuery: String, newSafeMode: Boolean) {
         source   = newSource
         query    = newQuery
@@ -163,7 +181,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     sortOrder = sortOrder,
                     credentials = getCredentials()
                 )
-                results = list
+                results = list.filterNot { isBlacklisted(it) }
                 hasMore = list.size >= 20
             } catch (authEx: BooruAuthException) {
                 isAuthError = true
@@ -205,7 +223,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     sortOrder = sortOrder,
                     credentials = getCredentials()
                 )
-                results = results + list
+                val filtered = list.filterNot { isBlacklisted(it) }
+                results = results + filtered
                 hasMore = list.size >= 20
             } catch (c: kotlinx.coroutines.CancellationException) {
 
@@ -352,6 +371,18 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearHistory() {
         viewModelScope.launch { prefs.clearSearchHistory() }
+    }
+
+    fun addBlacklistedTag(tag: String) {
+        viewModelScope.launch { prefs.addTagToBlacklist(tag) }
+    }
+
+    fun removeBlacklistedTag(tag: String) {
+        viewModelScope.launch { prefs.removeTagFromBlacklist(tag) }
+    }
+
+    fun clearBlacklist() {
+        viewModelScope.launch { prefs.clearTagBlacklist() }
     }
 
     fun clearError() {
