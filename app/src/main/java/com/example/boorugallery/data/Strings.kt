@@ -96,16 +96,6 @@ object Strings {
         AppLanguage.RUSSIAN -> "Безопасный"
     }
 
-    fun noAiTitle(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Filter AI Content"
-        AppLanguage.RUSSIAN -> "Фильтр ИИ-артов"
-    }
-
-    fun noAiDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Exclude AI-generated images"
-        AppLanguage.RUSSIAN -> "Исключить арты, созданные нейросетями"
-    }
-
     fun noAiBadge(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "No AI"
         AppLanguage.RUSSIAN -> "Без ИИ"
@@ -119,16 +109,6 @@ object Strings {
     fun downloadBtn(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Download"
         AppLanguage.RUSSIAN -> "Скачать"
-    }
-
-    fun shareBtn(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Share"
-        AppLanguage.RUSSIAN -> "Поделиться"
-    }
-
-    fun openBrowserBtn(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Open in Browser"
-        AppLanguage.RUSSIAN -> "В браузере"
     }
 
     fun ratingSafe(lang: AppLanguage) = when (lang) {
@@ -186,34 +166,9 @@ object Strings {
         AppLanguage.RUSSIAN -> "Динамический Monet или готовая цветовая тема"
     }
 
-    fun monetTitle(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Dynamic Color (Monet)"
-        AppLanguage.RUSSIAN -> "Динамические цвета (Monet)"
-    }
-
-    fun monetDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Adaptive palette from your wallpaper"
-        AppLanguage.RUSSIAN -> "Цветовая палитра из обоев Android"
-    }
-
     fun dataSection(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "DATA & ABOUT"
         AppLanguage.RUSSIAN -> "ДАННЫЕ И О ПРИЛОЖЕНИИ"
-    }
-
-    fun searchHistoryTitle(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Search History"
-        AppLanguage.RUSSIAN -> "История поиска"
-    }
-
-    fun searchHistoryEmpty(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "History is empty"
-        AppLanguage.RUSSIAN -> "История пуста"
-    }
-
-    fun searchHistoryCount(count: Int, lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "$count saved queries"
-        AppLanguage.RUSSIAN -> "$count сохранённых запросов"
     }
 
     fun aboutAppTitle(lang: AppLanguage) = when (lang) {
@@ -274,11 +229,6 @@ object Strings {
     fun updateCheckFailedDesc(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Could not reach GitHub servers. Please check your internet connection."
         AppLanguage.RUSSIAN -> "Не удалось связаться с серверами GitHub. Проверьте интернет-соединение."
-    }
-
-    fun checkingUpdates(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Checking for updates..."
-        AppLanguage.RUSSIAN -> "Проверка обновлений..."
     }
 
     fun savedPostsCount(count: Int, lang: AppLanguage) = when (lang) {
@@ -404,21 +354,6 @@ object Strings {
         AppLanguage.RUSSIAN -> "Ввести API Key"
     }
 
-    fun openSettingsBtn(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Open Settings"
-        AppLanguage.RUSSIAN -> "Открыть Настройки"
-    }
-
-    fun timeoutError(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Connection timed out. Please try again."
-        AppLanguage.RUSSIAN -> "Превышено время ожидания. Попробуйте еще раз."
-    }
-
-    fun networkError(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "No internet connection or server unreachable."
-        AppLanguage.RUSSIAN -> "Нет подключения к интернету или сервер недоступен."
-    }
-
     fun failedToLoad(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Failed to load data. Please check your internet connection."
         AppLanguage.RUSSIAN -> "Не удалось загрузить данные. Проверьте интернет-соединение."
@@ -437,11 +372,6 @@ object Strings {
     fun keysSavedToast(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Keys saved!"
         AppLanguage.RUSSIAN -> "Ключи сохранены!"
-    }
-
-    fun historyClearedToast(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "History cleared"
-        AppLanguage.RUSSIAN -> "История очищена"
     }
 
     fun rule34DialogDesc(lang: AppLanguage) = when (lang) {
