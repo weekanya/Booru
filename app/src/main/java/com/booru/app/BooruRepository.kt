@@ -142,7 +142,6 @@ class BooruRepository(
         val allResults = mutableListOf<RemoteMedia>()
         var firstAuthEx: BooruAuthException? = null
 
-        // Limit concurrent requests to prevent thread starvation
         val semaphore = Semaphore(MAX_CONCURRENT_REQUESTS)
 
         val deferredList = coroutineScope {
@@ -183,7 +182,6 @@ class BooruRepository(
             }
         }
 
-        // Sort NEWEST properly by createdAt timestamp (items with unknown date placed after known dates)
         if (source == SOURCE_ALL && sortOrder == SortOrder.NEWEST && allResults.isNotEmpty()) {
             allResults.sortedWith(
                 compareByDescending<RemoteMedia> { it.createdAt > 0 }
@@ -364,10 +362,10 @@ class BooruRepository(
             try {
                 return requestSource(key, userTags, safe, excludeSafe, noAi, page, sortOrder, credentials)
             } catch (auth: BooruAuthException) {
-                // Non-retryable auth error
+
                 throw auth
             } catch (http: BooruHttpException) {
-                // Non-retryable client errors: 400, 401, 403, 404, 422
+
                 if (http.statusCode in 400..499 && http.statusCode != 408 && http.statusCode != 429) {
                     throw http
                 }
@@ -378,7 +376,7 @@ class BooruRepository(
                     val waitSec = http.retryAfterSec.coerceIn(1, MAX_RETRY_AFTER_SECONDS)
                     delay(waitSec * 1000L)
                 } else {
-                    val baseDelay = 500L * (1L shl attempt) // Exponential: 500ms, 1000ms, 2000ms
+                    val baseDelay = 500L * (1L shl attempt)
                     val jitter = Random.nextLong(0, 150)
                     val totalDelay = (baseDelay + jitter).coerceAtMost(5000L)
                     delay(totalDelay)
@@ -523,11 +521,10 @@ class BooruRepository(
 
     private fun parseRetryAfter(header: String?): Int? {
         if (header.isNullOrBlank()) return null
-        // 1. Try seconds integer e.g. "5"
+
         val seconds = header.trim().toIntOrNull()
         if (seconds != null) return seconds
 
-        // 2. Try HTTP-Date e.g. "Wed, 21 Oct 2026 07:28:00 GMT"
         return try {
             val targetInstant = Instant.from(DateTimeFormatter.RFC_1123_DATE_TIME.parse(header.trim()))
             val diffSeconds = targetInstant.epochSecond - Instant.now().epochSecond
@@ -538,7 +535,7 @@ class BooruRepository(
     }
 
     private fun logSanitized(key: String, url: HttpUrl) {
-        // Never log sensitive credentials in Logcat
+
         val sanitized = url.newBuilder()
             .apply {
                 if (url.queryParameter("api_key") != null) setQueryParameter("api_key", "[REDACTED]")
@@ -681,7 +678,6 @@ class BooruRepository(
             val width = o.optInt("width", 0).takeIf { it > 0 } ?: o.optInt("image_width", 0)
             val height = o.optInt("height", 0).takeIf { it > 0 } ?: o.optInt("image_height", 0)
 
-            // Normalized createdAt epoch timestamp from real date fields (never fallback to id)
             val createdAt: Long = when {
                 o.has("created_at") -> TimestampParser.parseToEpochSeconds(o.opt("created_at"))
                 o.has("change")     -> TimestampParser.parseToEpochSeconds(o.opt("change"))

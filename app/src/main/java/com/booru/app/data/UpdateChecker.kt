@@ -80,7 +80,6 @@ object UpdateChecker {
             if (minor != other.minor) return minor.compareTo(other.minor)
             if (patch != other.patch) return patch.compareTo(other.patch)
 
-            // Normal release is greater than pre-release with same numbers (e.g. 2.0.0 > 2.0.0-beta)
             if (preRelease == null && other.preRelease != null) return 1
             if (preRelease != null && other.preRelease == null) return -1
             if (preRelease != null && other.preRelease != null) {

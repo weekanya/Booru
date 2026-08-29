@@ -33,7 +33,6 @@ object RealbooruHtmlParser {
                 thumbSrc
             }
 
-            // High-res image URL conversion from thumbnail
             val originalUrl = previewUrl
                 .replace("/thumbnails/", "/images/")
                 .replace("/thumbnail_", "/")

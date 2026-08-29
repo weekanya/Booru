@@ -118,12 +118,11 @@ object BooruCacheManager {
 
     @OptIn(coil.annotation.ExperimentalCoilApi::class)
     suspend fun clearBrowsingCache(context: Context, favorites: List<RemoteMedia> = emptyList()) = withContext(Dispatchers.IO) {
-        // Ensure all favorite media files are safely persisted in filesDir first
+
         for (fav in favorites) {
             saveFavoriteMedia(context, fav)
         }
 
-        // Clear Coil memory/disk cache and temporary cacheDir files
         try {
             coil.Coil.imageLoader(context).memoryCache?.clear()
             coil.Coil.imageLoader(context).diskCache?.clear()

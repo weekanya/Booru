@@ -74,7 +74,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private var suggestionJob: Job? = null
 
     init {
-        // Load credentials from secure storage
+
         rule34UserId = secureStorage.getRule34UserId()
         rule34ApiKey = secureStorage.getRule34ApiKey()
         gelbooruUserId = secureStorage.getGelbooruUserId()
@@ -113,7 +113,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             }
         }
 
-        // Collect favorites from Room Database
         viewModelScope.launch {
             favoriteDao.getAllFavorites().collect { entities ->
                 val mediaList = entities.map { it.toRemoteMedia() }
@@ -126,7 +125,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             }
         }
 
-        // Migrate legacy DataStore favorites if any exist
         viewModelScope.launch {
             runCatching {
                 val legacyFavs = prefs.favorites.first()
@@ -134,7 +132,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     legacyFavs.forEach { fav ->
                         favoriteDao.insert(FavoriteEntity.fromRemoteMedia(fav))
                     }
-                    prefs.saveFavorites(emptyList()) // Clear legacy
+                    prefs.saveFavorites(emptyList())
                 }
             }
         }

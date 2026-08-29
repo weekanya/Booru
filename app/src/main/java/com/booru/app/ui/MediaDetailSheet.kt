@@ -332,7 +332,6 @@ fun MediaDetailSheet(
                 .padding(bottom = 36.dp)
         ) {
 
-            // HERO MEDIA CONTAINER
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -418,7 +417,6 @@ fun MediaDetailSheet(
                     }
                 }
 
-                // FLOATING TOP-LEFT BADGES
                 Row(
                     modifier = Modifier
                         .align(Alignment.TopStart)
@@ -476,7 +474,6 @@ fun MediaDetailSheet(
 
             Spacer(Modifier.height(16.dp))
 
-            // PRIMARY ACTION BAR
             Surface(
                 shape = RoundedCornerShape(24.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -492,7 +489,6 @@ fun MediaDetailSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
 
-                    // Download Button
                     Button(
                         onClick = { downloadOriginalFile() },
                         enabled = !isDownloading,
@@ -533,7 +529,7 @@ fun MediaDetailSheet(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Favorite Toggle
+
                         val favBg by animateColorAsState(
                             targetValue = if (isFav) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
                             label = "favBg"
@@ -560,7 +556,6 @@ fun MediaDetailSheet(
                             )
                         }
 
-                        // Wallpaper (Photo Only)
                         if (!media.isVideo) {
                             FilledTonalIconButton(
                                 onClick = { showWallpaperDialog = true },
@@ -590,7 +585,6 @@ fun MediaDetailSheet(
                             }
                         }
 
-                        // Share Button
                         FilledTonalIconButton(
                             onClick = {
                                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -615,7 +609,6 @@ fun MediaDetailSheet(
                             )
                         }
 
-                        // Open In Browser
                         FilledTonalIconButton(
                             onClick = {
                                 runCatching {
@@ -645,14 +638,13 @@ fun MediaDetailSheet(
 
             Spacer(Modifier.height(14.dp))
 
-            // INFO TILES GRID
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Score Tile
+
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -693,7 +685,6 @@ fun MediaDetailSheet(
                     }
                 }
 
-                // Resolution Tile
                 if (media.width > 0 && media.height > 0) {
                     Surface(
                         shape = RoundedCornerShape(20.dp),
@@ -741,7 +732,6 @@ fun MediaDetailSheet(
 
             Spacer(Modifier.height(18.dp))
 
-            // TAGS SECTION HEADER
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -795,7 +785,6 @@ fun MediaDetailSheet(
 
             Spacer(Modifier.height(10.dp))
 
-            // TAGS CHIP FLOW
             OptInFlowDetailTags(
                 tags = media.tagList,
                 onTagClick = { tag ->
@@ -806,7 +795,6 @@ fun MediaDetailSheet(
         }
     }
 
-    // 1-CLICK WALLPAPER DIALOG (NO CROP & SET)
     if (showWallpaperDialog) {
         AlertDialog(
             onDismissRequest = { showWallpaperDialog = false },

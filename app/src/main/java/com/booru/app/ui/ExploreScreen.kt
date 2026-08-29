@@ -758,7 +758,6 @@ fun ExploreScreen(
                             Spacer(Modifier.height(16.dp))
                         }
 
-
                         if (vm.searchHistory.isNotEmpty()) {
                             Card(
                                 shape = RoundedCornerShape(24.dp),
@@ -871,8 +870,6 @@ fun ExploreScreen(
         }
     }
 }
-
-
 
 @Composable
 private fun MediaCard(
