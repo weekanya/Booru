@@ -56,9 +56,7 @@ data class BooruCredentials(
     val rule34UserId: String = "",
     val rule34ApiKey: String = "",
     val gelbooruUserId: String = "",
-    val gelbooruApiKey: String = "",
-    val danbooruLogin: String = "",
-    val danbooruApiKey: String = ""
+    val gelbooruApiKey: String = ""
 )
 
 open class BooruException(message: String, cause: Throwable? = null) : Exception(message, cause)

@@ -43,8 +43,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var rule34ApiKey   by mutableStateOf(""); private set
     var gelbooruUserId by mutableStateOf(""); private set
     var gelbooruApiKey by mutableStateOf(""); private set
-    var danbooruLogin  by mutableStateOf(""); private set
-    var danbooruApiKey by mutableStateOf(""); private set
 
     var favoritesList by mutableStateOf<List<RemoteMedia>>(emptyList()); private set
     var favoriteIds   by mutableStateOf<Set<String>>(emptySet());        private set
@@ -96,12 +94,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             prefs.gelbooruApiKey.collect { gelbooruApiKey = it }
         }
         viewModelScope.launch {
-            prefs.danbooruLogin.collect { danbooruLogin = it }
-        }
-        viewModelScope.launch {
-            prefs.danbooruApiKey.collect { danbooruApiKey = it }
-        }
-        viewModelScope.launch {
             prefs.favorites.collect { list ->
                 updateFavoritesState(list)
             }
@@ -138,9 +130,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         rule34UserId = rule34UserId,
         rule34ApiKey = rule34ApiKey,
         gelbooruUserId = gelbooruUserId,
-        gelbooruApiKey = gelbooruApiKey,
-        danbooruLogin = danbooruLogin,
-        danbooruApiKey = danbooruApiKey
+        gelbooruApiKey = gelbooruApiKey
     )
 
     fun search(newSource: String, newQuery: String, newSafeMode: Boolean) {
@@ -353,12 +343,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun saveGelbooruKeys(userId: String, apiKey: String) {
         viewModelScope.launch {
             prefs.setGelbooruCredentials(userId, apiKey)
-        }
-    }
-
-    fun saveDanbooruKeys(login: String, apiKey: String) {
-        viewModelScope.launch {
-            prefs.setDanbooruCredentials(login, apiKey)
         }
     }
 

@@ -36,8 +36,6 @@ class BooruPreferences(private val context: Context) {
         val KEY_RULE34_API_KEY = stringPreferencesKey("rule34_api_key")
         val KEY_GELBOORU_USER_ID = stringPreferencesKey("gelbooru_user_id")
         val KEY_GELBOORU_API_KEY = stringPreferencesKey("gelbooru_api_key")
-        val KEY_DANBOORU_LOGIN = stringPreferencesKey("danbooru_login")
-        val KEY_DANBOORU_API_KEY = stringPreferencesKey("danbooru_api_key")
     }
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
@@ -96,14 +94,6 @@ class BooruPreferences(private val context: Context) {
 
     val gelbooruApiKey: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[KEY_GELBOORU_API_KEY] ?: ""
-    }
-
-    val danbooruLogin: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_DANBOORU_LOGIN] ?: ""
-    }
-
-    val danbooruApiKey: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_DANBOORU_API_KEY] ?: ""
     }
 
     val favorites: Flow<List<RemoteMedia>> = context.dataStore.data.map { prefs ->
@@ -166,13 +156,6 @@ class BooruPreferences(private val context: Context) {
         context.dataStore.edit {
             it[KEY_GELBOORU_USER_ID] = userId.trim()
             it[KEY_GELBOORU_API_KEY] = apiKey.trim()
-        }
-    }
-
-    suspend fun setDanbooruCredentials(login: String, apiKey: String) {
-        context.dataStore.edit {
-            it[KEY_DANBOORU_LOGIN] = login.trim()
-            it[KEY_DANBOORU_API_KEY] = apiKey.trim()
         }
     }
 

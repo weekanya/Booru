@@ -47,12 +47,8 @@ fun SettingsScreen(
     var gelbooruUser by remember(vm.gelbooruUserId) { mutableStateOf(vm.gelbooruUserId) }
     var gelbooruKey by remember(vm.gelbooruApiKey) { mutableStateOf(vm.gelbooruApiKey) }
 
-    var danbooruLogin by remember(vm.danbooruLogin) { mutableStateOf(vm.danbooruLogin) }
-    var danbooruKey by remember(vm.danbooruApiKey) { mutableStateOf(vm.danbooruApiKey) }
-
     var showRule34Dialog by remember { mutableStateOf(false) }
     var showGelbooruDialog by remember { mutableStateOf(false) }
-    var showDanbooruDialog by remember { mutableStateOf(false) }
 
     if (showRule34Dialog) {
         AlertDialog(
@@ -198,79 +194,6 @@ fun SettingsScreen(
         )
     }
 
-    if (showDanbooruDialog) {
-        AlertDialog(
-            onDismissRequest = { showDanbooruDialog = false },
-            shape = RoundedCornerShape(28.dp),
-            icon = {
-                Icon(
-                    Icons.Rounded.Api,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                )
-            },
-            title = {
-                Text("Danbooru API Keys", style = MaterialTheme.typography.titleLarge)
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(
-                        Strings.danbooruDialogDesc(lang),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    OutlinedTextField(
-                        value = danbooruLogin,
-                        onValueChange = { danbooruLogin = it },
-                        label = { Text("Username / Login") },
-                        placeholder = { Text("username") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    OutlinedTextField(
-                        value = danbooruKey,
-                        onValueChange = { danbooruKey = it },
-                        label = { Text("API Key") },
-                        placeholder = { Text("API Key") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    TextButton(
-                        onClick = {
-                            val url = "https://danbooru.donmai.us/profile"
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                        },
-                        contentPadding = PaddingValues(0.dp)
-                    ) {
-                        Text(Strings.getDanbooruKeyFromSite(lang))
-                        Spacer(Modifier.width(4.dp))
-                        Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, modifier = Modifier.size(16.dp))
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        vm.saveDanbooruKeys(danbooruLogin, danbooruKey)
-                        showDanbooruDialog = false
-                        Toast.makeText(context, Strings.danbooruKeysSavedToast(lang), Toast.LENGTH_SHORT).show()
-                    },
-                    shape = CircleShape
-                ) {
-                    Text(Strings.saveBtn(lang))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDanbooruDialog = false }) {
-                    Text(Strings.cancelBtn(lang))
-                }
-            }
-        )
-    }
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -368,15 +291,6 @@ fun SettingsScreen(
                 subtitle = if (vm.gelbooruApiKey.isNotBlank()) "Configured (User ID: ${vm.gelbooruUserId})" else Strings.tapToEnterKeys(lang),
                 icon = Icons.Rounded.VpnKey,
                 onClick = { showGelbooruDialog = true }
-            )
-
-            SettingsDivider()
-
-            SettingRowItem(
-                title = "Danbooru API",
-                subtitle = if (vm.danbooruApiKey.isNotBlank()) "Configured (${vm.danbooruLogin})" else Strings.tapToEnterDanbooruKeys(lang),
-                icon = Icons.Rounded.Api,
-                onClick = { showDanbooruDialog = true }
             )
         }
 
