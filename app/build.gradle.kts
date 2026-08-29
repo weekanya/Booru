@@ -22,6 +22,10 @@ android {
             storePassword = "boorupass"
             keyAlias = "booru"
             keyPassword = "boorupass"
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+            enableV4Signing = true
         }
     }
 
