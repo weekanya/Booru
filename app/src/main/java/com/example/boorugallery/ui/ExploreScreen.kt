@@ -95,17 +95,6 @@ fun ExploreScreen(
         vm.clearTagSuggestions()
     }
 
-    val bgScale by animateFloatAsState(
-        targetValue = if (searchExpanded) 0.96f else 1f,
-        animationSpec = spring(dampingRatio = 0.85f, stiffness = 400f),
-        label = "bgScale"
-    )
-    val bgAlpha by animateFloatAsState(
-        targetValue = if (searchExpanded) 0.45f else 1f,
-        animationSpec = tween(durationMillis = 200),
-        label = "bgAlpha"
-    )
-
     val gridState = rememberLazyStaggeredGridState()
 
     val shouldLoadMore by remember {
@@ -133,11 +122,6 @@ fun ExploreScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = bgScale
-                    scaleY = bgScale
-                    alpha = bgAlpha
-                }
                 .padding(top = 70.dp)
         ) {
 
@@ -584,26 +568,8 @@ fun ExploreScreen(
 
         AnimatedVisibility(
             visible = searchExpanded,
-            enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
-                    scaleIn(
-                        initialScale = 0.94f,
-                        transformOrigin = TransformOrigin(0.5f, 0.05f),
-                        animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f)
-                    ) +
-                    slideInVertically(
-                        initialOffsetY = { -it / 12 },
-                        animationSpec = spring(dampingRatio = 0.82f, stiffness = 380f)
-                    ),
-            exit = fadeOut(animationSpec = tween(170, easing = FastOutLinearInEasing)) +
-                   scaleOut(
-                       targetScale = 0.94f,
-                       transformOrigin = TransformOrigin(0.5f, 0.05f),
-                       animationSpec = tween(170, easing = FastOutSlowInEasing)
-                   ) +
-                   slideOutVertically(
-                       targetOffsetY = { -it / 14 },
-                       animationSpec = tween(170, easing = FastOutSlowInEasing)
-                   ),
+            enter = fadeIn(animationSpec = tween(durationMillis = 200, easing = LinearOutSlowInEasing)),
+            exit = fadeOut(animationSpec = tween(durationMillis = 180, easing = FastOutLinearInEasing)),
             modifier = Modifier.fillMaxSize()
         ) {
             Surface(
