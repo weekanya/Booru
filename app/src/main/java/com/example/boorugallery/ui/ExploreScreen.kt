@@ -64,11 +64,6 @@ fun ExploreScreen(
         localQuery = vm.query
     }
 
-    BackHandler(enabled = searchExpanded) {
-        searchExpanded = false
-        vm.clearTagSuggestions()
-    }
-
     val searchContentAlpha by animateFloatAsState(
         targetValue = if (searchExpanded) 1f else 0f,
         animationSpec = tween(
@@ -587,7 +582,12 @@ fun ExploreScreen(
                 )
             },
             expanded = searchExpanded,
-            onExpandedChange = { searchExpanded = it },
+            onExpandedChange = { expanded ->
+                searchExpanded = expanded
+                if (!expanded) {
+                    vm.clearTagSuggestions()
+                }
+            },
             windowInsets = WindowInsets(0, 0, 0, 0),
             colors = SearchBarDefaults.colors(
                 containerColor = if (searchExpanded) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerHigh,
