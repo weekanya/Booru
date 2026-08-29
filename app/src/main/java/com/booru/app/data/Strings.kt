@@ -177,8 +177,8 @@ object Strings {
     }
 
     fun aboutAppDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Booru • Version 3.0"
-        AppLanguage.RUSSIAN -> "Booru • Версия 3.0"
+        AppLanguage.ENGLISH -> "Booru • Version 3.1"
+        AppLanguage.RUSSIAN -> "Booru • Версия 3.1"
     }
 
     fun checkUpdatesTitle(lang: AppLanguage) = when (lang) {
