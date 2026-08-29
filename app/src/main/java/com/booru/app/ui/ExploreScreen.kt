@@ -1,4 +1,4 @@
-package com.example.boorugallery.ui
+package com.booru.app.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -52,12 +52,12 @@ import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
-import com.example.boorugallery.BooruRepository
-import com.example.boorugallery.GalleryViewModel
-import com.example.boorugallery.RemoteMedia
-import com.example.boorugallery.SortOrder
-import com.example.boorugallery.data.AppLanguage
-import com.example.boorugallery.data.Strings
+import com.booru.app.BooruRepository
+import com.booru.app.GalleryViewModel
+import com.booru.app.RemoteMedia
+import com.booru.app.SortOrder
+import com.booru.app.data.AppLanguage
+import com.booru.app.data.Strings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -555,6 +555,20 @@ fun ExploreScreen(
                             contentDescription = "Clear",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
+                        )
+                    }
+                } else {
+                    IconButton(
+                        onClick = {
+                            vm.refresh()
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Refresh,
+                            contentDescription = "Reload Feed",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }

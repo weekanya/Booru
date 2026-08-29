@@ -1,43 +1,28 @@
-package com.example.boorugallery
+package com.booru.app
 
 import android.util.Log
+import com.booru.app.data.parser.RealbooruHtmlParser
+import com.booru.app.data.parser.TimestampParser
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.IOException
+import java.net.SocketTimeoutException
+import java.time.Instant
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
-
-data class RemoteMedia(
-    val url: String,
-    val preview: String,
-    val sample: String = "",
-    val tags: String,
-    val score: Int,
-    val source: String,
-    val rating: String,
-    val id: String = "",
-    val width: Int = 0,
-    val height: Int = 0
-) {
-    val tagList: List<String> by lazy {
-        tags.split(" ").map { it.trim() }.filter { it.isNotBlank() }
-    }
-
-    val isVideo: Boolean
-        get() {
-            val clean = url.substringBefore("?").lowercase()
-            return clean.endsWith(".mp4") || clean.endsWith(".webm") || clean.endsWith(".mkv") || clean.endsWith(".mov")
-        }
-
-    val isGif: Boolean
-        get() {
-            val clean = url.substringBefore("?").lowercase()
-            return clean.endsWith(".gif")
-        }
-}
+import kotlin.random.Random
 
 data class TagSuggestion(
     val value: String,
@@ -70,19 +55,24 @@ class BooruAuthException(
 class BooruHttpException(
     val sourceKey: String,
     val statusCode: Int,
+    val retryAfterSec: Int? = null,
     message: String = "HTTP $statusCode from $sourceKey"
 ) : BooruException(message)
 
-class BooruRepository {
-
-    private val client = OkHttpClient.Builder()
+class BooruRepository(
+    private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
         .followRedirects(true)
         .build()
+) {
 
     companion object {
         const val TAG = "BooruRepo"
+        const val PAGE_SIZE = 40
+        private const val MAX_CONCURRENT_REQUESTS = 4
+        private const val MAX_RETRY_AFTER_SECONDS = 60
+
         val EXPLICIT_RATINGS = setOf("e", "explicit", "q", "questionable")
         val SAFE_RATINGS = setOf("s", "safe", "g", "general")
         val MEDIA_EXTENSIONS = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "avif", "mp4", "webm", "mkv", "mov", "zip")
@@ -108,6 +98,18 @@ class BooruRepository {
             SOURCE_KONACHAN,
             SOURCE_SAFEBOORU
         )
+
+        fun getSourceDisplayName(key: String): String = when (key.lowercase()) {
+            "rule34"    -> SOURCE_RULE34
+            "gelbooru"  -> SOURCE_GELBOORU
+            "realbooru" -> SOURCE_REALBOORU
+            "xbooru"    -> SOURCE_XBOORU
+            "tbib"      -> SOURCE_TBIB
+            "yande"     -> SOURCE_YANDE
+            "konachan"  -> SOURCE_KONACHAN
+            "safebooru" -> SOURCE_SAFEBOORU
+            else        -> key
+        }
     }
 
     suspend fun search(
@@ -140,31 +142,54 @@ class BooruRepository {
         val allResults = mutableListOf<RemoteMedia>()
         var firstAuthEx: BooruAuthException? = null
 
-        for (key in targets) {
-            try {
-                val list = requestSource(key, tags.trim(), safeMode, excludeSafe, noAi, page, sortOrder, credentials)
-                allResults.addAll(list)
-            } catch (auth: BooruAuthException) {
-                Log.e(TAG, "[$key] Auth Error: ${auth.message}", auth)
-                if (firstAuthEx == null) firstAuthEx = auth
-                errors.add("${getSourceDisplayName(key)}: ${auth.message}")
-            } catch (e: Exception) {
-                Log.e(TAG, "[$key] Error: ${e.message}", e)
-                errors.add("${getSourceDisplayName(key)}: ${e.message ?: "Load failed"}")
+        // Limit concurrent requests to prevent thread starvation
+        val semaphore = Semaphore(MAX_CONCURRENT_REQUESTS)
+
+        val deferredList = coroutineScope {
+            targets.map { key ->
+                async {
+                    semaphore.withPermit {
+                        try {
+                            val list = requestSourceWithRetry(key, tags.trim(), safeMode, excludeSafe, noAi, page, sortOrder, credentials)
+                            Result.success(list)
+                        } catch (auth: BooruAuthException) {
+                            Log.e(TAG, "[$key] Auth Error: ${auth.message}")
+                            Result.failure(auth)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "[$key] Error: ${e.message}")
+                            Result.failure(e)
+                        }
+                    }
+                }
+            }.awaitAll()
+        }
+
+        for (res in deferredList) {
+            res.onSuccess { allResults.addAll(it) }
+            res.onFailure { ex ->
+                if (ex is BooruAuthException && firstAuthEx == null) {
+                    firstAuthEx = ex
+                }
+                errors.add(ex.message ?: "Load failed")
             }
         }
 
         if (allResults.isEmpty()) {
             if (firstAuthEx != null && (targets.size == 1 || errors.size == targets.size)) {
-                throw firstAuthEx
+                throw firstAuthEx!!
             }
             if (errors.isNotEmpty()) {
                 throw BooruException(errors.joinToString("\n"))
             }
         }
 
+        // Sort NEWEST properly by createdAt timestamp (items with unknown date placed after known dates)
         if (source == SOURCE_ALL && sortOrder == SortOrder.NEWEST && allResults.isNotEmpty()) {
-            allResults.sortedByDescending { it.score }
+            allResults.sortedWith(
+                compareByDescending<RemoteMedia> { it.createdAt > 0 }
+                    .thenByDescending { it.createdAt }
+                    .thenByDescending { it.score }
+            )
         } else {
             allResults
         }
@@ -258,14 +283,19 @@ class BooruRepository {
 
     private fun normalizeUserTags(raw: String): String {
         return raw.trim()
-            .split("\\s+".toRegex())
-            .filter { it.isNotBlank() }
-            .joinToString(" ")
     }
 
-    private fun buildTagQuery(userTags: String, safe: Boolean, excludeSafe: Boolean, noAi: Boolean, key: String, sortOrder: SortOrder): String {
-        val cleaned = normalizeUserTags(userTags)
+    private fun buildTagQuery(
+        userTags: String,
+        safe: Boolean,
+        excludeSafe: Boolean,
+        noAi: Boolean,
+        key: String,
+        sortOrder: SortOrder
+    ): String {
         val parts = mutableListOf<String>()
+
+        val cleaned = normalizeUserTags(userTags)
         if (cleaned.isNotBlank()) {
             parts.add(cleaned)
         }
@@ -317,6 +347,58 @@ class BooruRepository {
         return parts.joinToString(" ")
     }
 
+    private suspend fun requestSourceWithRetry(
+        key: String,
+        userTags: String,
+        safe: Boolean,
+        excludeSafe: Boolean,
+        noAi: Boolean,
+        page: Int,
+        sortOrder: SortOrder,
+        credentials: BooruCredentials
+    ): List<RemoteMedia> {
+        var attempt = 0
+        var lastException: Exception? = null
+
+        while (attempt < 3) {
+            try {
+                return requestSource(key, userTags, safe, excludeSafe, noAi, page, sortOrder, credentials)
+            } catch (auth: BooruAuthException) {
+                // Non-retryable auth error
+                throw auth
+            } catch (http: BooruHttpException) {
+                // Non-retryable client errors: 400, 401, 403, 404, 422
+                if (http.statusCode in 400..499 && http.statusCode != 408 && http.statusCode != 429) {
+                    throw http
+                }
+
+                lastException = http
+
+                if (http.statusCode == 429 && http.retryAfterSec != null) {
+                    val waitSec = http.retryAfterSec.coerceIn(1, MAX_RETRY_AFTER_SECONDS)
+                    delay(waitSec * 1000L)
+                } else {
+                    val baseDelay = 500L * (1L shl attempt) // Exponential: 500ms, 1000ms, 2000ms
+                    val jitter = Random.nextLong(0, 150)
+                    val totalDelay = (baseDelay + jitter).coerceAtMost(5000L)
+                    delay(totalDelay)
+                }
+            } catch (e: Exception) {
+                lastException = e
+                if (e is SocketTimeoutException || e is IOException) {
+                    val baseDelay = 500L * (1L shl attempt)
+                    val jitter = Random.nextLong(0, 150)
+                    val totalDelay = (baseDelay + jitter).coerceAtMost(5000L)
+                    delay(totalDelay)
+                } else {
+                    throw e
+                }
+            }
+            attempt++
+        }
+        throw lastException ?: BooruException("Failed to fetch from $key")
+    }
+
     private fun requestSource(
         key: String,
         userTags: String,
@@ -334,10 +416,11 @@ class BooruRepository {
                 addQueryParameter("page", "post")
                 addQueryParameter("s", "list")
                 if (tagQuery.isNotBlank()) addQueryParameter("tags", tagQuery)
-                addQueryParameter("pid", (page * 42).toString())
+                addQueryParameter("pid", (page * PAGE_SIZE).toString())
             }
             val fullUrl = urlBuilder.build()
-            Log.d(TAG, "[realbooru] GET $fullUrl")
+            logSanitized(key, fullUrl)
+
             val req = Request.Builder()
                 .url(fullUrl)
                 .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 BooruClient/1.0")
@@ -346,8 +429,15 @@ class BooruRepository {
 
             return client.newCall(req).execute().use { response ->
                 val body = response.body?.string() ?: ""
-                parseRealbooruHtml(body, noAi)
+                RealbooruHtmlParser.parse(body, noAi)
             }
+        }
+
+        if (key == "gelbooru" && (credentials.gelbooruUserId.isBlank() || credentials.gelbooruApiKey.isBlank())) {
+            throw BooruAuthException(sourceKey = "gelbooru", statusCode = 401, message = "Authentication required for Gelbooru (API Key & User ID needed)")
+        }
+        if (key == "rule34" && (credentials.rule34UserId.isBlank() || credentials.rule34ApiKey.isBlank())) {
+            throw BooruAuthException(sourceKey = "rule34", statusCode = 401, message = "Authentication required for Rule34 (API Key & User ID needed)")
         }
 
         val baseUrl = when (key) {
@@ -363,7 +453,7 @@ class BooruRepository {
 
         val urlBuilder = baseUrl.toHttpUrl().newBuilder().apply {
             if (tagQuery.isNotBlank()) addQueryParameter("tags", tagQuery)
-            addQueryParameter("limit", "40")
+            addQueryParameter("limit", PAGE_SIZE.toString())
 
             when (key) {
                 "yande", "konachan" -> addQueryParameter("page", (page + 1).toString())
@@ -384,13 +474,23 @@ class BooruRepository {
         }
 
         val fullUrl = urlBuilder.build()
-        Log.d(TAG, "[$key] GET $fullUrl")
+        logSanitized(key, fullUrl)
 
         val userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 BooruClient/1.0"
 
         val reqBuilder = Request.Builder()
             .url(fullUrl)
             .header("User-Agent", userAgent)
+
+        when (key) {
+            "gelbooru"  -> reqBuilder.header("Referer", "https://gelbooru.com/")
+            "rule34"    -> reqBuilder.header("Referer", "https://rule34.xxx/")
+            "safebooru" -> reqBuilder.header("Referer", "https://safebooru.org/")
+            "xbooru"    -> reqBuilder.header("Referer", "https://xbooru.com/")
+            "tbib"      -> reqBuilder.header("Referer", "https://tbib.org/")
+            "yande"     -> reqBuilder.header("Referer", "https://yande.re/")
+            "konachan"  -> reqBuilder.header("Referer", "https://konachan.net/")
+        }
 
         val req = reqBuilder.build()
 
@@ -401,6 +501,10 @@ class BooruRepository {
             if (!response.isSuccessful) {
                 if (code == 401 || code == 403) {
                     throw BooruAuthException(sourceKey = key, statusCode = code, message = "Authentication required for ${getSourceDisplayName(key)} (HTTP $code)")
+                }
+                if (code == 429) {
+                    val retryAfter = parseRetryAfter(response.header("Retry-After"))
+                    throw BooruHttpException(sourceKey = key, statusCode = code, retryAfterSec = retryAfter, message = "Rate limited by ${getSourceDisplayName(key)}")
                 }
                 throw BooruHttpException(sourceKey = key, statusCode = code, message = "HTTP $code from ${getSourceDisplayName(key)}")
             }
@@ -415,6 +519,33 @@ class BooruRepository {
 
             parseResponse(key, body, noAi)
         }
+    }
+
+    private fun parseRetryAfter(header: String?): Int? {
+        if (header.isNullOrBlank()) return null
+        // 1. Try seconds integer e.g. "5"
+        val seconds = header.trim().toIntOrNull()
+        if (seconds != null) return seconds
+
+        // 2. Try HTTP-Date e.g. "Wed, 21 Oct 2026 07:28:00 GMT"
+        return try {
+            val targetInstant = Instant.from(DateTimeFormatter.RFC_1123_DATE_TIME.parse(header.trim()))
+            val diffSeconds = targetInstant.epochSecond - Instant.now().epochSecond
+            if (diffSeconds > 0) diffSeconds.toInt() else null
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun logSanitized(key: String, url: HttpUrl) {
+        // Never log sensitive credentials in Logcat
+        val sanitized = url.newBuilder()
+            .apply {
+                if (url.queryParameter("api_key") != null) setQueryParameter("api_key", "[REDACTED]")
+                if (url.queryParameter("user_id") != null) setQueryParameter("user_id", "[REDACTED]")
+            }
+            .build()
+        Log.d(TAG, "[$key] GET $sanitized")
     }
 
     private fun parseResponse(key: String, body: String, noAi: Boolean): List<RemoteMedia> {
@@ -521,107 +652,60 @@ class BooruRepository {
                     else        -> ""
                 }
                 if (host.isNotBlank()) {
-                    val baseImgName = if (isVideo) "${image.substringBeforeLast(".")}.jpg" else "sample_$image"
-                    sample = "$host/samples/$directory/$baseImgName"
+                    sample = "$host/samples/$directory/sample_$image"
                 }
-            }
-
-            if (sample.isBlank()) {
-                sample = if (isVideo) preview.ifBlank { fileUrl } else fileUrl
             }
 
             if (sample.startsWith("//")) {
                 sample = "https:$sample"
             }
 
-            val rawTags = o.optString("tags").trim()
-            if (noAi) {
-                val tagList = rawTags.split(" ", ",").map { it.trim().lowercase() }
-                if (tagList.any { it == "ai_generated" || it == "novelai" || it == "ai" }) continue
+            if (sample.isBlank()) {
+                sample = fileUrl
             }
 
-            results.add(
-                RemoteMedia(
-                    url = fileUrl,
-                    preview = preview.ifBlank { sample },
-                    sample = sample,
-                    tags = rawTags,
-                    score = o.optInt("score", 0),
-                    source = getSourceDisplayName(key),
-                    rating = rating,
-                    id = "${key}_${o.optString("id")}",
-                    width = o.optInt("width", 0),
-                    height = o.optInt("height", 0)
-                )
+            if (preview.isBlank()) {
+                preview = sample
+            }
+
+            var tags = o.optString("tags")
+                .ifBlank { o.optString("tag_string") }
+                .ifBlank { o.optString("tag_string_general") }
+
+            if (noAi && (tags.contains("ai_generated", ignoreCase = true) || tags.contains("novelai", ignoreCase = true))) {
+                continue
+            }
+
+            val score = o.optInt("score", 0)
+            val id = o.optString("id", "")
+            val width = o.optInt("width", 0).takeIf { it > 0 } ?: o.optInt("image_width", 0)
+            val height = o.optInt("height", 0).takeIf { it > 0 } ?: o.optInt("image_height", 0)
+
+            // Normalized createdAt epoch timestamp from real date fields (never fallback to id)
+            val createdAt: Long = when {
+                o.has("created_at") -> TimestampParser.parseToEpochSeconds(o.opt("created_at"))
+                o.has("change")     -> TimestampParser.parseToEpochSeconds(o.opt("change"))
+                o.has("date")       -> TimestampParser.parseToEpochSeconds(o.opt("date"))
+                else                -> 0L
+            }
+
+            val media = RemoteMedia(
+                id = id,
+                url = fileUrl,
+                preview = preview,
+                sample = sample,
+                tags = tags.trim(),
+                score = score,
+                source = getSourceDisplayName(key),
+                rating = rating,
+                width = width,
+                height = height,
+                createdAt = createdAt
             )
+
+            results.add(media)
         }
 
         return results
-    }
-
-    private val REALBOORU_ITEM_REGEX = Regex(
-        """<div\s+class="col\s+thumb"\s+id="s(\d+)">\s*<a\s+id="p\d+"\s+href="[^"]*">\s*<img\s+src="(https://realbooru\.com/thumbnails/([^/]+/[^/]+)/thumbnail_([a-f0-9]+)\.jpg)"\s+title="([^"]*)"""",
-        RegexOption.IGNORE_CASE
-    )
-
-    private fun parseRealbooruHtml(html: String, noAi: Boolean): List<RemoteMedia> {
-        val results = mutableListOf<RemoteMedia>()
-        val matches = REALBOORU_ITEM_REGEX.findAll(html)
-
-        for (m in matches) {
-            val id = m.groupValues[1]
-            val thumbUrl = m.groupValues[2]
-            val dir = m.groupValues[3]
-            val hash = m.groupValues[4]
-            val tags = m.groupValues[5].trim()
-
-            if (noAi) {
-                val tagList = tags.split(" ", ",").map { it.trim().lowercase() }
-                if (tagList.any { it == "ai_generated" || it == "novelai" || it == "ai" }) continue
-            }
-
-            val tagsLower = tags.lowercase()
-            val isVideo = tagsLower.contains("video") || tagsLower.contains("webm") || tagsLower.contains("mp4")
-            val isGif = tagsLower.contains("gif")
-
-            val fileUrl = when {
-                isVideo -> "https://realbooru.com/images/$dir/$hash.mp4"
-                isGif   -> "https://realbooru.com/images/$dir/$hash.gif"
-                else    -> "https://realbooru.com/images/$dir/$hash.jpeg"
-            }
-
-            val sample = if (isGif) fileUrl else "https://realbooru.com/samples/$dir/sample_$hash.jpg"
-            val preview = thumbUrl
-
-            results.add(
-                RemoteMedia(
-                    url = fileUrl,
-                    preview = preview,
-                    sample = sample,
-                    tags = tags,
-                    score = 0,
-                    source = SOURCE_REALBOORU,
-                    rating = "explicit",
-                    id = "realbooru_$id",
-                    width = 0,
-                    height = 0
-                )
-            )
-        }
-        return results
-    }
-
-    fun getSourceDisplayName(key: String): String {
-        return when (key) {
-            "safebooru" -> SOURCE_SAFEBOORU
-            "yande"     -> SOURCE_YANDE
-            "rule34"    -> SOURCE_RULE34
-            "gelbooru"  -> SOURCE_GELBOORU
-            "realbooru" -> SOURCE_REALBOORU
-            "xbooru"    -> SOURCE_XBOORU
-            "tbib"      -> SOURCE_TBIB
-            "konachan"  -> SOURCE_KONACHAN
-            else        -> key.replaceFirstChar { it.uppercase() }
-        }
     }
 }

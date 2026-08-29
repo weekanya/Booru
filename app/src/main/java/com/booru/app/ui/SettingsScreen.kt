@@ -1,4 +1,4 @@
-package com.example.boorugallery.ui
+package com.booru.app.ui
 
 import android.content.Intent
 import android.net.Uri
@@ -27,10 +27,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.example.boorugallery.GalleryViewModel
-import com.example.boorugallery.R
-import com.example.boorugallery.data.AppLanguage
-import com.example.boorugallery.data.Strings
+import com.booru.app.GalleryViewModel
+import com.booru.app.R
+import com.booru.app.data.AppLanguage
+import com.booru.app.data.Strings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +50,7 @@ fun SettingsScreen(
     var showRule34Dialog by remember { mutableStateOf(false) }
     var showGelbooruDialog by remember { mutableStateOf(false) }
     var showBlacklistDialog by remember { mutableStateOf(false) }
+    var showPaletteDialog by remember { mutableStateOf(false) }
     var newBlacklistTag by remember { mutableStateOf("") }
 
     if (showRule34Dialog) {
@@ -296,6 +297,126 @@ fun SettingsScreen(
         )
     }
 
+    if (showPaletteDialog) {
+        val isDark = when (vm.themeMode) {
+            ThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
+            ThemeMode.DARK -> true
+            ThemeMode.LIGHT -> false
+        }
+        val monetDynamicPrimary = remember(isDark) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).primary
+                else androidx.compose.material3.dynamicLightColorScheme(context).primary
+            } else {
+                Color(0xFF6750A4)
+            }
+        }
+        val monetDynamicSecondary = remember(isDark) {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).tertiary
+                else androidx.compose.material3.dynamicLightColorScheme(context).tertiary
+            } else {
+                Color(0xFF7E5260)
+            }
+        }
+
+        AlertDialog(
+            onDismissRequest = { showPaletteDialog = false },
+            shape = RoundedCornerShape(28.dp),
+            icon = {
+                Icon(
+                    Icons.Rounded.Palette,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(Strings.colorPaletteTitle(lang), style = MaterialTheme.typography.titleLarge)
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    AppPalette.entries.forEach { pal ->
+                        val isSelected = vm.palette == pal
+                        val swatchBrush = remember(pal, monetDynamicPrimary, monetDynamicSecondary) {
+                            if (pal == AppPalette.MONET) {
+                                androidx.compose.ui.graphics.Brush.linearGradient(
+                                    colors = listOf(monetDynamicPrimary, monetDynamicSecondary)
+                                )
+                            } else {
+                                androidx.compose.ui.graphics.SolidColor(pal.primaryColor)
+                            }
+                        }
+
+                        Surface(
+                            onClick = {
+                                vm.updatePalette(pal)
+                                showPaletteDialog = false
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (isSelected)
+                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                            else
+                                Color.Transparent,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bouncyPress()
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(swatchBrush)
+                                        .then(
+                                            if (isSelected)
+                                                Modifier.border(2.dp, MaterialTheme.colorScheme.primary, CircleShape)
+                                            else Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                                        )
+                                )
+                                Spacer(Modifier.width(14.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = pal.title,
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        color = if (isSelected)
+                                            MaterialTheme.colorScheme.primary
+                                        else
+                                            MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                RadioButton(
+                                    selected = isSelected,
+                                    onClick = {
+                                        vm.updatePalette(pal)
+                                        showPaletteDialog = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { showPaletteDialog = false },
+                    shape = CircleShape
+                ) {
+                    Text(Strings.cancelBtn(lang))
+                }
+            }
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -314,24 +435,19 @@ fun SettingsScreen(
         SectionLabel(Strings.languageSection(lang))
 
         SettingsGroupCard {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = Icons.Rounded.Translate,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
                     )
-                    Spacer(Modifier.width(18.dp))
+                    Spacer(Modifier.width(16.dp))
                     Column {
                         Text(
                             text = Strings.languageTitle(lang),
@@ -348,29 +464,19 @@ fun SettingsScreen(
                     }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    FilterChip(
-                        selected = lang == AppLanguage.ENGLISH,
-                        onClick = { vm.updateLanguage(AppLanguage.ENGLISH) },
-                        label = { Text("EN", fontWeight = FontWeight.Bold) },
-                        shape = CircleShape,
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    )
+                Spacer(Modifier.height(14.dp))
 
-                    FilterChip(
-                        selected = lang == AppLanguage.RUSSIAN,
-                        onClick = { vm.updateLanguage(AppLanguage.RUSSIAN) },
-                        label = { Text("RU", fontWeight = FontWeight.Bold) },
-                        shape = CircleShape,
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    )
-                }
+                MD3SegmentedChoiceRow(
+                    options = listOf(AppLanguage.ENGLISH, AppLanguage.RUSSIAN),
+                    selectedOption = vm.language,
+                    onOptionSelected = { vm.updateLanguage(it) },
+                    labelProvider = { l ->
+                        when (l) {
+                            AppLanguage.ENGLISH -> "English"
+                            AppLanguage.RUSSIAN -> "Русский"
+                        }
+                    }
+                )
             }
         }
 
@@ -435,17 +541,12 @@ fun SettingsScreen(
         SectionLabel(Strings.appearanceSection(lang))
 
         SettingsGroupCard {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.weight(1f)
-                ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         imageVector = when (vm.themeMode) {
                             ThemeMode.DARK -> Icons.Rounded.DarkMode
@@ -456,7 +557,7 @@ fun SettingsScreen(
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
                     )
-                    Spacer(Modifier.width(18.dp))
+                    Spacer(Modifier.width(16.dp))
                     Column {
                         Text(
                             text = Strings.darkThemeTitle(lang),
@@ -477,161 +578,81 @@ fun SettingsScreen(
                     }
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    FilterChip(
-                        selected = vm.themeMode == ThemeMode.SYSTEM,
-                        onClick = { vm.updateThemeMode(ThemeMode.SYSTEM) },
-                        modifier = Modifier.bouncyPress(),
-                        label = { Text("Auto", style = MaterialTheme.typography.labelSmall) },
-                        shape = CircleShape,
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    )
-                    FilterChip(
-                        selected = vm.themeMode == ThemeMode.DARK,
-                        onClick = { vm.updateThemeMode(ThemeMode.DARK) },
-                        modifier = Modifier.bouncyPress(),
-                        label = { Text("Dark", style = MaterialTheme.typography.labelSmall) },
-                        shape = CircleShape,
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    )
-                    FilterChip(
-                        selected = vm.themeMode == ThemeMode.LIGHT,
-                        onClick = { vm.updateThemeMode(ThemeMode.LIGHT) },
-                        modifier = Modifier.bouncyPress(),
-                        label = { Text("Light", style = MaterialTheme.typography.labelSmall) },
-                        shape = CircleShape,
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primary,
-                            selectedLabelColor = MaterialTheme.colorScheme.onPrimary
-                        )
-                    )
-                }
+                Spacer(Modifier.height(14.dp))
+
+                MD3SegmentedChoiceRow(
+                    options = ThemeMode.entries,
+                    selectedOption = vm.themeMode,
+                    onOptionSelected = { vm.updateThemeMode(it) },
+                    labelProvider = { mode ->
+                        when (mode) {
+                            ThemeMode.SYSTEM -> if (lang == AppLanguage.RUSSIAN) "Авто" else "Auto"
+                            ThemeMode.DARK -> if (lang == AppLanguage.RUSSIAN) "Тёмная" else "Dark"
+                            ThemeMode.LIGHT -> if (lang == AppLanguage.RUSSIAN) "Светлая" else "Light"
+                        }
+                    }
+                )
             }
 
             SettingsDivider()
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 14.dp)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Palette,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(Modifier.width(18.dp))
-                    Column {
-                        Text(
-                            text = Strings.colorPaletteTitle(lang),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = Strings.colorPaletteDesc(lang),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(14.dp))
-
-                val isDark = when (vm.themeMode) {
-                    ThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
-                    ThemeMode.DARK -> true
-                    ThemeMode.LIGHT -> false
-                }
-                val monetDynamicPrimary = remember(isDark) {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                        if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).primary
-                        else androidx.compose.material3.dynamicLightColorScheme(context).primary
-                    } else {
-                        Color(0xFF6750A4)
-                    }
-                }
-                val monetDynamicSecondary = remember(isDark) {
-                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                        if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).tertiary
-                        else androidx.compose.material3.dynamicLightColorScheme(context).tertiary
-                    } else {
-                        Color(0xFF7E5260)
-                    }
-                }
-
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(AppPalette.entries) { pal ->
-                        val isSelected = vm.palette == pal
-                        val swatchBrush = remember(pal, monetDynamicPrimary, monetDynamicSecondary) {
-                            if (pal == AppPalette.MONET) {
-                                androidx.compose.ui.graphics.Brush.linearGradient(
-                                    colors = listOf(monetDynamicPrimary, monetDynamicSecondary)
-                                )
-                            } else {
-                                androidx.compose.ui.graphics.SolidColor(pal.primaryColor)
-                            }
-                        }
-
-                        Surface(
-                            onClick = { vm.updatePalette(pal) },
-                            shape = RoundedCornerShape(16.dp),
-                            color = if (isSelected)
-                                MaterialTheme.colorScheme.primaryContainer
-                            else
-                                MaterialTheme.colorScheme.surfaceContainerHigh,
-                            border = if (isSelected)
-                                androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-                            else null,
-                            modifier = Modifier
-                                .height(48.dp)
-                                .bouncyPress()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clip(CircleShape)
-                                        .background(swatchBrush)
-                                        .then(
-                                            if (isSelected)
-                                                Modifier.border(2.dp, MaterialTheme.colorScheme.onPrimaryContainer, CircleShape)
-                                            else Modifier
-                                        )
-                                )
-                                Text(
-                                    text = if (pal == AppPalette.MONET) "Monet (Wallpaper)" else pal.title,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected)
-                                        MaterialTheme.colorScheme.onPrimaryContainer
-                                    else
-                                        MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                    }
+            val isDark = when (vm.themeMode) {
+                ThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
+                ThemeMode.DARK -> true
+                ThemeMode.LIGHT -> false
+            }
+            val monetDynamicPrimary = remember(isDark) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).primary
+                    else androidx.compose.material3.dynamicLightColorScheme(context).primary
+                } else {
+                    Color(0xFF6750A4)
                 }
             }
+            val monetDynamicSecondary = remember(isDark) {
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                    if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).tertiary
+                    else androidx.compose.material3.dynamicLightColorScheme(context).tertiary
+                } else {
+                    Color(0xFF7E5260)
+                }
+            }
+            val currentSwatchBrush = remember(vm.palette, monetDynamicPrimary, monetDynamicSecondary) {
+                if (vm.palette == AppPalette.MONET) {
+                    androidx.compose.ui.graphics.Brush.linearGradient(
+                        colors = listOf(monetDynamicPrimary, monetDynamicSecondary)
+                    )
+                } else {
+                    androidx.compose.ui.graphics.SolidColor(vm.palette.primaryColor)
+                }
+            }
+
+            SettingRowItem(
+                title = Strings.colorPaletteTitle(lang),
+                subtitle = vm.palette.title,
+                icon = Icons.Rounded.Palette,
+                onClick = { showPaletteDialog = true },
+                trailing = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(currentSwatchBrush)
+                                .border(1.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                        )
+                        Icon(
+                            Icons.Rounded.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            )
         }
 
         Spacer(Modifier.height(20.dp))
@@ -649,12 +670,13 @@ fun SettingsScreen(
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/weekanya/Booru"))
                             context.startActivity(intent)
                         },
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
+                        ),
+                        modifier = Modifier.bouncyPress()
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_github),
@@ -677,14 +699,51 @@ fun SettingsScreen(
             )
 
             SettingRowItem(
+                title = Strings.clearCacheTitle(lang),
+                subtitle = Strings.clearCacheDesc(lang),
+                icon = Icons.Rounded.CleaningServices,
+                trailing = {
+                    FilledTonalButton(
+                        onClick = {
+                            vm.clearCache {
+                                Toast.makeText(context, Strings.clearCacheSuccess(lang), Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        enabled = !vm.isClearingCache,
+                        shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        ),
+                        modifier = Modifier.bouncyPress()
+                    ) {
+                        if (vm.isClearingCache) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        } else {
+                            Text(
+                                text = "${Strings.clearBtn(lang)} (${vm.cacheSizeFormatted})",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+
+            SettingRowItem(
                 title = Strings.checkUpdatesTitle(lang),
                 subtitle = Strings.checkUpdatesDesc(lang),
                 icon = Icons.Rounded.SystemUpdate,
-                onClick = {
-                    if (!vm.isCheckingUpdate) {
-                        vm.checkForUpdates(isAutoCheck = false)
-                    }
-                },
                 trailing = {
                     if (vm.isCheckingUpdate) {
                         CircularProgressIndicator(
@@ -694,12 +753,13 @@ fun SettingsScreen(
                     } else {
                         FilledTonalButton(
                             onClick = { vm.checkForUpdates(isAutoCheck = false) },
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                            shape = RoundedCornerShape(16.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            )
+                            ),
+                            modifier = Modifier.bouncyPress()
                         ) {
                             Text(
                                 text = Strings.checkUpdatesTitle(lang),
@@ -756,8 +816,7 @@ private fun SettingRowItem(
                 if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
             )
             .padding(horizontal = 20.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -769,8 +828,8 @@ private fun SettingRowItem(
                 tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(24.dp)
             )
-            Spacer(Modifier.width(18.dp))
-            Column {
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f, fill = false)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge,
@@ -787,8 +846,10 @@ private fun SettingRowItem(
         }
 
         if (trailing != null) {
+            Spacer(Modifier.width(12.dp))
             trailing()
         } else if (onClick != null) {
+            Spacer(Modifier.width(12.dp))
             Icon(
                 Icons.Rounded.ChevronRight,
                 contentDescription = null,
@@ -865,3 +926,58 @@ private fun SettingsDivider() {
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
     )
 }
+
+@Composable
+fun <T> MD3SegmentedChoiceRow(
+    options: List<T>,
+    selectedOption: T,
+    onOptionSelected: (T) -> Unit,
+    modifier: Modifier = Modifier,
+    labelProvider: (T) -> String
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        options.forEach { option ->
+            val isSelected = option == selectedOption
+            Surface(
+                onClick = { onOptionSelected(option) },
+                shape = RoundedCornerShape(16.dp),
+                color = if (isSelected)
+                    MaterialTheme.colorScheme.primary
+                else
+                    MaterialTheme.colorScheme.surfaceContainerHighest,
+                contentColor = if (isSelected)
+                    MaterialTheme.colorScheme.onPrimary
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .weight(1f)
+                    .height(46.dp)
+                    .bouncyPress()
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text(
+                        text = labelProvider(option),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                    )
+                }
+            }
+        }
+    }
+}
+

@@ -1,37 +1,76 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.devtools.ksp")
 }
 
 android {
-    namespace = "com.example.boorugallery"
+    namespace = "com.booru.app"
     compileSdk = 35
 
     defaultConfig {
         applicationId = "com.booru.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "2.0"
+        versionCode = 3
+        versionName = "3.0"
     }
 
     signingConfigs {
         create("release") {
-            storeFile = file("release.jks")
-            storePassword = "boorupass"
-            keyAlias = "booru"
-            keyPassword = "boorupass"
-            enableV1Signing = true
-            enableV2Signing = true
-            enableV3Signing = true
-            enableV4Signing = true
+            val signingPropsFile = rootProject.file("signing.properties")
+            val signingProps = Properties().apply {
+                if (signingPropsFile.exists()) {
+                    FileInputStream(signingPropsFile).use { load(it) }
+                }
+            }
+
+            val keyStorePath = providers.environmentVariable("BOORU_KEYSTORE_PATH")
+                .orElse(providers.gradleProperty("BOORU_KEYSTORE_PATH"))
+                .orNull ?: signingProps.getProperty("BOORU_KEYSTORE_PATH") ?: "release.jks"
+
+            val storePass = providers.environmentVariable("BOORU_KEYSTORE_PASSWORD")
+                .orElse(providers.gradleProperty("BOORU_KEYSTORE_PASSWORD"))
+                .orNull ?: signingProps.getProperty("BOORU_KEYSTORE_PASSWORD")
+
+            val alias = providers.environmentVariable("BOORU_KEY_ALIAS")
+                .orElse(providers.gradleProperty("BOORU_KEY_ALIAS"))
+                .orNull ?: signingProps.getProperty("BOORU_KEY_ALIAS")
+
+            val keyPass = providers.environmentVariable("BOORU_KEY_PASSWORD")
+                .orElse(providers.gradleProperty("BOORU_KEY_PASSWORD"))
+                .orNull ?: signingProps.getProperty("BOORU_KEY_PASSWORD")
+
+            val isReleaseRequested = gradle.startParameter.taskNames.any { it.contains("Release", ignoreCase = true) }
+
+            if (storePass != null && alias != null && keyPass != null && file(keyStorePath).exists()) {
+                storeFile = file(keyStorePath)
+                storePassword = storePass
+                keyAlias = alias
+                keyPassword = keyPass
+                enableV1Signing = true
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
+            } else if (isReleaseRequested) {
+                val missing = mutableListOf<String>()
+                if (!file(keyStorePath).exists()) missing.add("Keystore file '$keyStorePath' not found")
+                if (storePass == null) missing.add("BOORU_KEYSTORE_PASSWORD is not set")
+                if (alias == null) missing.add("BOORU_KEY_ALIAS is not set")
+                if (keyPass == null) missing.add("BOORU_KEY_PASSWORD is not set")
+                throw GradleException("Release signing credentials are missing:\n" + missing.joinToString("\n") { " - $it" } + "\nConfigure BOORU_KEYSTORE_PATH, BOORU_KEYSTORE_PASSWORD, BOORU_KEY_ALIAS, and BOORU_KEY_PASSWORD via environment variables, gradle.properties, or signing.properties.")
+            }
         }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -41,12 +80,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "11"
+        jvmTarget = "17"
     }
 
     buildFeatures { compose = true }
@@ -76,5 +115,22 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.datastore:datastore-preferences:1.1.2")
     implementation("com.google.android.material:material:1.12.0")
+
+    // Room Database
+    val roomVersion = "2.6.1"
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion")
+    ksp("androidx.room:room-compiler:$roomVersion")
+
+    // Jsoup HTML Parser
+    implementation("org.jsoup:jsoup:1.18.3")
+
+    // Android Security EncryptedSharedPreferences
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // Unit Testing
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

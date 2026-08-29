@@ -1,4 +1,4 @@
-package com.example.boorugallery.data
+package com.booru.app.data
 
 enum class AppLanguage(val code: String, val displayName: String) {
     ENGLISH("en", "English"),
@@ -177,8 +177,8 @@ object Strings {
     }
 
     fun aboutAppDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Booru • Version 2.0"
-        AppLanguage.RUSSIAN -> "Booru • Версия 2.0"
+        AppLanguage.ENGLISH -> "Booru • Version 3.0"
+        AppLanguage.RUSSIAN -> "Booru • Версия 3.0"
     }
 
     fun checkUpdatesTitle(lang: AppLanguage) = when (lang) {
@@ -437,5 +437,70 @@ object Strings {
     fun clearAllBlacklist(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Clear all"
         AppLanguage.RUSSIAN -> "Очистить всё"
+    }
+
+    fun setWallpaperBtn(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Wallpaper"
+        AppLanguage.RUSSIAN -> "Обои"
+    }
+
+    fun setWallpaperTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Set as Wallpaper"
+        AppLanguage.RUSSIAN -> "Установить как обои"
+    }
+
+    fun wallpaperHomeScreen(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Home Screen"
+        AppLanguage.RUSSIAN -> "Главный экран"
+    }
+
+    fun wallpaperLockScreen(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Lock Screen"
+        AppLanguage.RUSSIAN -> "Экран блокировки"
+    }
+
+    fun wallpaperBoth(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Both Screens"
+        AppLanguage.RUSSIAN -> "Оба экрана"
+    }
+
+    fun wallpaperSuccess(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Wallpaper set successfully!"
+        AppLanguage.RUSSIAN -> "Обои успешно установлены!"
+    }
+
+    fun wallpaperFailed(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Failed to set wallpaper"
+        AppLanguage.RUSSIAN -> "Не удалось установить обои"
+    }
+
+    fun settingWallpaper(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Setting wallpaper..."
+        AppLanguage.RUSSIAN -> "Установка обоев..."
+    }
+
+    fun downloadSuccess(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Saved to Gallery (Booru)"
+        AppLanguage.RUSSIAN -> "Сохранено в галерею (Booru)"
+    }
+
+    fun downloadFailed(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Download failed"
+        AppLanguage.RUSSIAN -> "Ошибка скачивания"
+    }
+
+    fun clearCacheTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Clear cache"
+        AppLanguage.RUSSIAN -> "Очистить кэш"
+    }
+
+    fun clearCacheDesc(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Temporary browsing cache (favorites protected)"
+        AppLanguage.RUSSIAN -> "Временный кэш ленты (избранное защищено)"
+    }
+
+    fun clearCacheSuccess(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Cache cleared (Favorites preserved)"
+        AppLanguage.RUSSIAN -> "Кэш очищен (Избранное сохранено)"
     }
 }

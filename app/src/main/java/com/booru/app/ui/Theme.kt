@@ -1,4 +1,4 @@
-package com.example.boorugallery.ui
+package com.booru.app.ui
 
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -248,6 +248,7 @@ val BooruTypography = Typography(
 fun BooruTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     palette: AppPalette = AppPalette.MONET,
+    useDynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val isSystemDark = isSystemInDarkTheme()
@@ -259,15 +260,14 @@ fun BooruTheme(
 
     val context = LocalContext.current
     val colorScheme = when {
-        palette == AppPalette.MONET && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        palette == AppPalette.MONET && useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        palette == AppPalette.AMOLED && isDark -> AmoledDark
+        palette == AppPalette.AMOLED -> if (isDark) AmoledDark else VioletLight
         palette == AppPalette.SAKURA -> if (isDark) SakuraDark else SakuraLight
         palette == AppPalette.OCEAN -> if (isDark) OceanDark else OceanLight
         palette == AppPalette.EMERALD -> if (isDark) EmeraldDark else EmeraldLight
         palette == AppPalette.SUNSET -> if (isDark) SunsetDark else SunsetLight
-        palette == AppPalette.AMOLED -> if (isDark) AmoledDark else VioletLight
         else -> if (isDark) VioletDark else VioletLight
     }
 

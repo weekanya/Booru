@@ -32,6 +32,7 @@ A modern, fast, and elegant Android client for exploring and managing art, anima
 - **Pinch-to-Zoom Viewer**: Smooth double-tap zoom, gesture panning, and clickable tag chips.
 - **Local Favorites**: Save posts locally with instant filtering by tag.
 - **Material You / Dynamic Colors**: Theme that adapts to your wallpaper with light and dark mode support.
+- **Set as Wallpaper**: Instant one-click wallpaper setup for home screen, lock screen, or both screens.
 - **Smart Cache**: Automatic cache cleanup on app exit to preserve storage.
 
 ---

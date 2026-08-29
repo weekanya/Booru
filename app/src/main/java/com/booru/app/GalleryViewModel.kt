@@ -1,4 +1,4 @@
-package com.example.boorugallery
+package com.booru.app
 
 import android.app.Application
 import androidx.compose.runtime.getValue
@@ -6,12 +6,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.boorugallery.data.AppLanguage
-import com.example.boorugallery.data.AppUpdateInfo
-import com.example.boorugallery.data.BooruPreferences
-import com.example.boorugallery.data.UpdateChecker
-import com.example.boorugallery.ui.AppPalette
-import com.example.boorugallery.ui.ThemeMode
+import com.booru.app.data.AppLanguage
+import com.booru.app.data.AppUpdateInfo
+import com.booru.app.data.BooruCacheManager
+import com.booru.app.data.BooruPreferences
+import com.booru.app.data.UpdateChecker
+import com.booru.app.data.db.AppDatabase
+import com.booru.app.data.db.FavoriteEntity
+import com.booru.app.data.security.SecureCredentialsStorage
+import com.booru.app.ui.AppPalette
+import com.booru.app.ui.ThemeMode
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -20,10 +25,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     private val repo = BooruRepository()
     val prefs = BooruPreferences(application)
+    private val secureStorage = SecureCredentialsStorage(application)
+    private val favoriteDao = AppDatabase.getDatabase(application).favoriteDao()
 
     var updateInfo by mutableStateOf<AppUpdateInfo?>(null); private set
     var isCheckingUpdate by mutableStateOf(false); private set
     var manualCheckResult by mutableStateOf<String?>(null); private set
+
+    var cacheSizeFormatted by mutableStateOf("0 B"); private set
+    var isClearingCache by mutableStateOf(false); private set
 
     var results     by mutableStateOf<List<RemoteMedia>>(emptyList()); private set
     var loading     by mutableStateOf(false);                           private set
@@ -64,6 +74,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private var suggestionJob: Job? = null
 
     init {
+        // Load credentials from secure storage
+        rule34UserId = secureStorage.getRule34UserId()
+        rule34ApiKey = secureStorage.getRule34ApiKey()
+        gelbooruUserId = secureStorage.getGelbooruUserId()
+        gelbooruApiKey = secureStorage.getGelbooruApiKey()
+
         viewModelScope.launch {
             prefs.themeMode.collect { themeMode = it }
         }
@@ -96,21 +112,30 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
         }
+
+        // Collect favorites from Room Database
         viewModelScope.launch {
-            prefs.rule34UserId.collect { rule34UserId = it }
+            favoriteDao.getAllFavorites().collect { entities ->
+                val mediaList = entities.map { it.toRemoteMedia() }
+                updateFavoritesState(mediaList)
+                viewModelScope.launch(Dispatchers.IO) {
+                    mediaList.forEach { media ->
+                        BooruCacheManager.saveFavoriteMedia(getApplication(), media)
+                    }
+                }
+            }
         }
+
+        // Migrate legacy DataStore favorites if any exist
         viewModelScope.launch {
-            prefs.rule34ApiKey.collect { rule34ApiKey = it }
-        }
-        viewModelScope.launch {
-            prefs.gelbooruUserId.collect { gelbooruUserId = it }
-        }
-        viewModelScope.launch {
-            prefs.gelbooruApiKey.collect { gelbooruApiKey = it }
-        }
-        viewModelScope.launch {
-            prefs.favorites.collect { list ->
-                updateFavoritesState(list)
+            runCatching {
+                val legacyFavs = prefs.favorites.first()
+                if (legacyFavs.isNotEmpty()) {
+                    legacyFavs.forEach { fav ->
+                        favoriteDao.insert(FavoriteEntity.fromRemoteMedia(fav))
+                    }
+                    prefs.saveFavorites(emptyList()) // Clear legacy
+                }
             }
         }
 
@@ -135,6 +160,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             checkForUpdates(isAutoCheck = true)
         }
+
+        updateCacheSize()
     }
 
     fun checkForUpdates(isAutoCheck: Boolean = false) {
@@ -144,25 +171,30 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             try {
                 val currentVer = try {
                     val pInfo = getApplication<Application>().packageManager.getPackageInfo(getApplication<Application>().packageName, 0)
-                    pInfo.versionName ?: "2.0"
+                    pInfo.versionName ?: "3.0"
                 } catch (e: Exception) {
-                    "2.0"
+                    "3.0"
                 }
-                val remoteInfo = UpdateChecker.fetchLatestRelease()
-                if (remoteInfo != null && UpdateChecker.isNewerVersion(remoteInfo.latestVersion, currentVer)) {
+
+                val release = UpdateChecker.fetchLatestRelease()
+                if (release != null && UpdateChecker.isNewerVersion(release.latestVersion, currentVer)) {
                     if (isAutoCheck) {
-                        val ignored = prefs.ignoredUpdateVersion.first()
-                        if (ignored != remoteInfo.latestVersion) {
-                            updateInfo = remoteInfo
+                        val ignoredVersion = prefs.ignoredUpdateVersion.first()
+                        if (ignoredVersion != release.latestVersion) {
+                            updateInfo = release
                         }
                     } else {
-                        updateInfo = remoteInfo
+                        updateInfo = release
                     }
-                } else if (!isAutoCheck) {
-                    manualCheckResult = if (remoteInfo != null) "UP_TO_DATE" else "ERROR"
+                } else {
+                    if (!isAutoCheck) {
+                        manualCheckResult = "UP_TO_DATE"
+                    }
                 }
             } catch (e: Exception) {
-                if (!isAutoCheck) manualCheckResult = "ERROR"
+                if (!isAutoCheck) {
+                    manualCheckResult = "FAILED"
+                }
             } finally {
                 isCheckingUpdate = false
             }
@@ -184,53 +216,80 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         manualCheckResult = null
     }
 
-    private fun updateFavoritesState(list: List<RemoteMedia>) {
-        favoritesList = list
-        favoriteIds = list.mapNotNull { it.id.takeIf { id -> id.isNotBlank() } }.toSet()
-        favoriteUrls = list.mapNotNull { it.url.takeIf { url -> url.isNotBlank() } }.toSet()
-    }
-
-    fun getSourceDisplayName(key: String): String = repo.getSourceDisplayName(key)
-
-    private fun getCredentials() = BooruCredentials(
-        rule34UserId = rule34UserId,
-        rule34ApiKey = rule34ApiKey,
-        gelbooruUserId = gelbooruUserId,
-        gelbooruApiKey = gelbooruApiKey
-    )
-
     fun isBlacklisted(media: RemoteMedia, blacklist: List<String> = tagBlacklist): Boolean {
         if (blacklist.isEmpty()) return false
-        val mediaTags = media.tags.lowercase().split("\\s+".toRegex()).toSet()
+        val mediaTags = media.tagList.map { it.lowercase() }.toSet()
         return blacklist.any { bl ->
             val clean = bl.trim().lowercase()
-            clean.isNotBlank() && (clean in mediaTags || media.tags.contains(clean, ignoreCase = true))
+            clean.isNotBlank() && clean in mediaTags
         }
     }
 
-    fun search(newSource: String, newQuery: String, newSafeMode: Boolean) {
-        source   = newSource
-        query    = newQuery
-        safeMode = newSafeMode
+    private fun updateFavoritesState(list: List<RemoteMedia>) {
+        favoritesList = list
+        favoriteIds = list.mapNotNull { it.id.ifBlank { null } }.toSet()
+        favoriteUrls = list.mapNotNull { it.url.ifBlank { null } }.toSet()
+    }
+
+    fun selectSource(newSource: String) {
+        if (source == newSource) return
+        source = newSource
+        viewModelScope.launch {
+            prefs.setDefaultSource(newSource)
+        }
+        search(newSource, query, safeMode)
+    }
+
+    var needsFeedRefresh by mutableStateOf(false);                     private set
+
+    fun getCredentials(): BooruCredentials {
+        return BooruCredentials(
+            rule34UserId = rule34UserId,
+            rule34ApiKey = rule34ApiKey,
+            gelbooruUserId = gelbooruUserId,
+            gelbooruApiKey = gelbooruApiKey
+        )
+    }
+
+    fun refreshFeedIfNeeded() {
+        if (needsFeedRefresh) {
+            needsFeedRefresh = false
+            search(source, query, safeMode)
+        }
+    }
+
+    fun refresh() {
+        search(source, query, safeMode)
+    }
+
+    fun search(
+        source: String = this.source,
+        tags: String = this.query,
+        safeMode: Boolean = this.safeMode
+    ) {
+        searchJob?.cancel()
+        this.source = source
+        this.query = tags
+        this.safeMode = safeMode
         currentPage = 0
-        hasMore  = true
-        error    = null
+        hasMore = true
+        loading = true
+        error = null
         isAuthError = false
         authErrorSource = null
         authErrorCode = null
+        results = emptyList()
 
-        if (newQuery.isNotBlank()) {
-            viewModelScope.launch { prefs.saveSearchQuery(newQuery) }
+        val trimmedTags = tags.trim()
+        if (trimmedTags.isNotEmpty()) {
+            viewModelScope.launch { prefs.saveSearchQuery(trimmedTags) }
         }
 
-        searchJob?.cancel()
         searchJob = viewModelScope.launch {
-            loading = true
-            results = emptyList()
             try {
                 val list = repo.search(
                     source = source,
-                    tags = query,
+                    tags = tags,
                     safeMode = safeMode,
                     excludeSafe = excludeSafe,
                     noAi = noAi,
@@ -238,21 +297,25 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     sortOrder = sortOrder,
                     credentials = getCredentials()
                 )
-                results = list.filterNot { isBlacklisted(it) }
-                hasMore = list.size >= 20
+                val filtered = list.filterNot { isBlacklisted(it) }
+                results = filtered
+                hasMore = list.size >= BooruRepository.PAGE_SIZE
             } catch (authEx: BooruAuthException) {
+                results = emptyList()
                 isAuthError = true
                 authErrorSource = authEx.sourceKey
                 authErrorCode = authEx.statusCode
                 error = authEx.message
             } catch (httpEx: BooruHttpException) {
-                isAuthError = false
+                results = emptyList()
+                isAuthError = httpEx.statusCode == 401 || httpEx.statusCode == 403
                 authErrorSource = httpEx.sourceKey
                 authErrorCode = httpEx.statusCode
                 error = httpEx.message
             } catch (c: kotlinx.coroutines.CancellationException) {
 
             } catch (e: Exception) {
+                results = emptyList()
                 isAuthError = false
                 authErrorSource = null
                 authErrorCode = null
@@ -282,7 +345,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 )
                 val filtered = list.filterNot { isBlacklisted(it) }
                 results = results + filtered
-                hasMore = list.size >= 20
+                hasMore = list.size >= BooruRepository.PAGE_SIZE
             } catch (c: kotlinx.coroutines.CancellationException) {
 
             } catch (e: Exception) {
@@ -327,26 +390,42 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun toggleFavorite(media: RemoteMedia) {
-        val current = favoritesList.toMutableList()
-        val existing = current.indexOfFirst {
-            (media.id.isNotBlank() && it.id == media.id) ||
-            (media.url.isNotBlank() && it.url == media.url)
-        }
-        if (existing >= 0) {
-            current.removeAt(existing)
-        } else {
-            current.add(0, media)
-        }
-        updateFavoritesState(current)
         viewModelScope.launch {
-            prefs.saveFavorites(current)
+            if (isFavorite(media)) {
+                favoriteDao.deleteByUrl(media.url)
+                BooruCacheManager.removeFavoriteMedia(getApplication(), media)
+            } else {
+                favoriteDao.insert(FavoriteEntity.fromRemoteMedia(media))
+                BooruCacheManager.saveFavoriteMedia(getApplication(), media)
+            }
+            updateCacheSize()
         }
     }
 
     fun clearFavorites() {
-        updateFavoritesState(emptyList())
         viewModelScope.launch {
-            prefs.saveFavorites(emptyList())
+            val allFavs = favoritesList
+            favoriteDao.clearAll()
+            allFavs.forEach { BooruCacheManager.removeFavoriteMedia(getApplication(), it) }
+            updateCacheSize()
+        }
+    }
+
+    fun updateCacheSize() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val bytes = BooruCacheManager.getCacheSizeBytes(getApplication())
+            cacheSizeFormatted = BooruCacheManager.formatBytes(bytes)
+        }
+    }
+
+    fun clearCache(onComplete: () -> Unit = {}) {
+        if (isClearingCache) return
+        viewModelScope.launch {
+            isClearingCache = true
+            BooruCacheManager.clearBrowsingCache(getApplication(), favoritesList)
+            updateCacheSize()
+            isClearingCache = false
+            onComplete()
         }
     }
 
@@ -411,14 +490,24 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun saveRule34Keys(userId: String, apiKey: String) {
-        viewModelScope.launch {
-            prefs.setRule34Credentials(userId, apiKey)
+        secureStorage.setRule34UserId(userId)
+        secureStorage.setRule34ApiKey(apiKey)
+        rule34UserId = userId.trim()
+        rule34ApiKey = apiKey.trim()
+        needsFeedRefresh = true
+        if (source == BooruRepository.SOURCE_RULE34 || source == BooruRepository.SOURCE_ALL || isAuthError) {
+            search(source, query, safeMode)
         }
     }
 
     fun saveGelbooruKeys(userId: String, apiKey: String) {
-        viewModelScope.launch {
-            prefs.setGelbooruCredentials(userId, apiKey)
+        secureStorage.setGelbooruUserId(userId)
+        secureStorage.setGelbooruApiKey(apiKey)
+        gelbooruUserId = userId.trim()
+        gelbooruApiKey = apiKey.trim()
+        needsFeedRefresh = true
+        if (source == BooruRepository.SOURCE_GELBOORU || source == BooruRepository.SOURCE_ALL || isAuthError) {
+            search(source, query, safeMode)
         }
     }
 
@@ -431,14 +520,17 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun addBlacklistedTag(tag: String) {
+        needsFeedRefresh = true
         viewModelScope.launch { prefs.addTagToBlacklist(tag) }
     }
 
     fun removeBlacklistedTag(tag: String) {
+        needsFeedRefresh = true
         viewModelScope.launch { prefs.removeTagFromBlacklist(tag) }
     }
 
     fun clearBlacklist() {
+        needsFeedRefresh = true
         viewModelScope.launch { prefs.clearTagBlacklist() }
     }
 
@@ -448,4 +540,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         authErrorSource = null
         authErrorCode = null
     }
+
+    fun getSourceDisplayName(key: String): String = BooruRepository.getSourceDisplayName(key)
 }

@@ -1,35 +1,29 @@
-# Gradle
 .gradle/
 build/
 */build/
 
-# Local configuration file (sdk path, etc)
 local.properties
 
-# Android Studio / IntelliJ IDEA
 .idea/
 *.iml
 .navigation/
 
-# Keystores & sensitive credentials
 *.jks
 *.keystore
 secrets.properties
 signing.properties
 google-services.json
 
-# Build outputs
 *.apk
 *.aab
 *.ap_
 
-# Kotlin & Native
 .kotlin/
 .externalNativeBuild/
 .cxx/
 captures/
 
-# OS generated
-.DS_Store
-Thumbs.db
+*/src/test/
+*/src/androidTest/
+
 

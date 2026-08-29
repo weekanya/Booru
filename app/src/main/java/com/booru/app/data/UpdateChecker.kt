@@ -1,4 +1,4 @@
-package com.example.boorugallery.data
+package com.booru.app.data
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -69,20 +69,49 @@ object UpdateChecker {
         }.getOrNull()
     }
 
-    fun isNewerVersion(remoteTag: String, currentVersion: String): Boolean {
-        val cleanRemote = remoteTag.trim().removePrefix("v").removePrefix("V")
-        val cleanLocal = currentVersion.trim().removePrefix("v").removePrefix("V")
+    data class SemVer(
+        val major: Int,
+        val minor: Int,
+        val patch: Int,
+        val preRelease: String? = null
+    ) : Comparable<SemVer> {
+        override fun compareTo(other: SemVer): Int {
+            if (major != other.major) return major.compareTo(other.major)
+            if (minor != other.minor) return minor.compareTo(other.minor)
+            if (patch != other.patch) return patch.compareTo(other.patch)
 
-        val remoteParts = cleanRemote.split(".").mapNotNull { it.toIntOrNull() }
-        val localParts = cleanLocal.split(".").mapNotNull { it.toIntOrNull() }
-
-        val maxLen = maxOf(remoteParts.size, localParts.size)
-        for (i in 0 until maxLen) {
-            val r = remoteParts.getOrElse(i) { 0 }
-            val l = localParts.getOrElse(i) { 0 }
-            if (r > l) return true
-            if (r < l) return false
+            // Normal release is greater than pre-release with same numbers (e.g. 2.0.0 > 2.0.0-beta)
+            if (preRelease == null && other.preRelease != null) return 1
+            if (preRelease != null && other.preRelease == null) return -1
+            if (preRelease != null && other.preRelease != null) {
+                return preRelease.compareTo(other.preRelease)
+            }
+            return 0
         }
-        return false
+
+        companion object {
+            fun parse(raw: String): SemVer {
+                val clean = raw.trim().removePrefix("v").removePrefix("V")
+                val versionPart = clean.substringBefore("-")
+                val prePart = if (clean.contains("-")) clean.substringAfter("-") else null
+
+                val numbers = versionPart.split(".").mapNotNull { it.toIntOrNull() }
+                val major = numbers.getOrElse(0) { 0 }
+                val minor = numbers.getOrElse(1) { 0 }
+                val patch = numbers.getOrElse(2) { 0 }
+
+                return SemVer(major, minor, patch, prePart)
+            }
+        }
+    }
+
+    fun isNewerVersion(remoteTag: String, currentVersion: String): Boolean {
+        return try {
+            val remote = SemVer.parse(remoteTag)
+            val local = SemVer.parse(currentVersion)
+            remote > local
+        } catch (_: Exception) {
+            false
+        }
     }
 }

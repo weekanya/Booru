@@ -1,4 +1,4 @@
-package com.example.boorugallery
+package com.booru.app
 
 import android.content.Intent
 import android.net.Uri
@@ -40,23 +40,32 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.boorugallery.data.Strings
-import com.example.boorugallery.ui.BooruTheme
-import com.example.boorugallery.ui.ExploreScreen
-import com.example.boorugallery.ui.FavoritesScreen
-import com.example.boorugallery.ui.Motion
-import com.example.boorugallery.ui.SettingsScreen
+import com.booru.app.data.Strings
+import com.booru.app.ui.BooruTheme
+import com.booru.app.ui.ExploreScreen
+import com.booru.app.ui.FavoritesScreen
+import com.booru.app.ui.Motion
+import com.booru.app.ui.SettingsScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
+
+        val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
+        windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        windowInsetsController.hide(WindowInsetsCompat.Type.statusBars())
+
         setContent { BooruApp() }
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        (application as? BooruApplication)?.cleanAppCache()
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
+            windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            windowInsetsController.hide(WindowInsetsCompat.Type.statusBars())
+        }
     }
 }
 
@@ -80,9 +89,16 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
         )
     }
 
+    LaunchedEffect(selectedTab) {
+        if (selectedTab == 0) {
+            vm.refreshFeedIfNeeded()
+        }
+    }
+
     BooruTheme(
         themeMode = vm.themeMode,
-        palette = vm.palette
+        palette = vm.palette,
+        useDynamicColor = vm.useDynamicColor
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
@@ -91,7 +107,8 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
+                    .displayCutoutPadding()
+                    .padding(top = 10.dp)
                     .navigationBarsPadding()
             ) {
                 Crossfade(

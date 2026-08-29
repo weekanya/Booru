@@ -1,4 +1,4 @@
-package com.example.boorugallery.ui
+package com.booru.app.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
@@ -32,9 +32,9 @@ import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
-import com.example.boorugallery.GalleryViewModel
-import com.example.boorugallery.RemoteMedia
-import com.example.boorugallery.data.Strings
+import com.booru.app.GalleryViewModel
+import com.booru.app.RemoteMedia
+import com.booru.app.data.Strings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

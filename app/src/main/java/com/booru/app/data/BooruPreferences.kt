@@ -1,4 +1,4 @@
-package com.example.boorugallery.data
+package com.booru.app.data
 
 import android.content.Context
 import androidx.datastore.core.DataStore
@@ -8,9 +8,9 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import com.example.boorugallery.RemoteMedia
-import com.example.boorugallery.ui.AppPalette
-import com.example.boorugallery.ui.ThemeMode
+import com.booru.app.RemoteMedia
+import com.booru.app.ui.AppPalette
+import com.booru.app.ui.ThemeMode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray

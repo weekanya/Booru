@@ -1,4 +1,4 @@
-package com.example.boorugallery.ui
+package com.booru.app.ui
 
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.ContentTransform

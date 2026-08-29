@@ -1,4 +1,4 @@
-package com.example.boorugallery
+package com.booru.app
 
 import android.app.Application
 import android.os.Build.VERSION.SDK_INT
@@ -12,14 +12,13 @@ import coil.request.CachePolicy
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
-class BooruApplication : Application(), ImageLoaderFactory {
+import com.booru.app.data.BooruCacheManager
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 
-    override fun onTrimMemory(level: Int) {
-        super.onTrimMemory(level)
-        if (level >= TRIM_MEMORY_COMPLETE || level >= TRIM_MEMORY_UI_HIDDEN) {
-            cleanAppCache()
-        }
-    }
+class BooruApplication : Application(), ImageLoaderFactory {
 
     override fun newImageLoader(): ImageLoader {
         val okHttpClient = OkHttpClient.Builder()
@@ -28,6 +27,27 @@ class BooruApplication : Application(), ImageLoaderFactory {
             .addInterceptor { chain ->
                 val originalRequest = chain.request()
                 val url = originalRequest.url.toString()
+
+                val favFile = BooruCacheManager.getFavoriteFileForUrl(this, url)
+                if (favFile != null && favFile.exists() && favFile.length() > 0) {
+                    val mediaType = (favFile.name.substringAfterLast(".").let { ext ->
+                        when (ext.lowercase()) {
+                            "png" -> "image/png"
+                            "gif" -> "image/gif"
+                            "webp" -> "image/webp"
+                            "mp4" -> "video/mp4"
+                            else -> "image/jpeg"
+                        }
+                    }).toMediaType()
+                    val responseBody = favFile.readBytes().toResponseBody(mediaType)
+                    return@addInterceptor Response.Builder()
+                        .request(originalRequest)
+                        .protocol(Protocol.HTTP_1_1)
+                        .code(200)
+                        .message("OK (Served from favorites storage)")
+                        .body(responseBody)
+                        .build()
+                }
 
                 val referer = when {
                     url.contains("gelbooru.com") -> "https://gelbooru.com/"
@@ -79,13 +99,5 @@ class BooruApplication : Application(), ImageLoaderFactory {
             .respectCacheHeaders(false)
             .crossfade(true)
             .build()
-    }
-
-    fun cleanAppCache() {
-        Thread {
-            runCatching {
-                cacheDir.deleteRecursively()
-            }
-        }.start()
     }
 }
