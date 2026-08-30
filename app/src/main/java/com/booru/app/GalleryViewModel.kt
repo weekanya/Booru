@@ -476,7 +476,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun searchTag(tag: String) {
-        search(source, tag.trim(), safeMode)
+        val cleanTag = tag.trim().removeSuffix(",").removePrefix(",").trim().replace(" ", "_")
+        search(source, cleanTag, safeMode)
     }
 
     fun fetchTagSuggestions(input: String) {

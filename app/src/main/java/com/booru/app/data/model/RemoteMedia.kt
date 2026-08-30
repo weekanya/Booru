@@ -14,7 +14,9 @@ data class RemoteMedia(
     val createdAt: Long = 0L
 ) {
     val tagList: List<String> by lazy {
-        tags.split(" ").map { it.trim() }.filter { it.isNotBlank() }
+        tags.split(Regex("[\\s,]+"))
+            .map { it.trim().removeSuffix(",").removePrefix(",").trim() }
+            .filter { it.isNotBlank() }
     }
 
     val isVideo: Boolean

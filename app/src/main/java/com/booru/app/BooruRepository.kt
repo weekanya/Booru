@@ -280,7 +280,10 @@ class BooruRepository(
     }
 
     private fun normalizeUserTags(raw: String): String {
-        return raw.trim()
+        return raw.split(Regex("[\\s,]+"))
+            .map { it.trim().removeSuffix(",").removePrefix(",").trim() }
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
     }
 
     private fun buildTagQuery(

@@ -33,7 +33,19 @@ object RealbooruHtmlParser {
                 thumbSrc
             }
 
-            val tags = img.attr("title").ifBlank { img.attr("alt") }.trim()
+            val rawTags = img.attr("title").ifBlank { img.attr("alt") }.trim()
+
+            val tags = if (rawTags.contains(",")) {
+                rawTags.split(",")
+                    .map { it.trim().replace("\\s+".toRegex(), "_").removeSuffix(",").removePrefix(",").trim() }
+                    .filter { it.isNotBlank() }
+                    .joinToString(" ")
+            } else {
+                rawTags.split("\\s+".toRegex())
+                    .map { it.trim().removeSuffix(",").removePrefix(",").trim() }
+                    .filter { it.isNotBlank() }
+                    .joinToString(" ")
+            }
 
             if (noAi && (tags.contains("ai_generated", ignoreCase = true) || tags.contains("novelai", ignoreCase = true))) {
                 continue
