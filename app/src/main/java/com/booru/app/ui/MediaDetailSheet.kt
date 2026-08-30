@@ -105,6 +105,7 @@ fun MediaDetailSheet(
     var selectedTagForAction by remember { mutableStateOf<String?>(null) }
     var isSettingWallpaper by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
+    var detailLoadError by remember(media.id, media.url) { mutableStateOf(false) }
 
     fun downloadOriginalFile() {
         if (isDownloading) return
@@ -159,21 +160,33 @@ fun MediaDetailSheet(
                         .build()
 
                     var response = client.newCall(request).execute()
-                    if (!response.isSuccessful && rawUrl.contains("realbooru.com")) {
+                    if (!response.isSuccessful) {
                         response.close()
-                        val candidates = listOf(
-                            rawUrl.substringBeforeLast(".") + ".jpeg",
-                            rawUrl.substringBeforeLast(".") + ".jpg",
-                            rawUrl.substringBeforeLast(".") + ".png",
-                            rawUrl.substringBeforeLast(".") + ".mp4",
-                            rawUrl.substringBeforeLast(".") + ".webm"
-                        )
+                        val candidates = LinkedHashSet<String>()
+                        val base = rawUrl.substringBeforeLast(".")
+                        candidates.add("$base.jpeg")
+                        candidates.add("$base.jpg")
+                        candidates.add("$base.png")
+                        candidates.add("$base.mp4")
+                        candidates.add("$base.webm")
+                        candidates.add("$base.gif")
+
+                        if (media.sample.isNotBlank() && media.sample != rawUrl) {
+                            candidates.add(media.sample)
+                        }
+                        if (media.preview.isNotBlank() && media.preview != rawUrl) {
+                            candidates.add(media.preview)
+                        }
+                        if (rawUrl.contains("xbooru.com") && !rawUrl.contains("?")) {
+                            candidates.add("$rawUrl?1")
+                        }
+
                         for (cand in candidates) {
                             if (cand == rawUrl) continue
                             val altReq = okhttp3.Request.Builder()
                                 .url(cand)
                                 .header("User-Agent", userAgent)
-                                .header("Referer", "https://realbooru.com/")
+                                .header("Referer", referer)
                                 .header("Accept", "*/*")
                                 .build()
                             val altResp = client.newCall(altReq).execute()
@@ -403,12 +416,25 @@ fun MediaDetailSheet(
                             },
                         contentAlignment = Alignment.Center
                     ) {
+                        val detailTargetUrl = if (detailLoadError) {
+                            media.sample.ifBlank { media.preview.ifBlank { media.url } }
+                        } else {
+                            media.url.ifBlank { media.sample.ifBlank { media.preview } }
+                        }
+
                         AsyncImage(
                             model = ImageRequest.Builder(context)
-                                .data(media.url.ifBlank { media.sample.ifBlank { media.preview } })
+                                .data(detailTargetUrl)
                                 .placeholderMemoryCacheKey(media.sample)
                                 .crossfade(300)
                                 .allowHardware(!media.isGif)
+                                .listener(
+                                    onError = { _, _ ->
+                                        if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
+                                            detailLoadError = true
+                                        }
+                                    }
+                                )
                                 .build(),
                             contentDescription = media.tags,
                             modifier = Modifier

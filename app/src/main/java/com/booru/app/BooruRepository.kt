@@ -581,8 +581,11 @@ class BooruRepository(
                 .ifBlank { o.optString("jpeg_url") }
                 .ifBlank { o.optString("high_res_url") }
 
+            val id = o.optString("id", "")
             val directory = o.optString("directory")
             val image = o.optString("image")
+            val baseImgName = image.substringBeforeLast(".")
+
             if (fileUrl.isBlank() && directory.isNotBlank() && image.isNotBlank()) {
                 val host = when (key) {
                     "safebooru" -> "https://safebooru.org"
@@ -593,7 +596,8 @@ class BooruRepository(
                     else        -> ""
                 }
                 if (host.isNotBlank()) {
-                    fileUrl = "$host/images/$directory/$image"
+                    val querySuffix = if (key == "xbooru" && id.isNotBlank()) "?$id" else ""
+                    fileUrl = "$host/images/$directory/$image$querySuffix"
                 }
             }
 
@@ -603,15 +607,18 @@ class BooruRepository(
                 fileUrl = "https:$fileUrl"
             }
 
-            val isVideo = fileUrl.lowercase().endsWith(".mp4") || fileUrl.lowercase().endsWith(".webm")
-            val isGif = fileUrl.lowercase().endsWith(".gif")
+            if (key == "xbooru" && id.isNotBlank() && !fileUrl.contains("?")) {
+                fileUrl = "$fileUrl?$id"
+            }
+
+            val isVideo = fileUrl.lowercase().substringBefore("?").endsWith(".mp4") || fileUrl.lowercase().substringBefore("?").endsWith(".webm")
+            val isGif = fileUrl.lowercase().substringBefore("?").endsWith(".gif")
 
             var preview = o.optString("preview_url")
                 .ifBlank { o.optString("previewUrl") }
                 .ifBlank { o.optString("preview_file_url") }
 
             if (preview.isBlank() && directory.isNotBlank() && image.isNotBlank()) {
-                val baseImgName = image.substringBeforeLast(".")
                 val host = when (key) {
                     "safebooru" -> "https://safebooru.org"
                     "gelbooru"  -> "https://img3.gelbooru.com"
@@ -621,16 +628,17 @@ class BooruRepository(
                     else        -> ""
                 }
                 if (host.isNotBlank()) {
-                    preview = if (key == "tbib") {
-                        "$host/thumbnails/$directory/thumbnail_$image"
-                    } else {
-                        "$host/thumbnails/$directory/thumbnail_$baseImgName.jpg"
-                    }
+                    val querySuffix = if (key == "xbooru" && id.isNotBlank()) "?$id" else ""
+                    preview = "$host/thumbnails/$directory/thumbnail_$baseImgName.jpg$querySuffix"
                 }
             }
 
             if (preview.startsWith("//")) {
                 preview = "https:$preview"
+            }
+
+            if (key == "xbooru" && id.isNotBlank() && !preview.contains("?")) {
+                preview = "$preview?$id"
             }
 
             var sample = o.optString("sample_url")
@@ -652,12 +660,17 @@ class BooruRepository(
                     else        -> ""
                 }
                 if (host.isNotBlank()) {
-                    sample = "$host/samples/$directory/sample_$image"
+                    val querySuffix = if (key == "xbooru" && id.isNotBlank()) "?$id" else ""
+                    sample = "$host/samples/$directory/sample_$baseImgName.jpg$querySuffix"
                 }
             }
 
             if (sample.startsWith("//")) {
                 sample = "https:$sample"
+            }
+
+            if (key == "xbooru" && id.isNotBlank() && !sample.contains("?")) {
+                sample = "$sample?$id"
             }
 
             if (sample.isBlank()) {
@@ -677,7 +690,6 @@ class BooruRepository(
             }
 
             val score = o.optInt("score", 0)
-            val id = o.optString("id", "")
             val width = o.optInt("width", 0).takeIf { it > 0 } ?: o.optInt("image_width", 0)
             val height = o.optInt("height", 0).takeIf { it > 0 } ?: o.optInt("image_height", 0)
 

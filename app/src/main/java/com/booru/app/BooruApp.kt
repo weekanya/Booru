@@ -74,32 +74,65 @@ class BooruApplication : Application(), ImageLoaderFactory {
                     return@addInterceptor initialResponse
                 }
 
-                if (url.contains("realbooru.com") && (initialResponse.code == 404 || initialResponse.code == 302)) {
-                    initialResponse.close()
-                    val candidateUrls = mutableListOf<String>()
+                val isBooruDomain = url.contains("realbooru.com") ||
+                        url.contains("safebooru.org") ||
+                        url.contains("xbooru.com") ||
+                        url.contains("tbib.org") ||
+                        url.contains("gelbooru.com") ||
+                        url.contains("rule34.xxx")
 
-                    if (url.contains("/samples/")) {
-                        val hash = url.substringAfterLast("/sample_").substringBefore(".")
-                        val dir = url.substringBeforeLast("/sample_").replace("/samples/", "/images/")
-                        candidateUrls.add("$dir/$hash.jpeg")
-                        candidateUrls.add("$dir/$hash.jpg")
-                        candidateUrls.add("$dir/$hash.png")
-                        candidateUrls.add("$dir/$hash.gif")
-                        val thumbDir = url.substringBeforeLast("/sample_").replace("/samples/", "/thumbnails/")
-                        candidateUrls.add("$thumbDir/thumbnail_$hash.jpg")
-                    } else if (url.contains("/images/")) {
-                        val baseWithoutExt = url.substringBeforeLast(".")
-                        candidateUrls.add("$baseWithoutExt.jpeg")
-                        candidateUrls.add("$baseWithoutExt.jpg")
-                        candidateUrls.add("$baseWithoutExt.png")
-                        candidateUrls.add("$baseWithoutExt.gif")
-                        candidateUrls.add("$baseWithoutExt.mp4")
-                        candidateUrls.add("$baseWithoutExt.webm")
-                        val hash = url.substringAfterLast("/").substringBefore(".")
-                        val sampleDir = url.substringBeforeLast("/").replace("/images/", "/samples/")
-                        candidateUrls.add("$sampleDir/sample_$hash.jpg")
-                        val thumbDir = url.substringBeforeLast("/").replace("/images/", "/thumbnails/")
-                        candidateUrls.add("$thumbDir/thumbnail_$hash.jpg")
+                if (isBooruDomain && (initialResponse.code == 404 || initialResponse.code == 302 || initialResponse.code == 403)) {
+                    initialResponse.close()
+                    val candidateUrls = LinkedHashSet<String>()
+                    val query = if (url.contains("?")) "?" + url.substringAfter("?") else ""
+                    val cleanUrl = url.substringBefore("?")
+
+                    if (url.contains("xbooru.com") && !url.contains("?")) {
+                        candidateUrls.add("$url?1")
+                    }
+
+                    if (cleanUrl.contains("/samples/")) {
+                        val filename = cleanUrl.substringAfterLast("/sample_").substringBefore(".")
+                        val dir = cleanUrl.substringBeforeLast("/sample_").replace("/samples/", "/images/")
+                        val thumbDir = cleanUrl.substringBeforeLast("/sample_").replace("/samples/", "/thumbnails/")
+
+                        candidateUrls.add("$dir/$filename.jpeg$query")
+                        candidateUrls.add("$dir/$filename.jpg$query")
+                        candidateUrls.add("$dir/$filename.png$query")
+                        candidateUrls.add("$dir/$filename.gif$query")
+                        candidateUrls.add("$dir/$filename.webp$query")
+                        candidateUrls.add("$thumbDir/thumbnail_$filename.jpg$query")
+                        if (cleanUrl.contains("xbooru.com")) {
+                            candidateUrls.add("$cleanUrl?1")
+                            candidateUrls.add(cleanUrl.replace("img.xbooru.com", "xbooru.com") + query)
+                        }
+                    } else if (cleanUrl.contains("/images/")) {
+                        val baseWithoutExt = cleanUrl.substringBeforeLast(".")
+                        val filename = cleanUrl.substringAfterLast("/").substringBefore(".")
+                        val sampleDir = cleanUrl.substringBeforeLast("/").replace("/images/", "/samples/")
+                        val thumbDir = cleanUrl.substringBeforeLast("/").replace("/images/", "/thumbnails/")
+
+                        candidateUrls.add("$baseWithoutExt.jpeg$query")
+                        candidateUrls.add("$baseWithoutExt.jpg$query")
+                        candidateUrls.add("$baseWithoutExt.png$query")
+                        candidateUrls.add("$baseWithoutExt.gif$query")
+                        candidateUrls.add("$baseWithoutExt.webp$query")
+                        candidateUrls.add("$baseWithoutExt.mp4$query")
+                        candidateUrls.add("$baseWithoutExt.webm$query")
+                        candidateUrls.add("$sampleDir/sample_$filename.jpg$query")
+                        candidateUrls.add("$thumbDir/thumbnail_$filename.jpg$query")
+
+                        if (cleanUrl.contains("xbooru.com")) {
+                            candidateUrls.add("$cleanUrl?1")
+                            candidateUrls.add(cleanUrl.replace("img.xbooru.com", "xbooru.com") + query)
+                            candidateUrls.add(cleanUrl.replace("xbooru.com", "img.xbooru.com") + query)
+                        }
+                    } else if (cleanUrl.contains("/thumbnails/")) {
+                        val filename = cleanUrl.substringAfterLast("/thumbnail_").substringBefore(".")
+                        val thumbDir = cleanUrl.substringBeforeLast("/thumbnail_")
+                        candidateUrls.add("$thumbDir/thumbnail_$filename.jpg$query")
+                        candidateUrls.add("$thumbDir/thumbnail_$filename.jpeg$query")
+                        candidateUrls.add("$thumbDir/thumbnail_$filename.png$query")
                     }
 
                     for (candidate in candidateUrls) {
@@ -107,7 +140,7 @@ class BooruApplication : Application(), ImageLoaderFactory {
                         val altReq = originalRequest.newBuilder()
                             .url(candidate)
                             .header("User-Agent", userAgent)
-                            .header("Referer", "https://realbooru.com/")
+                            .header("Referer", referer)
                             .header("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
                             .build()
                         val altResp = chain.proceed(altReq)
