@@ -60,7 +60,12 @@ fun FavoritesScreen(
     }
 
     showDetail?.let { media ->
-        MediaDetailSheet(media = media, vm = vm, onDismiss = { showDetail = null })
+        MediaDetailSheet(
+            media = media,
+            vm = vm,
+            onDismiss = { showDetail = null },
+            onNavigateToExplore = onNavigateToExplore
+        )
     }
 
     if (showClearDialog) {

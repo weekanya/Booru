@@ -79,7 +79,8 @@ import java.util.concurrent.TimeUnit
 fun MediaDetailSheet(
     media: RemoteMedia,
     vm: GalleryViewModel,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    onNavigateToExplore: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val lang = vm.language
@@ -785,8 +786,9 @@ fun MediaDetailSheet(
             OptInFlowDetailTags(
                 tags = media.tagList,
                 onTagClick = { tag ->
-                    vm.searchTag(tag)
+                    vm.searchTag(tag, media.source)
                     onDismiss()
+                    onNavigateToExplore?.invoke()
                 },
                 onTagLongClick = { tag ->
                     selectedTagForAction = tag
@@ -865,38 +867,41 @@ fun MediaDetailSheet(
     if (selectedTagForAction != null) {
         val currentActionTag = selectedTagForAction!!
         val isBlacklisted = vm.tagBlacklist.any { it.equals(currentActionTag, ignoreCase = true) }
-
         AlertDialog(
             onDismissRequest = { selectedTagForAction = null },
-            shape = RoundedCornerShape(24.dp),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            title = {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+            shape = RoundedCornerShape(28.dp),
+            icon = {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(48.dp)
                 ) {
-                    Icon(
-                        Icons.Rounded.Tag,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = currentActionTag,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Rounded.Tag,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
+            },
+            title = {
+                Text(
+                    text = currentActionTag,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHighest,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -909,28 +914,28 @@ fun MediaDetailSheet(
                             }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Icon(
                                 Icons.Rounded.ContentCopy,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                             Text(
                                 text = Strings.copyTag(lang),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = if (isBlacklisted) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f) else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isBlacklisted) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
                         modifier = Modifier
                             .fillMaxWidth()
                             .bouncyPress()
@@ -946,20 +951,20 @@ fun MediaDetailSheet(
                             }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Icon(
                                 if (isBlacklisted) Icons.Rounded.CheckCircle else Icons.Rounded.Block,
                                 contentDescription = null,
                                 tint = if (isBlacklisted) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(18.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                             Text(
                                 text = if (isBlacklisted) Strings.removeFromBlacklist(lang) else Strings.addToBlacklist(lang),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Medium,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
                                 color = if (isBlacklisted) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.error
                             )
                         }
@@ -970,11 +975,13 @@ fun MediaDetailSheet(
             dismissButton = {
                 TextButton(
                     onClick = { selectedTagForAction = null },
+                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.bouncyPress()
                 ) {
-                    Text(Strings.cancelBtn(lang), style = MaterialTheme.typography.labelLarge)
+                    Text(Strings.cancelBtn(lang), fontWeight = FontWeight.Bold)
                 }
-            }
+            },
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
     }
 }

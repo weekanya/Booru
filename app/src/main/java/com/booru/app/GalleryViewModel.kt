@@ -475,9 +475,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         search(source, query, safeMode)
     }
 
-    fun searchTag(tag: String) {
+    fun searchTag(tag: String, targetSource: String = source) {
         val cleanTag = tag.trim().removeSuffix(",").removePrefix(",").trim().replace(" ", "_")
-        search(source, cleanTag, safeMode)
+        val finalSource = BooruRepository.AVAILABLE_SOURCES.firstOrNull { it.equals(targetSource, ignoreCase = true) } ?: source
+        source = finalSource
+        search(finalSource, cleanTag, safeMode)
     }
 
     fun fetchTagSuggestions(input: String) {
