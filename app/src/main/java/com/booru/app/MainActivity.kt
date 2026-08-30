@@ -6,11 +6,18 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -160,8 +167,11 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                         navItems.forEachIndexed { index, item ->
                             val isSelected = selectedTab == index
                             val animatedScale by animateFloatAsState(
-                                targetValue = if (isSelected) 1.08f else 1.0f,
-                                animationSpec = Motion.softSpring(),
+                                targetValue = if (isSelected) 1.05f else 1.0f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessLow
+                                ),
                                 label = "navItemScale"
                             )
                             val containerColor by animateColorAsState(
@@ -169,7 +179,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                     MaterialTheme.colorScheme.primaryContainer
                                 else
                                     MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0f),
-                                animationSpec = Motion.enterTween(250),
+                                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
                                 label = "navItemBg"
                             )
                             val contentColor by animateColorAsState(
@@ -177,7 +187,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                     MaterialTheme.colorScheme.onPrimaryContainer
                                 else
                                     MaterialTheme.colorScheme.onSurfaceVariant,
-                                animationSpec = Motion.enterTween(250),
+                                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
                                 label = "navItemColor"
                             )
 
@@ -185,9 +195,10 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                 shape = CircleShape,
                                 color = containerColor,
                                 modifier = Modifier
-                                    .weight(1f)
+                                    .weight(if (isSelected) 1.25f else 1f)
                                     .fillMaxHeight()
                                     .clip(CircleShape)
+                                    .bouncyPress()
                                     .clickable {
                                         selectedTab = index
                                     }
@@ -195,6 +206,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxSize()
+                                        .padding(horizontal = 6.dp)
                                         .graphicsLayer {
                                             scaleX = animatedScale
                                             scaleY = animatedScale
@@ -229,14 +241,26 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                         )
                                     }
 
-                                    if (isSelected) {
-                                        Spacer(Modifier.width(6.dp))
-                                        Text(
-                                            text = item.label,
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            color = contentColor
-                                        )
+                                    AnimatedVisibility(
+                                        visible = isSelected,
+                                        enter = fadeIn(tween(220)) + expandHorizontally(
+                                            animationSpec = spring(
+                                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                                stiffness = Spring.StiffnessMediumLow
+                                            )
+                                        ),
+                                        exit = fadeOut(tween(150)) + shrinkHorizontally(tween(150))
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(
+                                                text = item.label,
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.Bold,
+                                                color = contentColor,
+                                                maxLines = 1
+                                            )
+                                        }
                                     }
                                 }
                             }

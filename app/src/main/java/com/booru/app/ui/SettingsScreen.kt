@@ -3,6 +3,17 @@ package com.booru.app.ui
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -22,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -941,34 +953,73 @@ fun <T> MD3SegmentedChoiceRow(
     ) {
         options.forEach { option ->
             val isSelected = option == selectedOption
-            Surface(
-                onClick = { onOptionSelected(option) },
-                shape = RoundedCornerShape(16.dp),
-                color = if (isSelected)
+
+            val containerColor by animateColorAsState(
+                targetValue = if (isSelected)
                     MaterialTheme.colorScheme.primary
                 else
                     MaterialTheme.colorScheme.surfaceContainerHighest,
-                contentColor = if (isSelected)
+                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                label = "segmentedBg"
+            )
+
+            val contentColor by animateColorAsState(
+                targetValue = if (isSelected)
                     MaterialTheme.colorScheme.onPrimary
                 else
                     MaterialTheme.colorScheme.onSurfaceVariant,
+                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                label = "segmentedContent"
+            )
+
+            val scale by animateFloatAsState(
+                targetValue = if (isSelected) 1.02f else 1.0f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                    stiffness = Spring.StiffnessLow
+                ),
+                label = "segmentedScale"
+            )
+
+            Surface(
+                onClick = { onOptionSelected(option) },
+                shape = RoundedCornerShape(16.dp),
+                color = containerColor,
+                contentColor = contentColor,
                 modifier = Modifier
                     .weight(1f)
                     .height(46.dp)
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                    }
                     .bouncyPress()
             ) {
                 Row(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    if (isSelected) {
-                        Icon(
-                            imageVector = Icons.Rounded.Check,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
+                    AnimatedVisibility(
+                        visible = isSelected,
+                        enter = fadeIn(tween(200)) + expandHorizontally(
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioMediumBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            )
+                        ),
+                        exit = fadeOut(tween(150)) + shrinkHorizontally(tween(150))
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                        }
                     }
                     Text(
                         text = labelProvider(option),
