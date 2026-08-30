@@ -167,10 +167,10 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                         navItems.forEachIndexed { index, item ->
                             val isSelected = selectedTab == index
                             val animatedScale by animateFloatAsState(
-                                targetValue = if (isSelected) 1.05f else 1.0f,
+                                targetValue = if (isSelected) 1.02f else 1.0f,
                                 animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                                    stiffness = Spring.StiffnessLow
+                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                    stiffness = Spring.StiffnessMediumLow
                                 ),
                                 label = "navItemScale"
                             )
@@ -179,7 +179,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                     MaterialTheme.colorScheme.primaryContainer
                                 else
                                     MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0f),
-                                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
                                 label = "navItemBg"
                             )
                             val contentColor by animateColorAsState(
@@ -187,7 +187,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                     MaterialTheme.colorScheme.onPrimaryContainer
                                 else
                                     MaterialTheme.colorScheme.onSurfaceVariant,
-                                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+                                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
                                 label = "navItemColor"
                             )
 
@@ -195,10 +195,10 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                 shape = CircleShape,
                                 color = containerColor,
                                 modifier = Modifier
-                                    .weight(if (isSelected) 1.25f else 1f)
+                                    .weight(1f)
                                     .fillMaxHeight()
                                     .clip(CircleShape)
-                                    .bouncyPress()
+                                    .bouncyPress(scaleDown = 0.96f)
                                     .clickable {
                                         selectedTab = index
                                     }
@@ -206,7 +206,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(horizontal = 6.dp)
+                                        .padding(horizontal = 4.dp)
                                         .graphicsLayer {
                                             scaleX = animatedScale
                                             scaleY = animatedScale
@@ -243,13 +243,12 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
 
                                     AnimatedVisibility(
                                         visible = isSelected,
-                                        enter = fadeIn(tween(220)) + expandHorizontally(
-                                            animationSpec = spring(
-                                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                                stiffness = Spring.StiffnessMediumLow
-                                            )
+                                        enter = fadeIn(tween(180, easing = FastOutSlowInEasing)) + expandHorizontally(
+                                            animationSpec = tween(220, easing = FastOutSlowInEasing)
                                         ),
-                                        exit = fadeOut(tween(150)) + shrinkHorizontally(tween(150))
+                                        exit = fadeOut(tween(120)) + shrinkHorizontally(
+                                            animationSpec = tween(180, easing = FastOutSlowInEasing)
+                                        )
                                     ) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Spacer(Modifier.width(6.dp))
