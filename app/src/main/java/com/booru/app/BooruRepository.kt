@@ -582,8 +582,9 @@ class BooruRepository(
                 .ifBlank { o.optString("high_res_url") }
 
             val id = o.optString("id", "")
-            val directory = o.optString("directory")
-            val image = o.optString("image")
+            val directory = o.optString("directory").takeIf { it != "null" } ?: ""
+            val image = o.optString("image").takeIf { it != "null" } ?: ""
+            val hash = o.optString("hash").takeIf { it != "null" } ?: ""
             val baseImgName = image.substringBeforeLast(".")
 
             if (fileUrl.isBlank() && directory.isNotBlank() && image.isNotBlank()) {
@@ -601,7 +602,15 @@ class BooruRepository(
                 }
             }
 
-            if (fileUrl.isBlank()) continue
+            if (fileUrl.isBlank() ||
+                fileUrl.endsWith("/") ||
+                fileUrl.endsWith("//") ||
+                fileUrl.contains("/images//") ||
+                fileUrl.contains("/thumbnails//") ||
+                (image.isBlank() && hash.isBlank() && directory.isBlank())
+            ) {
+                continue
+            }
 
             if (fileUrl.startsWith("//")) {
                 fileUrl = "https:$fileUrl"
@@ -677,7 +686,7 @@ class BooruRepository(
                 sample = fileUrl
             }
 
-            if (preview.isBlank()) {
+            if (preview.isBlank() || preview.endsWith("/") || preview.contains("thumbnail_.jpg") || preview.contains("/thumbnails//")) {
                 preview = sample
             }
 
