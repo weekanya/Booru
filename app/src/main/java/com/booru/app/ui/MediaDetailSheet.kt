@@ -868,40 +868,35 @@ fun MediaDetailSheet(
 
         AlertDialog(
             onDismissRequest = { selectedTagForAction = null },
-            shape = RoundedCornerShape(28.dp),
-            icon = {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Rounded.Tag,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-            },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             title = {
-                Text(
-                    text = currentActionTag,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.Tag,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = currentActionTag,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Action 1: Copy Tag
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(14.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHighest,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -914,29 +909,28 @@ fun MediaDetailSheet(
                             }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Icon(
                                 Icons.Rounded.ContentCopy,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                             Text(
                                 text = Strings.copyTag(lang),
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
 
-                    // Action 2: Add / Remove Blacklist
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = if (isBlacklisted) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (isBlacklisted) MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.85f) else MaterialTheme.colorScheme.surfaceContainerHighest,
                         modifier = Modifier
                             .fillMaxWidth()
                             .bouncyPress()
@@ -952,55 +946,21 @@ fun MediaDetailSheet(
                             }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Icon(
                                 if (isBlacklisted) Icons.Rounded.CheckCircle else Icons.Rounded.Block,
                                 contentDescription = null,
                                 tint = if (isBlacklisted) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                             Text(
                                 text = if (isBlacklisted) Strings.removeFromBlacklist(lang) else Strings.addToBlacklist(lang),
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold,
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
                                 color = if (isBlacklisted) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.error
-                            )
-                        }
-                    }
-
-                    // Action 3: Search by Tag
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .bouncyPress()
-                            .clickable {
-                                val target = currentActionTag
-                                selectedTagForAction = null
-                                vm.searchTag(target)
-                                onDismiss()
-                            }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Icon(
-                                Icons.Rounded.Search,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Text(
-                                text = Strings.searchThisTag(lang),
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -1010,13 +970,11 @@ fun MediaDetailSheet(
             dismissButton = {
                 TextButton(
                     onClick = { selectedTagForAction = null },
-                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.bouncyPress()
                 ) {
-                    Text(Strings.cancelBtn(lang), fontWeight = FontWeight.Bold)
+                    Text(Strings.cancelBtn(lang), style = MaterialTheme.typography.labelLarge)
                 }
-            },
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            }
         )
     }
 }
