@@ -291,6 +291,41 @@ object Strings {
         AppLanguage.RUSSIAN -> "Скачивание в полном качестве начато..."
     }
 
+    fun copyTag(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Copy Tag"
+        AppLanguage.RUSSIAN -> "Скопировать тег"
+    }
+
+    fun tagCopied(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Tag copied to clipboard"
+        AppLanguage.RUSSIAN -> "Тег скопирован в буфер"
+    }
+
+    fun addToBlacklist(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Add to Blacklist"
+        AppLanguage.RUSSIAN -> "В чёрный список"
+    }
+
+    fun removeFromBlacklist(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Remove from Blacklist"
+        AppLanguage.RUSSIAN -> "Удалить из чёрного списка"
+    }
+
+    fun searchThisTag(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Search this Tag"
+        AppLanguage.RUSSIAN -> "Искать по тегу"
+    }
+
+    fun tagAddedToBlacklist(tag: String, lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "\"$tag\" added to blacklist"
+        AppLanguage.RUSSIAN -> "«$tag» добавлен в чёрный список"
+    }
+
+    fun tagRemovedFromBlacklist(tag: String, lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "\"$tag\" removed from blacklist"
+        AppLanguage.RUSSIAN -> "«$tag» удален из чёрного списка"
+    }
+
     fun copyTags(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Copy"
         AppLanguage.RUSSIAN -> "Копировать"

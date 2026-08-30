@@ -101,6 +101,7 @@ fun MediaDetailSheet(
 
     val coroutineScope = rememberCoroutineScope()
     var showWallpaperDialog by remember { mutableStateOf(false) }
+    var selectedTagForAction by remember { mutableStateOf<String?>(null) }
     var isSettingWallpaper by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
 
@@ -762,51 +763,21 @@ fun MediaDetailSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Icon(
-                        Icons.Rounded.Sell,
-                        null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = Strings.tagsLabel(media.tagList.size, lang),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                FilledTonalButton(
-                    onClick = {
-                        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        cm.setPrimaryClip(ClipData.newPlainText("Tags", media.tags))
-                        Toast.makeText(context, Strings.tagsCopied(lang), Toast.LENGTH_SHORT).show()
-                    },
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                    modifier = Modifier
-                        .height(34.dp)
-                        .bouncyPress(),
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                ) {
-                    Icon(Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = Strings.copyTags(lang),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Icon(
+                    Icons.Rounded.Sell,
+                    null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = Strings.tagsLabel(media.tagList.size, lang),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             Spacer(Modifier.height(10.dp))
@@ -816,6 +787,9 @@ fun MediaDetailSheet(
                 onTagClick = { tag ->
                     vm.searchTag(tag)
                     onDismiss()
+                },
+                onTagLongClick = { tag ->
+                    selectedTagForAction = tag
                 }
             )
         }
@@ -887,6 +861,164 @@ fun MediaDetailSheet(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         )
     }
+
+    if (selectedTagForAction != null) {
+        val currentActionTag = selectedTagForAction!!
+        val isBlacklisted = vm.tagBlacklist.any { it.equals(currentActionTag, ignoreCase = true) }
+
+        AlertDialog(
+            onDismissRequest = { selectedTagForAction = null },
+            shape = RoundedCornerShape(28.dp),
+            icon = {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Rounded.Tag,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            },
+            title = {
+                Text(
+                    text = currentActionTag,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            text = {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Action 1: Copy Tag
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .bouncyPress()
+                            .clickable {
+                                val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                cm.setPrimaryClip(ClipData.newPlainText("Tag", currentActionTag))
+                                Toast.makeText(context, Strings.tagCopied(lang), Toast.LENGTH_SHORT).show()
+                                selectedTagForAction = null
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.ContentCopy,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = Strings.copyTag(lang),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // Action 2: Add / Remove Blacklist
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isBlacklisted) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .bouncyPress()
+                            .clickable {
+                                if (isBlacklisted) {
+                                    vm.removeBlacklistedTag(currentActionTag)
+                                    Toast.makeText(context, Strings.tagRemovedFromBlacklist(currentActionTag, lang), Toast.LENGTH_SHORT).show()
+                                } else {
+                                    vm.addBlacklistedTag(currentActionTag)
+                                    Toast.makeText(context, Strings.tagAddedToBlacklist(currentActionTag, lang), Toast.LENGTH_SHORT).show()
+                                }
+                                selectedTagForAction = null
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                if (isBlacklisted) Icons.Rounded.CheckCircle else Icons.Rounded.Block,
+                                contentDescription = null,
+                                tint = if (isBlacklisted) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = if (isBlacklisted) Strings.removeFromBlacklist(lang) else Strings.addToBlacklist(lang),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (isBlacklisted) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+
+                    // Action 3: Search by Tag
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .bouncyPress()
+                            .clickable {
+                                val target = currentActionTag
+                                selectedTagForAction = null
+                                vm.searchTag(target)
+                                onDismiss()
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Search,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Text(
+                                text = Strings.searchThisTag(lang),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(
+                    onClick = { selectedTagForAction = null },
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.bouncyPress()
+                ) {
+                    Text(Strings.cancelBtn(lang), fontWeight = FontWeight.Bold)
+                }
+            },
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+        )
+    }
 }
 
 @Composable
@@ -938,7 +1070,8 @@ private fun WallpaperOptionItem(
 @Composable
 private fun OptInFlowDetailTags(
     tags: List<String>,
-    onTagClick: (String) -> Unit
+    onTagClick: (String) -> Unit,
+    onTagLongClick: (String) -> Unit
 ) {
     FlowRow(
         modifier = Modifier
@@ -948,31 +1081,37 @@ private fun OptInFlowDetailTags(
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         tags.forEach { tag ->
-            AssistChip(
-                onClick = { onTagClick(tag) },
-                label = {
-                    Text(
-                        text = tag,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Medium
-                    )
-                },
-                leadingIcon = {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier
+                    .bouncyPress()
+                    .pointerInput(tag) {
+                        detectTapGestures(
+                            onTap = { onTagClick(tag) },
+                            onLongPress = { onTagLongClick(tag) }
+                        )
+                    }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     Icon(
                         Icons.Rounded.Tag,
                         contentDescription = null,
                         modifier = Modifier.size(13.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
-                },
-                shape = CircleShape,
-                colors = AssistChipDefaults.assistChipColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    labelColor = MaterialTheme.colorScheme.onSurface
-                ),
-                border = null,
-                modifier = Modifier.bouncyPress()
-            )
+                    Text(
+                        text = tag,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
         }
     }
 }
