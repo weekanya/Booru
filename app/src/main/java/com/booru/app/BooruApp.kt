@@ -69,7 +69,56 @@ class BooruApplication : Application(), ImageLoaderFactory {
                     .header("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
                     .build()
 
-                chain.proceed(newRequest)
+                val initialResponse = chain.proceed(newRequest)
+                if (initialResponse.isSuccessful) {
+                    return@addInterceptor initialResponse
+                }
+
+                if (url.contains("realbooru.com") && (initialResponse.code == 404 || initialResponse.code == 302)) {
+                    initialResponse.close()
+                    val candidateUrls = mutableListOf<String>()
+
+                    if (url.contains("/samples/")) {
+                        val hash = url.substringAfterLast("/sample_").substringBefore(".")
+                        val dir = url.substringBeforeLast("/sample_").replace("/samples/", "/images/")
+                        candidateUrls.add("$dir/$hash.jpeg")
+                        candidateUrls.add("$dir/$hash.jpg")
+                        candidateUrls.add("$dir/$hash.png")
+                        candidateUrls.add("$dir/$hash.gif")
+                        val thumbDir = url.substringBeforeLast("/sample_").replace("/samples/", "/thumbnails/")
+                        candidateUrls.add("$thumbDir/thumbnail_$hash.jpg")
+                    } else if (url.contains("/images/")) {
+                        val baseWithoutExt = url.substringBeforeLast(".")
+                        candidateUrls.add("$baseWithoutExt.jpeg")
+                        candidateUrls.add("$baseWithoutExt.jpg")
+                        candidateUrls.add("$baseWithoutExt.png")
+                        candidateUrls.add("$baseWithoutExt.gif")
+                        candidateUrls.add("$baseWithoutExt.mp4")
+                        candidateUrls.add("$baseWithoutExt.webm")
+                        val hash = url.substringAfterLast("/").substringBefore(".")
+                        val sampleDir = url.substringBeforeLast("/").replace("/images/", "/samples/")
+                        candidateUrls.add("$sampleDir/sample_$hash.jpg")
+                        val thumbDir = url.substringBeforeLast("/").replace("/images/", "/thumbnails/")
+                        candidateUrls.add("$thumbDir/thumbnail_$hash.jpg")
+                    }
+
+                    for (candidate in candidateUrls) {
+                        if (candidate == url) continue
+                        val altReq = originalRequest.newBuilder()
+                            .url(candidate)
+                            .header("User-Agent", userAgent)
+                            .header("Referer", "https://realbooru.com/")
+                            .header("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
+                            .build()
+                        val altResp = chain.proceed(altReq)
+                        if (altResp.isSuccessful) {
+                            return@addInterceptor altResp
+                        }
+                        altResp.close()
+                    }
+                }
+
+                return@addInterceptor initialResponse
             }
             .build()
 

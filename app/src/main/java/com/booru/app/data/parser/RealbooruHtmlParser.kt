@@ -33,14 +33,36 @@ object RealbooruHtmlParser {
                 thumbSrc
             }
 
-            val originalUrl = previewUrl
-                .replace("/thumbnails/", "/images/")
-                .replace("/thumbnail_", "/")
-
             val tags = img.attr("title").ifBlank { img.attr("alt") }.trim()
 
             if (noAi && (tags.contains("ai_generated", ignoreCase = true) || tags.contains("novelai", ignoreCase = true))) {
                 continue
+            }
+
+            val imgStyle = img.attr("style")
+            val isVideo = imgStyle.contains("0000ff", ignoreCase = true) ||
+                    imgStyle.contains("blue", ignoreCase = true) ||
+                    tags.contains("webm", ignoreCase = true) ||
+                    tags.contains("mp4", ignoreCase = true) ||
+                    tags.contains("video", ignoreCase = true)
+
+            val originalUrl = if (isVideo) {
+                previewUrl
+                    .replace("/thumbnails/", "/images/")
+                    .replace("/thumbnail_", "/")
+                    .replace(Regex("\\.[a-zA-Z0-9]+$"), ".mp4")
+            } else {
+                previewUrl
+                    .replace("/thumbnails/", "/images/")
+                    .replace("/thumbnail_", "/")
+            }
+
+            val sampleUrl = if (isVideo) {
+                previewUrl
+            } else {
+                previewUrl
+                    .replace("/thumbnails/", "/samples/")
+                    .replace("/thumbnail_", "/sample_")
             }
 
             val scoreAttr = thumb.attr("data-score").toIntOrNull() ?: 0
@@ -52,7 +74,7 @@ object RealbooruHtmlParser {
                     id = id,
                     url = originalUrl,
                     preview = previewUrl,
-                    sample = previewUrl,
+                    sample = sampleUrl,
                     tags = tags,
                     score = scoreAttr,
                     source = "Realbooru",

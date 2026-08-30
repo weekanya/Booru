@@ -156,7 +156,33 @@ fun MediaDetailSheet(
                         .header("Accept", "*/*")
                         .build()
 
-                    val response = client.newCall(request).execute()
+                    var response = client.newCall(request).execute()
+                    if (!response.isSuccessful && rawUrl.contains("realbooru.com")) {
+                        response.close()
+                        val candidates = listOf(
+                            rawUrl.substringBeforeLast(".") + ".jpeg",
+                            rawUrl.substringBeforeLast(".") + ".jpg",
+                            rawUrl.substringBeforeLast(".") + ".png",
+                            rawUrl.substringBeforeLast(".") + ".mp4",
+                            rawUrl.substringBeforeLast(".") + ".webm"
+                        )
+                        for (cand in candidates) {
+                            if (cand == rawUrl) continue
+                            val altReq = okhttp3.Request.Builder()
+                                .url(cand)
+                                .header("User-Agent", userAgent)
+                                .header("Referer", "https://realbooru.com/")
+                                .header("Accept", "*/*")
+                                .build()
+                            val altResp = client.newCall(altReq).execute()
+                            if (altResp.isSuccessful) {
+                                response = altResp
+                                break
+                            }
+                            altResp.close()
+                        }
+                    }
+
                     if (!response.isSuccessful || response.body == null) {
                         throw IOException("HTTP ${response.code}")
                     }
@@ -589,7 +615,7 @@ fun MediaDetailSheet(
                             onClick = {
                                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, media.url)
+                                    putExtra(Intent.EXTRA_TEXT, media.postWebUrl)
                                 }
                                 context.startActivity(Intent.createChooser(shareIntent, "Share"))
                             },
@@ -612,7 +638,7 @@ fun MediaDetailSheet(
                         FilledTonalIconButton(
                             onClick = {
                                 runCatching {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(media.url)))
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(media.postWebUrl)))
                                 }.onFailure {
                                     Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
                                 }
