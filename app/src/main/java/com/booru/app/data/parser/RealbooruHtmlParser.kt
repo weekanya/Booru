@@ -59,6 +59,9 @@ object RealbooruHtmlParser {
 
             val sampleUrl = if (isVideo) {
                 previewUrl
+                    .replace("/thumbnails/", "/images/")
+                    .replace("/thumbnail_", "/")
+                    .replace(Regex("\\.[a-zA-Z0-9]+$"), ".jpg")
             } else {
                 previewUrl
                     .replace("/thumbnails/", "/samples/")
