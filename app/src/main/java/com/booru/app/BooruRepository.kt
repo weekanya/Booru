@@ -602,12 +602,13 @@ class BooruRepository(
                 }
             }
 
+            val isDanbooruFamily = key in listOf("safebooru", "xbooru", "tbib", "gelbooru", "rule34")
             if (fileUrl.isBlank() ||
                 fileUrl.endsWith("/") ||
                 fileUrl.endsWith("//") ||
                 fileUrl.contains("/images//") ||
                 fileUrl.contains("/thumbnails//") ||
-                (image.isBlank() && hash.isBlank() && directory.isBlank())
+                (isDanbooruFamily && image.isBlank() && hash.isBlank() && directory.isBlank())
             ) {
                 continue
             }

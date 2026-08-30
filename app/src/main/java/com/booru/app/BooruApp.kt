@@ -183,3 +183,23 @@ class BooruApplication : Application(), ImageLoaderFactory {
             .build()
     }
 }
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+object BooruVideoCache {
+    @Volatile
+    private var simpleCache: androidx.media3.datasource.cache.SimpleCache? = null
+    private val lock = Any()
+
+    fun getCache(context: android.content.Context): androidx.media3.datasource.cache.SimpleCache {
+        return simpleCache ?: synchronized(lock) {
+            simpleCache ?: run {
+                val cacheDir = java.io.File(context.applicationContext.cacheDir, "booru_video_cache")
+                val databaseProvider = androidx.media3.database.StandaloneDatabaseProvider(context.applicationContext)
+                val evictor = androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor(350L * 1024 * 1024)
+                androidx.media3.datasource.cache.SimpleCache(cacheDir, evictor, databaseProvider).also {
+                    simpleCache = it
+                }
+            }
+        }
+    }
+}
