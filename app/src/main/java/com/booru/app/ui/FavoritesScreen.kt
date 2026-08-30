@@ -275,11 +275,9 @@ private fun FavoriteCard(
 
     var loadError by remember(media.id, media.url) { mutableStateOf(false) }
 
-    val imageModel = remember(media.sample, media.preview, media.url, loadError, media.isVideo) {
+    val imageModel = remember(media.sample, media.preview, media.url, loadError) {
         val targetUrl = if (loadError) {
-            media.url
-        } else if (media.isVideo) {
-            media.preview.ifBlank { media.sample.ifBlank { media.url } }
+            media.preview.ifBlank { media.url }
         } else {
             media.sample.ifBlank { media.preview.ifBlank { media.url } }
         }
@@ -289,7 +287,7 @@ private fun FavoriteCard(
             .allowHardware(true)
             .listener(
                 onError = { _, _ ->
-                    if (!loadError && targetUrl != media.url && media.url.isNotBlank()) {
+                    if (!loadError && targetUrl != media.preview && media.preview.isNotBlank()) {
                         loadError = true
                     }
                 }
