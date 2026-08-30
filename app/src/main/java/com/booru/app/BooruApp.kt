@@ -173,7 +173,7 @@ class BooruApplication : Application(), ImageLoaderFactory {
             .diskCache {
                 DiskCache.Builder()
                     .directory(cacheDir.resolve("image_cache"))
-                    .maxSizeBytes(500L * 1024 * 1024)
+                    .maxSizeBytes(200L * 1024 * 1024)
                     .build()
             }
             .memoryCachePolicy(CachePolicy.ENABLED)
@@ -195,11 +195,21 @@ object BooruVideoCache {
             simpleCache ?: run {
                 val cacheDir = java.io.File(context.applicationContext.cacheDir, "booru_video_cache")
                 val databaseProvider = androidx.media3.database.StandaloneDatabaseProvider(context.applicationContext)
-                val evictor = androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor(350L * 1024 * 1024)
+                val evictor = androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor(100L * 1024 * 1024)
                 androidx.media3.datasource.cache.SimpleCache(cacheDir, evictor, databaseProvider).also {
                     simpleCache = it
                 }
             }
+        }
+    }
+
+    fun clearVideoCache(context: android.content.Context) {
+        synchronized(lock) {
+            try {
+                simpleCache?.keys?.toList()?.forEach { key ->
+                    simpleCache?.removeResource(key)
+                }
+            } catch (_: Exception) {}
         }
     }
 }

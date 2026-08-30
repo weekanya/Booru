@@ -117,21 +117,24 @@ object BooruCacheManager {
     }
 
     @OptIn(coil.annotation.ExperimentalCoilApi::class)
-    suspend fun clearBrowsingCache(context: Context, favorites: List<RemoteMedia> = emptyList()) = withContext(Dispatchers.IO) {
-
-        for (fav in favorites) {
-            saveFavoriteMedia(context, fav)
-        }
-
+    suspend fun clearBrowsingCache(context: Context) = withContext(Dispatchers.IO) {
         try {
             coil.Coil.imageLoader(context).memoryCache?.clear()
             coil.Coil.imageLoader(context).diskCache?.clear()
         } catch (_: Exception) {}
 
         try {
-            val files = context.cacheDir.listFiles() ?: emptyArray()
-            for (file in files) {
-                file.deleteRecursively()
+            com.booru.app.BooruVideoCache.clearVideoCache(context)
+        } catch (_: Exception) {}
+
+        try {
+            val cacheDir = context.cacheDir
+            cacheDir.listFiles()?.forEach { file ->
+                if (file.name == "booru_video_cache") {
+                    file.listFiles()?.forEach { it.deleteRecursively() }
+                } else {
+                    file.deleteRecursively()
+                }
             }
         } catch (_: Exception) {}
     }

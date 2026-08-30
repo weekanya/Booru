@@ -538,7 +538,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         if (isClearingCache) return
         viewModelScope.launch {
             isClearingCache = true
-            BooruCacheManager.clearBrowsingCache(getApplication(), favoritesList)
+            BooruCacheManager.clearBrowsingCache(getApplication())
             updateCacheSize()
             isClearingCache = false
             onComplete()
