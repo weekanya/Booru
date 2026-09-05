@@ -180,9 +180,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             try {
                 val currentVer = try {
                     val pInfo = getApplication<Application>().packageManager.getPackageInfo(getApplication<Application>().packageName, 0)
-                    pInfo.versionName ?: "3.3"
+                    pInfo.versionName ?: "4.0"
                 } catch (e: Exception) {
-                    "3.3"
+                    "4.0"
                 }
 
                 val release = UpdateChecker.fetchLatestRelease()
