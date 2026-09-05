@@ -1,32 +1,28 @@
 package com.booru.app.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImagePainter
 import coil.compose.SubcomposeAsyncImage
@@ -36,6 +32,19 @@ import com.booru.app.GalleryViewModel
 import com.booru.app.RemoteMedia
 import com.booru.app.data.Strings
 
+enum class FavoriteMediaTypeFilter {
+    ALL,
+    IMAGES,
+    GIFS,
+    VIDEOS
+}
+
+enum class FavoriteSortOrder {
+    NEWEST,
+    OLDEST,
+    SOURCE
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FavoritesScreen(
@@ -44,18 +53,72 @@ fun FavoritesScreen(
     modifier: Modifier = Modifier
 ) {
     val lang = vm.language
-    var filterText by remember { mutableStateOf("") }
+    var filterText by rememberSaveable { mutableStateOf("") }
+    var mediaTypeFilter by rememberSaveable { mutableStateOf(FavoriteMediaTypeFilter.ALL) }
+    var sortOrder by rememberSaveable { mutableStateOf(FavoriteSortOrder.NEWEST) }
+    var showSortMenu by remember { mutableStateOf(false) }
     var showClearDialog by remember { mutableStateOf(false) }
 
-    val filteredList = remember(vm.favoritesList, filterText) {
-        if (filterText.isBlank()) {
-            vm.favoritesList
-        } else {
-            val q = filterText.trim().lowercase()
-            vm.favoritesList.filter { media ->
-                media.tagList.any { it.contains(q, ignoreCase = true) } ||
-                        media.source.contains(q, ignoreCase = true)
+    val allCount = vm.favoritesList.size
+    val imagesCount = remember(vm.favoritesList) {
+        vm.favoritesList.count { !it.isVideo && !it.isGif }
+    }
+    val gifsCount = remember(vm.favoritesList) {
+        vm.favoritesList.count { it.isGif }
+    }
+    val videosCount = remember(vm.favoritesList) {
+        vm.favoritesList.count { it.isVideo }
+    }
+
+    val topTags = remember(vm.favoritesList) {
+        val tagCounts = mutableMapOf<String, Int>()
+        vm.favoritesList.forEach { media ->
+            media.tagList.forEach { rawTag ->
+                val tag = rawTag.trim().lowercase()
+                if (tag.length > 2 && !tag.startsWith("rating:") && !tag.startsWith("score:") && !tag.startsWith("source:")) {
+                    tagCounts[tag] = (tagCounts[tag] ?: 0) + 1
+                }
             }
+        }
+        tagCounts.entries
+            .sortedByDescending { it.value }
+            .take(12)
+            .map { it.key }
+    }
+
+    val filteredList = remember(vm.favoritesList, filterText, mediaTypeFilter, sortOrder) {
+        var list = vm.favoritesList.asSequence()
+
+        when (mediaTypeFilter) {
+            FavoriteMediaTypeFilter.ALL -> {}
+            FavoriteMediaTypeFilter.IMAGES -> {
+                list = list.filter { !it.isVideo && !it.isGif }
+            }
+            FavoriteMediaTypeFilter.GIFS -> {
+                list = list.filter { it.isGif }
+            }
+            FavoriteMediaTypeFilter.VIDEOS -> {
+                list = list.filter { it.isVideo }
+            }
+        }
+
+        val trimmed = filterText.trim().lowercase()
+        if (trimmed.isNotBlank()) {
+            val tokens = trimmed.split("\\s+".toRegex()).filter { it.isNotBlank() }
+            list = list.filter { media ->
+                tokens.all { token ->
+                    media.tagList.any { it.contains(token, ignoreCase = true) } ||
+                        media.source.contains(token, ignoreCase = true)
+                }
+            }
+        }
+
+        when (sortOrder) {
+            FavoriteSortOrder.NEWEST -> list.toList()
+            FavoriteSortOrder.OLDEST -> list.toList().asReversed()
+            FavoriteSortOrder.SOURCE -> list.sortedWith(
+                compareBy<RemoteMedia> { it.source.lowercase() }.thenByDescending { it.id.toLongOrNull() ?: 0L }
+            ).toList()
         }
     }
 
@@ -120,7 +183,7 @@ fun FavoritesScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .padding(horizontal = 20.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -131,7 +194,7 @@ fun FavoritesScreen(
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(28.dp)
                 )
-                Spacer(Modifier.width(14.dp))
+                Spacer(Modifier.width(12.dp))
                 Column {
                     Text(
                         Strings.navFavorites(lang),
@@ -147,15 +210,85 @@ fun FavoritesScreen(
             }
 
             if (vm.favoritesList.isNotEmpty()) {
-                FilledTonalIconButton(
-                    onClick = { showClearDialog = true },
-                    shape = CircleShape
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Icon(
-                        Icons.Rounded.DeleteSweep,
-                        contentDescription = "Clear all",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Box {
+                        FilledTonalIconButton(
+                            onClick = { showSortMenu = true },
+                            shape = CircleShape
+                        ) {
+                            Icon(
+                                Icons.Rounded.SwapVert,
+                                contentDescription = Strings.favSortTitle(lang),
+                                tint = if (sortOrder != FavoriteSortOrder.NEWEST) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false },
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        Strings.favSortNewest(lang),
+                                        fontWeight = if (sortOrder == FavoriteSortOrder.NEWEST) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                onClick = {
+                                    sortOrder = FavoriteSortOrder.NEWEST
+                                    showSortMenu = false
+                                },
+                                trailingIcon = if (sortOrder == FavoriteSortOrder.NEWEST) {
+                                    { Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.primary) }
+                                } else null
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        Strings.favSortOldest(lang),
+                                        fontWeight = if (sortOrder == FavoriteSortOrder.OLDEST) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                onClick = {
+                                    sortOrder = FavoriteSortOrder.OLDEST
+                                    showSortMenu = false
+                                },
+                                trailingIcon = if (sortOrder == FavoriteSortOrder.OLDEST) {
+                                    { Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.primary) }
+                                } else null
+                            )
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        Strings.favSortSource(lang),
+                                        fontWeight = if (sortOrder == FavoriteSortOrder.SOURCE) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                },
+                                onClick = {
+                                    sortOrder = FavoriteSortOrder.SOURCE
+                                    showSortMenu = false
+                                },
+                                trailingIcon = if (sortOrder == FavoriteSortOrder.SOURCE) {
+                                    { Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.primary) }
+                                } else null
+                            )
+                        }
+                    }
+
+                    FilledTonalIconButton(
+                        onClick = { showClearDialog = true },
+                        shape = CircleShape
+                    ) {
+                        Icon(
+                            Icons.Rounded.DeleteSweep,
+                            contentDescription = "Clear all",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
         }
@@ -164,8 +297,14 @@ fun FavoritesScreen(
             OutlinedTextField(
                 value = filterText,
                 onValueChange = { filterText = it },
-                placeholder = { Text(Strings.filterFavorites(lang)) },
-                leadingIcon = { Icon(Icons.Rounded.FilterList, contentDescription = null) },
+                placeholder = { Text(Strings.favSearchHint(lang)) },
+                leadingIcon = {
+                    Icon(
+                        Icons.Rounded.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
                 trailingIcon = {
                     if (filterText.isNotEmpty()) {
                         IconButton(onClick = { filterText = "" }) {
@@ -177,12 +316,149 @@ fun FavoritesScreen(
                 shape = CircleShape,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .padding(horizontal = 16.dp, vertical = 2.dp)
             )
+
+            Spacer(Modifier.height(8.dp))
+
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                item {
+                    FilterChip(
+                        selected = (mediaTypeFilter == FavoriteMediaTypeFilter.ALL),
+                        onClick = { mediaTypeFilter = FavoriteMediaTypeFilter.ALL },
+                        label = { Text("${Strings.favFilterAll(lang)} ($allCount)") },
+                        shape = CircleShape,
+                        modifier = Modifier.bouncyPress()
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = (mediaTypeFilter == FavoriteMediaTypeFilter.IMAGES),
+                        onClick = {
+                            mediaTypeFilter = if (mediaTypeFilter == FavoriteMediaTypeFilter.IMAGES) {
+                                FavoriteMediaTypeFilter.ALL
+                            } else {
+                                FavoriteMediaTypeFilter.IMAGES
+                            }
+                        },
+                        label = { Text("${Strings.favFilterImages(lang)} ($imagesCount)") },
+                        leadingIcon = {
+                            Icon(Icons.Rounded.Image, null, modifier = Modifier.size(16.dp))
+                        },
+                        shape = CircleShape,
+                        modifier = Modifier.bouncyPress()
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = (mediaTypeFilter == FavoriteMediaTypeFilter.GIFS),
+                        onClick = {
+                            mediaTypeFilter = if (mediaTypeFilter == FavoriteMediaTypeFilter.GIFS) {
+                                FavoriteMediaTypeFilter.ALL
+                            } else {
+                                FavoriteMediaTypeFilter.GIFS
+                            }
+                        },
+                        label = { Text("${Strings.favFilterGifs(lang)} ($gifsCount)") },
+                        leadingIcon = {
+                            Icon(Icons.Rounded.Gif, null, modifier = Modifier.size(18.dp))
+                        },
+                        shape = CircleShape,
+                        modifier = Modifier.bouncyPress()
+                    )
+                }
+                item {
+                    FilterChip(
+                        selected = (mediaTypeFilter == FavoriteMediaTypeFilter.VIDEOS),
+                        onClick = {
+                            mediaTypeFilter = if (mediaTypeFilter == FavoriteMediaTypeFilter.VIDEOS) {
+                                FavoriteMediaTypeFilter.ALL
+                            } else {
+                                FavoriteMediaTypeFilter.VIDEOS
+                            }
+                        },
+                        label = { Text("${Strings.favFilterVideos(lang)} ($videosCount)") },
+                        leadingIcon = {
+                            Icon(Icons.Rounded.PlayCircle, null, modifier = Modifier.size(16.dp))
+                        },
+                        shape = CircleShape,
+                        modifier = Modifier.bouncyPress()
+                    )
+                }
+
+                if (topTags.isNotEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .height(24.dp)
+                                .width(1.dp)
+                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                        )
+                    }
+
+                    items(topTags) { tag ->
+                        val isSelected = filterText.contains(tag, ignoreCase = true)
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = {
+                                if (isSelected) {
+                                    val regex = "(?i)\\b${Regex.escape(tag)}\\b".toRegex()
+                                    filterText = filterText.replace(regex, "").replace("\\s+".toRegex(), " ").trim()
+                                } else {
+                                    filterText = if (filterText.isBlank()) tag else "${filterText.trim()} $tag"
+                                }
+                            },
+                            label = { Text("#$tag") },
+                            shape = CircleShape,
+                            modifier = Modifier.bouncyPress()
+                        )
+                    }
+                }
+            }
+
+            val isFiltered = filterText.isNotBlank() || mediaTypeFilter != FavoriteMediaTypeFilter.ALL || sortOrder != FavoriteSortOrder.NEWEST
+            if (isFiltered) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = Strings.favFoundCount(filteredList.size, lang),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    TextButton(
+                        onClick = {
+                            filterText = ""
+                            mediaTypeFilter = FavoriteMediaTypeFilter.ALL
+                            sortOrder = FavoriteSortOrder.NEWEST
+                        },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            Strings.resetFilters(lang),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+            } else {
+                Spacer(Modifier.height(6.dp))
+            }
         }
 
         if (vm.favoritesList.isEmpty()) {
@@ -216,7 +492,7 @@ fun FavoritesScreen(
                         Strings.favoritesEmptyDesc(lang),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        textAlign = TextAlign.Center
                     )
                     Spacer(Modifier.height(24.dp))
                     Button(
@@ -238,7 +514,12 @@ fun FavoritesScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(Modifier.height(8.dp))
-                    TextButton(onClick = { filterText = "" }) {
+                    TextButton(
+                        onClick = {
+                            filterText = ""
+                            mediaTypeFilter = FavoriteMediaTypeFilter.ALL
+                        }
+                    ) {
                         Text(Strings.clearBtn(lang))
                     }
                 }
@@ -246,7 +527,7 @@ fun FavoritesScreen(
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 160.dp),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 86.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 86.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize()
@@ -255,18 +536,11 @@ fun FavoritesScreen(
                     items = filteredList,
                     key = { _, m -> "${m.source}_${m.id.ifBlank { m.url }}" }
                 ) { index, media ->
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) +
-                                slideInVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { it / 6 },
-                        exit = fadeOut(animationSpec = spring(stiffness = Spring.StiffnessHigh))
-                    ) {
-                        FavoriteCard(
-                            media = media,
-                            onRemove = { vm.toggleFavorite(media) },
-                            onClick = { vm.openFullscreen(filteredList, index) }
-                        )
-                    }
+                    FavoriteCard(
+                        media = media,
+                        onRemove = { vm.toggleFavorite(media) },
+                        onClick = { vm.openFullscreen(filteredList, index) }
+                    )
                 }
             }
         }
@@ -280,23 +554,13 @@ private fun FavoriteCard(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
-    var isPressed by remember { mutableStateOf(false) }
-    val animatedScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "favCardScale"
-    )
-
     var loadError by remember(media.id, media.url) { mutableStateOf(false) }
 
     val imageModel = remember(media.sample, media.preview, media.url, loadError) {
         val targetUrl = if (loadError) {
-            media.preview.ifBlank { media.url }
+            media.sample.ifBlank { media.url }
         } else {
-            media.sample.ifBlank { media.preview.ifBlank { media.url } }
+            media.preview.ifBlank { media.sample.ifBlank { media.url } }
         }
         ImageRequest.Builder(context)
             .data(targetUrl)
@@ -304,7 +568,7 @@ private fun FavoriteCard(
             .allowHardware(true)
             .listener(
                 onError = { _, _ ->
-                    if (!loadError && targetUrl != media.preview && media.preview.isNotBlank()) {
+                    if (!loadError && targetUrl != media.sample && media.sample.isNotBlank()) {
                         loadError = true
                     }
                 }
@@ -312,26 +576,19 @@ private fun FavoriteCard(
             .build()
     }
 
-    Card(
+    ElevatedCard(
         shape = RoundedCornerShape(22.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        elevation = CardDefaults.elevatedCardElevation(
+            defaultElevation = 1.dp,
+            pressedElevation = 3.dp
+        ),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
         modifier = Modifier
             .fillMaxWidth()
-            .graphicsLayer {
-                scaleX = animatedScale
-                scaleY = animatedScale
-            }
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = {
-                        isPressed = true
-                        tryAwaitRelease()
-                        isPressed = false
-                    },
-                    onTap = { onClick() }
-                )
-            }
+            .bouncyPress()
+            .clickable(onClick = onClick)
     ) {
         Box {
             SubcomposeAsyncImage(
@@ -446,6 +703,8 @@ private fun FavoriteCard(
                     text = media.source,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                 )
             }

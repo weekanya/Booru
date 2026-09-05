@@ -336,6 +336,61 @@ object Strings {
         AppLanguage.RUSSIAN -> "Фильтр по тегам в избранном..."
     }
 
+    fun favFilterAll(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "All"
+        AppLanguage.RUSSIAN -> "Все"
+    }
+
+    fun favFilterImages(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Images"
+        AppLanguage.RUSSIAN -> "Фото"
+    }
+
+    fun favFilterGifs(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "GIFs"
+        AppLanguage.RUSSIAN -> "GIF"
+    }
+
+    fun favFilterVideos(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Videos"
+        AppLanguage.RUSSIAN -> "Видео"
+    }
+
+    fun favSortTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Sort"
+        AppLanguage.RUSSIAN -> "Сортировка"
+    }
+
+    fun favSortNewest(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Newest first"
+        AppLanguage.RUSSIAN -> "Сначала новые"
+    }
+
+    fun favSortOldest(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Oldest first"
+        AppLanguage.RUSSIAN -> "Сначала старые"
+    }
+
+    fun favSortSource(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "By source"
+        AppLanguage.RUSSIAN -> "По источнику"
+    }
+
+    fun favSearchHint(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Search by tags, source..."
+        AppLanguage.RUSSIAN -> "Поиск по тегам, источнику..."
+    }
+
+    fun favFoundCount(count: Int, lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Found: $count"
+        AppLanguage.RUSSIAN -> "Найдено: $count"
+    }
+
+    fun resetFilters(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Reset"
+        AppLanguage.RUSSIAN -> "Сбросить"
+    }
+
     fun clearFavoritesConfirm(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Clear all favorites?"
         AppLanguage.RUSSIAN -> "Очистить избранное?"
