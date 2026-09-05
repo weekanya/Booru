@@ -3,11 +3,10 @@ package com.booru.app.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.*
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -18,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -68,22 +68,6 @@ fun FavoritesScreen(
     }
     val videosCount = remember(vm.favoritesList) {
         vm.favoritesList.count { it.isVideo }
-    }
-
-    val topTags = remember(vm.favoritesList) {
-        val tagCounts = mutableMapOf<String, Int>()
-        vm.favoritesList.forEach { media ->
-            media.tagList.forEach { rawTag ->
-                val tag = rawTag.trim().lowercase()
-                if (tag.length > 2 && !tag.startsWith("rating:") && !tag.startsWith("score:") && !tag.startsWith("source:")) {
-                    tagCounts[tag] = (tagCounts[tag] ?: 0) + 1
-                }
-            }
-        }
-        tagCounts.entries
-            .sortedByDescending { it.value }
-            .take(12)
-            .map { it.key }
     }
 
     val filteredList = remember(vm.favoritesList, filterText, mediaTypeFilter, sortOrder) {
@@ -294,137 +278,117 @@ fun FavoritesScreen(
         }
 
         if (vm.favoritesList.isNotEmpty()) {
-            OutlinedTextField(
-                value = filterText,
-                onValueChange = { filterText = it },
-                placeholder = { Text(Strings.favSearchHint(lang)) },
-                leadingIcon = {
-                    Icon(
-                        Icons.Rounded.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                },
-                trailingIcon = {
-                    if (filterText.isNotEmpty()) {
-                        IconButton(onClick = { filterText = "" }) {
-                            Icon(Icons.Rounded.Close, contentDescription = "Clear")
-                        }
-                    }
-                },
-                singleLine = true,
+            Surface(
                 shape = CircleShape,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                ),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 2.dp)
-            )
+                    .height(52.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Rounded.Search,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Box(modifier = Modifier.weight(1f)) {
+                        if (filterText.isEmpty()) {
+                            Text(
+                                text = Strings.favSearchHint(lang),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        BasicTextField(
+                            value = filterText,
+                            onValueChange = { filterText = it },
+                            singleLine = true,
+                            textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                color = MaterialTheme.colorScheme.onSurface
+                            ),
+                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    if (filterText.isNotEmpty()) {
+                        IconButton(
+                            onClick = { filterText = "" },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Close,
+                                contentDescription = "Clear",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                }
+            }
 
             Spacer(Modifier.height(8.dp))
 
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                item {
-                    FilterChip(
-                        selected = (mediaTypeFilter == FavoriteMediaTypeFilter.ALL),
-                        onClick = { mediaTypeFilter = FavoriteMediaTypeFilter.ALL },
-                        label = { Text("${Strings.favFilterAll(lang)} ($allCount)") },
-                        shape = CircleShape,
-                        modifier = Modifier.bouncyPress()
-                    )
-                }
-                item {
-                    FilterChip(
-                        selected = (mediaTypeFilter == FavoriteMediaTypeFilter.IMAGES),
-                        onClick = {
-                            mediaTypeFilter = if (mediaTypeFilter == FavoriteMediaTypeFilter.IMAGES) {
-                                FavoriteMediaTypeFilter.ALL
-                            } else {
-                                FavoriteMediaTypeFilter.IMAGES
-                            }
-                        },
-                        label = { Text("${Strings.favFilterImages(lang)} ($imagesCount)") },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Image, null, modifier = Modifier.size(16.dp))
-                        },
-                        shape = CircleShape,
-                        modifier = Modifier.bouncyPress()
-                    )
-                }
-                item {
-                    FilterChip(
-                        selected = (mediaTypeFilter == FavoriteMediaTypeFilter.GIFS),
-                        onClick = {
-                            mediaTypeFilter = if (mediaTypeFilter == FavoriteMediaTypeFilter.GIFS) {
-                                FavoriteMediaTypeFilter.ALL
-                            } else {
-                                FavoriteMediaTypeFilter.GIFS
-                            }
-                        },
-                        label = { Text("${Strings.favFilterGifs(lang)} ($gifsCount)") },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Gif, null, modifier = Modifier.size(18.dp))
-                        },
-                        shape = CircleShape,
-                        modifier = Modifier.bouncyPress()
-                    )
-                }
-                item {
-                    FilterChip(
-                        selected = (mediaTypeFilter == FavoriteMediaTypeFilter.VIDEOS),
-                        onClick = {
-                            mediaTypeFilter = if (mediaTypeFilter == FavoriteMediaTypeFilter.VIDEOS) {
-                                FavoriteMediaTypeFilter.ALL
-                            } else {
-                                FavoriteMediaTypeFilter.VIDEOS
-                            }
-                        },
-                        label = { Text("${Strings.favFilterVideos(lang)} ($videosCount)") },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.PlayCircle, null, modifier = Modifier.size(16.dp))
-                        },
-                        shape = CircleShape,
-                        modifier = Modifier.bouncyPress()
-                    )
-                }
-
-                if (topTags.isNotEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .height(24.dp)
-                                .width(1.dp)
-                                .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
-                        )
-                    }
-
-                    items(topTags) { tag ->
-                        val isSelected = filterText.contains(tag, ignoreCase = true)
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = {
-                                if (isSelected) {
-                                    val regex = "(?i)\\b${Regex.escape(tag)}\\b".toRegex()
-                                    filterText = filterText.replace(regex, "").replace("\\s+".toRegex(), " ").trim()
-                                } else {
-                                    filterText = if (filterText.isBlank()) tag else "${filterText.trim()} $tag"
-                                }
-                            },
-                            label = { Text("#$tag") },
-                            shape = CircleShape,
-                            modifier = Modifier.bouncyPress()
-                        )
-                    }
-                }
+                FavoriteFilterTab(
+                    text = Strings.favFilterAll(lang),
+                    count = allCount,
+                    selected = (mediaTypeFilter == FavoriteMediaTypeFilter.ALL),
+                    onClick = { mediaTypeFilter = FavoriteMediaTypeFilter.ALL },
+                    modifier = Modifier.weight(1f)
+                )
+                FavoriteFilterTab(
+                    text = Strings.favFilterImages(lang),
+                    count = imagesCount,
+                    selected = (mediaTypeFilter == FavoriteMediaTypeFilter.IMAGES),
+                    onClick = {
+                        mediaTypeFilter = if (mediaTypeFilter == FavoriteMediaTypeFilter.IMAGES) {
+                            FavoriteMediaTypeFilter.ALL
+                        } else {
+                            FavoriteMediaTypeFilter.IMAGES
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+                FavoriteFilterTab(
+                    text = Strings.favFilterGifs(lang),
+                    count = gifsCount,
+                    selected = (mediaTypeFilter == FavoriteMediaTypeFilter.GIFS),
+                    onClick = {
+                        mediaTypeFilter = if (mediaTypeFilter == FavoriteMediaTypeFilter.GIFS) {
+                            FavoriteMediaTypeFilter.ALL
+                        } else {
+                            FavoriteMediaTypeFilter.GIFS
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+                FavoriteFilterTab(
+                    text = Strings.favFilterVideos(lang),
+                    count = videosCount,
+                    selected = (mediaTypeFilter == FavoriteMediaTypeFilter.VIDEOS),
+                    onClick = {
+                        mediaTypeFilter = if (mediaTypeFilter == FavoriteMediaTypeFilter.VIDEOS) {
+                            FavoriteMediaTypeFilter.ALL
+                        } else {
+                            FavoriteMediaTypeFilter.VIDEOS
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             val isFiltered = filterText.isNotBlank() || mediaTypeFilter != FavoriteMediaTypeFilter.ALL || sortOrder != FavoriteSortOrder.NEWEST
@@ -548,6 +512,40 @@ fun FavoritesScreen(
 }
 
 @Composable
+private fun FavoriteFilterTab(
+    text: String,
+    count: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        shape = CircleShape,
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = modifier
+            .height(36.dp)
+            .bouncyPress()
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 4.dp)
+        ) {
+            Text(
+                text = if (count > 0) "$text $count" else text,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
 private fun FavoriteCard(
     media: RemoteMedia,
     onRemove: () -> Unit,
@@ -558,9 +556,9 @@ private fun FavoriteCard(
 
     val imageModel = remember(media.sample, media.preview, media.url, loadError) {
         val targetUrl = if (loadError) {
-            media.sample.ifBlank { media.url }
+            media.preview.ifBlank { media.url }
         } else {
-            media.preview.ifBlank { media.sample.ifBlank { media.url } }
+            media.sample.ifBlank { media.preview.ifBlank { media.url } }
         }
         ImageRequest.Builder(context)
             .data(targetUrl)
@@ -568,7 +566,7 @@ private fun FavoriteCard(
             .allowHardware(true)
             .listener(
                 onError = { _, _ ->
-                    if (!loadError && targetUrl != media.sample && media.sample.isNotBlank()) {
+                    if (!loadError && targetUrl != media.preview && media.preview.isNotBlank()) {
                         loadError = true
                     }
                 }
