@@ -21,8 +21,11 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateOffsetAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -135,6 +138,7 @@ fun MediaDetailSheet(
     var selectedTagForAction by remember { mutableStateOf<String?>(null) }
     var isSettingWallpaper by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
+    var isTagsExpanded by remember { mutableStateOf(false) }
 
     val currentMedia = mediaList.getOrNull(pagerState.currentPage) ?: mediaList.first()
 
@@ -840,41 +844,77 @@ fun MediaDetailSheet(
 
             Spacer(Modifier.height(18.dp))
 
-            Row(
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(horizontal = 16.dp)
+                    .bouncyPress()
+                    .clickable { isTagsExpanded = !isTagsExpanded }
             ) {
-                Icon(
-                    Icons.Rounded.Sell,
-                    null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-                Text(
-                    text = Strings.tagsLabel(currentMedia.tagList.size, lang),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Sell,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Text(
+                            text = Strings.tagsLabel(currentMedia.tagList.size, lang),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    val rotation by animateFloatAsState(
+                        targetValue = if (isTagsExpanded) 180f else 0f,
+                        animationSpec = tween(250),
+                        label = "tagsChevron"
+                    )
+                    Icon(
+                        Icons.Rounded.ExpandMore,
+                        contentDescription = if (isTagsExpanded) "Collapse" else "Expand",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .size(22.dp)
+                            .graphicsLayer { rotationZ = rotation }
+                    )
+                }
             }
 
-            Spacer(Modifier.height(10.dp))
-
-            OptInFlowDetailTags(
-                tags = currentMedia.tagList,
-                blacklistedTags = vm.tagBlacklist,
-                onTagClick = { tag ->
-                    vm.searchTag(tag, currentMedia.source)
-                    onDismiss()
-                    onNavigateToExplore?.invoke()
-                },
-                onTagLongClick = { tag ->
-                    selectedTagForAction = tag
+            AnimatedVisibility(
+                visible = isTagsExpanded,
+                enter = fadeIn(tween(200)) + expandVertically(tween(250)),
+                exit = fadeOut(tween(150)) + shrinkVertically(tween(200))
+            ) {
+                Column {
+                    Spacer(Modifier.height(10.dp))
+                    OptInFlowDetailTags(
+                        tags = currentMedia.tagList,
+                        blacklistedTags = vm.tagBlacklist,
+                        onTagClick = { tag ->
+                            vm.searchTag(tag, currentMedia.source)
+                            onDismiss()
+                            onNavigateToExplore?.invoke()
+                        },
+                        onTagLongClick = { tag ->
+                            selectedTagForAction = tag
+                        }
+                    )
                 }
-            )
+            }
         }
     }
 
@@ -1016,7 +1056,6 @@ fun MediaDetailSheet(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Option 1: Search posts with this tag
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -1058,7 +1097,6 @@ fun MediaDetailSheet(
                         }
                     }
 
-                    // Option 2: Copy tag
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -1100,7 +1138,6 @@ fun MediaDetailSheet(
                         }
                     }
 
-                    // Option 3: Add to / Remove from Blacklist
                     Surface(
                         shape = RoundedCornerShape(14.dp),
                         color = if (isBlacklisted)

@@ -319,7 +319,13 @@ class BooruRepository(
                 when (custom.engine) {
                     BooruEngine.MOEBOORU -> parts.add("rating:s")
                     BooruEngine.GELBOORU -> parts.add("rating:general")
-                    BooruEngine.DANBOORU -> parts.add("rating:g")
+                    BooruEngine.DANBOORU -> {
+                        if (custom.cleanBaseUrl.contains("e621") || custom.cleanBaseUrl.contains("e926")) {
+                            parts.add("rating:s")
+                        } else {
+                            parts.add("rating:g")
+                        }
+                    }
                 }
             } else {
                 when (key) {
@@ -334,7 +340,13 @@ class BooruRepository(
                 when (custom.engine) {
                     BooruEngine.MOEBOORU -> parts.add("-rating:s")
                     BooruEngine.GELBOORU -> parts.add("-rating:general")
-                    BooruEngine.DANBOORU -> parts.add("-rating:g")
+                    BooruEngine.DANBOORU -> {
+                        if (custom.cleanBaseUrl.contains("e621") || custom.cleanBaseUrl.contains("e926")) {
+                            parts.add("-rating:s")
+                        } else {
+                            parts.add("-rating:g")
+                        }
+                    }
                 }
             } else {
                 when (key) {
@@ -466,10 +478,10 @@ class BooruRepository(
 
         val custom = customSources.find { it.key == key || it.name.equals(key, ignoreCase = true) }
         if (custom != null) {
+            val base = custom.cleanBaseUrl
             val fullUrl = when (custom.engine) {
                 BooruEngine.GELBOORU -> {
-                    val endpoint = if (custom.baseUrl.endsWith("/index.php")) custom.baseUrl else "${custom.baseUrl}/index.php"
-                    endpoint.toHttpUrl().newBuilder().apply {
+                    "$base/index.php".toHttpUrl().newBuilder().apply {
                         addQueryParameter("page", "dapi")
                         addQueryParameter("s", "post")
                         addQueryParameter("q", "index")
@@ -484,16 +496,14 @@ class BooruRepository(
                     }.build()
                 }
                 BooruEngine.MOEBOORU -> {
-                    val endpoint = if (custom.baseUrl.endsWith("/post.json")) custom.baseUrl else "${custom.baseUrl}/post.json"
-                    endpoint.toHttpUrl().newBuilder().apply {
+                    "$base/post.json".toHttpUrl().newBuilder().apply {
                         if (tagQuery.isNotBlank()) addQueryParameter("tags", tagQuery)
                         addQueryParameter("limit", PAGE_SIZE.toString())
                         addQueryParameter("page", (page + 1).toString())
                     }.build()
                 }
                 BooruEngine.DANBOORU -> {
-                    val endpoint = if (custom.baseUrl.endsWith("/posts.json")) custom.baseUrl else "${custom.baseUrl}/posts.json"
-                    endpoint.toHttpUrl().newBuilder().apply {
+                    "$base/posts.json".toHttpUrl().newBuilder().apply {
                         if (tagQuery.isNotBlank()) addQueryParameter("tags", tagQuery)
                         addQueryParameter("limit", PAGE_SIZE.toString())
                         addQueryParameter("page", (page + 1).toString())
@@ -509,7 +519,7 @@ class BooruRepository(
             val req = Request.Builder()
                 .url(fullUrl)
                 .header("User-Agent", USER_AGENT)
-                .header("Referer", "${custom.baseUrl}/")
+                .header("Referer", "$base/")
                 .build()
 
             return client.newCall(req).execute().use { response ->
@@ -522,7 +532,7 @@ class BooruRepository(
                     }
                     throw BooruHttpException(sourceKey = custom.name, statusCode = code, message = "HTTP $code from ${custom.name}")
                 }
-                parseResponse(custom.name, body, noAi, custom.baseUrl, customSources)
+                parseResponse(custom.name, body, noAi, base, customSources)
             }
         }
 
@@ -664,7 +674,7 @@ class BooruRepository(
         Log.d(TAG, "[$key] GET $sanitized")
     }
 
-    private fun parseResponse(
+    internal fun parseResponse(
         key: String,
         body: String,
         noAi: Boolean,
@@ -698,15 +708,19 @@ class BooruRepository(
                 else -> "safe"
             }
 
+            val fileObj = o.optJSONObject("file")
             var fileUrl = o.optString("file_url")
                 .ifBlank { o.optString("fileUrl") }
                 .ifBlank { o.optString("jpeg_url") }
                 .ifBlank { o.optString("high_res_url") }
+                .ifBlank { fileObj?.optString("url") ?: "" }
 
             val id = o.optString("id", "")
             val directory = o.optString("directory").takeIf { it != "null" } ?: ""
             val image = o.optString("image").takeIf { it != "null" } ?: ""
-            val hash = o.optString("hash").takeIf { it != "null" } ?: ""
+            val hash = o.optString("hash").takeIf { it != "null" }
+                ?: fileObj?.optString("md5")
+                ?: o.optString("md5")
             val baseImgName = image.substringBeforeLast(".")
 
             if (fileUrl.isBlank() && directory.isNotBlank() && image.isNotBlank()) {
@@ -724,8 +738,16 @@ class BooruRepository(
                 }
             }
 
+            if (fileUrl.isBlank() && hash.isNotBlank()) {
+                val ext = fileObj?.optString("ext").takeIf { !it.isNullOrBlank() } ?: o.optString("file_ext").takeIf { !it.isNullOrBlank() } ?: "jpg"
+                if (customBaseUrl.contains("e621") || customBaseUrl.contains("e926")) {
+                    fileUrl = "https://static1.e621.net/data/${hash.take(2)}/${hash.substring(2, 4)}/$hash.$ext"
+                }
+            }
+
             val isDanbooruFamily = key in listOf("safebooru", "xbooru", "tbib", "gelbooru", "rule34")
             if (fileUrl.isBlank() ||
+                fileUrl == "null" ||
                 fileUrl.endsWith("/") ||
                 fileUrl.endsWith("//") ||
                 fileUrl.contains("/images//") ||
@@ -749,9 +771,11 @@ class BooruRepository(
             val isVideo = fileUrl.lowercase().substringBefore("?").endsWith(".mp4") || fileUrl.lowercase().substringBefore("?").endsWith(".webm")
             val isGif = fileUrl.lowercase().substringBefore("?").endsWith(".gif")
 
+            val previewObj = o.optJSONObject("preview")
             var preview = o.optString("preview_url")
                 .ifBlank { o.optString("previewUrl") }
                 .ifBlank { o.optString("preview_file_url") }
+                .ifBlank { previewObj?.optString("url") ?: "" }
 
             if (preview.isBlank() && directory.isNotBlank() && image.isNotBlank()) {
                 val host = when (key) {
@@ -768,6 +792,10 @@ class BooruRepository(
                 }
             }
 
+            if (preview.isBlank() && hash.isNotBlank() && (customBaseUrl.contains("e621") || customBaseUrl.contains("e926"))) {
+                preview = "https://static1.e621.net/data/preview/${hash.take(2)}/${hash.substring(2, 4)}/$hash.jpg"
+            }
+
             if (preview.startsWith("/") && !preview.startsWith("//") && customBaseUrl.isNotBlank()) {
                 preview = "${customBaseUrl.trimEnd('/')}$preview"
             }
@@ -779,15 +807,17 @@ class BooruRepository(
                 preview = "$preview?$id"
             }
 
+            val sampleObj = o.optJSONObject("sample")
             var sample = o.optString("sample_url")
                 .ifBlank { o.optString("sampleUrl") }
                 .ifBlank { o.optString("large_file_url") }
+                .ifBlank { sampleObj?.optString("url") ?: "" }
 
             if (isGif) {
                 sample = fileUrl
             }
 
-            val hasSample = o.optBoolean("sample", false) || o.optInt("sample", 0) == 1
+            val hasSample = o.optBoolean("sample", false) || o.optInt("sample", 0) == 1 || (sampleObj?.optBoolean("has", false) == true)
             if (sample.isBlank() && hasSample && directory.isNotBlank() && image.isNotBlank()) {
                 val host = when (key) {
                     "safebooru" -> "https://safebooru.org"
@@ -814,25 +844,50 @@ class BooruRepository(
                 sample = "$sample?$id"
             }
 
-            if (sample.isBlank()) {
+            if (sample.isBlank() || sample == "null") {
                 sample = fileUrl
             }
 
-            if (preview.isBlank() || preview.endsWith("/") || preview.contains("thumbnail_.jpg") || preview.contains("/thumbnails//")) {
+            if (preview.isBlank() || preview == "null" || preview.endsWith("/") || preview.contains("thumbnail_.jpg") || preview.contains("/thumbnails//")) {
                 preview = sample
             }
 
-            var tags = o.optString("tags")
-                .ifBlank { o.optString("tag_string") }
-                .ifBlank { o.optString("tag_string_general") }
+            var tags = ""
+            val tagsObj = o.optJSONObject("tags")
+            if (tagsObj != null) {
+                val tagList = mutableListOf<String>()
+                val tagKeys = tagsObj.keys()
+                while (tagKeys.hasNext()) {
+                    val cat = tagKeys.next()
+                    val catArray = tagsObj.optJSONArray(cat)
+                    if (catArray != null) {
+                        for (j in 0 until catArray.length()) {
+                            val t = catArray.optString(j)
+                            if (t.isNotBlank()) tagList.add(t)
+                        }
+                    }
+                }
+                tags = tagList.joinToString(" ")
+            }
+            if (tags.isBlank()) {
+                tags = o.optString("tags")
+                    .ifBlank { o.optString("tag_string") }
+                    .ifBlank { o.optString("tag_string_general") }
+            }
 
             if (noAi && (tags.contains("ai_generated", ignoreCase = true) || tags.contains("novelai", ignoreCase = true))) {
                 continue
             }
 
-            val score = o.optInt("score", 0)
-            val width = o.optInt("width", 0).takeIf { it > 0 } ?: o.optInt("image_width", 0)
-            val height = o.optInt("height", 0).takeIf { it > 0 } ?: o.optInt("image_height", 0)
+            val scoreObj = o.optJSONObject("score")
+            val score = scoreObj?.optInt("total", 0) ?: o.optInt("score", 0)
+
+            val width = fileObj?.optInt("width", 0)?.takeIf { it > 0 }
+                ?: o.optInt("width", 0).takeIf { it > 0 }
+                ?: o.optInt("image_width", 0)
+            val height = fileObj?.optInt("height", 0)?.takeIf { it > 0 }
+                ?: o.optInt("height", 0).takeIf { it > 0 }
+                ?: o.optInt("image_height", 0)
 
             val createdAt: Long = when {
                 o.has("created_at") -> TimestampParser.parseToEpochSeconds(o.opt("created_at"))

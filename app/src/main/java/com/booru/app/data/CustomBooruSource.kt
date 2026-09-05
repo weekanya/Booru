@@ -5,7 +5,23 @@ import org.json.JSONObject
 enum class BooruEngine(val displayName: String) {
     GELBOORU("Gelbooru / DAPI (index.php)"),
     MOEBOORU("Moebooru (post.json)"),
-    DANBOORU("Danbooru 2.x (posts.json)")
+    DANBOORU("Danbooru / e621 (posts.json)")
+}
+
+fun sanitizeBooruBaseUrl(raw: String): String {
+    var url = raw.trim().trimEnd('/')
+    val suffixes = listOf(
+        "/posts.json", "/posts.xml", "/posts",
+        "/post.json", "/post.xml", "/post",
+        "/index.php"
+    )
+    for (suffix in suffixes) {
+        if (url.endsWith(suffix, ignoreCase = true)) {
+            url = url.substring(0, url.length - suffix.length).trimEnd('/')
+            break
+        }
+    }
+    return url
 }
 
 data class CustomBooruSource(
@@ -17,11 +33,12 @@ data class CustomBooruSource(
     val userId: String = ""
 ) {
     val key: String get() = if (id.startsWith("custom_")) id else "custom_$id"
+    val cleanBaseUrl: String get() = sanitizeBooruBaseUrl(baseUrl)
 
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id)
         put("name", name)
-        put("baseUrl", baseUrl)
+        put("baseUrl", cleanBaseUrl)
         put("engine", engine.name)
         put("apiKey", apiKey)
         put("userId", userId)
@@ -37,7 +54,7 @@ data class CustomBooruSource(
             return CustomBooruSource(
                 id = id,
                 name = name,
-                baseUrl = baseUrl.trim().trimEnd('/'),
+                baseUrl = sanitizeBooruBaseUrl(baseUrl),
                 engine = engine,
                 apiKey = json.optString("apiKey", ""),
                 userId = json.optString("userId", "")

@@ -187,8 +187,8 @@ object Strings {
     }
 
     fun sourceUrlHint(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Base URL (https://...)"
-        AppLanguage.RUSSIAN -> "URL адрес (https://...)"
+        AppLanguage.ENGLISH -> "Website URL (e.g. https://e621.net)"
+        AppLanguage.RUSSIAN -> "URL адрес (напр. https://e621.net)"
     }
 
     fun sourceEngineLabel(lang: AppLanguage) = when (lang) {

@@ -47,6 +47,7 @@ import com.booru.app.GalleryViewModel
 import com.booru.app.data.ImageQuality
 import com.booru.app.data.CustomBooruSource
 import com.booru.app.data.BooruEngine
+import com.booru.app.data.sanitizeBooruBaseUrl
 import com.booru.app.R
 import com.booru.app.data.AppLanguage
 import com.booru.app.data.Strings
@@ -417,7 +418,7 @@ fun SettingsScreen(
                                         text = when (engine) {
                                             BooruEngine.GELBOORU -> "Gelbooru"
                                             BooruEngine.MOEBOORU -> "Moebooru"
-                                            BooruEngine.DANBOORU -> "Danbooru"
+                                            BooruEngine.DANBOORU -> "Danbooru / e621"
                                         },
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
@@ -451,7 +452,7 @@ fun SettingsScreen(
                 Button(
                     onClick = {
                         val cleanName = customName.trim()
-                        val cleanUrl = customUrl.trim().trimEnd('/')
+                        val cleanUrl = sanitizeBooruBaseUrl(customUrl.trim())
                         if (cleanName.isNotBlank() && cleanUrl.isNotBlank() && cleanUrl.startsWith("http")) {
                             val newSource = CustomBooruSource(
                                 id = cleanName.lowercase().replace(" ", "_"),
@@ -575,7 +576,6 @@ fun SettingsScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    // Input & Add row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -636,7 +636,6 @@ fun SettingsScreen(
                     }
 
 
-                    // In-list filter if list is longer than 6 tags
                     if (vm.tagBlacklist.size > 6) {
                         OutlinedTextField(
                             value = blacklistFilterQuery,
@@ -677,7 +676,6 @@ fun SettingsScreen(
                         )
                     }
 
-                    // Blacklist items / Empty state
                     if (vm.tagBlacklist.isEmpty()) {
                         Surface(
                             shape = RoundedCornerShape(16.dp),
