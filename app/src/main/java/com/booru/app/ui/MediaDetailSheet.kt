@@ -23,6 +23,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -60,6 +61,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -863,6 +865,7 @@ fun MediaDetailSheet(
 
             OptInFlowDetailTags(
                 tags = currentMedia.tagList,
+                blacklistedTags = vm.tagBlacklist,
                 onTagClick = { tag ->
                     vm.searchTag(tag, currentMedia.source)
                     onDismiss()
@@ -957,34 +960,47 @@ fun MediaDetailSheet(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(30.dp)
+                            color = if (isBlacklisted)
+                                MaterialTheme.colorScheme.errorContainer
+                            else
+                                MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.size(36.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    Icons.Rounded.Tag,
+                                    imageVector = if (isBlacklisted) Icons.Rounded.Block else Icons.Rounded.Tag,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp)
+                                    tint = if (isBlacklisted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
-                        Text(
-                            text = currentActionTag,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Column {
+                            Text(
+                                text = "#$currentActionTag",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (isBlacklisted) {
+                                Text(
+                                    text = Strings.tagBlacklistedStatus(lang),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                            }
+                        }
                     }
                     IconButton(
                         onClick = { selectedTagForAction = null },
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             Icons.Rounded.Close,
@@ -998,10 +1014,53 @@ fun MediaDetailSheet(
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Option 1: Search posts with this tag
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .bouncyPress()
+                            .clickable {
+                                vm.searchTag(currentActionTag, currentMedia.source)
+                                selectedTagForAction = null
+                                onDismiss()
+                                onNavigateToExplore?.invoke()
+                            }
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.size(34.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Rounded.Search,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            Text(
+                                text = Strings.searchPostsWithTag(lang),
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // Option 2: Copy tag
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHighest,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1014,16 +1073,24 @@ fun MediaDetailSheet(
                             }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(
-                                Icons.Rounded.ContentCopy,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                modifier = Modifier.size(34.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Rounded.ContentCopy,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.secondary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
                             Text(
                                 text = Strings.copyTag(lang),
                                 style = MaterialTheme.typography.bodyMedium,
@@ -1033,9 +1100,16 @@ fun MediaDetailSheet(
                         }
                     }
 
+                    // Option 3: Add to / Remove from Blacklist
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        shape = RoundedCornerShape(14.dp),
+                        color = if (isBlacklisted)
+                            MaterialTheme.colorScheme.surfaceContainerHighest
+                        else
+                            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
+                        border = if (!isBlacklisted)
+                            BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.35f))
+                        else null,
                         modifier = Modifier
                             .fillMaxWidth()
                             .bouncyPress()
@@ -1052,16 +1126,27 @@ fun MediaDetailSheet(
                             }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(
-                                imageVector = if (isBlacklisted) Icons.Rounded.CheckCircle else Icons.Rounded.Block,
-                                contentDescription = null,
-                                tint = if (isBlacklisted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(18.dp)
-                            )
+                            Surface(
+                                shape = CircleShape,
+                                color = if (isBlacklisted)
+                                    MaterialTheme.colorScheme.primaryContainer
+                                else
+                                    MaterialTheme.colorScheme.errorContainer,
+                                modifier = Modifier.size(34.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = if (isBlacklisted) Icons.Rounded.CheckCircle else Icons.Rounded.Block,
+                                        contentDescription = null,
+                                        tint = if (isBlacklisted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
                             Text(
                                 text = if (isBlacklisted) Strings.removeFromBlacklist(lang) else Strings.addToBlacklist(lang),
                                 style = MaterialTheme.typography.bodyMedium,
@@ -1304,7 +1389,8 @@ private fun WallpaperOptionItem(
 private fun OptInFlowDetailTags(
     tags: List<String>,
     onTagClick: (String) -> Unit,
-    onTagLongClick: (String) -> Unit
+    onTagLongClick: (String) -> Unit,
+    blacklistedTags: Collection<String> = emptyList()
 ) {
     FlowRow(
         modifier = Modifier
@@ -1314,9 +1400,16 @@ private fun OptInFlowDetailTags(
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         tags.forEach { tag ->
+            val isBlacklisted = blacklistedTags.any { it.equals(tag, ignoreCase = true) }
             Surface(
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                color = if (isBlacklisted)
+                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
+                else
+                    MaterialTheme.colorScheme.surfaceContainerHigh,
+                border = if (isBlacklisted)
+                    BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.35f))
+                else null,
                 modifier = Modifier
                     .bouncyPress()
                     .pointerInput(tag) {
@@ -1332,16 +1425,17 @@ private fun OptInFlowDetailTags(
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Icon(
-                        Icons.Rounded.Tag,
+                        imageVector = if (isBlacklisted) Icons.Rounded.Block else Icons.Rounded.Tag,
                         contentDescription = null,
                         modifier = Modifier.size(13.dp),
-                        tint = MaterialTheme.colorScheme.primary
+                        tint = if (isBlacklisted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                     )
                     Text(
                         text = tag,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = if (isBlacklisted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                        textDecoration = if (isBlacklisted) TextDecoration.LineThrough else null
                     )
                 }
             }

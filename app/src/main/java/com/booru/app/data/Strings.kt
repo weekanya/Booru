@@ -366,6 +366,11 @@ object Strings {
         AppLanguage.RUSSIAN -> "«$tag» удален из чёрного списка"
     }
 
+    fun tagBlacklistedStatus(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "In blacklist"
+        AppLanguage.RUSSIAN -> "В чёрном списке"
+    }
+
     fun saveBtn(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Save"
         AppLanguage.RUSSIAN -> "Сохранить"
@@ -542,6 +547,36 @@ object Strings {
     fun clearAllBlacklist(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Clear all"
         AppLanguage.RUSSIAN -> "Очистить всё"
+    }
+
+    fun quickPresets(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Popular presets:"
+        AppLanguage.RUSSIAN -> "Быстрые фильтры:"
+    }
+
+    fun clearBlacklistConfirmTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Clear Tag Blacklist?"
+        AppLanguage.RUSSIAN -> "Очистить чёрный список?"
+    }
+
+    fun clearBlacklistConfirmDesc(count: Int, lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "All $count blocked tags will be removed."
+        AppLanguage.RUSSIAN -> "Все $count заблокированных тегов будут удалены."
+    }
+
+    fun searchPostsWithTag(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Search posts with this tag"
+        AppLanguage.RUSSIAN -> "Найти посты с этим тегом"
+    }
+
+    fun searchBlacklistPlaceholder(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Filter tags..."
+        AppLanguage.RUSSIAN -> "Фильтр тегов..."
+    }
+
+    fun emptyBlacklistHint(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Tap a preset above or type tags to block them"
+        AppLanguage.RUSSIAN -> "Нажмите на фильтр выше или введите тег вручную"
     }
 
     fun setWallpaperTitle(lang: AppLanguage) = when (lang) {

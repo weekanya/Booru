@@ -5,6 +5,7 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -14,6 +15,7 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -79,6 +81,11 @@ fun SettingsScreen(
     var customApiKey by remember { mutableStateOf("") }
     var customUserId by remember { mutableStateOf("") }
     var newBlacklistTag by remember { mutableStateOf("") }
+    var showClearBlacklistConfirm by remember { mutableStateOf(false) }
+    var blacklistFilterQuery by remember { mutableStateOf("") }
+    val presetBlacklistTags = remember {
+        listOf("ai_generated", "furry", "yaoi", "guro", "scat", "3d", "comic", "gore")
+    }
 
     if (showRule34Dialog) {
         AlertDialog(
@@ -480,9 +487,34 @@ fun SettingsScreen(
     }
 
     if (showBlacklistDialog) {
+        val addTagAction = {
+            if (newBlacklistTag.isNotBlank()) {
+                val tagsToAdd = newBlacklistTag
+                    .split(Regex("[\\s,]+"))
+                    .map { it.trim().removePrefix("#").replace(' ', '_') }
+                    .filter { it.isNotBlank() }
+                tagsToAdd.forEach { tag ->
+                    vm.addBlacklistedTag(tag)
+                }
+                newBlacklistTag = ""
+            }
+        }
+
+        val filteredBlacklist = remember(vm.tagBlacklist, blacklistFilterQuery) {
+            if (blacklistFilterQuery.isBlank()) {
+                vm.tagBlacklist.toList().sorted()
+            } else {
+                vm.tagBlacklist.filter { it.contains(blacklistFilterQuery.trim(), ignoreCase = true) }.sorted()
+            }
+        }
+
         AlertDialog(
-            onDismissRequest = { showBlacklistDialog = false },
-            shape = RoundedCornerShape(22.dp),
+            onDismissRequest = {
+                showBlacklistDialog = false
+                blacklistFilterQuery = ""
+            },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             title = {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -491,27 +523,42 @@ fun SettingsScreen(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
-                        Icon(
-                            Icons.Rounded.Block,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            text = if (vm.tagBlacklist.isEmpty())
-                                Strings.tagBlacklistTitle(lang)
-                            else
-                                "${Strings.tagBlacklistTitle(lang)} (${vm.tagBlacklist.size})",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Rounded.Block,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                        Column {
+                            Text(
+                                text = Strings.tagBlacklistTitle(lang),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "${vm.tagBlacklist.size} ${if (lang == AppLanguage.RUSSIAN) "тегов" else "tags"}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                     IconButton(
-                        onClick = { showBlacklistDialog = false },
-                        modifier = Modifier.size(28.dp)
+                        onClick = {
+                            showBlacklistDialog = false
+                            blacklistFilterQuery = ""
+                        },
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             Icons.Rounded.Close,
@@ -523,13 +570,17 @@ fun SettingsScreen(
                 }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
                     Text(
-                        Strings.tagBlacklistDesc(lang),
+                        text = Strings.tagBlacklistDesc(lang),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
+                    // Input & Add row
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
@@ -538,88 +589,266 @@ fun SettingsScreen(
                         OutlinedTextField(
                             value = newBlacklistTag,
                             onValueChange = { newBlacklistTag = it },
-                            placeholder = { Text(Strings.addTagPlaceholder(lang), style = MaterialTheme.typography.bodyMedium) },
-                            singleLine = true,
-                            shape = RoundedCornerShape(10.dp),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                            keyboardActions = KeyboardActions(onDone = {
-                                if (newBlacklistTag.isNotBlank()) {
-                                    vm.addBlacklistedTag(newBlacklistTag)
-                                    newBlacklistTag = ""
-                                }
-                            }),
-                            modifier = Modifier.weight(1f)
-                        )
-                        FilledTonalButton(
-                            onClick = {
-                                if (newBlacklistTag.isNotBlank()) {
-                                    vm.addBlacklistedTag(newBlacklistTag)
-                                    newBlacklistTag = ""
+                            placeholder = {
+                                Text(
+                                    Strings.addTagPlaceholder(lang),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Rounded.Tag,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            },
+                            trailingIcon = {
+                                if (newBlacklistTag.isNotEmpty()) {
+                                    IconButton(
+                                        onClick = { newBlacklistTag = "" },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Rounded.Close,
+                                            contentDescription = "Clear",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                             },
-                            shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
+                            singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = { addTagAction() }),
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        FilledTonalIconButton(
+                            onClick = addTagAction,
+                            enabled = newBlacklistTag.isNotBlank(),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier.size(50.dp)
                         ) {
-                            Text(Strings.addTagBtn(lang), fontWeight = FontWeight.Bold)
+                            Icon(
+                                Icons.Rounded.Add,
+                                contentDescription = Strings.addTagBtn(lang),
+                                modifier = Modifier.size(22.dp)
+                            )
                         }
                     }
 
-                    if (vm.tagBlacklist.isEmpty()) {
+                    // Quick presets section
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         Text(
-                            Strings.noBlacklistedTags(lang),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                            text = Strings.quickPresets(lang),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            contentPadding = PaddingValues(vertical = 2.dp)
+                        ) {
+                            items(presetBlacklistTags) { preset ->
+                                val isAdded = vm.tagBlacklist.any { it.equals(preset, ignoreCase = true) }
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isAdded)
+                                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
+                                    else
+                                        MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    border = BorderStroke(
+                                        1.dp,
+                                        if (isAdded)
+                                            MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                                        else
+                                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
+                                    ),
+                                    modifier = Modifier
+                                        .bouncyPress()
+                                        .clickable {
+                                            if (isAdded) {
+                                                vm.removeBlacklistedTag(preset)
+                                            } else {
+                                                vm.addBlacklistedTag(preset)
+                                            }
+                                        }
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isAdded) Icons.Rounded.Check else Icons.Rounded.Add,
+                                            contentDescription = null,
+                                            tint = if (isAdded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                        Text(
+                                            text = preset,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = if (isAdded) FontWeight.Bold else FontWeight.Medium,
+                                            color = if (isAdded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // In-list filter if list is longer than 6 tags
+                    if (vm.tagBlacklist.size > 6) {
+                        OutlinedTextField(
+                            value = blacklistFilterQuery,
+                            onValueChange = { blacklistFilterQuery = it },
+                            placeholder = {
+                                Text(
+                                    Strings.searchBlacklistPlaceholder(lang),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Rounded.Search,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            trailingIcon = {
+                                if (blacklistFilterQuery.isNotEmpty()) {
+                                    IconButton(
+                                        onClick = { blacklistFilterQuery = "" },
+                                        modifier = Modifier.size(20.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Rounded.Close,
+                                            contentDescription = "Clear",
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                            },
+                            singleLine = true,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                        )
+                    }
+
+                    // Blacklist items / Empty state
+                    if (vm.tagBlacklist.isEmpty()) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 24.dp, horizontal = 16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(44.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Rounded.Shield,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = Strings.noBlacklistedTags(lang),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = Strings.emptyBlacklistHint(lang),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     } else {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 180.dp)
+                                .heightIn(min = 60.dp, max = 200.dp)
                                 .verticalScroll(rememberScrollState())
+                                .animateContentSize()
                         ) {
-                            FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalArrangement = Arrangement.spacedBy(6.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                vm.tagBlacklist.forEach { tag ->
-                                    InputChip(
-                                        selected = false,
-                                        onClick = { vm.removeBlacklistedTag(tag) },
-                                        label = {
-                                            Text(
-                                                text = tag,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                fontWeight = FontWeight.Medium
-                                            )
-                                        },
-                                        leadingIcon = {
-                                            Icon(
-                                                Icons.Rounded.Block,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(12.dp),
-                                                tint = MaterialTheme.colorScheme.error
-                                            )
-                                        },
-                                        trailingIcon = {
-                                            Icon(
-                                                Icons.Rounded.Close,
-                                                contentDescription = "Remove",
-                                                modifier = Modifier.size(12.dp),
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        },
-                                        shape = CircleShape,
-                                        colors = InputChipDefaults.inputChipColors(
-                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                            labelColor = MaterialTheme.colorScheme.onSurface
-                                        ),
-                                        border = InputChipDefaults.inputChipBorder(
-                                            enabled = true,
-                                            selected = false,
-                                            borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                                        )
+                            if (filteredBlacklist.isEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = if (lang == AppLanguage.RUSSIAN) "Ничего не найдено" else "No matching tags",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
+                                }
+                            } else {
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    filteredBlacklist.forEach { tag ->
+                                        Surface(
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                            border = BorderStroke(
+                                                1.dp,
+                                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
+                                            ),
+                                            modifier = Modifier.bouncyPress()
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(start = 10.dp, top = 4.dp, bottom = 4.dp, end = 4.dp),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Text(
+                                                    text = "#$tag",
+                                                    style = MaterialTheme.typography.labelMedium,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(22.dp)
+                                                        .clip(CircleShape)
+                                                        .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f))
+                                                        .clickable { vm.removeBlacklistedTag(tag) },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        Icons.Rounded.Close,
+                                                        contentDescription = "Remove",
+                                                        modifier = Modifier.size(12.dp),
+                                                        tint = MaterialTheme.colorScheme.error
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -627,12 +856,94 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                if (vm.tagBlacklist.isNotEmpty()) {
-                    TextButton(
-                        onClick = { vm.clearBlacklist() }
-                    ) {
-                        Text(Strings.clearAllBlacklist(lang), color = MaterialTheme.colorScheme.error)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (vm.tagBlacklist.isNotEmpty()) {
+                        TextButton(
+                            onClick = { showClearBlacklistConfirm = true }
+                        ) {
+                            Icon(
+                                Icons.Rounded.DeleteSweep,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = Strings.clearAllBlacklist(lang),
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    } else {
+                        Spacer(Modifier.width(1.dp))
                     }
+
+                    FilledTonalButton(
+                        onClick = {
+                            showBlacklistDialog = false
+                            blacklistFilterQuery = ""
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
+                    ) {
+                        Text(Strings.closeBtn(lang), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        )
+    }
+
+    if (showClearBlacklistConfirm) {
+        AlertDialog(
+            onDismissRequest = { showClearBlacklistConfirm = false },
+            shape = RoundedCornerShape(22.dp),
+            icon = {
+                Icon(
+                    Icons.Rounded.DeleteSweep,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(28.dp)
+                )
+            },
+            title = {
+                Text(
+                    text = Strings.clearBlacklistConfirmTitle(lang),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = Strings.clearBlacklistConfirmDesc(vm.tagBlacklist.size, lang),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        vm.clearBlacklist()
+                        showClearBlacklistConfirm = false
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(Strings.clearAllBlacklist(lang), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { showClearBlacklistConfirm = false },
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(Strings.cancelBtn(lang))
                 }
             }
         )
