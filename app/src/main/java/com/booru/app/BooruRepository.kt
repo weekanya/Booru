@@ -441,6 +441,10 @@ class BooruRepository(
             throw BooruAuthException(sourceKey = "gelbooru", statusCode = 401, message = "Authentication required for Gelbooru (API Key & User ID needed)")
         }
 
+        if (key == "rule34" && (credentials.rule34UserId.isBlank() || credentials.rule34ApiKey.isBlank())) {
+            throw BooruAuthException(sourceKey = "rule34", statusCode = 401, message = "Authentication required for Rule34 (API Key & User ID needed)")
+        }
+
         val baseUrl = when (key) {
             "safebooru" -> "https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1"
             "yande"     -> "https://yande.re/post.json"
@@ -513,7 +517,8 @@ class BooruRepository(
             if (body.contains("<title>401 Unauthorized</title>") ||
                 body.contains("401 Unauthorized") ||
                 body.contains("User-Id or Api-Key is incorrect") ||
-                body.contains("Access denied")
+                body.contains("Access denied") ||
+                body.contains("Missing authentication")
             ) {
                 throw BooruAuthException(sourceKey = key, statusCode = 401, message = "Invalid API Key or Access Denied for ${getSourceDisplayName(key)}")
             }
