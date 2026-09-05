@@ -44,7 +44,6 @@ fun FavoritesScreen(
     modifier: Modifier = Modifier
 ) {
     val lang = vm.language
-    var showDetail by remember { mutableStateOf<RemoteMedia?>(null) }
     var filterText by remember { mutableStateOf("") }
     var showClearDialog by remember { mutableStateOf(false) }
 
@@ -60,31 +59,29 @@ fun FavoritesScreen(
         }
     }
 
-    showDetail?.let { media ->
-        MediaDetailSheet(
-            media = media,
-            vm = vm,
-            onDismiss = { showDetail = null },
-            onNavigateToExplore = onNavigateToExplore
-        )
-    }
-
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            shape = RoundedCornerShape(28.dp),
-            icon = {
-                Icon(
-                    Icons.Rounded.DeleteSweep,
-                    null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(32.dp)
-                )
-            },
+            shape = RoundedCornerShape(22.dp),
             title = {
-                Text(Strings.clearFavoritesConfirm(lang))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.DeleteSweep,
+                        null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        Strings.clearFavoritesConfirm(lang),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             },
-            text = { Text(Strings.clearFavoritesDesc(vm.favoritesList.size, lang)) },
+            text = { Text(Strings.clearFavoritesDesc(vm.favoritesList.size, lang), style = MaterialTheme.typography.bodyMedium) },
             confirmButton = {
                 Button(
                     onClick = {

@@ -37,19 +37,20 @@ object BooruCacheManager {
     }
 
     suspend fun saveFavoriteMedia(context: Context, media: RemoteMedia) = withContext(Dispatchers.IO) {
-        val urlsToCache = listOf(
-            media.preview,
-            media.sample,
-            media.url
-        ).filter { it.isNotBlank() }.distinct()
+        val urlsToCache = if (media.isVideo) {
+            listOf(media.preview, media.sample)
+        } else {
+            listOf(media.preview, media.sample, media.url)
+        }.filter { it.isNotBlank() }.distinct()
 
         for (url in urlsToCache) {
-            try {
-                val hash = urlToHash(url)
-                val ext = url.substringAfterLast(".").substringBefore("?").ifBlank { "jpg" }
-                val targetFile = File(getFavoritesMediaDir(context), "$hash.$ext")
-                if (targetFile.exists() && targetFile.length() > 0) continue
+            val hash = urlToHash(url)
+            val ext = url.substringAfterLast(".").substringBefore("?").ifBlank { "jpg" }
+            val targetFile = File(getFavoritesMediaDir(context), "$hash.$ext")
+            if (targetFile.exists() && targetFile.length() > 0) continue
 
+            val tempFile = File(getFavoritesMediaDir(context), "$hash.$ext.tmp")
+            try {
                 val referer = when {
                     url.contains("gelbooru.com") -> "https://gelbooru.com/"
                     url.contains("rule34.xxx") -> "https://rule34.xxx/"
@@ -64,20 +65,24 @@ object BooruCacheManager {
 
                 val req = Request.Builder()
                     .url(url)
-                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
                     .header("Referer", referer)
                     .build()
 
                 httpClient.newCall(req).execute().use { resp ->
                     if (resp.isSuccessful && resp.body != null) {
-                        val tempFile = File(getFavoritesMediaDir(context), "$hash.$ext.tmp")
                         tempFile.outputStream().use { out ->
                             resp.body!!.byteStream().copyTo(out)
                         }
                         tempFile.renameTo(targetFile)
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            } finally {
+                if (tempFile.exists() && !targetFile.exists()) {
+                    tempFile.delete()
+                }
+            }
         }
     }
 

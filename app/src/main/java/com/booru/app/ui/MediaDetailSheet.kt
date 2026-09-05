@@ -6,7 +6,6 @@ import android.content.ClipboardManager
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.graphics.drawable.BitmapDrawable
 import android.media.MediaScannerConnection
 import android.net.Uri
@@ -17,17 +16,27 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.core.graphics.drawable.toBitmap
 import java.util.Locale
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroidSize
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import kotlin.math.abs
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -76,7 +85,6 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MediaDetailSheet(
     media: RemoteMedia,
@@ -84,32 +92,70 @@ fun MediaDetailSheet(
     onDismiss: () -> Unit,
     onNavigateToExplore: (() -> Unit)? = null
 ) {
+    MediaDetailSheet(
+        initialIndex = 0,
+        mediaList = listOf(media),
+        vm = vm,
+        onDismiss = onDismiss,
+        onLoadMore = null,
+        onNavigateToExplore = onNavigateToExplore
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Composable
+fun MediaDetailSheet(
+    initialIndex: Int = 0,
+    mediaList: List<RemoteMedia>,
+    vm: GalleryViewModel,
+    onDismiss: () -> Unit,
+    onLoadMore: (() -> Unit)? = null,
+    onNavigateToExplore: (() -> Unit)? = null
+) {
+    if (mediaList.isEmpty()) {
+        LaunchedEffect(Unit) { onDismiss() }
+        return
+    }
+
     val context = LocalContext.current
     val lang = vm.language
-    val isFav = vm.isFavorite(media)
-
-    var rawScale by remember { mutableFloatStateOf(1f) }
-    var rawOffset by remember { mutableStateOf(Offset.Zero) }
-
-    val animatedScale by animateFloatAsState(
-        targetValue = rawScale,
-        animationSpec = Motion.softSpring(),
-        label = "zoomScale"
-    )
-    val animatedOffset by animateOffsetAsState(
-        targetValue = rawOffset,
-        animationSpec = Motion.softSpring(),
-        label = "zoomOffset"
-    )
-
     val coroutineScope = rememberCoroutineScope()
+
+    val safeInitial = initialIndex.coerceIn(0, mediaList.size - 1)
+    val pagerState = rememberPagerState(
+        initialPage = safeInitial,
+        pageCount = { mediaList.size }
+    )
+
+    var isCurrentPageZoomed by remember { mutableStateOf(false) }
+    var resetZoomKey by remember { mutableIntStateOf(0) }
     var showWallpaperDialog by remember { mutableStateOf(false) }
     var selectedTagForAction by remember { mutableStateOf<String?>(null) }
     var isSettingWallpaper by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
-    var detailLoadError by remember(media.id, media.url) { mutableStateOf(false) }
 
-    fun downloadOriginalFile() {
+    val currentMedia = mediaList.getOrNull(pagerState.currentPage) ?: mediaList.first()
+
+    BackHandler {
+        when {
+            selectedTagForAction != null -> selectedTagForAction = null
+            showWallpaperDialog -> showWallpaperDialog = false
+            isCurrentPageZoomed -> {
+                resetZoomKey++
+                isCurrentPageZoomed = false
+            }
+            else -> onDismiss()
+        }
+    }
+
+    LaunchedEffect(pagerState.currentPage, mediaList.size) {
+        isCurrentPageZoomed = false
+        if (onLoadMore != null && pagerState.currentPage >= mediaList.size - 4) {
+            onLoadMore()
+        }
+    }
+
+    fun downloadCurrentMedia(media: RemoteMedia) {
         if (isDownloading) return
         coroutineScope.launch {
             isDownloading = true
@@ -118,9 +164,7 @@ fun MediaDetailSheet(
             withContext(Dispatchers.IO) {
                 try {
                     val rawUrl = media.url.ifBlank { media.sample.ifBlank { media.preview } }
-                    if (rawUrl.isBlank()) {
-                        throw IOException("URL is empty")
-                    }
+                    if (rawUrl.isBlank()) throw IOException("URL is empty")
 
                     val ext = rawUrl.substringAfterLast(".").substringBefore("?").ifBlank {
                         if (media.isVideo) "mp4" else if (media.isGif) "gif" else "jpg"
@@ -154,13 +198,6 @@ fun MediaDetailSheet(
                         .readTimeout(60, TimeUnit.SECONDS)
                         .build()
 
-                    val request = okhttp3.Request.Builder()
-                        .url(rawUrl)
-                        .header("User-Agent", userAgent)
-                        .header("Referer", referer)
-                        .header("Accept", "*/*")
-                        .build()
-
                     val candidates = LinkedHashSet<String>()
                     val base = rawUrl.substringBeforeLast(".")
                     candidates.add(rawUrl)
@@ -182,6 +219,7 @@ fun MediaDetailSheet(
                     }
 
                     var successfulResp: okhttp3.Response? = null
+                    var successfulCandUrl = rawUrl
                     for (cand in candidates) {
                         val altReq = okhttp3.Request.Builder()
                             .url(cand)
@@ -193,6 +231,7 @@ fun MediaDetailSheet(
                             val altResp = client.newCall(altReq).execute()
                             if (altResp.isSuccessful && altResp.body != null) {
                                 successfulResp = altResp
+                                successfulCandUrl = cand
                                 break
                             }
                             altResp.close()
@@ -200,71 +239,114 @@ fun MediaDetailSheet(
                     }
 
                     val response = successfulResp ?: throw IOException("HTTP download failed")
-                    response.use { resp ->
-                        val body = resp.body ?: throw IOException("Empty response body")
-                        val inputStream = body.byteStream()
+                    var insertedUri: Uri? = null
+                    var isSuccess = false
+                    var downloadedFilename = ""
+                    try {
+                        response.use { resp ->
+                            val body = resp.body ?: throw IOException("Empty response body")
+                            val headerContentType = resp.header("Content-Type")?.substringBefore(";")?.trim()?.lowercase()
 
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            val contentValues = ContentValues().apply {
-                                put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
-                                put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                                put(
-                                    MediaStore.MediaColumns.RELATIVE_PATH,
-                                    if (media.isVideo) "${Environment.DIRECTORY_MOVIES}/Booru" else "${Environment.DIRECTORY_PICTURES}/Booru"
-                                )
-                                put(MediaStore.MediaColumns.IS_PENDING, 1)
+                            val resolvedExt = when {
+                                headerContentType == "image/png" -> "png"
+                                headerContentType == "image/gif" -> "gif"
+                                headerContentType == "image/webp" -> "webp"
+                                headerContentType == "video/mp4" -> "mp4"
+                                headerContentType == "video/webm" -> "webm"
+                                headerContentType == "image/jpeg" -> "jpg"
+                                else -> {
+                                    successfulCandUrl.substringAfterLast(".").substringBefore("?").ifBlank {
+                                        if (media.isVideo) "mp4" else if (media.isGif) "gif" else "jpg"
+                                    }
+                                }
                             }
+                            val mimeType = when (resolvedExt.lowercase()) {
+                                "mp4" -> "video/mp4"
+                                "webm" -> "video/webm"
+                                "gif" -> "image/gif"
+                                "png" -> "image/png"
+                                "webp" -> "image/webp"
+                                else -> "image/jpeg"
+                            }
+                            val isVideoMedia = media.isVideo || resolvedExt in listOf("mp4", "webm")
+                            val filename = "booru_${media.source.lowercase()}_${media.id}_${System.currentTimeMillis()}.$resolvedExt"
+                            downloadedFilename = filename
 
-                            val collection = if (media.isVideo) {
-                                MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                            val inputStream = body.byteStream()
+
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                                val contentValues = ContentValues().apply {
+                                    put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                                    put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                                    put(
+                                        MediaStore.MediaColumns.RELATIVE_PATH,
+                                        if (isVideoMedia) "${Environment.DIRECTORY_MOVIES}/Booru" else "${Environment.DIRECTORY_PICTURES}/Booru"
+                                    )
+                                    put(MediaStore.MediaColumns.IS_PENDING, 1)
+                                }
+
+                                val collection = if (isVideoMedia) {
+                                    MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                                } else {
+                                    MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                                }
+
+                                val uri = context.contentResolver.insert(collection, contentValues)
+                                    ?: throw IOException("MediaStore insert failed")
+                                insertedUri = uri
+
+                                context.contentResolver.openOutputStream(uri)?.use { outStream ->
+                                    inputStream.copyTo(outStream)
+                                } ?: throw IOException("Could not open stream for saving")
+
+                                contentValues.clear()
+                                contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                                context.contentResolver.update(uri, contentValues, null, null)
+                                isSuccess = true
                             } else {
-                                MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                                val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context,
+                                    android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                if (!hasPermission) {
+                                    throw IOException("Storage permission required")
+                                }
+
+                                val targetDir = File(
+                                    Environment.getExternalStoragePublicDirectory(
+                                        if (isVideoMedia) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES
+                                    ),
+                                    "Booru"
+                                ).apply { mkdirs() }
+
+                                val targetFile = File(targetDir, filename)
+                                targetFile.outputStream().use { outStream ->
+                                    inputStream.copyTo(outStream)
+                                }
+
+                                MediaScannerConnection.scanFile(
+                                    context,
+                                    arrayOf(targetFile.absolutePath),
+                                    arrayOf(mimeType),
+                                    null
+                                )
+                                isSuccess = true
                             }
-
-                            val uri = context.contentResolver.insert(collection, contentValues)
-                                ?: throw IOException("MediaStore insert failed")
-
-                            context.contentResolver.openOutputStream(uri)?.use { outStream ->
-                                inputStream.copyTo(outStream)
-                            } ?: throw IOException("Could not open stream for saving")
-
-                            contentValues.clear()
-                            contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
-                            context.contentResolver.update(uri, contentValues, null, null)
-                        } else {
-                            val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
-                                context,
-                                android.Manifest.permission.WRITE_EXTERNAL_STORAGE
-                            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                            if (!hasPermission) {
-                                throw IOException("Storage permission required")
+                        }
+                    } finally {
+                        if (!isSuccess) {
+                            insertedUri?.let { uri ->
+                                try {
+                                    context.contentResolver.delete(uri, null, null)
+                                } catch (_: Exception) {}
                             }
-
-                            val targetDir = File(
-                                Environment.getExternalStoragePublicDirectory(
-                                    if (media.isVideo) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES
-                                ),
-                                "Booru"
-                            ).apply { mkdirs() }
-
-                            val targetFile = File(targetDir, filename)
-                            targetFile.outputStream().use { outStream ->
-                                inputStream.copyTo(outStream)
-                            }
-
-                            MediaScannerConnection.scanFile(
-                                context,
-                                arrayOf(targetFile.absolutePath),
-                                arrayOf(mimeType),
-                                null
-                            )
                         }
                     }
 
                     withContext(Dispatchers.Main) {
                         Toast.makeText(
                             context,
-                            "${Strings.downloadSuccess(lang)}: $filename",
+                            "${Strings.downloadSuccess(lang)}: $downloadedFilename",
                             Toast.LENGTH_LONG
                         ).show()
                     }
@@ -285,7 +367,7 @@ fun MediaDetailSheet(
         }
     }
 
-    fun applyWallpaper(target: Int) {
+    fun applyWallpaper(target: Int, media: RemoteMedia) {
         coroutineScope.launch {
             isSettingWallpaper = true
             showWallpaperDialog = false
@@ -359,7 +441,7 @@ fun MediaDetailSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        modifier = Modifier.padding(top = 56.dp),
+        modifier = Modifier.statusBarsPadding(),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         tonalElevation = 4.dp,
         dragHandle = {
@@ -380,107 +462,45 @@ fun MediaDetailSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 36.dp)
         ) {
-
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 340.dp, max = 560.dp)
+                    .heightIn(min = 360.dp, max = 560.dp)
                     .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(28.dp))
+                    .clip(RoundedCornerShape(26.dp))
                     .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                 contentAlignment = Alignment.Center
             ) {
-                if (media.isVideo) {
-                    BooruVideoPlayer(
-                        videoUrl = media.url,
-                        previewUrl = media.sample.ifBlank { media.preview.ifBlank { media.url } },
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .pointerInput(Unit) {
-                                detectTapGestures(
-                                    onDoubleTap = {
-                                        if (rawScale > 1f) {
-                                            rawScale = 1f
-                                            rawOffset = Offset.Zero
-                                        } else {
-                                            rawScale = 2.5f
-                                        }
-                                    }
-                                )
-                            }
-                            .pointerInput(Unit) {
-                                detectTransformGestures { _, pan, zoom, _ ->
-                                    rawScale = (rawScale * zoom).coerceIn(1f, 4.5f)
-                                    if (rawScale > 1f) {
-                                        val maxOffset = (rawScale - 1f) * 600f
-                                        val newOffset = rawOffset + pan
-                                        rawOffset = Offset(
-                                            x = newOffset.x.coerceIn(-maxOffset, maxOffset),
-                                            y = newOffset.y.coerceIn(-maxOffset, maxOffset)
-                                        )
-                                    } else {
-                                        rawOffset = Offset.Zero
-                                    }
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        val detailTargetUrl = if (detailLoadError) {
-                            media.sample.ifBlank { media.preview.ifBlank { media.url } }
-                        } else {
-                            media.url.ifBlank { media.sample.ifBlank { media.preview } }
-                        }
-
-                        AsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data(detailTargetUrl)
-                                .placeholderMemoryCacheKey(media.sample)
-                                .crossfade(300)
-                                .allowHardware(!media.isGif)
-                                .listener(
-                                    onError = { _, _ ->
-                                        if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
-                                            detailLoadError = true
-                                        }
-                                    }
-                                )
-                                .build(),
-                            contentDescription = media.tags,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .graphicsLayer(
-                                    scaleX = animatedScale,
-                                    scaleY = animatedScale,
-                                    translationX = animatedOffset.x,
-                                    translationY = animatedOffset.y
-                                ),
-                            contentScale = ContentScale.Fit
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    beyondViewportPageCount = 1,
+                    userScrollEnabled = !isCurrentPageZoomed,
+                    key = { page ->
+                        val m = mediaList.getOrNull(page)
+                        if (m != null) "${m.source}_${m.id.ifBlank { m.url }}_$page" else page
+                    }
+                ) { page ->
+                    val item = mediaList[page]
+                    if (item.isVideo) {
+                        BooruVideoPlayer(
+                            videoUrl = item.url,
+                            previewUrl = item.sample.ifBlank { item.preview.ifBlank { item.url } },
+                            modifier = Modifier.fillMaxSize(),
+                            isActive = (pagerState.currentPage == page)
                         )
-
-                        if (rawScale > 1f) {
-                            FilledTonalIconButton(
-                                onClick = {
-                                    rawScale = 1f
-                                    rawOffset = Offset.Zero
-                                },
-                                shape = CircleShape,
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .padding(14.dp)
-                                    .size(38.dp)
-                                    .bouncyPress()
-                            ) {
-                                Icon(
-                                    Icons.Rounded.ZoomOutMap,
-                                    contentDescription = "Reset zoom",
-                                    modifier = Modifier.size(18.dp)
-                                )
+                    } else {
+                        DetailZoomableImage(
+                            media = item,
+                            vm = vm,
+                            isActive = (pagerState.currentPage == page),
+                            resetZoomKey = if (pagerState.currentPage == page) resetZoomKey else 0,
+                            onZoomChanged = { zoomed ->
+                                if (pagerState.currentPage == page) {
+                                    isCurrentPageZoomed = zoomed
+                                }
                             }
-                        }
+                        )
                     }
                 }
 
@@ -497,7 +517,7 @@ fun MediaDetailSheet(
                         shadowElevation = 2.dp
                     ) {
                         Text(
-                            text = media.source,
+                            text = currentMedia.source.uppercase(),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface,
@@ -505,9 +525,9 @@ fun MediaDetailSheet(
                         )
                     }
 
-                    RatingBadge(media.rating, lang)
+                    RatingBadge(currentMedia.rating, lang)
 
-                    if (media.isGif) {
+                    if (currentMedia.isGif) {
                         Surface(
                             shape = CircleShape,
                             color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.95f),
@@ -521,7 +541,7 @@ fun MediaDetailSheet(
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
-                    } else if (media.isVideo) {
+                    } else if (currentMedia.isVideo) {
                         Surface(
                             shape = CircleShape,
                             color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.95f),
@@ -537,9 +557,28 @@ fun MediaDetailSheet(
                         }
                     }
                 }
+
+                if (mediaList.size > 1) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.90f),
+                        shadowElevation = 2.dp,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(14.dp)
+                    ) {
+                        Text(
+                            text = "${pagerState.currentPage + 1} / ${mediaList.size}",
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(14.dp))
 
             Surface(
                 shape = RoundedCornerShape(24.dp),
@@ -555,9 +594,8 @@ fun MediaDetailSheet(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-
                     Button(
-                        onClick = { downloadOriginalFile() },
+                        onClick = { downloadCurrentMedia(currentMedia) },
                         enabled = !isDownloading,
                         shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
@@ -596,7 +634,7 @@ fun MediaDetailSheet(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-
+                        val isFav = vm.isFavorite(currentMedia)
                         val favBg by animateColorAsState(
                             targetValue = if (isFav) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
                             label = "favBg"
@@ -606,7 +644,7 @@ fun MediaDetailSheet(
                             label = "favFg"
                         )
                         FilledTonalIconButton(
-                            onClick = { vm.toggleFavorite(media) },
+                            onClick = { vm.toggleFavorite(currentMedia) },
                             modifier = Modifier
                                 .size(44.dp)
                                 .bouncyPress(),
@@ -623,7 +661,7 @@ fun MediaDetailSheet(
                             )
                         }
 
-                        if (!media.isVideo) {
+                        if (!currentMedia.isVideo) {
                             FilledTonalIconButton(
                                 onClick = { showWallpaperDialog = true },
                                 enabled = !isSettingWallpaper,
@@ -656,9 +694,10 @@ fun MediaDetailSheet(
                             onClick = {
                                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, media.postWebUrl)
+                                    val shareUrl = currentMedia.postWebUrl.ifBlank { currentMedia.url.ifBlank { currentMedia.sample } }
+                                    putExtra(Intent.EXTRA_TEXT, shareUrl)
                                 }
-                                context.startActivity(Intent.createChooser(shareIntent, "Share"))
+                                context.startActivity(Intent.createChooser(shareIntent, Strings.share(lang)))
                             },
                             modifier = Modifier
                                 .size(44.dp)
@@ -678,8 +717,9 @@ fun MediaDetailSheet(
 
                         FilledTonalIconButton(
                             onClick = {
+                                val browserUrl = currentMedia.postWebUrl.ifBlank { currentMedia.url.ifBlank { currentMedia.sample } }
                                 runCatching {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(media.postWebUrl)))
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(browserUrl)))
                                 }.onFailure {
                                     Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
                                 }
@@ -711,7 +751,6 @@ fun MediaDetailSheet(
                     .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -738,7 +777,7 @@ fun MediaDetailSheet(
                         }
                         Column {
                             Text(
-                                text = Strings.scoreLabel(media.score, lang),
+                                text = Strings.scoreLabel(currentMedia.score, lang),
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -752,7 +791,7 @@ fun MediaDetailSheet(
                     }
                 }
 
-                if (media.width > 0 && media.height > 0) {
+                if (currentMedia.width > 0 && currentMedia.height > 0) {
                     Surface(
                         shape = RoundedCornerShape(20.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -779,7 +818,7 @@ fun MediaDetailSheet(
                             }
                             Column {
                                 Text(
-                                    text = "${media.width}×${media.height}",
+                                    text = "${currentMedia.width}×${currentMedia.height}",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = MaterialTheme.colorScheme.onSurface,
@@ -813,7 +852,7 @@ fun MediaDetailSheet(
                     modifier = Modifier.size(20.dp)
                 )
                 Text(
-                    text = Strings.tagsLabel(media.tagList.size, lang),
+                    text = Strings.tagsLabel(currentMedia.tagList.size, lang),
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold
@@ -823,9 +862,9 @@ fun MediaDetailSheet(
             Spacer(Modifier.height(10.dp))
 
             OptInFlowDetailTags(
-                tags = media.tagList,
+                tags = currentMedia.tagList,
                 onTagClick = { tag ->
-                    vm.searchTag(tag, media.source)
+                    vm.searchTag(tag, currentMedia.source)
                     onDismiss()
                     onNavigateToExplore?.invoke()
                 },
@@ -839,50 +878,45 @@ fun MediaDetailSheet(
     if (showWallpaperDialog) {
         AlertDialog(
             onDismissRequest = { showWallpaperDialog = false },
-            icon = {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Rounded.Wallpaper,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-            },
+            shape = RoundedCornerShape(22.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             title = {
-                Text(
-                    text = Strings.setWallpaperTitle(lang),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.Wallpaper,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = Strings.setWallpaperTitle(lang),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             },
             text = {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     WallpaperOptionItem(
                         icon = Icons.Rounded.Smartphone,
                         title = Strings.wallpaperHomeScreen(lang),
-                        onClick = { applyWallpaper(1) }
+                        onClick = { applyWallpaper(1, currentMedia) }
                     )
                     WallpaperOptionItem(
                         icon = Icons.Rounded.Lock,
                         title = Strings.wallpaperLockScreen(lang),
-                        onClick = { applyWallpaper(2) }
+                        onClick = { applyWallpaper(2, currentMedia) }
                     )
                     WallpaperOptionItem(
                         icon = Icons.Rounded.Wallpaper,
                         title = Strings.wallpaperBoth(lang),
-                        onClick = { applyWallpaper(3) }
+                        onClick = { applyWallpaper(3, currentMedia) }
                     )
                 }
             },
@@ -897,9 +931,7 @@ fun MediaDetailSheet(
                         fontWeight = FontWeight.Bold
                     )
                 }
-            },
-            shape = RoundedCornerShape(28.dp),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            }
         )
     }
 
@@ -908,39 +940,43 @@ fun MediaDetailSheet(
         val isBlacklisted = vm.tagBlacklist.any { it.equals(currentActionTag, ignoreCase = true) }
         AlertDialog(
             onDismissRequest = { selectedTagForAction = null },
-            shape = RoundedCornerShape(28.dp),
-            icon = {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Rounded.Tag,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-            },
+            shape = RoundedCornerShape(22.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             title = {
-                Text(
-                    text = currentActionTag,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(30.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Rounded.Tag,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = currentActionTag,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHighest,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -953,19 +989,19 @@ fun MediaDetailSheet(
                             }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Icon(
                                 Icons.Rounded.ContentCopy,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                             Text(
                                 text = Strings.copyTag(lang),
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -973,7 +1009,7 @@ fun MediaDetailSheet(
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(12.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHighest,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -991,21 +1027,21 @@ fun MediaDetailSheet(
                             }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
                             Icon(
                                 imageVector = if (isBlacklisted) Icons.Rounded.CheckCircle else Icons.Rounded.Block,
                                 contentDescription = null,
                                 tint = if (isBlacklisted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                             Text(
                                 text = if (isBlacklisted) Strings.removeFromBlacklist(lang) else Strings.addToBlacklist(lang),
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
+                                color = if (isBlacklisted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                             )
                         }
                     }
@@ -1015,14 +1051,189 @@ fun MediaDetailSheet(
             dismissButton = {
                 TextButton(
                     onClick = { selectedTagForAction = null },
-                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.bouncyPress()
                 ) {
                     Text(Strings.cancelBtn(lang), fontWeight = FontWeight.Bold)
                 }
-            },
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+            }
         )
+    }
+}
+
+@Composable
+fun DetailZoomableImage(
+    media: RemoteMedia,
+    vm: GalleryViewModel,
+    isActive: Boolean,
+    resetZoomKey: Int = 0,
+    onZoomChanged: (Boolean) -> Unit
+) {
+    val context = LocalContext.current
+    var rawScale by remember { mutableFloatStateOf(1f) }
+    var rawOffset by remember { mutableStateOf(Offset.Zero) }
+    var detailLoadError by remember(media.id, media.url) { mutableStateOf(false) }
+
+    LaunchedEffect(isActive) {
+        if (!isActive) {
+            rawScale = 1f
+            rawOffset = Offset.Zero
+            onZoomChanged(false)
+        }
+    }
+
+    LaunchedEffect(resetZoomKey) {
+        if (resetZoomKey > 0) {
+            rawScale = 1f
+            rawOffset = Offset.Zero
+            onZoomChanged(false)
+        }
+    }
+
+    val animatedScale by animateFloatAsState(
+        targetValue = rawScale,
+        animationSpec = Motion.softSpring(),
+        label = "zoomScale"
+    )
+    val animatedOffset by animateOffsetAsState(
+        targetValue = rawOffset,
+        animationSpec = Motion.softSpring(),
+        label = "zoomOffset"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = { tapOffset ->
+                        if (rawScale > 1.05f) {
+                            rawScale = 1f
+                            rawOffset = Offset.Zero
+                            onZoomChanged(false)
+                        } else {
+                            val newScale = 2.5f
+                            rawScale = newScale
+                            val maxOffsetX = ((newScale - 1f) * size.width.toFloat() / 2f).coerceAtLeast(0f)
+                            val maxOffsetY = ((newScale - 1f) * size.height.toFloat() / 2f).coerceAtLeast(0f)
+                            val targetX = (size.width.toFloat() / 2f - tapOffset.x) * (newScale - 1f)
+                            val targetY = (size.height.toFloat() / 2f - tapOffset.y) * (newScale - 1f)
+                            rawOffset = Offset(
+                                x = targetX.coerceIn(-maxOffsetX, maxOffsetX),
+                                y = targetY.coerceIn(-maxOffsetY, maxOffsetY)
+                            )
+                            onZoomChanged(true)
+                        }
+                    }
+                )
+            }
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    var zoom = 1f
+                    var pan = Offset.Zero
+                    var pastTouchSlop = false
+                    val touchSlop = viewConfiguration.touchSlop
+
+                    awaitFirstDown(requireUnconsumed = false)
+                    do {
+                        val event = awaitPointerEvent()
+                        val canceled = event.changes.any { it.isConsumed }
+                        if (canceled) break
+
+                        val pointerCount = event.changes.size
+                        if (pointerCount >= 2 || rawScale > 1.05f) {
+                            val zoomChange = event.calculateZoom()
+                            val panChange = event.calculatePan()
+
+                            if (!pastTouchSlop) {
+                                zoom *= zoomChange
+                                pan += panChange
+                                val centroidSize = event.calculateCentroidSize(useCurrent = false)
+                                val zoomMotion = abs(1 - zoom) * centroidSize
+                                val panMotion = pan.getDistance()
+
+                                if (zoomMotion > touchSlop || panMotion > touchSlop || rawScale > 1.05f) {
+                                    pastTouchSlop = true
+                                }
+                            }
+
+                            if (pastTouchSlop) {
+                                val newScale = (rawScale * zoomChange).coerceIn(1f, 4.5f)
+                                rawScale = newScale
+                                val isZoomNow = newScale > 1.05f
+                                onZoomChanged(isZoomNow)
+
+                                if (isZoomNow) {
+                                    val maxOffsetX = ((newScale - 1f) * size.width.toFloat() / 2f).coerceAtLeast(0f)
+                                    val maxOffsetY = ((newScale - 1f) * size.height.toFloat() / 2f).coerceAtLeast(0f)
+                                    val candidateOffset = rawOffset + panChange
+                                    rawOffset = Offset(
+                                        x = candidateOffset.x.coerceIn(-maxOffsetX, maxOffsetX),
+                                        y = candidateOffset.y.coerceIn(-maxOffsetY, maxOffsetY)
+                                    )
+                                } else {
+                                    rawOffset = Offset.Zero
+                                }
+                                event.changes.forEach { it.consume() }
+                            }
+                        }
+                    } while (event.changes.any { it.pressed })
+                }
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        val detailTargetUrl = if (detailLoadError) {
+            media.sample.ifBlank { media.preview.ifBlank { media.url } }
+        } else {
+            vm.resolveMediaUrl(media)
+        }
+
+        AsyncImage(
+            model = ImageRequest.Builder(context)
+                .data(detailTargetUrl)
+                .placeholderMemoryCacheKey(media.sample)
+                .crossfade(300)
+                .allowHardware(!media.isGif)
+                .listener(
+                    onError = { _, _ ->
+                        if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
+                            detailLoadError = true
+                        }
+                    }
+                )
+                .build(),
+            contentDescription = media.tags,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = animatedScale,
+                    scaleY = animatedScale,
+                    translationX = animatedOffset.x,
+                    translationY = animatedOffset.y
+                ),
+            contentScale = ContentScale.Fit
+        )
+
+        if (rawScale > 1.05f) {
+            FilledTonalIconButton(
+                onClick = {
+                    rawScale = 1f
+                    rawOffset = Offset.Zero
+                    onZoomChanged(false)
+                },
+                shape = CircleShape,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(14.dp)
+                    .size(38.dp)
+                    .bouncyPress()
+            ) {
+                Icon(
+                    Icons.Rounded.ZoomOutMap,
+                    contentDescription = "Reset zoom",
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+        }
     }
 }
 
@@ -1034,7 +1245,7 @@ private fun WallpaperOptionItem(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         modifier = Modifier
             .fillMaxWidth()
@@ -1043,27 +1254,27 @@ private fun WallpaperOptionItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 12.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(30.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = icon,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(10.dp))
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -1252,14 +1463,17 @@ fun BooruVideoPlayer(
         exoPlayer.setPlaybackSpeed(playbackSpeed)
     }
 
-    LaunchedEffect(exoPlayer, isPlaying) {
-        while (isActive) {
+    LaunchedEffect(exoPlayer, isPlaying, isActive) {
+        while (isActive && isPlaying) {
             if (!isSeeking) {
                 currentPosMs = exoPlayer.currentPosition.coerceAtLeast(0L)
                 val dur = exoPlayer.duration
                 if (dur > 0L) durationMs = dur
             }
-            delay(16)
+            delay(200)
+        }
+        if (isActive && !isSeeking) {
+            currentPosMs = exoPlayer.currentPosition.coerceAtLeast(0L)
         }
     }
 
@@ -1295,12 +1509,9 @@ fun BooruVideoPlayer(
     }
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .clickable { showControls = !showControls },
+        modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
-
         if (previewUrl.isNotBlank() && !isReady) {
             AsyncImage(
                 model = ImageRequest.Builder(context)
@@ -1318,6 +1529,7 @@ fun BooruVideoPlayer(
                 PlayerView(ctx).apply {
                     player = exoPlayer
                     useController = false
+                    setOnClickListener { showControls = !showControls }
                     layoutParams = ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
@@ -1325,6 +1537,17 @@ fun BooruVideoPlayer(
                 }
             },
             modifier = Modifier.fillMaxSize()
+        )
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    showControls = !showControls
+                }
         )
 
         if (!isReady) {

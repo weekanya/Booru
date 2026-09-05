@@ -390,6 +390,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         this.source = source
         this.query = tags
         this.safeMode = safeMode
+        needsFeedRefresh = false
         currentPage = 0
         hasMore = true
         loading = true
@@ -712,7 +713,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun openFullscreen(list: List<RemoteMedia>, index: Int) {
         if (list.isNotEmpty()) {
-            fullscreenState = FullscreenState(list, index.coerceIn(0, list.size - 1))
+            fullscreenState = FullscreenState(
+                list = list,
+                index = index.coerceIn(0, list.size - 1),
+                isFromResults = (list === results)
+            )
         }
     }
 
@@ -723,5 +728,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
 data class FullscreenState(
     val list: List<RemoteMedia>,
-    val index: Int
+    val index: Int,
+    val isFromResults: Boolean = false
 )

@@ -264,29 +264,16 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                     }
                 }
 
-                AnimatedVisibility(
-                    visible = vm.fullscreenState != null,
-                    enter = fadeIn(animationSpec = tween(240, easing = FastOutSlowInEasing)) +
-                            scaleIn(initialScale = 0.92f, animationSpec = tween(240, easing = FastOutSlowInEasing)),
-                    exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
-                            scaleOut(targetScale = 0.92f, animationSpec = tween(180, easing = FastOutLinearInEasing)),
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    val state = vm.fullscreenState
-                    if (state != null) {
-                        FullscreenMediaViewer(
-                            initialIndex = state.index,
-                            mediaList = if (state.list === vm.results) vm.results else state.list,
-                            vm = vm,
-                            onDismiss = { vm.closeFullscreen() },
-                            onLoadMore = {
-                                if (state.list === vm.results) {
-                                    vm.loadMore()
-                                }
-                            },
-                            onNavigateToExplore = { selectedTab = 0 }
-                        )
-                    }
+                val state = vm.fullscreenState
+                if (state != null) {
+                    FullscreenMediaViewer(
+                        initialIndex = state.index,
+                        mediaList = if (state.isFromResults) vm.results else state.list,
+                        vm = vm,
+                        onDismiss = { vm.closeFullscreen() },
+                        onLoadMore = if (state.isFromResults) { { vm.loadMore() } } else null,
+                        onNavigateToExplore = { selectedTab = 0 }
+                    )
                 }
             }
         }
@@ -300,29 +287,24 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                         vm.dismissUpdate()
                     }
                 },
-                shape = RoundedCornerShape(28.dp),
-                icon = {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Rounded.SystemUpdate,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                },
+                shape = RoundedCornerShape(22.dp),
                 title = {
-                    Text(
-                        text = Strings.updateAvailableTitle(lang, info.latestVersion),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.SystemUpdate,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = Strings.updateAvailableTitle(lang, info.latestVersion),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 },
                 text = {
                     Column(
@@ -501,29 +483,24 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
         vm.manualCheckResult?.let { result ->
             AlertDialog(
                 onDismissRequest = { vm.clearManualCheckResult() },
-                icon = {
-                    if (result == "UP_TO_DATE") {
+                shape = RoundedCornerShape(22.dp),
+                title = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
                         Icon(
-                            Icons.Rounded.CheckCircle,
+                            if (result == "UP_TO_DATE") Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp)
+                            tint = if (result == "UP_TO_DATE") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(20.dp)
                         )
-                    } else {
-                        Icon(
-                            Icons.Rounded.ErrorOutline,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(28.dp)
+                        Text(
+                            text = if (result == "UP_TO_DATE") Strings.upToDateTitle(lang) else Strings.updateCheckFailedTitle(lang),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
                     }
-                },
-                title = {
-                    Text(
-                        text = if (result == "UP_TO_DATE") Strings.upToDateTitle(lang) else Strings.updateCheckFailedTitle(lang),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
                 },
                 text = {
                     Text(

@@ -83,23 +83,26 @@ fun SettingsScreen(
     if (showRule34Dialog) {
         AlertDialog(
             onDismissRequest = { showRule34Dialog = false },
-            shape = RoundedCornerShape(28.dp),
-            icon = {
-                Icon(
-                    Icons.Rounded.Key,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                )
-            },
+            shape = RoundedCornerShape(22.dp),
             title = {
-                Text("Rule34.xxx API Keys", style = MaterialTheme.typography.titleLarge)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.Key,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text("Rule34.xxx API Keys", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         Strings.rule34DialogDesc(lang),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     OutlinedTextField(
@@ -108,7 +111,7 @@ fun SettingsScreen(
                         label = { Text("User ID") },
                         placeholder = { Text("123456") },
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
@@ -117,7 +120,7 @@ fun SettingsScreen(
                         label = { Text("API Key") },
                         placeholder = { Text("API Key") },
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
                     TextButton(
@@ -127,9 +130,9 @@ fun SettingsScreen(
                         },
                         contentPadding = PaddingValues(0.dp)
                     ) {
-                        Text(Strings.getKeyFromSite(lang))
+                        Text(Strings.getKeyFromSite(lang), style = MaterialTheme.typography.labelMedium)
                         Spacer(Modifier.width(4.dp))
-                        Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, modifier = Modifier.size(14.dp))
                     }
                 }
             },
@@ -140,7 +143,8 @@ fun SettingsScreen(
                         showRule34Dialog = false
                         Toast.makeText(context, Strings.keysSavedToast(lang), Toast.LENGTH_SHORT).show()
                     },
-                    shape = CircleShape
+                    shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(Strings.saveBtn(lang))
                 }
@@ -156,23 +160,26 @@ fun SettingsScreen(
     if (showGelbooruDialog) {
         AlertDialog(
             onDismissRequest = { showGelbooruDialog = false },
-            shape = RoundedCornerShape(28.dp),
-            icon = {
-                Icon(
-                    Icons.Rounded.VpnKey,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                )
-            },
+            shape = RoundedCornerShape(22.dp),
             title = {
-                Text("Gelbooru API Keys", style = MaterialTheme.typography.titleLarge)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.VpnKey,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text("Gelbooru API Keys", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         Strings.gelbooruDialogDesc(lang),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     OutlinedTextField(
@@ -180,7 +187,7 @@ fun SettingsScreen(
                         onValueChange = { gelbooruUser = it },
                         label = { Text("User ID") },
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
@@ -188,7 +195,7 @@ fun SettingsScreen(
                         onValueChange = { gelbooruKey = it },
                         label = { Text("API Key") },
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
                     TextButton(
@@ -198,9 +205,9 @@ fun SettingsScreen(
                         },
                         contentPadding = PaddingValues(0.dp)
                     ) {
-                        Text(Strings.getKeyFromSite(lang))
+                        Text(Strings.getKeyFromSite(lang), style = MaterialTheme.typography.labelMedium)
                         Spacer(Modifier.width(4.dp))
-                        Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, modifier = Modifier.size(14.dp))
                     }
                 }
             },
@@ -211,7 +218,8 @@ fun SettingsScreen(
                         showGelbooruDialog = false
                         Toast.makeText(context, Strings.keysSavedToast(lang), Toast.LENGTH_SHORT).show()
                     },
-                    shape = CircleShape
+                    shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(Strings.saveBtn(lang))
                 }
@@ -227,20 +235,23 @@ fun SettingsScreen(
     if (showQualityDialog) {
         AlertDialog(
             onDismissRequest = { showQualityDialog = false },
-            shape = RoundedCornerShape(28.dp),
-            icon = {
-                Icon(
-                    Icons.Rounded.HighQuality,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                )
-            },
+            shape = RoundedCornerShape(22.dp),
             title = {
-                Text(Strings.imageQualityTitle(lang), style = MaterialTheme.typography.titleLarge)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.HighQuality,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(Strings.imageQualityTitle(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     val options = listOf(
                         ImageQuality.SAMPLE to Strings.qualitySample(lang),
                         ImageQuality.ORIGINAL to Strings.qualityOriginal(lang),
@@ -250,12 +261,12 @@ fun SettingsScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
+                                .clip(RoundedCornerShape(10.dp))
                                 .clickable {
                                     vm.updateImageQuality(q)
                                     showQualityDialog = false
                                 }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             RadioButton(
@@ -266,7 +277,7 @@ fun SettingsScreen(
                                 }
                             )
                             Spacer(Modifier.width(8.dp))
-                            Text(title, style = MaterialTheme.typography.bodyLarge)
+                            Text(title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
@@ -282,29 +293,32 @@ fun SettingsScreen(
     if (showAddCustomSourceDialog) {
         AlertDialog(
             onDismissRequest = { showAddCustomSourceDialog = false },
-            shape = RoundedCornerShape(28.dp),
-            icon = {
-                Icon(
-                    Icons.Rounded.AddCircleOutline,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                )
-            },
+            shape = RoundedCornerShape(22.dp),
             title = {
-                Text(Strings.addSourceTitle(lang), style = MaterialTheme.typography.titleLarge)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.AddCircleOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(Strings.addSourceTitle(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
             },
             text = {
                 Column(
                     modifier = Modifier.verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     OutlinedTextField(
                         value = customName,
                         onValueChange = { customName = it },
                         label = { Text(Strings.sourceNameHint(lang)) },
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
@@ -312,31 +326,45 @@ fun SettingsScreen(
                         onValueChange = { customUrl = it },
                         label = { Text(Strings.sourceUrlHint(lang)) },
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
 
                     Text(
                         Strings.sourceEngineLabel(lang),
-                        style = MaterialTheme.typography.labelLarge,
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    BooruEngine.entries.forEach { engine ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(10.dp))
-                                .clickable { customEngine = engine }
-                                .padding(horizontal = 8.dp, vertical = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = (customEngine == engine),
-                                onClick = { customEngine = engine }
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text(engine.displayName, style = MaterialTheme.typography.bodyMedium)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        BooruEngine.entries.forEach { engine ->
+                            val selected = (customEngine == engine)
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable { customEngine = engine }
+                            ) {
+                                Box(
+                                    contentAlignment = Alignment.Center,
+                                    modifier = Modifier.padding(vertical = 8.dp)
+                                ) {
+                                    Text(
+                                        text = when (engine) {
+                                            BooruEngine.GELBOORU -> "Gelbooru"
+                                            BooruEngine.MOEBOORU -> "Moebooru"
+                                            BooruEngine.DANBOORU -> "Danbooru"
+                                        },
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                            }
                         }
                     }
 
@@ -345,7 +373,7 @@ fun SettingsScreen(
                         onValueChange = { customUserId = it },
                         label = { Text("User ID / Login (Optional)") },
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
 
@@ -354,7 +382,7 @@ fun SettingsScreen(
                         onValueChange = { customApiKey = it },
                         label = { Text("API Key (Optional)") },
                         singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(10.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -384,7 +412,8 @@ fun SettingsScreen(
                             Toast.makeText(context, "Invalid name or URL (must start with http/https)", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    shape = CircleShape
+                    shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(Strings.saveBtn(lang))
                 }
@@ -400,29 +429,33 @@ fun SettingsScreen(
     if (showBlacklistDialog) {
         AlertDialog(
             onDismissRequest = { showBlacklistDialog = false },
-            shape = RoundedCornerShape(28.dp),
-            icon = {
-                Icon(
-                    Icons.Rounded.Block,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(32.dp)
-                )
-            },
+            shape = RoundedCornerShape(22.dp),
             title = {
-                Text(
-                    text = if (vm.tagBlacklist.isEmpty())
-                        Strings.tagBlacklistTitle(lang)
-                    else
-                        "${Strings.tagBlacklistTitle(lang)} (${vm.tagBlacklist.size})",
-                    style = MaterialTheme.typography.titleLarge
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.Block,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = if (vm.tagBlacklist.isEmpty())
+                            Strings.tagBlacklistTitle(lang)
+                        else
+                            "${Strings.tagBlacklistTitle(lang)} (${vm.tagBlacklist.size})",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
                         Strings.tagBlacklistDesc(lang),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
@@ -434,9 +467,9 @@ fun SettingsScreen(
                         OutlinedTextField(
                             value = newBlacklistTag,
                             onValueChange = { newBlacklistTag = it },
-                            placeholder = { Text(Strings.addTagPlaceholder(lang)) },
+                            placeholder = { Text(Strings.addTagPlaceholder(lang), style = MaterialTheme.typography.bodyMedium) },
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = RoundedCornerShape(10.dp),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                             keyboardActions = KeyboardActions(onDone = {
                                 if (newBlacklistTag.isNotBlank()) {
@@ -453,8 +486,8 @@ fun SettingsScreen(
                                     newBlacklistTag = ""
                                 }
                             },
-                            shape = RoundedCornerShape(14.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
+                            shape = RoundedCornerShape(10.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
                         ) {
                             Text(Strings.addTagBtn(lang), fontWeight = FontWeight.Bold)
                         }
@@ -470,12 +503,12 @@ fun SettingsScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 240.dp)
+                                .heightIn(max = 180.dp)
                                 .verticalScroll(rememberScrollState())
                         ) {
                             FlowRow(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 vm.tagBlacklist.forEach { tag ->
@@ -485,7 +518,7 @@ fun SettingsScreen(
                                         label = {
                                             Text(
                                                 text = tag,
-                                                style = MaterialTheme.typography.labelMedium,
+                                                style = MaterialTheme.typography.labelSmall,
                                                 fontWeight = FontWeight.Medium
                                             )
                                         },
@@ -493,7 +526,7 @@ fun SettingsScreen(
                                             Icon(
                                                 Icons.Rounded.Block,
                                                 contentDescription = null,
-                                                modifier = Modifier.size(13.dp),
+                                                modifier = Modifier.size(12.dp),
                                                 tint = MaterialTheme.colorScheme.error
                                             )
                                         },
@@ -501,7 +534,7 @@ fun SettingsScreen(
                                             Icon(
                                                 Icons.Rounded.Close,
                                                 contentDescription = "Remove",
-                                                modifier = Modifier.size(14.dp),
+                                                modifier = Modifier.size(12.dp),
                                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         },
@@ -525,7 +558,8 @@ fun SettingsScreen(
             confirmButton = {
                 Button(
                     onClick = { showBlacklistDialog = false },
-                    shape = CircleShape
+                    shape = CircleShape,
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text("OK")
                 }
@@ -567,22 +601,25 @@ fun SettingsScreen(
 
         AlertDialog(
             onDismissRequest = { showPaletteDialog = false },
-            shape = RoundedCornerShape(28.dp),
-            icon = {
-                Icon(
-                    Icons.Rounded.Palette,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(32.dp)
-                )
-            },
+            shape = RoundedCornerShape(22.dp),
             title = {
-                Text(Strings.colorPaletteTitle(lang), style = MaterialTheme.typography.titleLarge)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Rounded.Palette,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(Strings.colorPaletteTitle(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                }
             },
             text = {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
                     AppPalette.entries.forEach { pal ->
                         val isSelected = vm.palette == pal
@@ -601,7 +638,7 @@ fun SettingsScreen(
                                 vm.updatePalette(pal)
                                 showPaletteDialog = false
                             },
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(12.dp),
                             color = if (isSelected)
                                 MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                             else
@@ -613,12 +650,12 @@ fun SettingsScreen(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    .padding(horizontal = 10.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(
                                     modifier = Modifier
-                                        .size(32.dp)
+                                        .size(26.dp)
                                         .clip(CircleShape)
                                         .background(swatchBrush)
                                         .then(
@@ -627,11 +664,11 @@ fun SettingsScreen(
                                             else Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
                                         )
                                 )
-                                Spacer(Modifier.width(14.dp))
+                                Spacer(Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = pal.title,
-                                        style = MaterialTheme.typography.bodyLarge,
+                                        style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                         color = if (isSelected)
                                             MaterialTheme.colorScheme.primary

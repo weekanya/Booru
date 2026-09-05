@@ -55,10 +55,8 @@ fun ExploreScreen(
     modifier: Modifier = Modifier
 ) {
     val lang = vm.language
-    var showDetail     by remember { mutableStateOf<RemoteMedia?>(null) }
     var searchExpanded by remember { mutableStateOf(false) }
     var localQuery     by remember { mutableStateOf(vm.query) }
-    var showSortMenu   by remember { mutableStateOf(false) }
     var showSourceSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(vm.query) {
@@ -90,10 +88,6 @@ fun ExploreScreen(
     }
     LaunchedEffect(shouldLoadMore) {
         if (shouldLoadMore) vm.loadMore()
-    }
-
-    showDetail?.let { media ->
-        MediaDetailSheet(media = media, vm = vm, onDismiss = { showDetail = null })
     }
 
     Box(

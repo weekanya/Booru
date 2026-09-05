@@ -72,6 +72,7 @@ class BooruRepository(
     companion object {
         const val TAG = "BooruRepo"
         const val PAGE_SIZE = 40
+        const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 BooruClient/1.0"
         private const val MAX_CONCURRENT_REQUESTS = 4
         private const val MAX_RETRY_AFTER_SECONDS = 60
 
@@ -217,7 +218,7 @@ class BooruRepository(
             when (endpointKey) {
                 "rule34" -> {
                     val url = "https://api.rule34.xxx/autocomplete.php?q=$q"
-                    val req = Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build()
+                    val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
                     client.newCall(req).execute().use { res ->
                         val body = res.body?.string()?.trim() ?: return@use emptyList()
                         if (body.startsWith("[")) {
@@ -232,7 +233,7 @@ class BooruRepository(
                 }
                 "safebooru" -> {
                     val url = "https://safebooru.org/autocomplete.php?q=$q"
-                    val req = Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build()
+                    val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
                     client.newCall(req).execute().use { res ->
                         val body = res.body?.string()?.trim() ?: return@use emptyList()
                         if (body.startsWith("[")) {
@@ -247,7 +248,7 @@ class BooruRepository(
                 }
                 "gelbooru" -> {
                     val url = "https://gelbooru.com/index.php?page=dapi&s=tag&q=index&json=1&name_pattern=%$q%&limit=8"
-                    val req = Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build()
+                    val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
                     client.newCall(req).execute().use { res ->
                         val body = res.body?.string()?.trim() ?: return@use emptyList()
                         val arr = when {
@@ -266,7 +267,7 @@ class BooruRepository(
                 }
                 "yande" -> {
                     val url = "https://yande.re/tag.json?name=$q*&limit=8"
-                    val req = Request.Builder().url(url).header("User-Agent", "Mozilla/5.0").build()
+                    val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
                     client.newCall(req).execute().use { res ->
                         val body = res.body?.string()?.trim() ?: return@use emptyList()
                         if (body.startsWith("[")) {
@@ -301,7 +302,8 @@ class BooruRepository(
         excludeSafe: Boolean,
         noAi: Boolean,
         key: String,
-        sortOrder: SortOrder
+        sortOrder: SortOrder,
+        customSources: List<CustomBooruSource> = emptyList()
     ): String {
         val parts = mutableListOf<String>()
 
@@ -310,48 +312,84 @@ class BooruRepository(
             parts.add(cleaned)
         }
 
+        val custom = customSources.find { it.key == key || it.name.equals(key, ignoreCase = true) }
+
         if (safe) {
-            when (key) {
-                "yande", "konachan" -> parts.add("rating:s")
-                "gelbooru"          -> parts.add("rating:general")
-                "rule34", "xbooru", "tbib", "realbooru" -> parts.add("rating:safe")
-                "safebooru"         -> Unit
+            if (custom != null) {
+                when (custom.engine) {
+                    BooruEngine.MOEBOORU -> parts.add("rating:s")
+                    BooruEngine.GELBOORU -> parts.add("rating:general")
+                    BooruEngine.DANBOORU -> parts.add("rating:g")
+                }
+            } else {
+                when (key) {
+                    "yande", "konachan" -> parts.add("rating:s")
+                    "gelbooru"          -> parts.add("rating:general")
+                    "rule34", "xbooru", "tbib", "realbooru" -> parts.add("rating:safe")
+                    "safebooru"         -> Unit
+                }
             }
         } else if (excludeSafe) {
-            when (key) {
-                "yande", "konachan" -> parts.add("-rating:s")
-                "gelbooru"          -> parts.add("-rating:general")
-                "rule34", "xbooru", "tbib", "realbooru" -> parts.add("-rating:safe")
-                "safebooru"         -> Unit
+            if (custom != null) {
+                when (custom.engine) {
+                    BooruEngine.MOEBOORU -> parts.add("-rating:s")
+                    BooruEngine.GELBOORU -> parts.add("-rating:general")
+                    BooruEngine.DANBOORU -> parts.add("-rating:g")
+                }
+            } else {
+                when (key) {
+                    "yande", "konachan" -> parts.add("-rating:s")
+                    "gelbooru"          -> parts.add("-rating:general")
+                    "rule34", "xbooru", "tbib", "realbooru" -> parts.add("-rating:safe")
+                    "safebooru"         -> Unit
+                }
             }
         }
 
         if (noAi) {
-            when (key) {
-                "gelbooru" -> {
-                    parts.add("-ai_generated")
-                }
-                "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> {
-                    parts.add("-ai_generated")
-                    parts.add("-novelai")
-                }
-                "yande", "konachan" -> {
-                    parts.add("-ai_generated")
+            if (custom != null) {
+                parts.add("-ai_generated")
+            } else {
+                when (key) {
+                    "gelbooru" -> {
+                        parts.add("-ai_generated")
+                    }
+                    "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> {
+                        parts.add("-ai_generated")
+                        parts.add("-novelai")
+                    }
+                    "yande", "konachan" -> {
+                        parts.add("-ai_generated")
+                    }
                 }
             }
         }
 
         when (sortOrder) {
             SortOrder.SCORE -> {
-                when (key) {
-                    "yande", "konachan" -> parts.add("order:score")
-                    "gelbooru", "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> parts.add("sort:score:desc")
+                if (custom != null) {
+                    when (custom.engine) {
+                        BooruEngine.MOEBOORU, BooruEngine.DANBOORU -> parts.add("order:score")
+                        BooruEngine.GELBOORU -> parts.add("sort:score:desc")
+                    }
+                } else {
+                    when (key) {
+                        "yande", "konachan" -> parts.add("order:score")
+                        "gelbooru", "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> parts.add("sort:score:desc")
+                    }
                 }
             }
             SortOrder.RANDOM -> {
-                when (key) {
-                    "yande", "konachan" -> parts.add("order:random")
-                    "gelbooru", "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> parts.add("sort:random")
+                if (custom != null) {
+                    when (custom.engine) {
+                        BooruEngine.MOEBOORU, BooruEngine.DANBOORU -> parts.add("order:random")
+                        BooruEngine.GELBOORU -> parts.add("sort:random")
+                    }
+                } else {
+                    when (key) {
+                        "yande", "konachan" -> parts.add("order:random")
+                        "gelbooru", "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> parts.add("sort:random")
+                    }
                 }
             }
             SortOrder.NEWEST -> Unit
@@ -424,7 +462,7 @@ class BooruRepository(
         credentials: BooruCredentials,
         customSources: List<CustomBooruSource> = emptyList()
     ): List<RemoteMedia> {
-        val tagQuery = buildTagQuery(userTags, safe, excludeSafe, noAi, key, sortOrder)
+        val tagQuery = buildTagQuery(userTags, safe, excludeSafe, noAi, key, sortOrder, customSources)
 
         val custom = customSources.find { it.key == key || it.name.equals(key, ignoreCase = true) }
         if (custom != null) {
@@ -470,7 +508,7 @@ class BooruRepository(
 
             val req = Request.Builder()
                 .url(fullUrl)
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 BooruClient/1.0")
+                .header("User-Agent", USER_AGENT)
                 .header("Referer", "${custom.baseUrl}/")
                 .build()
 
@@ -500,7 +538,7 @@ class BooruRepository(
 
             val req = Request.Builder()
                 .url(fullUrl)
-                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 BooruClient/1.0")
+                .header("User-Agent", USER_AGENT)
                 .header("Referer", "https://realbooru.com/")
                 .build()
 
