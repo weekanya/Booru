@@ -211,6 +211,11 @@ object Strings {
         AppLanguage.RUSSIAN -> "Источник обновлен"
     }
 
+    fun sourceRemovedSuccess(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Source removed"
+        AppLanguage.RUSSIAN -> "Источник удален"
+    }
+
     fun deleteSourceConfirm(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Remove this source?"
         AppLanguage.RUSSIAN -> "Удалить этот источник?"
@@ -472,6 +477,11 @@ object Strings {
     fun tagsLabel(count: Int, lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Tags ($count)"
         AppLanguage.RUSSIAN -> "Теги ($count)"
+    }
+
+    fun noTags(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "No tags found for this post"
+        AppLanguage.RUSSIAN -> "Теги для этого поста не найдены"
     }
 
     fun infoAndTags(lang: AppLanguage) = when (lang) {

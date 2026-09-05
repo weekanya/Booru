@@ -692,9 +692,18 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun removeCustomSource(sourceId: String) {
+        val target = customSources.find { it.id == sourceId }
         val updated = customSources.filterNot { it.id == sourceId }
         customSources = updated
         viewModelScope.launch { prefs.saveCustomSources(updated) }
+        val isCurrentSourceDeleted = target != null && (
+            source.equals(target.name, ignoreCase = true) ||
+            source.equals(target.id, ignoreCase = true) ||
+            source.equals(target.key, ignoreCase = true)
+        )
+        if (isCurrentSourceDeleted || availableSources.none { it.equals(source, ignoreCase = true) }) {
+            selectSource(BooruRepository.SOURCE_ALL)
+        }
     }
 
     val availableSources: List<String>

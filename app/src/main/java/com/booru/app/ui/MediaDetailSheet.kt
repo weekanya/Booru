@@ -847,18 +847,42 @@ fun MediaDetailSheet(
 
             Spacer(Modifier.height(18.dp))
 
+            val cardBg by animateColorAsState(
+                targetValue = if (isTagsExpanded)
+                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f)
+                else
+                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.60f),
+                animationSpec = tween(220),
+                label = "tagsCardBg"
+            )
+            val chevronBg by animateColorAsState(
+                targetValue = if (isTagsExpanded)
+                    MaterialTheme.colorScheme.primaryContainer
+                else
+                    MaterialTheme.colorScheme.surfaceContainerHighest,
+                animationSpec = tween(220),
+                label = "chevronBg"
+            )
+            val chevronTint by animateColorAsState(
+                targetValue = if (isTagsExpanded)
+                    MaterialTheme.colorScheme.primary
+                else
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                animationSpec = tween(220),
+                label = "chevronTint"
+            )
+            val rotation by animateFloatAsState(
+                targetValue = if (isTagsExpanded) 180f else 0f,
+                animationSpec = tween(250, easing = FastOutSlowInEasing),
+                label = "tagsChevron"
+            )
+
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
+                color = cardBg,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .animateContentSize(
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessMediumLow
-                        )
-                    )
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
@@ -907,24 +931,16 @@ fun MediaDetailSheet(
                             }
                         }
 
-                        val rotation by animateFloatAsState(
-                            targetValue = if (isTagsExpanded) 180f else 0f,
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioLowBouncy,
-                                stiffness = Spring.StiffnessMediumLow
-                            ),
-                            label = "tagsChevron"
-                        )
                         Surface(
                             shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            color = chevronBg,
                             modifier = Modifier.size(34.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     Icons.Rounded.ExpandMore,
                                     contentDescription = if (isTagsExpanded) "Collapse" else "Expand",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    tint = chevronTint,
                                     modifier = Modifier
                                         .size(22.dp)
                                         .graphicsLayer { rotationZ = rotation }
@@ -935,22 +951,18 @@ fun MediaDetailSheet(
 
                     AnimatedVisibility(
                         visible = isTagsExpanded,
-                        enter = fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
-                                expandVertically(
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioLowBouncy,
-                                        stiffness = Spring.StiffnessMediumLow
-                                    ),
-                                    expandFrom = Alignment.Top
-                                ),
-                        exit = fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
-                               shrinkVertically(
-                                   animationSpec = spring(
-                                       dampingRatio = Spring.DampingRatioNoBouncy,
-                                       stiffness = Spring.StiffnessMediumLow
-                                   ),
-                                   shrinkTowards = Alignment.Top
-                                )
+                        enter = expandVertically(
+                            animationSpec = tween(260, easing = FastOutSlowInEasing),
+                            expandFrom = Alignment.Top
+                        ) + fadeIn(
+                            animationSpec = tween(180, easing = FastOutSlowInEasing)
+                        ),
+                        exit = shrinkVertically(
+                            animationSpec = tween(200, easing = FastOutSlowInEasing),
+                            shrinkTowards = Alignment.Top
+                        ) + fadeOut(
+                            animationSpec = tween(180, easing = FastOutSlowInEasing)
+                        )
                     ) {
                         Column(
                             modifier = Modifier
@@ -964,6 +976,7 @@ fun MediaDetailSheet(
                             OptInFlowDetailTags(
                                 tags = currentMedia.tagList,
                                 blacklistedTags = vm.tagBlacklist,
+                                lang = lang,
                                 onTagClick = { tag ->
                                     vm.searchTag(tag, currentMedia.source)
                                     onDismiss()
@@ -1486,16 +1499,29 @@ private fun OptInFlowDetailTags(
     tags: List<String>,
     onTagClick: (String) -> Unit,
     onTagLongClick: (String) -> Unit,
-    blacklistedTags: Collection<String> = emptyList()
+    blacklistedTags: Collection<String> = emptyList(),
+    lang: AppLanguage = AppLanguage.ENGLISH
 ) {
-    FlowRow(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        tags.forEach { tag ->
+    if (tags.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = Strings.noTags(lang),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    } else {
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            tags.forEach { tag ->
             val isBlacklisted = blacklistedTags.any { it.equals(tag, ignoreCase = true) }
             Surface(
                 shape = CircleShape,
@@ -1534,6 +1560,7 @@ private fun OptInFlowDetailTags(
             }
         }
     }
+}
 }
 
 @Composable

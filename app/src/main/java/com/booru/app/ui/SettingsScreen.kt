@@ -1210,7 +1210,12 @@ fun SettingsScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        IconButton(onClick = { vm.removeCustomSource(customSource.id) }) {
+                        IconButton(
+                            onClick = {
+                                vm.removeCustomSource(customSource.id)
+                                Toast.makeText(context, Strings.sourceRemovedSuccess(lang), Toast.LENGTH_SHORT).show()
+                            }
+                        ) {
                             Icon(
                                 Icons.Rounded.DeleteOutline,
                                 contentDescription = "Delete",
