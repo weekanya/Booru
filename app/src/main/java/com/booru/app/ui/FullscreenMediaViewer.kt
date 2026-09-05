@@ -68,7 +68,8 @@ fun FullscreenMediaViewer(
     mediaList: List<RemoteMedia>,
     vm: GalleryViewModel,
     onDismiss: () -> Unit,
-    onLoadMore: (() -> Unit)? = null
+    onLoadMore: (() -> Unit)? = null,
+    onNavigateToExplore: (() -> Unit)? = null
 ) {
     if (mediaList.isEmpty()) {
         LaunchedEffect(Unit) { onDismiss() }
@@ -94,7 +95,9 @@ fun FullscreenMediaViewer(
     val isFav = vm.isFavorite(currentMedia)
 
     BackHandler {
-        if (showTagsSheet) {
+        if (showWallpaperDialog) {
+            showWallpaperDialog = false
+        } else if (showTagsSheet) {
             showTagsSheet = false
         } else {
             onDismiss()
@@ -271,7 +274,8 @@ fun FullscreenMediaViewer(
                     BooruVideoPlayer(
                         videoUrl = pageMedia.url,
                         previewUrl = pageMedia.sample.ifBlank { pageMedia.preview },
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        isActive = (pagerState.currentPage == page)
                     )
                 }
             } else {
@@ -644,6 +648,7 @@ fun FullscreenMediaViewer(
                                 onClick = {
                                     showTagsSheet = false
                                     onDismiss()
+                                    onNavigateToExplore?.invoke()
                                     vm.search(vm.source, tag, vm.safeMode)
                                 },
                                 onLongClick = {

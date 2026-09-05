@@ -53,6 +53,7 @@ import com.booru.app.data.Strings
 import com.booru.app.ui.BooruTheme
 import com.booru.app.ui.ExploreScreen
 import com.booru.app.ui.FavoritesScreen
+import com.booru.app.ui.FullscreenMediaViewer
 import com.booru.app.ui.Motion
 import com.booru.app.ui.SettingsScreen
 
@@ -99,13 +100,14 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.surface
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .displayCutoutPadding()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
-            ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .displayCutoutPadding()
+                        .statusBarsPadding()
+                        .navigationBarsPadding()
+                ) {
                 Crossfade(
                     targetState = selectedTab,
                     animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
@@ -252,8 +254,24 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                         }
                     }
                 }
+
+                vm.fullscreenState?.let { state ->
+                    FullscreenMediaViewer(
+                        initialIndex = state.index,
+                        mediaList = if (state.list === vm.results) vm.results else state.list,
+                        vm = vm,
+                        onDismiss = { vm.closeFullscreen() },
+                        onLoadMore = {
+                            if (state.list === vm.results) {
+                                vm.loadMore()
+                            }
+                        },
+                        onNavigateToExplore = { selectedTab = 0 }
+                    )
+                }
             }
         }
+    }
 
         vm.updateInfo?.let { info ->
             val context = LocalContext.current

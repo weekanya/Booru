@@ -706,4 +706,22 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun getSourceDisplayName(key: String): String = BooruRepository.getSourceDisplayName(key, customSources)
+
+    var fullscreenState by mutableStateOf<FullscreenState?>(null)
+        private set
+
+    fun openFullscreen(list: List<RemoteMedia>, index: Int) {
+        if (list.isNotEmpty()) {
+            fullscreenState = FullscreenState(list, index.coerceIn(0, list.size - 1))
+        }
+    }
+
+    fun closeFullscreen() {
+        fullscreenState = null
+    }
 }
+
+data class FullscreenState(
+    val list: List<RemoteMedia>,
+    val index: Int
+)

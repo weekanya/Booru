@@ -56,7 +56,6 @@ fun ExploreScreen(
 ) {
     val lang = vm.language
     var showDetail     by remember { mutableStateOf<RemoteMedia?>(null) }
-    var fullscreenIndex by remember { mutableStateOf<Int?>(null) }
     var searchExpanded by remember { mutableStateOf(false) }
     var localQuery     by remember { mutableStateOf(vm.query) }
     var showSortMenu   by remember { mutableStateOf(false) }
@@ -95,16 +94,6 @@ fun ExploreScreen(
 
     showDetail?.let { media ->
         MediaDetailSheet(media = media, vm = vm, onDismiss = { showDetail = null })
-    }
-
-    fullscreenIndex?.let { initialIdx ->
-        FullscreenMediaViewer(
-            initialIndex = initialIdx,
-            mediaList = vm.results,
-            vm = vm,
-            onDismiss = { fullscreenIndex = null },
-            onLoadMore = { vm.loadMore() }
-        )
     }
 
     Box(
@@ -643,7 +632,7 @@ fun ExploreScreen(
                                 aspectRatio = ratio,
                                 isFavorite = vm.isFavorite(media),
                                 onFavoriteClick = { vm.toggleFavorite(media) },
-                                onClick = { fullscreenIndex = index }
+                                onClick = { vm.openFullscreen(vm.results, index) }
                             )
                         }
 

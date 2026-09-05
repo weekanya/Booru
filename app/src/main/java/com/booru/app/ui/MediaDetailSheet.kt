@@ -1161,7 +1161,8 @@ private fun RatingBadge(rating: String, lang: AppLanguage) {
 fun BooruVideoPlayer(
     videoUrl: String,
     previewUrl: String = "",
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isActive: Boolean = true
 ) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(true) }
@@ -1266,6 +1267,14 @@ fun BooruVideoPlayer(
         if (showControls && isPlaying && !isSeeking) {
             delay(4000)
             showControls = false
+        }
+    }
+
+    LaunchedEffect(isActive, exoPlayer) {
+        if (!isActive) {
+            exoPlayer.pause()
+        } else if (isPlaying) {
+            exoPlayer.play()
         }
     }
 

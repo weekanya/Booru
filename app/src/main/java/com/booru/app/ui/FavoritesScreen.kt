@@ -45,7 +45,6 @@ fun FavoritesScreen(
 ) {
     val lang = vm.language
     var showDetail by remember { mutableStateOf<RemoteMedia?>(null) }
-    var fullscreenIndex by remember { mutableStateOf<Int?>(null) }
     var filterText by remember { mutableStateOf("") }
     var showClearDialog by remember { mutableStateOf(false) }
 
@@ -67,15 +66,6 @@ fun FavoritesScreen(
             vm = vm,
             onDismiss = { showDetail = null },
             onNavigateToExplore = onNavigateToExplore
-        )
-    }
-
-    fullscreenIndex?.let { initialIdx ->
-        FullscreenMediaViewer(
-            initialIndex = initialIdx,
-            mediaList = filteredList,
-            vm = vm,
-            onDismiss = { fullscreenIndex = null }
         )
     }
 
@@ -263,7 +253,7 @@ fun FavoritesScreen(
                         FavoriteCard(
                             media = media,
                             onRemove = { vm.toggleFavorite(media) },
-                            onClick = { fullscreenIndex = index }
+                            onClick = { vm.openFullscreen(filteredList, index) }
                         )
                     }
                 }
