@@ -65,20 +65,38 @@ fun FavoritesScreen(
             shape = RoundedCornerShape(22.dp),
             title = {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        Icons.Rounded.DeleteSweep,
-                        null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        Strings.clearFavoritesConfirm(lang),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        Icon(
+                            Icons.Rounded.DeleteSweep,
+                            null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            Strings.clearFavoritesConfirm(lang),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    IconButton(
+                        onClick = { showClearDialog = false },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             },
             text = { Text(Strings.clearFavoritesDesc(vm.favoritesList.size, lang), style = MaterialTheme.typography.bodyMedium) },
@@ -88,15 +106,11 @@ fun FavoritesScreen(
                         vm.clearFavorites()
                         showClearDialog = false
                     },
-                    shape = CircleShape,
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text(Strings.clearBtn(lang))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearDialog = false }) {
-                    Text(Strings.cancelBtn(lang))
+                    Text(Strings.clearBtn(lang), fontWeight = FontWeight.Bold)
                 }
             }
         )

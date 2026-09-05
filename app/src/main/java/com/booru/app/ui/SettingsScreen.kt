@@ -86,16 +86,34 @@ fun SettingsScreen(
             shape = RoundedCornerShape(22.dp),
             title = {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        Icons.Rounded.Key,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text("Rule34.xxx API Keys", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Key,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text("Rule34.xxx API Keys", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                    IconButton(
+                        onClick = { showRule34Dialog = false },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             },
             text = {
@@ -143,15 +161,10 @@ fun SettingsScreen(
                         showRule34Dialog = false
                         Toast.makeText(context, Strings.keysSavedToast(lang), Toast.LENGTH_SHORT).show()
                     },
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
                 ) {
-                    Text(Strings.saveBtn(lang))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRule34Dialog = false }) {
-                    Text(Strings.cancelBtn(lang))
+                    Text(Strings.saveBtn(lang), fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -163,16 +176,34 @@ fun SettingsScreen(
             shape = RoundedCornerShape(22.dp),
             title = {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        Icons.Rounded.VpnKey,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text("Gelbooru API Keys", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        Icon(
+                            Icons.Rounded.VpnKey,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text("Gelbooru API Keys", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                    IconButton(
+                        onClick = { showGelbooruDialog = false },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             },
             text = {
@@ -218,15 +249,10 @@ fun SettingsScreen(
                         showGelbooruDialog = false
                         Toast.makeText(context, Strings.keysSavedToast(lang), Toast.LENGTH_SHORT).show()
                     },
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
                 ) {
-                    Text(Strings.saveBtn(lang))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showGelbooruDialog = false }) {
-                    Text(Strings.cancelBtn(lang))
+                    Text(Strings.saveBtn(lang), fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -238,16 +264,34 @@ fun SettingsScreen(
             shape = RoundedCornerShape(22.dp),
             title = {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        Icons.Rounded.HighQuality,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(Strings.imageQualityTitle(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        Icon(
+                            Icons.Rounded.HighQuality,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(Strings.imageQualityTitle(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                    IconButton(
+                        onClick = { showQualityDialog = false },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             },
             text = {
@@ -282,11 +326,7 @@ fun SettingsScreen(
                     }
                 }
             },
-            confirmButton = {
-                TextButton(onClick = { showQualityDialog = false }) {
-                    Text(Strings.cancelBtn(lang))
-                }
-            }
+            confirmButton = {}
         )
     }
 
@@ -296,16 +336,34 @@ fun SettingsScreen(
             shape = RoundedCornerShape(22.dp),
             title = {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        Icons.Rounded.AddCircleOutline,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(Strings.addSourceTitle(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        Icon(
+                            Icons.Rounded.AddCircleOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(Strings.addSourceTitle(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                    IconButton(
+                        onClick = { showAddCustomSourceDialog = false },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             },
             text = {
@@ -412,15 +470,10 @@ fun SettingsScreen(
                             Toast.makeText(context, "Invalid name or URL (must start with http/https)", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
                 ) {
-                    Text(Strings.saveBtn(lang))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddCustomSourceDialog = false }) {
-                    Text(Strings.cancelBtn(lang))
+                    Text(Strings.saveBtn(lang), fontWeight = FontWeight.Bold)
                 }
             }
         )
@@ -432,23 +485,41 @@ fun SettingsScreen(
             shape = RoundedCornerShape(22.dp),
             title = {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        Icons.Rounded.Block,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(
-                        text = if (vm.tagBlacklist.isEmpty())
-                            Strings.tagBlacklistTitle(lang)
-                        else
-                            "${Strings.tagBlacklistTitle(lang)} (${vm.tagBlacklist.size})",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Block,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = if (vm.tagBlacklist.isEmpty())
+                                Strings.tagBlacklistTitle(lang)
+                            else
+                                "${Strings.tagBlacklistTitle(lang)} (${vm.tagBlacklist.size})",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    IconButton(
+                        onClick = { showBlacklistDialog = false },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             },
             text = {
@@ -556,15 +627,6 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                Button(
-                    onClick = { showBlacklistDialog = false },
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text("OK")
-                }
-            },
-            dismissButton = {
                 if (vm.tagBlacklist.isNotEmpty()) {
                     TextButton(
                         onClick = { vm.clearBlacklist() }
@@ -595,7 +657,11 @@ fun SettingsScreen(
                 if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).tertiary
                 else androidx.compose.material3.dynamicLightColorScheme(context).tertiary
             } else {
-                Color(0xFF7E5260)
+                if (isDark) {
+                    Color(0xFFD0BCFF)
+                } else {
+                    Color(0xFF7E5260)
+                }
             }
         }
 
@@ -604,16 +670,34 @@ fun SettingsScreen(
             shape = RoundedCornerShape(22.dp),
             title = {
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(
-                        Icons.Rounded.Palette,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Text(Strings.colorPaletteTitle(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.weight(1f, fill = false)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Palette,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(Strings.colorPaletteTitle(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    }
+                    IconButton(
+                        onClick = { showPaletteDialog = false },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             },
             text = {
@@ -688,14 +772,7 @@ fun SettingsScreen(
                     }
                 }
             },
-            confirmButton = {
-                TextButton(
-                    onClick = { showPaletteDialog = false },
-                    shape = CircleShape
-                ) {
-                    Text(Strings.cancelBtn(lang))
-                }
-            }
+            confirmButton = {}
         )
     }
 
