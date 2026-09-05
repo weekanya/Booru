@@ -2,13 +2,16 @@ package com.booru.app
 
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -17,6 +20,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -60,6 +65,10 @@ import com.booru.app.ui.SettingsScreen
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes.layoutInDisplayCutoutMode =
+                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+        }
         super.onCreate(savedInstanceState)
         setContent { BooruApp() }
     }
@@ -255,19 +264,29 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                     }
                 }
 
-                vm.fullscreenState?.let { state ->
-                    FullscreenMediaViewer(
-                        initialIndex = state.index,
-                        mediaList = if (state.list === vm.results) vm.results else state.list,
-                        vm = vm,
-                        onDismiss = { vm.closeFullscreen() },
-                        onLoadMore = {
-                            if (state.list === vm.results) {
-                                vm.loadMore()
-                            }
-                        },
-                        onNavigateToExplore = { selectedTab = 0 }
-                    )
+                AnimatedVisibility(
+                    visible = vm.fullscreenState != null,
+                    enter = fadeIn(animationSpec = tween(240, easing = FastOutSlowInEasing)) +
+                            scaleIn(initialScale = 0.92f, animationSpec = tween(240, easing = FastOutSlowInEasing)),
+                    exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
+                            scaleOut(targetScale = 0.92f, animationSpec = tween(180, easing = FastOutLinearInEasing)),
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    val state = vm.fullscreenState
+                    if (state != null) {
+                        FullscreenMediaViewer(
+                            initialIndex = state.index,
+                            mediaList = if (state.list === vm.results) vm.results else state.list,
+                            vm = vm,
+                            onDismiss = { vm.closeFullscreen() },
+                            onLoadMore = {
+                                if (state.list === vm.results) {
+                                    vm.loadMore()
+                                }
+                            },
+                            onNavigateToExplore = { selectedTab = 0 }
+                        )
+                    }
                 }
             }
         }

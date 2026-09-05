@@ -603,4 +603,24 @@ object Strings {
         AppLanguage.ENGLISH -> "Cache cleared (Favorites preserved)"
         AppLanguage.RUSSIAN -> "Кэш очищен (Избранное сохранено)"
     }
+
+    fun share(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Share"
+        AppLanguage.RUSSIAN -> "Поделиться"
+    }
+
+    fun tags(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Tags"
+        AppLanguage.RUSSIAN -> "Теги"
+    }
+
+    fun downloadComplete(filename: String, lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Saved: $filename"
+        AppLanguage.RUSSIAN -> "Сохранено: $filename"
+    }
+
+    fun errorLoading(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Failed to load image"
+        AppLanguage.RUSSIAN -> "Не удалось загрузить"
+    }
 }

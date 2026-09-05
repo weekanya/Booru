@@ -1,9 +1,9 @@
 package com.booru.app.ui
 
+import android.app.Activity
 import android.app.WallpaperManager
 import android.content.ContentValues
 import android.content.Intent
-import android.graphics.drawable.BitmapDrawable
 import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
@@ -11,12 +11,19 @@ import android.os.Environment
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
@@ -34,7 +41,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -43,11 +49,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
+import androidx.core.view.WindowCompat
 import coil.Coil
 import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import com.booru.app.GalleryViewModel
@@ -80,6 +87,24 @@ fun FullscreenMediaViewer(
     val lang = vm.language
     val coroutineScope = rememberCoroutineScope()
 
+    val activity = context as? Activity
+    DisposableEffect(Unit) {
+        val window = activity?.window
+        if (window != null) {
+            val controller = WindowCompat.getInsetsController(window, window.decorView)
+            val prevLightStatus = controller.isAppearanceLightStatusBars
+            val prevLightNav = controller.isAppearanceLightNavigationBars
+            controller.isAppearanceLightStatusBars = false
+            controller.isAppearanceLightNavigationBars = false
+            onDispose {
+                controller.isAppearanceLightStatusBars = prevLightStatus
+                controller.isAppearanceLightNavigationBars = prevLightNav
+            }
+        } else {
+            onDispose {}
+        }
+    }
+
     val safeInitial = initialIndex.coerceIn(0, mediaList.size - 1)
     val pagerState = rememberPagerState(
         initialPage = safeInitial,
@@ -90,6 +115,7 @@ fun FullscreenMediaViewer(
     var showTagsSheet by remember { mutableStateOf(false) }
     var showWallpaperDialog by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
+    var isCurrentPageZoomed by remember { mutableStateOf(false) }
 
     val currentMedia = mediaList.getOrNull(pagerState.currentPage) ?: mediaList.first()
     val isFav = vm.isFavorite(currentMedia)
@@ -105,6 +131,7 @@ fun FullscreenMediaViewer(
     }
 
     LaunchedEffect(pagerState.currentPage, mediaList.size) {
+        isCurrentPageZoomed = false
         if (onLoadMore != null && pagerState.currentPage >= mediaList.size - 4) {
             onLoadMore()
         }
@@ -185,61 +212,59 @@ fun FullscreenMediaViewer(
                                 ),
                                 "Booru"
                             ).apply { mkdirs() }
+
                             val targetFile = File(targetDir, filename)
-                            targetFile.outputStream().use { out -> inputStream.copyTo(out) }
+                            targetFile.outputStream().use { out ->
+                                inputStream.copyTo(out)
+                            }
                             MediaScannerConnection.scanFile(context, arrayOf(targetFile.absolutePath), arrayOf(mimeType), null)
                         }
                     }
 
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "${Strings.downloadSuccess(lang)}: $filename", Toast.LENGTH_SHORT).show()
+                        isDownloading = false
+                        Toast.makeText(context, Strings.downloadComplete(filename, lang), Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "${Strings.downloadFailed(lang)}: ${e.message}", Toast.LENGTH_LONG).show()
-                    }
-                } finally {
-                    withContext(Dispatchers.Main) {
                         isDownloading = false
+                        Toast.makeText(context, "${Strings.downloadFailed(lang)}: ${e.message}", Toast.LENGTH_LONG).show()
                     }
                 }
             }
         }
     }
 
-    fun applyWallpaper(target: Int) {
+    fun applyWallpaper(flag: Int) {
         val media = currentMedia
+        showWallpaperDialog = false
         coroutineScope.launch {
-            showWallpaperDialog = false
             Toast.makeText(context, Strings.settingWallpaper(lang), Toast.LENGTH_SHORT).show()
             withContext(Dispatchers.IO) {
                 try {
-                    val targetUrl = vm.resolveMediaUrl(media)
-                    val request = ImageRequest.Builder(context)
-                        .data(targetUrl)
+                    val rawUrl = media.url.ifBlank { media.sample.ifBlank { media.preview } }
+                    val loader = Coil.imageLoader(context)
+                    val req = ImageRequest.Builder(context)
+                        .data(rawUrl)
                         .allowHardware(false)
                         .build()
-                    val result = Coil.imageLoader(context).execute(request)
-                    if (result is SuccessResult) {
-                        val bitmap = (result.drawable as? BitmapDrawable)?.bitmap
-                            ?: runCatching { result.drawable.toBitmap() }.getOrNull()
-                        if (bitmap != null) {
-                            val wm = WallpaperManager.getInstance(context)
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                                when (target) {
-                                    1 -> wm.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM)
-                                    2 -> wm.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK)
-                                    else -> {
-                                        wm.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM)
-                                        wm.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK)
-                                    }
-                                }
-                            } else {
-                                wm.setBitmap(bitmap)
+                    val result = (loader.execute(req) as? SuccessResult)?.drawable
+                    val bitmap = result?.toBitmap()
+
+                    if (bitmap != null) {
+                        val wm = WallpaperManager.getInstance(context)
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                            val which = when (flag) {
+                                1 -> WallpaperManager.FLAG_SYSTEM
+                                2 -> WallpaperManager.FLAG_LOCK
+                                else -> WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK
                             }
-                            withContext(Dispatchers.Main) {
-                                Toast.makeText(context, Strings.wallpaperSuccess(lang), Toast.LENGTH_SHORT).show()
-                            }
+                            wm.setBitmap(bitmap, null, true, which)
+                        } else {
+                            wm.setBitmap(bitmap)
+                        }
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, Strings.wallpaperSuccess(lang), Toast.LENGTH_SHORT).show()
                         }
                     }
                 } catch (e: Exception) {
@@ -260,6 +285,7 @@ fun FullscreenMediaViewer(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
             beyondViewportPageCount = 1,
+            userScrollEnabled = !isCurrentPageZoomed,
             key = { page ->
                 val m = mediaList.getOrNull(page)
                 if (m != null) "${m.source}_${m.id.ifBlank { m.url }}_$page" else page
@@ -282,6 +308,12 @@ fun FullscreenMediaViewer(
                 FullscreenZoomableImage(
                     media = pageMedia,
                     vm = vm,
+                    isActive = (pagerState.currentPage == page),
+                    onZoomChanged = { zoomed ->
+                        if (pagerState.currentPage == page) {
+                            isCurrentPageZoomed = zoomed
+                        }
+                    },
                     onToggleControls = { showControls = !showControls }
                 )
             }
@@ -289,8 +321,8 @@ fun FullscreenMediaViewer(
 
         AnimatedVisibility(
             visible = showControls,
-            enter = fadeIn(),
-            exit = fadeOut(),
+            enter = fadeIn(tween(180, easing = FastOutSlowInEasing)),
+            exit = fadeOut(tween(140, easing = FastOutLinearInEasing)),
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
             Box(
@@ -298,106 +330,127 @@ fun FullscreenMediaViewer(
                     .fillMaxWidth()
                     .background(
                         Brush.verticalGradient(
-                            listOf(Color.Black.copy(alpha = 0.8f), Color.Transparent)
+                            0.0f to Color.Black.copy(alpha = 0.88f),
+                            0.5f to Color.Black.copy(alpha = 0.55f),
+                            1.0f to Color.Transparent
                         )
                     )
                     .statusBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    FilledTonalIconButton(
-                        onClick = onDismiss,
-                        shape = CircleShape,
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = Color.Black.copy(alpha = 0.5f),
-                            contentColor = Color.White
-                        ),
-                        modifier = Modifier.size(42.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(
-                            Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Back",
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-
-                    Spacer(Modifier.width(12.dp))
-
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Surface(
+                            onClick = onDismiss,
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.45f),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                            modifier = Modifier.size(42.dp)
                         ) {
-                            Text(
-                                text = currentMedia.source,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-
-                            Surface(
-                                shape = CircleShape,
-                                color = when (currentMedia.rating.lowercase()) {
-                                    "e", "explicit" -> MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
-                                    "q", "questionable" -> Color(0xFFFF9800).copy(alpha = 0.8f)
-                                    else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
-                                }
-                            ) {
-                                Text(
-                                    text = currentMedia.rating.uppercase(),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.AutoMirrored.Rounded.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
                         }
 
-                        Text(
-                            text = "${pagerState.currentPage + 1} / ${mediaList.size}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.75f)
-                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.45f),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                            modifier = Modifier.height(42.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(horizontal = 14.dp)
+                            ) {
+                                Text(
+                                    text = currentMedia.source.uppercase(),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+
+                                Surface(
+                                    shape = CircleShape,
+                                    color = when (currentMedia.rating.lowercase()) {
+                                        "e", "explicit" -> Color(0xFFE53935)
+                                        "q", "questionable" -> Color(0xFFFFA000)
+                                        else -> Color(0xFF43A047)
+                                    }
+                                ) {
+                                    Text(
+                                        text = when (currentMedia.rating.lowercase()) {
+                                            "e", "explicit" -> "18+"
+                                            "q", "questionable" -> "Q"
+                                            else -> "SAFE"
+                                        },
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Black,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+
+                                Text(
+                                    text = "${pagerState.currentPage + 1} / ${mediaList.size}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White.copy(alpha = 0.75f)
+                                )
+                            }
+                        }
                     }
 
-                    FilledTonalIconButton(
-                        onClick = {
-                            val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, currentMedia.url.ifBlank { currentMedia.sample })
-                            }
-                            context.startActivity(Intent.createChooser(shareIntent, "Share"))
-                        },
-                        shape = CircleShape,
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = Color.Black.copy(alpha = 0.5f),
-                            contentColor = Color.White
-                        ),
-                        modifier = Modifier.size(42.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Rounded.Share, contentDescription = "Share", modifier = Modifier.size(20.dp))
-                    }
-
-                    Spacer(Modifier.width(8.dp))
-
-                    FilledTonalIconButton(
-                        onClick = {
-                            val browserUrl = currentMedia.url.ifBlank { currentMedia.sample }
-                            if (browserUrl.isNotBlank()) {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(browserUrl)))
+                        Surface(
+                            onClick = {
+                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, currentMedia.url.ifBlank { currentMedia.sample })
+                                }
+                                context.startActivity(Intent.createChooser(shareIntent, Strings.share(lang)))
+                            },
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.45f),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                            modifier = Modifier.size(42.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Rounded.Share, contentDescription = "Share", tint = Color.White, modifier = Modifier.size(20.dp))
                             }
-                        },
-                        shape = CircleShape,
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = Color.Black.copy(alpha = 0.5f),
-                            contentColor = Color.White
-                        ),
-                        modifier = Modifier.size(42.dp)
-                    ) {
-                        Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = "Open in browser", modifier = Modifier.size(20.dp))
+                        }
+
+                        Surface(
+                            onClick = {
+                                val browserUrl = currentMedia.url.ifBlank { currentMedia.sample }
+                                if (browserUrl.isNotBlank()) {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(browserUrl)))
+                                }
+                            },
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.45f),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                            modifier = Modifier.size(42.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = "Open in browser", tint = Color.White, modifier = Modifier.size(20.dp))
+                            }
+                        }
                     }
                 }
             }
@@ -405,8 +458,8 @@ fun FullscreenMediaViewer(
 
         AnimatedVisibility(
             visible = showControls,
-            enter = fadeIn(),
-            exit = fadeOut(),
+            enter = fadeIn(tween(180, easing = FastOutSlowInEasing)),
+            exit = fadeOut(tween(140, easing = FastOutLinearInEasing)),
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
             Box(
@@ -414,98 +467,101 @@ fun FullscreenMediaViewer(
                     .fillMaxWidth()
                     .background(
                         Brush.verticalGradient(
-                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+                            0.0f to Color.Transparent,
+                            0.4f to Color.Black.copy(alpha = 0.55f),
+                            1.0f to Color.Black.copy(alpha = 0.90f)
                         )
                     )
                     .navigationBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 14.dp)
+                    .padding(horizontal = 20.dp, vertical = 16.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                Surface(
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.55f),
+                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                    shadowElevation = 8.dp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(58.dp)
                 ) {
-
-                    FilledTonalIconButton(
-                        onClick = { vm.toggleFavorite(currentMedia) },
-                        shape = CircleShape,
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = if (isFav) MaterialTheme.colorScheme.primaryContainer else Color.Black.copy(alpha = 0.5f),
-                            contentColor = if (isFav) MaterialTheme.colorScheme.onPrimaryContainer else Color.White
-                        ),
-                        modifier = Modifier.size(48.dp)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        Icon(
-                            imageVector = if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            contentDescription = "Favorite",
-                            tint = if (isFav) MaterialTheme.colorScheme.primary else Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    FilledTonalIconButton(
-                        onClick = { downloadCurrentMedia() },
-                        shape = CircleShape,
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = Color.Black.copy(alpha = 0.5f),
-                            contentColor = Color.White
-                        ),
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        if (isDownloading) {
-                            CircularProgressIndicator(
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        } else {
-                            Icon(
-                                Icons.Rounded.FileDownload,
-                                contentDescription = "Download",
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-
-                    if (!currentMedia.isVideo) {
-                        FilledTonalIconButton(
-                            onClick = { showWallpaperDialog = true },
-                            shape = CircleShape,
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = Color.Black.copy(alpha = 0.5f),
-                                contentColor = Color.White
-                            ),
-                            modifier = Modifier.size(48.dp)
+                        IconButton(
+                            onClick = { vm.toggleFavorite(currentMedia) },
+                            modifier = Modifier.size(44.dp)
                         ) {
                             Icon(
-                                Icons.Rounded.Wallpaper,
-                                contentDescription = "Wallpaper",
+                                imageVector = if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                contentDescription = "Favorite",
+                                tint = if (isFav) Color(0xFFEF5350) else Color.White,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
-                    }
 
-                    FilledTonalButton(
-                        onClick = { showTagsSheet = true },
-                        shape = CircleShape,
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = Color.Black.copy(alpha = 0.5f),
-                            contentColor = Color.White
-                        ),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                        modifier = Modifier.height(48.dp)
-                    ) {
-                        Icon(
-                            Icons.Rounded.Sell,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = Strings.infoAndTags(lang),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        IconButton(
+                            onClick = { downloadCurrentMedia() },
+                            modifier = Modifier.size(44.dp)
+                        ) {
+                            if (isDownloading) {
+                                CircularProgressIndicator(
+                                    strokeWidth = 2.5.dp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            } else {
+                                Icon(
+                                    Icons.Rounded.FileDownload,
+                                    contentDescription = "Download",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+
+                        if (!currentMedia.isVideo) {
+                            IconButton(
+                                onClick = { showWallpaperDialog = true },
+                                modifier = Modifier.size(44.dp)
+                            ) {
+                                Icon(
+                                    Icons.Rounded.Wallpaper,
+                                    contentDescription = "Wallpaper",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+
+                        Surface(
+                            onClick = { showTagsSheet = true },
+                            shape = CircleShape,
+                            color = Color.White.copy(alpha = 0.12f),
+                            modifier = Modifier.height(38.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                modifier = Modifier.padding(horizontal = 14.dp)
+                            ) {
+                                Icon(
+                                    Icons.Rounded.Sell,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Text(
+                                    text = "${Strings.tags(lang)} (${currentMedia.tagList.size})",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -533,23 +589,24 @@ fun FullscreenMediaViewer(
                         onClick = { applyWallpaper(1) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(Strings.wallpaperHomeScreen(lang), style = MaterialTheme.typography.bodyLarge)
+                        Text(Strings.wallpaperHomeScreen(lang))
                     }
                     TextButton(
                         onClick = { applyWallpaper(2) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(Strings.wallpaperLockScreen(lang), style = MaterialTheme.typography.bodyLarge)
+                        Text(Strings.wallpaperLockScreen(lang))
                     }
                     TextButton(
                         onClick = { applyWallpaper(3) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(Strings.wallpaperBoth(lang), style = MaterialTheme.typography.bodyLarge)
+                        Text(Strings.wallpaperBoth(lang))
                     }
                 }
             },
-            confirmButton = {
+            confirmButton = {},
+            dismissButton = {
                 TextButton(onClick = { showWallpaperDialog = false }) {
                     Text(Strings.cancelBtn(lang))
                 }
@@ -679,18 +736,30 @@ fun FullscreenMediaViewer(
 private fun FullscreenZoomableImage(
     media: RemoteMedia,
     vm: GalleryViewModel,
+    isActive: Boolean,
+    onZoomChanged: (Boolean) -> Unit,
     onToggleControls: () -> Unit
 ) {
     val context = LocalContext.current
     var rawScale by remember { mutableFloatStateOf(1f) }
     var rawOffset by remember { mutableStateOf(Offset.Zero) }
 
+    LaunchedEffect(isActive) {
+        if (!isActive && rawScale > 1f) {
+            rawScale = 1f
+            rawOffset = Offset.Zero
+            onZoomChanged(false)
+        }
+    }
+
     val animatedScale by animateFloatAsState(
         targetValue = rawScale,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "fsZoomScale"
     )
     val animatedOffset by androidx.compose.animation.core.animateOffsetAsState(
         targetValue = rawOffset,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "fsZoomOffset"
     )
 
@@ -701,6 +770,8 @@ private fun FullscreenZoomableImage(
         vm.resolveMediaUrl(media)
     }
 
+    val isZoomed = rawScale > 1.05f
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -708,50 +779,64 @@ private fun FullscreenZoomableImage(
                 detectTapGestures(
                     onTap = { onToggleControls() },
                     onDoubleTap = {
-                        if (rawScale > 1f) {
+                        if (rawScale > 1.05f) {
                             rawScale = 1f
                             rawOffset = Offset.Zero
+                            onZoomChanged(false)
                         } else {
                             rawScale = 2.5f
+                            onZoomChanged(true)
                         }
                     }
                 )
             }
-            .pointerInput(Unit) {
-                detectTransformGestures { _, pan, zoom, _ ->
-                    rawScale = (rawScale * zoom).coerceIn(1f, 4.5f)
-                    if (rawScale > 1f) {
-                        val maxOffset = (rawScale - 1f) * 600f
-                        val newOffset = rawOffset + pan
-                        rawOffset = Offset(
-                            x = newOffset.x.coerceIn(-maxOffset, maxOffset),
-                            y = newOffset.y.coerceIn(-maxOffset, maxOffset)
-                        )
-                    } else {
-                        rawOffset = Offset.Zero
-                    }
-                }
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        var isLoading by remember { mutableStateOf(true) }
-
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(displayUrl)
-                .placeholderMemoryCacheKey(media.preview)
-                .crossfade(200)
-                .allowHardware(!media.isGif)
-                .listener(
-                    onStart = { isLoading = true },
-                    onSuccess = { _, _ -> isLoading = false },
-                    onError = { _, _ ->
-                        isLoading = false
-                        if (!hasLoadError && displayUrl != media.sample && media.sample.isNotBlank()) {
-                            hasLoadError = true
+            .then(
+                if (isZoomed) {
+                    Modifier.pointerInput(Unit) {
+                        detectTransformGestures { _, pan, zoom, _ ->
+                            val newScale = (rawScale * zoom).coerceIn(1f, 4.5f)
+                            rawScale = newScale
+                            if (newScale > 1.05f) {
+                                val maxOffsetX = (newScale - 1f) * 600f
+                                val maxOffsetY = (newScale - 1f) * 800f
+                                val newOffset = rawOffset + pan
+                                rawOffset = Offset(
+                                    x = newOffset.x.coerceIn(-maxOffsetX, maxOffsetX),
+                                    y = newOffset.y.coerceIn(-maxOffsetY, maxOffsetY)
+                                )
+                                onZoomChanged(true)
+                            } else {
+                                rawScale = 1f
+                                rawOffset = Offset.Zero
+                                onZoomChanged(false)
+                            }
                         }
                     }
-                )
+                } else {
+                    Modifier.pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                if (event.changes.size >= 2) {
+                                    val zoom = event.calculateZoom()
+                                    if (zoom > 1.05f) {
+                                        rawScale = (rawScale * zoom).coerceIn(1f, 4.5f)
+                                        onZoomChanged(rawScale > 1.05f)
+                                        event.changes.forEach { it.consume() }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        SubcomposeAsyncImage(
+            model = ImageRequest.Builder(context)
+                .data(displayUrl)
+                .crossfade(180)
+                .allowHardware(!media.isGif)
                 .build(),
             contentDescription = null,
             contentScale = ContentScale.Fit,
@@ -762,15 +847,54 @@ private fun FullscreenZoomableImage(
                     scaleY = animatedScale
                     translationX = animatedOffset.x
                     translationY = animatedOffset.y
+                },
+            loading = {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (media.preview.isNotBlank() && displayUrl != media.preview) {
+                        AsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data(media.preview)
+                                .crossfade(false)
+                                .build(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 3.dp,
+                        modifier = Modifier.size(36.dp)
+                    )
                 }
+            },
+            error = {
+                if (!hasLoadError && displayUrl != media.sample && media.sample.isNotBlank()) {
+                    hasLoadError = true
+                } else {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.padding(24.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.BrokenImage,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.5f),
+                            modifier = Modifier.size(48.dp)
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            text = Strings.errorLoading(vm.language),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+            }
         )
-
-        if (isLoading) {
-            CircularProgressIndicator(
-                color = MaterialTheme.colorScheme.primary,
-                strokeWidth = 3.dp,
-                modifier = Modifier.size(40.dp)
-            )
-        }
     }
 }
