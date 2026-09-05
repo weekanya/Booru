@@ -974,7 +974,7 @@ fun MediaDetailSheet(
 
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = if (isBlacklisted) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
                         modifier = Modifier
                             .fillMaxWidth()
                             .bouncyPress()
@@ -996,16 +996,16 @@ fun MediaDetailSheet(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Icon(
-                                if (isBlacklisted) Icons.Rounded.CheckCircle else Icons.Rounded.Block,
+                                imageVector = if (isBlacklisted) Icons.Rounded.CheckCircle else Icons.Rounded.Block,
                                 contentDescription = null,
-                                tint = if (isBlacklisted) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.error,
+                                tint = if (isBlacklisted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(20.dp)
                             )
                             Text(
                                 text = if (isBlacklisted) Strings.removeFromBlacklist(lang) else Strings.addToBlacklist(lang),
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (isBlacklisted) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.error
+                                color = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }

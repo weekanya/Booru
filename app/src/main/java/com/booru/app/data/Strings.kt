@@ -96,6 +96,11 @@ object Strings {
         AppLanguage.RUSSIAN -> "Безопасный"
     }
 
+    fun allRatings(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "All ratings"
+        AppLanguage.RUSSIAN -> "Все рейтинги"
+    }
+
     fun noAiBadge(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "No AI"
         AppLanguage.RUSSIAN -> "Без ИИ"

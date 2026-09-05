@@ -297,18 +297,38 @@ fun SettingsScreen(
                                     InputChip(
                                         selected = false,
                                         onClick = { vm.removeBlacklistedTag(tag) },
-                                        label = { Text(tag) },
+                                        label = {
+                                            Text(
+                                                text = tag,
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                Icons.Rounded.Block,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(13.dp),
+                                                tint = MaterialTheme.colorScheme.error
+                                            )
+                                        },
                                         trailingIcon = {
                                             Icon(
                                                 Icons.Rounded.Close,
                                                 contentDescription = "Remove",
-                                                modifier = Modifier.size(16.dp)
+                                                modifier = Modifier.size(14.dp),
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
                                         },
-                                        shape = RoundedCornerShape(10.dp),
+                                        shape = CircleShape,
                                         colors = InputChipDefaults.inputChipColors(
-                                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
-                                            labelColor = MaterialTheme.colorScheme.onErrorContainer
+                                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                            labelColor = MaterialTheme.colorScheme.onSurface
+                                        ),
+                                        border = InputChipDefaults.inputChipBorder(
+                                            enabled = true,
+                                            selected = false,
+                                            borderColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                                         )
                                     )
                                 }
