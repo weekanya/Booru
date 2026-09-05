@@ -1172,6 +1172,7 @@ fun BooruVideoPlayer(
     var durationMs by remember { mutableLongStateOf(0L) }
     var isSeeking by remember { mutableStateOf(false) }
     var seekRatio by remember { mutableFloatStateOf(0f) }
+    var playbackSpeed by remember { mutableFloatStateOf(1f) }
 
     val exoPlayer = remember(videoUrl) {
         val referer = when {
@@ -1212,10 +1213,10 @@ fun BooruVideoPlayer(
 
         val loadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                /* minBufferMs = */ 3_000,
-                /* maxBufferMs = */ 20_000,
-                /* bufferForPlaybackMs = */ 250,
-                /* bufferForPlaybackAfterRebufferMs = */ 750
+                 3_000,
+                 20_000,
+                 250,
+                 750
             )
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
@@ -1244,6 +1245,10 @@ fun BooruVideoPlayer(
                 })
                 prepare()
             }
+    }
+
+    LaunchedEffect(playbackSpeed, exoPlayer) {
+        exoPlayer.setPlaybackSpeed(playbackSpeed)
     }
 
     LaunchedEffect(exoPlayer, isPlaying) {
@@ -1464,25 +1469,54 @@ fun BooruVideoPlayer(
                         fontWeight = FontWeight.SemiBold
                     )
 
-                    FilledTonalIconButton(
-                        onClick = {
-                            isMuted = !isMuted
-                            exoPlayer.volume = if (isMuted) 0f else 1f
-                        },
-                        shape = CircleShape,
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = Color.Black.copy(alpha = 0.5f)
-                        ),
-                        modifier = Modifier
-                            .size(34.dp)
-                            .bouncyPress()
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            imageVector = if (isMuted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
-                            contentDescription = if (isMuted) "Unmute" else "Mute",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        val speedOptions = listOf(1f, 1.25f, 1.5f, 2f, 0.5f)
+                        FilledTonalIconButton(
+                            onClick = {
+                                val idx = speedOptions.indexOf(playbackSpeed)
+                                val nextIdx = if (idx in 0 until speedOptions.size - 1) idx + 1 else 0
+                                playbackSpeed = speedOptions[nextIdx]
+                            },
+                            shape = CircleShape,
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = Color.Black.copy(alpha = 0.5f)
+                            ),
+                            modifier = Modifier
+                                .size(34.dp)
+                                .bouncyPress()
+                        ) {
+                            val text = if (playbackSpeed == 1f) "1x" else if (playbackSpeed == 2f) "2x" else "${playbackSpeed}x"
+                            Text(
+                                text = text,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        FilledTonalIconButton(
+                            onClick = {
+                                isMuted = !isMuted
+                                exoPlayer.volume = if (isMuted) 0f else 1f
+                            },
+                            shape = CircleShape,
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = Color.Black.copy(alpha = 0.5f)
+                            ),
+                            modifier = Modifier
+                                .size(34.dp)
+                                .bouncyPress()
+                        ) {
+                            Icon(
+                                imageVector = if (isMuted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
+                                contentDescription = if (isMuted) "Unmute" else "Mute",
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
                     }
                 }
             }

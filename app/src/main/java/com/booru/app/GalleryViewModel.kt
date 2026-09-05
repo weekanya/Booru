@@ -10,6 +10,8 @@ import com.booru.app.data.AppLanguage
 import com.booru.app.data.AppUpdateInfo
 import com.booru.app.data.BooruCacheManager
 import com.booru.app.data.BooruPreferences
+import com.booru.app.data.CustomBooruSource
+import com.booru.app.data.ImageQuality
 import com.booru.app.data.UpdateChecker
 import com.booru.app.data.db.AppDatabase
 import com.booru.app.data.db.FavoriteEntity
@@ -73,6 +75,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var tagSuggestions by mutableStateOf<List<TagSuggestion>>(emptyList()); private set
     var tagBlacklist   by mutableStateOf<List<String>>(emptyList());        private set
 
+    var imageQuality  by mutableStateOf(ImageQuality.SAMPLE);             private set
+    var customSources by mutableStateOf<List<CustomBooruSource>>(emptyList()); private set
+
     private var currentPage = 0
     private var hasMore = true
     private var searchJob: Job? = null
@@ -108,6 +113,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
         viewModelScope.launch {
             prefs.searchHistory.collect { searchHistory = it }
+        }
+        viewModelScope.launch {
+            prefs.imageQuality.collect { imageQuality = it }
+        }
+        viewModelScope.launch {
+            prefs.customSources.collect { customSources = it }
         }
         viewModelScope.launch {
             prefs.tagBlacklist.collect { bl ->
@@ -403,7 +414,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     noAi = noAi,
                     page = 0,
                     sortOrder = sortOrder,
-                    credentials = getCredentials()
+                    credentials = getCredentials(),
+                    customSources = customSources
                 )
                 val filtered = list.filterNot { isBlacklisted(it) }
                     .distinctBy { "${it.source}_${it.id.ifBlank { it.url }}" }
@@ -450,7 +462,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     noAi = noAi,
                     page = currentPage,
                     sortOrder = sortOrder,
-                    credentials = getCredentials()
+                    credentials = getCredentials(),
+                    customSources = customSources
                 )
                 val filtered = list.filterNot { isBlacklisted(it) }
                 results = (results + filtered).distinctBy { "${it.source}_${it.id.ifBlank { it.url }}" }
@@ -666,5 +679,31 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         authErrorCode = null
     }
 
-    fun getSourceDisplayName(key: String): String = BooruRepository.getSourceDisplayName(key)
+    fun updateImageQuality(quality: ImageQuality) {
+        imageQuality = quality
+        viewModelScope.launch { prefs.setImageQuality(quality) }
+    }
+
+    fun addCustomSource(source: CustomBooruSource) {
+        val updated = customSources.filterNot { it.id == source.id } + source
+        customSources = updated
+        viewModelScope.launch { prefs.saveCustomSources(updated) }
+    }
+
+    fun removeCustomSource(sourceId: String) {
+        val updated = customSources.filterNot { it.id == sourceId }
+        customSources = updated
+        viewModelScope.launch { prefs.saveCustomSources(updated) }
+    }
+
+    val availableSources: List<String>
+        get() = BooruRepository.AVAILABLE_SOURCES + customSources.map { it.name }
+
+    fun resolveMediaUrl(media: RemoteMedia): String = when (imageQuality) {
+        ImageQuality.ORIGINAL -> media.url.ifBlank { media.sample.ifBlank { media.preview } }
+        ImageQuality.SAVER    -> media.preview.ifBlank { media.sample.ifBlank { media.url } }
+        ImageQuality.SAMPLE   -> media.sample.ifBlank { media.url.ifBlank { media.preview } }
+    }
+
+    fun getSourceDisplayName(key: String): String = BooruRepository.getSourceDisplayName(key, customSources)
 }

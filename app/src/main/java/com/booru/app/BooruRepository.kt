@@ -1,6 +1,8 @@
 package com.booru.app
 
 import android.util.Log
+import com.booru.app.data.CustomBooruSource
+import com.booru.app.data.BooruEngine
 import com.booru.app.data.parser.RealbooruHtmlParser
 import com.booru.app.data.parser.TimestampParser
 import kotlinx.coroutines.Dispatchers
@@ -99,16 +101,20 @@ class BooruRepository(
             SOURCE_SAFEBOORU
         )
 
-        fun getSourceDisplayName(key: String): String = when (key.lowercase()) {
-            "rule34"    -> SOURCE_RULE34
-            "gelbooru"  -> SOURCE_GELBOORU
-            "realbooru" -> SOURCE_REALBOORU
-            "xbooru"    -> SOURCE_XBOORU
-            "tbib"      -> SOURCE_TBIB
-            "yande"     -> SOURCE_YANDE
-            "konachan"  -> SOURCE_KONACHAN
-            "safebooru" -> SOURCE_SAFEBOORU
-            else        -> key
+        fun getSourceDisplayName(key: String, customSources: List<CustomBooruSource> = emptyList()): String {
+            val custom = customSources.find { it.key == key || it.name.equals(key, ignoreCase = true) }
+            if (custom != null) return custom.name
+            return when (key.lowercase()) {
+                "rule34"    -> SOURCE_RULE34
+                "gelbooru"  -> SOURCE_GELBOORU
+                "realbooru" -> SOURCE_REALBOORU
+                "xbooru"    -> SOURCE_XBOORU
+                "tbib"      -> SOURCE_TBIB
+                "yande"     -> SOURCE_YANDE
+                "konachan"  -> SOURCE_KONACHAN
+                "safebooru" -> SOURCE_SAFEBOORU
+                else        -> key
+            }
         }
     }
 
@@ -120,17 +126,20 @@ class BooruRepository(
         noAi: Boolean = false,
         page: Int = 0,
         sortOrder: SortOrder = SortOrder.NEWEST,
-        credentials: BooruCredentials = BooruCredentials()
+        credentials: BooruCredentials = BooruCredentials(),
+        customSources: List<CustomBooruSource> = emptyList()
     ): List<RemoteMedia> = withContext(Dispatchers.IO) {
-        val targets = when (source) {
-            SOURCE_SAFEBOORU -> if (excludeSafe) emptyList() else listOf("safebooru")
-            SOURCE_YANDE     -> listOf("yande")
-            SOURCE_RULE34    -> listOf("rule34")
-            SOURCE_GELBOORU  -> listOf("gelbooru")
-            SOURCE_REALBOORU -> listOf("realbooru")
-            SOURCE_XBOORU    -> listOf("xbooru")
-            SOURCE_TBIB      -> listOf("tbib")
-            SOURCE_KONACHAN  -> listOf("konachan")
+        val customMatch = customSources.find { it.name.equals(source, ignoreCase = true) || it.key == source }
+        val targets = when {
+            customMatch != null -> listOf(customMatch.key)
+            source == SOURCE_SAFEBOORU -> if (excludeSafe) emptyList() else listOf("safebooru")
+            source == SOURCE_YANDE     -> listOf("yande")
+            source == SOURCE_RULE34    -> listOf("rule34")
+            source == SOURCE_GELBOORU  -> listOf("gelbooru")
+            source == SOURCE_REALBOORU -> listOf("realbooru")
+            source == SOURCE_XBOORU    -> listOf("xbooru")
+            source == SOURCE_TBIB      -> listOf("tbib")
+            source == SOURCE_KONACHAN  -> listOf("konachan")
             else             -> if (excludeSafe) listOf("rule34", "gelbooru", "realbooru", "xbooru") else listOf("rule34", "gelbooru", "realbooru", "xbooru", "tbib", "yande", "konachan", "safebooru")
         }
 
@@ -149,7 +158,7 @@ class BooruRepository(
                 async {
                     semaphore.withPermit {
                         try {
-                            val list = requestSourceWithRetry(key, tags.trim(), safeMode, excludeSafe, noAi, page, sortOrder, credentials)
+                            val list = requestSourceWithRetry(key, tags.trim(), safeMode, excludeSafe, noAi, page, sortOrder, credentials, customSources)
                             Result.success(list)
                         } catch (auth: BooruAuthException) {
                             Log.e(TAG, "[$key] Auth Error: ${auth.message}")
@@ -359,14 +368,15 @@ class BooruRepository(
         noAi: Boolean,
         page: Int,
         sortOrder: SortOrder,
-        credentials: BooruCredentials
+        credentials: BooruCredentials,
+        customSources: List<CustomBooruSource> = emptyList()
     ): List<RemoteMedia> {
         var attempt = 0
         var lastException: Exception? = null
 
         while (attempt < 3) {
             try {
-                return requestSource(key, userTags, safe, excludeSafe, noAi, page, sortOrder, credentials)
+                return requestSource(key, userTags, safe, excludeSafe, noAi, page, sortOrder, credentials, customSources)
             } catch (auth: BooruAuthException) {
 
                 throw auth
@@ -411,9 +421,72 @@ class BooruRepository(
         noAi: Boolean,
         page: Int,
         sortOrder: SortOrder,
-        credentials: BooruCredentials
+        credentials: BooruCredentials,
+        customSources: List<CustomBooruSource> = emptyList()
     ): List<RemoteMedia> {
         val tagQuery = buildTagQuery(userTags, safe, excludeSafe, noAi, key, sortOrder)
+
+        val custom = customSources.find { it.key == key || it.name.equals(key, ignoreCase = true) }
+        if (custom != null) {
+            val fullUrl = when (custom.engine) {
+                BooruEngine.GELBOORU -> {
+                    val endpoint = if (custom.baseUrl.endsWith("/index.php")) custom.baseUrl else "${custom.baseUrl}/index.php"
+                    endpoint.toHttpUrl().newBuilder().apply {
+                        addQueryParameter("page", "dapi")
+                        addQueryParameter("s", "post")
+                        addQueryParameter("q", "index")
+                        addQueryParameter("json", "1")
+                        if (tagQuery.isNotBlank()) addQueryParameter("tags", tagQuery)
+                        addQueryParameter("limit", PAGE_SIZE.toString())
+                        addQueryParameter("pid", page.toString())
+                        if (custom.apiKey.isNotBlank() && custom.userId.isNotBlank()) {
+                            addQueryParameter("api_key", custom.apiKey.trim())
+                            addQueryParameter("user_id", custom.userId.trim())
+                        }
+                    }.build()
+                }
+                BooruEngine.MOEBOORU -> {
+                    val endpoint = if (custom.baseUrl.endsWith("/post.json")) custom.baseUrl else "${custom.baseUrl}/post.json"
+                    endpoint.toHttpUrl().newBuilder().apply {
+                        if (tagQuery.isNotBlank()) addQueryParameter("tags", tagQuery)
+                        addQueryParameter("limit", PAGE_SIZE.toString())
+                        addQueryParameter("page", (page + 1).toString())
+                    }.build()
+                }
+                BooruEngine.DANBOORU -> {
+                    val endpoint = if (custom.baseUrl.endsWith("/posts.json")) custom.baseUrl else "${custom.baseUrl}/posts.json"
+                    endpoint.toHttpUrl().newBuilder().apply {
+                        if (tagQuery.isNotBlank()) addQueryParameter("tags", tagQuery)
+                        addQueryParameter("limit", PAGE_SIZE.toString())
+                        addQueryParameter("page", (page + 1).toString())
+                        if (custom.apiKey.isNotBlank() && custom.userId.isNotBlank()) {
+                            addQueryParameter("api_key", custom.apiKey.trim())
+                            addQueryParameter("login", custom.userId.trim())
+                        }
+                    }.build()
+                }
+            }
+            logSanitized(custom.name, fullUrl)
+
+            val req = Request.Builder()
+                .url(fullUrl)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 BooruClient/1.0")
+                .header("Referer", "${custom.baseUrl}/")
+                .build()
+
+            return client.newCall(req).execute().use { response ->
+                val code = response.code
+                val body = response.body?.string() ?: ""
+                if (!response.isSuccessful) {
+                    if (code == 429) {
+                        val retryAfter = parseRetryAfter(response.header("Retry-After"))
+                        throw BooruHttpException(sourceKey = custom.name, statusCode = code, retryAfterSec = retryAfter, message = "Rate limited by ${custom.name}")
+                    }
+                    throw BooruHttpException(sourceKey = custom.name, statusCode = code, message = "HTTP $code from ${custom.name}")
+                }
+                parseResponse(custom.name, body, noAi, custom.baseUrl, customSources)
+            }
+        }
 
         if (key == "realbooru") {
             val urlBuilder = "https://realbooru.com/index.php".toHttpUrl().newBuilder().apply {
@@ -523,7 +596,7 @@ class BooruRepository(
                 throw BooruAuthException(sourceKey = key, statusCode = 401, message = "Invalid API Key or Access Denied for ${getSourceDisplayName(key)}")
             }
 
-            parseResponse(key, body, noAi)
+            parseResponse(key, body, noAi, "", customSources)
         }
     }
 
@@ -553,7 +626,13 @@ class BooruRepository(
         Log.d(TAG, "[$key] GET $sanitized")
     }
 
-    private fun parseResponse(key: String, body: String, noAi: Boolean): List<RemoteMedia> {
+    private fun parseResponse(
+        key: String,
+        body: String,
+        noAi: Boolean,
+        customBaseUrl: String = "",
+        customSources: List<CustomBooruSource> = emptyList()
+    ): List<RemoteMedia> {
         val trimmed = body.trim()
         if (trimmed.isEmpty() || trimmed == "[]" || trimmed == "{}") return emptyList()
 
@@ -618,6 +697,9 @@ class BooruRepository(
                 continue
             }
 
+            if (fileUrl.startsWith("/") && !fileUrl.startsWith("//") && customBaseUrl.isNotBlank()) {
+                fileUrl = "${customBaseUrl.trimEnd('/')}$fileUrl"
+            }
             if (fileUrl.startsWith("//")) {
                 fileUrl = "https:$fileUrl"
             }
@@ -648,6 +730,9 @@ class BooruRepository(
                 }
             }
 
+            if (preview.startsWith("/") && !preview.startsWith("//") && customBaseUrl.isNotBlank()) {
+                preview = "${customBaseUrl.trimEnd('/')}$preview"
+            }
             if (preview.startsWith("//")) {
                 preview = "https:$preview"
             }
@@ -680,6 +765,9 @@ class BooruRepository(
                 }
             }
 
+            if (sample.startsWith("/") && !sample.startsWith("//") && customBaseUrl.isNotBlank()) {
+                sample = "${customBaseUrl.trimEnd('/')}$sample"
+            }
             if (sample.startsWith("//")) {
                 sample = "https:$sample"
             }
@@ -722,7 +810,7 @@ class BooruRepository(
                 sample = sample,
                 tags = tags.trim(),
                 score = score,
-                source = getSourceDisplayName(key),
+                source = getSourceDisplayName(key, customSources),
                 rating = rating,
                 width = width,
                 height = height,

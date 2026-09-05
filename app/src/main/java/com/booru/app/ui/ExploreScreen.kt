@@ -56,6 +56,7 @@ fun ExploreScreen(
 ) {
     val lang = vm.language
     var showDetail     by remember { mutableStateOf<RemoteMedia?>(null) }
+    var fullscreenIndex by remember { mutableStateOf<Int?>(null) }
     var searchExpanded by remember { mutableStateOf(false) }
     var localQuery     by remember { mutableStateOf(vm.query) }
     var showSortMenu   by remember { mutableStateOf(false) }
@@ -96,6 +97,16 @@ fun ExploreScreen(
         MediaDetailSheet(media = media, vm = vm, onDismiss = { showDetail = null })
     }
 
+    fullscreenIndex?.let { initialIdx ->
+        FullscreenMediaViewer(
+            initialIndex = initialIdx,
+            mediaList = vm.results,
+            vm = vm,
+            onDismiss = { fullscreenIndex = null },
+            onLoadMore = { vm.loadMore() }
+        )
+    }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -108,14 +119,13 @@ fun ExploreScreen(
                 .padding(top = 70.dp)
         ) {
 
-            // 1. Horizontal Chip Bar for Controls: Source, Sort, Rating, No AI
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Source Selector Chip
+
                 item {
                     FilledTonalButton(
                         onClick = { showSourceSheet = true },
@@ -159,7 +169,6 @@ fun ExploreScreen(
                     }
                 }
 
-                // Sort Order Chip
                 item {
                     var showSortMenu by remember { mutableStateOf(false) }
                     Box {
@@ -232,7 +241,6 @@ fun ExploreScreen(
                     }
                 }
 
-                // Safe Mode / Rating Filter Chip
                 item {
                     var showRatingMenu by remember { mutableStateOf(false) }
                     Box {
@@ -348,7 +356,6 @@ fun ExploreScreen(
                     }
                 }
 
-                // No AI Chip
                 item {
                     FilterChip(
                         selected = vm.noAi,
@@ -383,7 +390,6 @@ fun ExploreScreen(
                 }
             }
 
-            // 2. Subheader Row: All posts + Count pill on Left, Refresh button on Right
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -616,10 +622,10 @@ fun ExploreScreen(
                         verticalItemSpacing = 8.dp,
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        items(
+                        itemsIndexed(
                             items = vm.results,
-                            key = { m -> "${m.source}_${m.id.ifBlank { m.url }}" }
-                        ) { media ->
+                            key = { _, m -> "${m.source}_${m.id.ifBlank { m.url }}" }
+                        ) { index, media ->
                             val ratio = remember(media.id, media.width, media.height) {
                                 if (media.width > 0 && media.height > 0) {
                                     (media.width.toFloat() / media.height.toFloat()).coerceIn(0.55f, 1.6f)
@@ -637,7 +643,7 @@ fun ExploreScreen(
                                 aspectRatio = ratio,
                                 isFavorite = vm.isFavorite(media),
                                 onFavoriteClick = { vm.toggleFavorite(media) },
-                                onClick = { showDetail = media }
+                                onClick = { fullscreenIndex = index }
                             )
                         }
 
@@ -1006,6 +1012,7 @@ fun ExploreScreen(
         if (showSourceSheet) {
             SourceSelectionSheet(
                 currentSource = vm.source,
+                sources = vm.availableSources,
                 lang = lang,
                 onSelect = { selectedSource ->
                     vm.search(selectedSource, vm.query, vm.safeMode)
@@ -1246,6 +1253,7 @@ private fun MediaCard(
 @Composable
 fun SourceSelectionSheet(
     currentSource: String,
+    sources: List<String> = BooruRepository.AVAILABLE_SOURCES,
     lang: AppLanguage,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
@@ -1284,7 +1292,7 @@ fun SourceSelectionSheet(
                 )
             }
 
-            BooruRepository.AVAILABLE_SOURCES.forEach { src ->
+            sources.forEach { src ->
                 val isSelected = currentSource == src
                 val (icon, desc) = when (src) {
                     BooruRepository.SOURCE_ALL -> Pair(Icons.Rounded.Layers, "Search all available boorus")
@@ -1295,7 +1303,8 @@ fun SourceSelectionSheet(
                     BooruRepository.SOURCE_TBIB -> Pair(Icons.Rounded.Public, "The Big ImageBoard (28M+ posts)")
                     BooruRepository.SOURCE_YANDE -> Pair(Icons.Rounded.Collections, "High-resolution wallpapers & art")
                     BooruRepository.SOURCE_KONACHAN -> Pair(Icons.Rounded.Wallpaper, "Wallpaper anime board")
-                    else -> Pair(Icons.Rounded.Shield, "Safe-for-work anime art")
+                    BooruRepository.SOURCE_SAFEBOORU -> Pair(Icons.Rounded.Shield, "Safe-for-work anime art")
+                    else -> Pair(Icons.Rounded.Language, "Custom Booru source")
                 }
 
                 Surface(

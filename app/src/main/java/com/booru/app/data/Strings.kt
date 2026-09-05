@@ -141,6 +141,76 @@ object Strings {
         AppLanguage.RUSSIAN -> "Цветовая схема"
     }
 
+    fun imageQualityTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Image Quality"
+        AppLanguage.RUSSIAN -> "Качество изображений"
+    }
+
+    fun imageQualityDesc(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Default resolution for images"
+        AppLanguage.RUSSIAN -> "Разрешение изображений при просмотре"
+    }
+
+    fun qualityOriginal(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Original (Full Quality)"
+        AppLanguage.RUSSIAN -> "Оригинал (Максимальное)"
+    }
+
+    fun qualitySample(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Optimal (Sample)"
+        AppLanguage.RUSSIAN -> "Оптимальное (Сэмпл)"
+    }
+
+    fun qualitySaver(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Data Saver (Preview)"
+        AppLanguage.RUSSIAN -> "Экономия трафика (Превью)"
+    }
+
+    fun customSourcesTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Custom Booru Sources"
+        AppLanguage.RUSSIAN -> "Пользовательские Booru"
+    }
+
+    fun customSourcesDesc(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Add third-party Danbooru or Gelbooru websites"
+        AppLanguage.RUSSIAN -> "Подключение сторонних Booru-сайтов"
+    }
+
+    fun addSourceTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Add Booru Source"
+        AppLanguage.RUSSIAN -> "Добавить Booru источник"
+    }
+
+    fun sourceNameHint(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Source Name (e.g. Paheal)"
+        AppLanguage.RUSSIAN -> "Имя источника (напр. Paheal)"
+    }
+
+    fun sourceUrlHint(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Base URL (https://...)"
+        AppLanguage.RUSSIAN -> "URL адрес (https://...)"
+    }
+
+    fun sourceEngineLabel(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "API Engine"
+        AppLanguage.RUSSIAN -> "Тип API движка"
+    }
+
+    fun sourceAddedSuccess(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Source added"
+        AppLanguage.RUSSIAN -> "Источник добавлен"
+    }
+
+    fun deleteSourceConfirm(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Remove this source?"
+        AppLanguage.RUSSIAN -> "Удалить этот источник?"
+    }
+
+    fun noCustomSources(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "No custom sources added yet"
+        AppLanguage.RUSSIAN -> "Кастомные источники пока не добавлены"
+    }
+
     fun dataSection(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "DATA & ABOUT"
         AppLanguage.RUSSIAN -> "ДАННЫЕ И О ПРИЛОЖЕНИИ"
@@ -387,6 +457,21 @@ object Strings {
     fun tagsLabel(count: Int, lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Tags ($count)"
         AppLanguage.RUSSIAN -> "Теги ($count)"
+    }
+
+    fun infoAndTags(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Info & Tags"
+        AppLanguage.RUSSIAN -> "Инфо и теги"
+    }
+
+    fun resolution(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Resolution"
+        AppLanguage.RUSSIAN -> "Разрешение"
+    }
+
+    fun source(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Source"
+        AppLanguage.RUSSIAN -> "Источник"
     }
 
     fun keysSavedToast(lang: AppLanguage) = when (lang) {

@@ -41,8 +41,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.booru.app.GalleryViewModel
+import com.booru.app.data.ImageQuality
+import com.booru.app.data.CustomBooruSource
+import com.booru.app.data.BooruEngine
 import com.booru.app.R
 import com.booru.app.data.AppLanguage
 import com.booru.app.data.Strings
@@ -66,6 +70,14 @@ fun SettingsScreen(
     var showGelbooruDialog by remember { mutableStateOf(false) }
     var showBlacklistDialog by remember { mutableStateOf(false) }
     var showPaletteDialog by remember { mutableStateOf(false) }
+    var showQualityDialog by remember { mutableStateOf(false) }
+    var showAddCustomSourceDialog by remember { mutableStateOf(false) }
+
+    var customName by remember { mutableStateOf("") }
+    var customUrl by remember { mutableStateOf("") }
+    var customEngine by remember { mutableStateOf(BooruEngine.GELBOORU) }
+    var customApiKey by remember { mutableStateOf("") }
+    var customUserId by remember { mutableStateOf("") }
     var newBlacklistTag by remember { mutableStateOf("") }
 
     if (showRule34Dialog) {
@@ -206,6 +218,179 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showGelbooruDialog = false }) {
+                    Text(Strings.cancelBtn(lang))
+                }
+            }
+        )
+    }
+
+    if (showQualityDialog) {
+        AlertDialog(
+            onDismissRequest = { showQualityDialog = false },
+            shape = RoundedCornerShape(28.dp),
+            icon = {
+                Icon(
+                    Icons.Rounded.HighQuality,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(Strings.imageQualityTitle(lang), style = MaterialTheme.typography.titleLarge)
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val options = listOf(
+                        ImageQuality.SAMPLE to Strings.qualitySample(lang),
+                        ImageQuality.ORIGINAL to Strings.qualityOriginal(lang),
+                        ImageQuality.SAVER to Strings.qualitySaver(lang)
+                    )
+                    options.forEach { (q, title) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .clickable {
+                                    vm.updateImageQuality(q)
+                                    showQualityDialog = false
+                                }
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = (vm.imageQuality == q),
+                                onClick = {
+                                    vm.updateImageQuality(q)
+                                    showQualityDialog = false
+                                }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(title, style = MaterialTheme.typography.bodyLarge)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showQualityDialog = false }) {
+                    Text(Strings.cancelBtn(lang))
+                }
+            }
+        )
+    }
+
+    if (showAddCustomSourceDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddCustomSourceDialog = false },
+            shape = RoundedCornerShape(28.dp),
+            icon = {
+                Icon(
+                    Icons.Rounded.AddCircleOutline,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(32.dp)
+                )
+            },
+            title = {
+                Text(Strings.addSourceTitle(lang), style = MaterialTheme.typography.titleLarge)
+            },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = customName,
+                        onValueChange = { customName = it },
+                        label = { Text(Strings.sourceNameHint(lang)) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = customUrl,
+                        onValueChange = { customUrl = it },
+                        label = { Text(Strings.sourceUrlHint(lang)) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Text(
+                        Strings.sourceEngineLabel(lang),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    BooruEngine.entries.forEach { engine ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable { customEngine = engine }
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = (customEngine == engine),
+                                onClick = { customEngine = engine }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(engine.displayName, style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = customUserId,
+                        onValueChange = { customUserId = it },
+                        label = { Text("User ID / Login (Optional)") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    OutlinedTextField(
+                        value = customApiKey,
+                        onValueChange = { customApiKey = it },
+                        label = { Text("API Key (Optional)") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val cleanName = customName.trim()
+                        val cleanUrl = customUrl.trim().trimEnd('/')
+                        if (cleanName.isNotBlank() && cleanUrl.isNotBlank() && cleanUrl.startsWith("http")) {
+                            val newSource = CustomBooruSource(
+                                id = cleanName.lowercase().replace(" ", "_"),
+                                name = cleanName,
+                                baseUrl = cleanUrl,
+                                engine = customEngine,
+                                apiKey = customApiKey.trim(),
+                                userId = customUserId.trim()
+                            )
+                            vm.addCustomSource(newSource)
+                            Toast.makeText(context, Strings.sourceAddedSuccess(lang), Toast.LENGTH_SHORT).show()
+                            customName = ""
+                            customUrl = ""
+                            customApiKey = ""
+                            customUserId = ""
+                            showAddCustomSourceDialog = false
+                        } else {
+                            Toast.makeText(context, "Invalid name or URL (must start with http/https)", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    shape = CircleShape
+                ) {
+                    Text(Strings.saveBtn(lang))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddCustomSourceDialog = false }) {
                     Text(Strings.cancelBtn(lang))
                 }
             }
@@ -564,9 +749,87 @@ fun SettingsScreen(
 
         Spacer(Modifier.height(20.dp))
 
+        SectionLabel(Strings.customSourcesTitle(lang))
+
+        SettingsGroupCard {
+            SettingRowItem(
+                title = Strings.addSourceTitle(lang),
+                subtitle = if (vm.customSources.isEmpty()) Strings.noCustomSources(lang) else "${vm.customSources.size} custom sources",
+                icon = Icons.Rounded.AddCircleOutline,
+                onClick = { showAddCustomSourceDialog = true }
+            )
+
+            if (vm.customSources.isNotEmpty()) {
+                vm.customSources.forEach { customSource ->
+                    SettingsDivider()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    customSource.name,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primaryContainer
+                                ) {
+                                    Text(
+                                        text = customSource.engine.name,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                customSource.baseUrl,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        IconButton(onClick = { vm.removeCustomSource(customSource.id) }) {
+                            Icon(
+                                Icons.Rounded.DeleteOutline,
+                                contentDescription = "Delete",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+
         SectionLabel(Strings.contentSection(lang))
 
         SettingsGroupCard {
+            SettingRowItem(
+                title = Strings.imageQualityTitle(lang),
+                subtitle = when (vm.imageQuality) {
+                    ImageQuality.ORIGINAL -> Strings.qualityOriginal(lang)
+                    ImageQuality.SAVER    -> Strings.qualitySaver(lang)
+                    ImageQuality.SAMPLE   -> Strings.qualitySample(lang)
+                },
+                icon = Icons.Rounded.HighQuality,
+                onClick = { showQualityDialog = true }
+            )
+
+            SettingsDivider()
+
             SettingRowItem(
                 title = Strings.tagBlacklistTitle(lang),
                 subtitle = if (vm.tagBlacklist.isEmpty()) Strings.noBlacklistedTags(lang) else "${vm.tagBlacklist.size} tags blocked",

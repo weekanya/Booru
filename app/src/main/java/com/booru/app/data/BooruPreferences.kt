@@ -18,6 +18,12 @@ import org.json.JSONObject
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "booru_settings")
 
+enum class ImageQuality(val code: String) {
+    ORIGINAL("original"),
+    SAMPLE("sample"),
+    SAVER("saver")
+}
+
 class BooruPreferences(private val context: Context) {
 
     companion object {
@@ -38,6 +44,9 @@ class BooruPreferences(private val context: Context) {
         val KEY_GELBOORU_API_KEY = stringPreferencesKey("gelbooru_api_key")
         val KEY_TAG_BLACKLIST = stringSetPreferencesKey("tag_blacklist")
         val KEY_IGNORED_UPDATE_VERSION = stringPreferencesKey("ignored_update_version")
+
+        val KEY_IMAGE_QUALITY = stringPreferencesKey("image_quality")
+        val KEY_CUSTOM_SOURCES = stringPreferencesKey("custom_sources")
     }
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
@@ -104,6 +113,39 @@ class BooruPreferences(private val context: Context) {
 
     val ignoredUpdateVersion: Flow<String?> = context.dataStore.data.map { prefs ->
         prefs[KEY_IGNORED_UPDATE_VERSION]
+    }
+
+    val imageQuality: Flow<ImageQuality> = context.dataStore.data.map { prefs ->
+        when (prefs[KEY_IMAGE_QUALITY]) {
+            "original" -> ImageQuality.ORIGINAL
+            "saver"    -> ImageQuality.SAVER
+            else       -> ImageQuality.SAMPLE
+        }
+    }
+
+    val customSources: Flow<List<CustomBooruSource>> = context.dataStore.data.map { prefs ->
+        val jsonStr = prefs[KEY_CUSTOM_SOURCES] ?: ""
+        if (jsonStr.isBlank()) emptyList()
+        else {
+            runCatching {
+                val arr = JSONArray(jsonStr)
+                (0 until arr.length()).mapNotNull { i ->
+                    arr.optJSONObject(i)?.let { CustomBooruSource.fromJson(it) }
+                }
+            }.getOrDefault(emptyList())
+        }
+    }
+
+    suspend fun setImageQuality(quality: ImageQuality) {
+        context.dataStore.edit { it[KEY_IMAGE_QUALITY] = quality.code }
+    }
+
+    suspend fun saveCustomSources(sources: List<CustomBooruSource>) {
+        context.dataStore.edit { prefs ->
+            val arr = JSONArray()
+            sources.forEach { arr.put(it.toJson()) }
+            prefs[KEY_CUSTOM_SOURCES] = arr.toString()
+        }
     }
 
     val favorites: Flow<List<RemoteMedia>> = context.dataStore.data.map { prefs ->
