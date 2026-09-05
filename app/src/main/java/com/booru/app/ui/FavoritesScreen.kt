@@ -391,12 +391,11 @@ fun FavoritesScreen(
                 )
             }
 
-            val isFiltered = filterText.isNotBlank() || mediaTypeFilter != FavoriteMediaTypeFilter.ALL || sortOrder != FavoriteSortOrder.NEWEST
-            if (isFiltered) {
+            if (filterText.isNotBlank()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 6.dp),
+                        .padding(horizontal = 20.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -407,15 +406,11 @@ fun FavoritesScreen(
                         fontWeight = FontWeight.SemiBold
                     )
                     TextButton(
-                        onClick = {
-                            filterText = ""
-                            mediaTypeFilter = FavoriteMediaTypeFilter.ALL
-                            sortOrder = FavoriteSortOrder.NEWEST
-                        },
+                        onClick = { filterText = "" },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            Strings.resetFilters(lang),
+                            Strings.clearBtn(lang),
                             style = MaterialTheme.typography.labelSmall
                         )
                     }
