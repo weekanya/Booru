@@ -878,7 +878,6 @@ fun MediaDetailSheet(
     if (showWallpaperDialog) {
         AlertDialog(
             onDismissRequest = { showWallpaperDialog = false },
-            modifier = Modifier.widthIn(min = 280.dp, max = 300.dp),
             shape = RoundedCornerShape(22.dp),
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             title = {
@@ -925,12 +924,10 @@ fun MediaDetailSheet(
             dismissButton = {
                 TextButton(
                     onClick = { showWallpaperDialog = false },
-                    modifier = Modifier.height(34.dp).bouncyPress(),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                    modifier = Modifier.bouncyPress()
                 ) {
                     Text(
                         Strings.cancelBtn(lang),
-                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -943,7 +940,6 @@ fun MediaDetailSheet(
         val isBlacklisted = vm.tagBlacklist.any { it.equals(currentActionTag, ignoreCase = true) }
         AlertDialog(
             onDismissRequest = { selectedTagForAction = null },
-            modifier = Modifier.widthIn(min = 280.dp, max = 300.dp),
             shape = RoundedCornerShape(22.dp),
             containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             title = {
@@ -1055,14 +1051,9 @@ fun MediaDetailSheet(
             dismissButton = {
                 TextButton(
                     onClick = { selectedTagForAction = null },
-                    modifier = Modifier.height(34.dp).bouncyPress(),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                    modifier = Modifier.bouncyPress()
                 ) {
-                    Text(
-                        Strings.cancelBtn(lang),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Text(Strings.cancelBtn(lang), fontWeight = FontWeight.Bold)
                 }
             }
         )

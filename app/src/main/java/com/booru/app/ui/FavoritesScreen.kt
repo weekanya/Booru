@@ -62,7 +62,6 @@ fun FavoritesScreen(
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            modifier = Modifier.widthIn(min = 280.dp, max = 300.dp),
             shape = RoundedCornerShape(22.dp),
             title = {
                 Row(
@@ -89,21 +88,15 @@ fun FavoritesScreen(
                         vm.clearFavorites()
                         showClearDialog = false
                     },
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.height(34.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                 ) {
-                    Text(Strings.clearBtn(lang), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
+                    Text(Strings.clearBtn(lang))
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = { showClearDialog = false },
-                    modifier = Modifier.height(34.dp),
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
-                ) {
-                    Text(Strings.cancelBtn(lang), style = MaterialTheme.typography.labelMedium)
+                TextButton(onClick = { showClearDialog = false }) {
+                    Text(Strings.cancelBtn(lang))
                 }
             }
         )
