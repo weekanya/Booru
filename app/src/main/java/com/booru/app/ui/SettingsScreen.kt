@@ -83,6 +83,7 @@ fun SettingsScreen(
     if (showRule34Dialog) {
         AlertDialog(
             onDismissRequest = { showRule34Dialog = false },
+            modifier = Modifier.widthIn(min = 280.dp, max = 300.dp),
             shape = RoundedCornerShape(22.dp),
             title = {
                 Row(
@@ -143,15 +144,20 @@ fun SettingsScreen(
                         showRule34Dialog = false
                         Toast.makeText(context, Strings.keysSavedToast(lang), Toast.LENGTH_SHORT).show()
                     },
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.height(34.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
                 ) {
-                    Text(Strings.saveBtn(lang))
+                    Text(Strings.saveBtn(lang), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showRule34Dialog = false }) {
-                    Text(Strings.cancelBtn(lang))
+                TextButton(
+                    onClick = { showRule34Dialog = false },
+                    modifier = Modifier.height(34.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                ) {
+                    Text(Strings.cancelBtn(lang), style = MaterialTheme.typography.labelMedium)
                 }
             }
         )
@@ -160,6 +166,7 @@ fun SettingsScreen(
     if (showGelbooruDialog) {
         AlertDialog(
             onDismissRequest = { showGelbooruDialog = false },
+            modifier = Modifier.widthIn(min = 280.dp, max = 300.dp),
             shape = RoundedCornerShape(22.dp),
             title = {
                 Row(
@@ -218,15 +225,20 @@ fun SettingsScreen(
                         showGelbooruDialog = false
                         Toast.makeText(context, Strings.keysSavedToast(lang), Toast.LENGTH_SHORT).show()
                     },
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.height(34.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
                 ) {
-                    Text(Strings.saveBtn(lang))
+                    Text(Strings.saveBtn(lang), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showGelbooruDialog = false }) {
-                    Text(Strings.cancelBtn(lang))
+                TextButton(
+                    onClick = { showGelbooruDialog = false },
+                    modifier = Modifier.height(34.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                ) {
+                    Text(Strings.cancelBtn(lang), style = MaterialTheme.typography.labelMedium)
                 }
             }
         )
@@ -235,6 +247,7 @@ fun SettingsScreen(
     if (showQualityDialog) {
         AlertDialog(
             onDismissRequest = { showQualityDialog = false },
+            modifier = Modifier.widthIn(min = 280.dp, max = 300.dp),
             shape = RoundedCornerShape(22.dp),
             title = {
                 Row(
@@ -283,8 +296,12 @@ fun SettingsScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showQualityDialog = false }) {
-                    Text(Strings.cancelBtn(lang))
+                TextButton(
+                    onClick = { showQualityDialog = false },
+                    modifier = Modifier.height(34.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                ) {
+                    Text(Strings.cancelBtn(lang), style = MaterialTheme.typography.labelMedium)
                 }
             }
         )
@@ -293,6 +310,7 @@ fun SettingsScreen(
     if (showAddCustomSourceDialog) {
         AlertDialog(
             onDismissRequest = { showAddCustomSourceDialog = false },
+            modifier = Modifier.widthIn(min = 280.dp, max = 300.dp),
             shape = RoundedCornerShape(22.dp),
             title = {
                 Row(
@@ -412,15 +430,20 @@ fun SettingsScreen(
                             Toast.makeText(context, "Invalid name or URL (must start with http/https)", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.height(34.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
                 ) {
-                    Text(Strings.saveBtn(lang))
+                    Text(Strings.saveBtn(lang), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showAddCustomSourceDialog = false }) {
-                    Text(Strings.cancelBtn(lang))
+                TextButton(
+                    onClick = { showAddCustomSourceDialog = false },
+                    modifier = Modifier.height(34.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
+                ) {
+                    Text(Strings.cancelBtn(lang), style = MaterialTheme.typography.labelMedium)
                 }
             }
         )
@@ -429,6 +452,7 @@ fun SettingsScreen(
     if (showBlacklistDialog) {
         AlertDialog(
             onDismissRequest = { showBlacklistDialog = false },
+            modifier = Modifier.widthIn(min = 280.dp, max = 300.dp),
             shape = RoundedCornerShape(22.dp),
             title = {
                 Row(
@@ -487,9 +511,10 @@ fun SettingsScreen(
                                 }
                             },
                             shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
+                            modifier = Modifier.height(40.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp)
                         ) {
-                            Text(Strings.addTagBtn(lang), fontWeight = FontWeight.Bold)
+                            Text(Strings.addTagBtn(lang), style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -558,18 +583,21 @@ fun SettingsScreen(
             confirmButton = {
                 Button(
                     onClick = { showBlacklistDialog = false },
-                    shape = CircleShape,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.height(34.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp)
                 ) {
-                    Text("OK")
+                    Text("OK", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 if (vm.tagBlacklist.isNotEmpty()) {
                     TextButton(
-                        onClick = { vm.clearBlacklist() }
+                        onClick = { vm.clearBlacklist() },
+                        modifier = Modifier.height(34.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                     ) {
-                        Text(Strings.clearAllBlacklist(lang), color = MaterialTheme.colorScheme.error)
+                        Text(Strings.clearAllBlacklist(lang), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
@@ -582,18 +610,18 @@ fun SettingsScreen(
             ThemeMode.DARK -> true
             ThemeMode.LIGHT -> false
         }
-        val monetDynamicPrimary = remember(isDark) {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).primary
-                else androidx.compose.material3.dynamicLightColorScheme(context).primary
-            } else {
-                Color(0xFF6750A4)
-            }
+        val monetDynamicPrimary = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            if (isDark) androidx.compose.ui.res.colorResource(android.R.color.system_accent1_200)
+            else androidx.compose.ui.res.colorResource(android.R.color.system_accent1_600)
+        } else {
+            MaterialTheme.colorScheme.primary
         }
-        val monetDynamicSecondary = remember(isDark) {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).tertiary
-                else androidx.compose.material3.dynamicLightColorScheme(context).tertiary
+        val monetDynamicSecondary = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            if (isDark) androidx.compose.ui.res.colorResource(android.R.color.system_accent2_200)
+            else androidx.compose.ui.res.colorResource(android.R.color.system_accent2_600)
+        } else {
+            if (isDark) {
+                Color(0xFFD0BCFF)
             } else {
                 Color(0xFF7E5260)
             }
@@ -601,6 +629,7 @@ fun SettingsScreen(
 
         AlertDialog(
             onDismissRequest = { showPaletteDialog = false },
+            modifier = Modifier.widthIn(min = 280.dp, max = 300.dp),
             shape = RoundedCornerShape(22.dp),
             title = {
                 Row(
@@ -691,9 +720,10 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(
                     onClick = { showPaletteDialog = false },
-                    shape = CircleShape
+                    modifier = Modifier.height(34.dp),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 0.dp)
                 ) {
-                    Text(Strings.cancelBtn(lang))
+                    Text(Strings.cancelBtn(lang), style = MaterialTheme.typography.labelMedium)
                 }
             }
         )
