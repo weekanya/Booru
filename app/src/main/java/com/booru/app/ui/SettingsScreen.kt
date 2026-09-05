@@ -567,27 +567,6 @@ fun SettingsScreen(
         SectionLabel(Strings.contentSection(lang))
 
         SettingsGroupCard {
-            SettingSwitchItem(
-                title = Strings.safeModeTitle(lang),
-                subtitle = Strings.safeModeDesc(lang),
-                icon = Icons.Rounded.Shield,
-                checked = vm.safeMode,
-                onCheckedChange = { vm.setSafeModeEnabled(it) }
-            )
-
-            SettingsDivider()
-
-            SettingSwitchItem(
-                title = Strings.excludeSafeTitle(lang),
-                subtitle = Strings.excludeSafeDesc(lang),
-                icon = Icons.Rounded.Lock,
-                checked = vm.excludeSafe,
-                onCheckedChange = { vm.setExcludeSafeEnabled(it) },
-                isDangerous = true
-            )
-
-            SettingsDivider()
-
             SettingRowItem(
                 title = Strings.tagBlacklistTitle(lang),
                 subtitle = if (vm.tagBlacklist.isEmpty()) Strings.noBlacklistedTags(lang) else "${vm.tagBlacklist.size} tags blocked",
