@@ -633,17 +633,30 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun addBlacklistedTag(tag: String) {
         needsFeedRefresh = true
-        viewModelScope.launch { prefs.addTagToBlacklist(tag) }
+        val clean = tag.trim().lowercase()
+        if (clean.isNotBlank() && results.isNotEmpty()) {
+            results = results.filterNot { isBlacklisted(it, tagBlacklist + clean) }
+        }
+        viewModelScope.launch {
+            prefs.addTagToBlacklist(tag)
+            refresh()
+        }
     }
 
     fun removeBlacklistedTag(tag: String) {
         needsFeedRefresh = true
-        viewModelScope.launch { prefs.removeTagFromBlacklist(tag) }
+        viewModelScope.launch {
+            prefs.removeTagFromBlacklist(tag)
+            refresh()
+        }
     }
 
     fun clearBlacklist() {
         needsFeedRefresh = true
-        viewModelScope.launch { prefs.clearTagBlacklist() }
+        viewModelScope.launch {
+            prefs.clearTagBlacklist()
+            refresh()
+        }
     }
 
     fun clearError() {

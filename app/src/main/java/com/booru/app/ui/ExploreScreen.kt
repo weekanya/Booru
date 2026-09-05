@@ -307,6 +307,24 @@ fun ExploreScreen(
                             }
                         }
                     }
+
+                    FilledTonalIconButton(
+                        onClick = { vm.refresh() },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .bouncyPress(),
+                        shape = CircleShape,
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                        )
+                    ) {
+                        Icon(
+                            Icons.Rounded.Refresh,
+                            contentDescription = Strings.refreshBtn(lang),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
             }
 
@@ -453,6 +471,15 @@ fun ExploreScreen(
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+                            Spacer(Modifier.height(14.dp))
+                            FilledTonalButton(
+                                onClick = { vm.refresh() },
+                                shape = CircleShape
+                            ) {
+                                Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(Strings.refreshBtn(lang))
+                            }
                         }
                     }
                 } else {
@@ -555,6 +582,19 @@ fun ExploreScreen(
                             contentDescription = "Clear",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            vm.refresh()
+                        },
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Refresh,
+                            contentDescription = "Reload Feed",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 } else {

@@ -23,7 +23,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.*
@@ -222,7 +225,13 @@ fun SettingsScreen(
                 )
             },
             title = {
-                Text(Strings.tagBlacklistTitle(lang), style = MaterialTheme.typography.titleLarge)
+                Text(
+                    text = if (vm.tagBlacklist.isEmpty())
+                        Strings.tagBlacklistTitle(lang)
+                    else
+                        "${Strings.tagBlacklistTitle(lang)} (${vm.tagBlacklist.size})",
+                    style = MaterialTheme.typography.titleLarge
+                )
             },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -243,6 +252,13 @@ fun SettingsScreen(
                             placeholder = { Text(Strings.addTagPlaceholder(lang)) },
                             singleLine = true,
                             shape = RoundedCornerShape(14.dp),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = {
+                                if (newBlacklistTag.isNotBlank()) {
+                                    vm.addBlacklistedTag(newBlacklistTag)
+                                    newBlacklistTag = ""
+                                }
+                            }),
                             modifier = Modifier.weight(1f)
                         )
                         FilledTonalButton(
@@ -266,24 +282,36 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                         )
                     } else {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 240.dp)
+                                .verticalScroll(rememberScrollState())
                         ) {
-                            items(vm.tagBlacklist) { tag ->
-                                InputChip(
-                                    selected = false,
-                                    onClick = { vm.removeBlacklistedTag(tag) },
-                                    label = { Text(tag) },
-                                    trailingIcon = {
-                                        Icon(
-                                            Icons.Rounded.Close,
-                                            contentDescription = "Remove",
-                                            modifier = Modifier.size(16.dp)
+                            FlowRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                vm.tagBlacklist.forEach { tag ->
+                                    InputChip(
+                                        selected = false,
+                                        onClick = { vm.removeBlacklistedTag(tag) },
+                                        label = { Text(tag) },
+                                        trailingIcon = {
+                                            Icon(
+                                                Icons.Rounded.Close,
+                                                contentDescription = "Remove",
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        },
+                                        shape = RoundedCornerShape(10.dp),
+                                        colors = InputChipDefaults.inputChipColors(
+                                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
+                                            labelColor = MaterialTheme.colorScheme.onErrorContainer
                                         )
-                                    },
-                                    shape = RoundedCornerShape(10.dp)
-                                )
+                                    )
+                                }
                             }
                         }
                     }

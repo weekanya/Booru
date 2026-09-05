@@ -985,6 +985,7 @@ fun MediaDetailSheet(
                                 } else {
                                     vm.addBlacklistedTag(currentActionTag)
                                     Toast.makeText(context, Strings.tagAddedToBlacklist(currentActionTag, lang), Toast.LENGTH_SHORT).show()
+                                    onDismiss()
                                 }
                                 selectedTagForAction = null
                             }

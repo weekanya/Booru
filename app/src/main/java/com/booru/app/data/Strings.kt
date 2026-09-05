@@ -356,6 +356,11 @@ object Strings {
         AppLanguage.RUSSIAN -> "Повторить"
     }
 
+    fun refreshBtn(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Refresh"
+        AppLanguage.RUSSIAN -> "Обновить"
+    }
+
     fun closeBtn(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Close"
         AppLanguage.RUSSIAN -> "Закрыть"
