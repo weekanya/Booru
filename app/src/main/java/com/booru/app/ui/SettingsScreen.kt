@@ -20,8 +20,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -83,9 +81,6 @@ fun SettingsScreen(
     var newBlacklistTag by remember { mutableStateOf("") }
     var showClearBlacklistConfirm by remember { mutableStateOf(false) }
     var blacklistFilterQuery by remember { mutableStateOf("") }
-    val presetBlacklistTags = remember {
-        listOf("ai_generated", "furry", "yaoi", "guro", "scat", "3d", "comic", "gore")
-    }
 
     if (showRule34Dialog) {
         AlertDialog(
@@ -640,66 +635,6 @@ fun SettingsScreen(
                         }
                     }
 
-                    // Quick presets section
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(
-                            text = Strings.quickPresets(lang),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            contentPadding = PaddingValues(vertical = 2.dp)
-                        ) {
-                            items(presetBlacklistTags) { preset ->
-                                val isAdded = vm.tagBlacklist.any { it.equals(preset, ignoreCase = true) }
-                                Surface(
-                                    shape = CircleShape,
-                                    color = if (isAdded)
-                                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f)
-                                    else
-                                        MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    border = BorderStroke(
-                                        1.dp,
-                                        if (isAdded)
-                                            MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
-                                        else
-                                            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                                    ),
-                                    modifier = Modifier
-                                        .bouncyPress()
-                                        .clickable {
-                                            if (isAdded) {
-                                                vm.removeBlacklistedTag(preset)
-                                            } else {
-                                                vm.addBlacklistedTag(preset)
-                                            }
-                                        }
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                    ) {
-                                        Icon(
-                                            imageVector = if (isAdded) Icons.Rounded.Check else Icons.Rounded.Add,
-                                            contentDescription = null,
-                                            tint = if (isAdded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(13.dp)
-                                        )
-                                        Text(
-                                            text = preset,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = if (isAdded) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isAdded) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
 
                     // In-list filter if list is longer than 6 tags
                     if (vm.tagBlacklist.size > 6) {

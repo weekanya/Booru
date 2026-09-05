@@ -575,8 +575,8 @@ object Strings {
     }
 
     fun emptyBlacklistHint(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Tap a preset above or type tags to block them"
-        AppLanguage.RUSSIAN -> "Нажмите на фильтр выше или введите тег вручную"
+        AppLanguage.ENGLISH -> "Type tags above to hide unwanted posts"
+        AppLanguage.RUSSIAN -> "Введите теги выше, чтобы скрыть нежелательные посты"
     }
 
     fun setWallpaperTitle(lang: AppLanguage) = when (lang) {
