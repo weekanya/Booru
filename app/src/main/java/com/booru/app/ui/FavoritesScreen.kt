@@ -2,11 +2,14 @@ package com.booru.app.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -20,7 +23,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -53,11 +59,22 @@ fun FavoritesScreen(
     modifier: Modifier = Modifier
 ) {
     val lang = vm.language
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val gridState = rememberLazyGridState()
+
     var filterText by rememberSaveable { mutableStateOf("") }
     var mediaTypeFilter by rememberSaveable { mutableStateOf(FavoriteMediaTypeFilter.ALL) }
     var sortOrder by rememberSaveable { mutableStateOf(FavoriteSortOrder.NEWEST) }
     var showSortMenu by remember { mutableStateOf(false) }
     var showClearDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(gridState.isScrollInProgress) {
+        if (gridState.isScrollInProgress) {
+            focusManager.clearFocus()
+            keyboardController?.hide()
+        }
+    }
 
     val allCount = vm.favoritesList.size
     val imagesCount = remember(vm.favoritesList) {
@@ -163,7 +180,17 @@ fun FavoritesScreen(
         )
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            }
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -200,7 +227,11 @@ fun FavoritesScreen(
                 ) {
                     Box {
                         FilledTonalIconButton(
-                            onClick = { showSortMenu = true },
+                            onClick = {
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                                showSortMenu = true
+                            },
                             shape = CircleShape
                         ) {
                             Icon(
@@ -264,7 +295,11 @@ fun FavoritesScreen(
                     }
 
                     FilledTonalIconButton(
-                        onClick = { showClearDialog = true },
+                        onClick = {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                            showClearDialog = true
+                        },
                         shape = CircleShape
                     ) {
                         Icon(
@@ -315,6 +350,13 @@ fun FavoritesScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             ),
                             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(
+                                onSearch = {
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                }
+                            ),
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
@@ -347,7 +389,11 @@ fun FavoritesScreen(
                     text = Strings.favFilterAll(lang),
                     count = allCount,
                     selected = (mediaTypeFilter == FavoriteMediaTypeFilter.ALL),
-                    onClick = { mediaTypeFilter = FavoriteMediaTypeFilter.ALL },
+                    onClick = {
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                        mediaTypeFilter = FavoriteMediaTypeFilter.ALL
+                    },
                     modifier = Modifier.weight(1f)
                 )
                 FavoriteFilterTab(
@@ -355,6 +401,8 @@ fun FavoritesScreen(
                     count = imagesCount,
                     selected = (mediaTypeFilter == FavoriteMediaTypeFilter.IMAGES),
                     onClick = {
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
                         mediaTypeFilter = if (mediaTypeFilter == FavoriteMediaTypeFilter.IMAGES) {
                             FavoriteMediaTypeFilter.ALL
                         } else {
@@ -368,6 +416,8 @@ fun FavoritesScreen(
                     count = gifsCount,
                     selected = (mediaTypeFilter == FavoriteMediaTypeFilter.GIFS),
                     onClick = {
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
                         mediaTypeFilter = if (mediaTypeFilter == FavoriteMediaTypeFilter.GIFS) {
                             FavoriteMediaTypeFilter.ALL
                         } else {
@@ -381,6 +431,8 @@ fun FavoritesScreen(
                     count = videosCount,
                     selected = (mediaTypeFilter == FavoriteMediaTypeFilter.VIDEOS),
                     onClick = {
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
                         mediaTypeFilter = if (mediaTypeFilter == FavoriteMediaTypeFilter.VIDEOS) {
                             FavoriteMediaTypeFilter.ALL
                         } else {
@@ -485,6 +537,7 @@ fun FavoritesScreen(
             }
         } else {
             LazyVerticalGrid(
+                state = gridState,
                 columns = GridCells.Adaptive(minSize = 160.dp),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 86.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -498,7 +551,11 @@ fun FavoritesScreen(
                     FavoriteCard(
                         media = media,
                         onRemove = { vm.toggleFavorite(media) },
-                        onClick = { vm.openFullscreen(filteredList, index) }
+                        onClick = {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                            vm.openFullscreen(filteredList, index)
+                        }
                     )
                 }
             }
@@ -580,7 +637,6 @@ private fun FavoriteCard(
         ),
         modifier = Modifier
             .fillMaxWidth()
-            .bouncyPress()
             .clickable(onClick = onClick)
     ) {
         Box {
