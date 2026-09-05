@@ -46,11 +46,6 @@ object Strings {
         AppLanguage.RUSSIAN -> "Все посты"
     }
 
-    fun postsCount(count: Int, lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "$count posts"
-        AppLanguage.RUSSIAN -> "$count постов"
-    }
-
     fun sortNewest(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Newest"
         AppLanguage.RUSSIAN -> "Новые"
@@ -64,26 +59,6 @@ object Strings {
     fun sortRandom(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Random"
         AppLanguage.RUSSIAN -> "Случайно"
-    }
-
-    fun safeModeTitle(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Safe Mode"
-        AppLanguage.RUSSIAN -> "Безопасный режим (Safe)"
-    }
-
-    fun safeModeDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Hide explicit adult content (18+)"
-        AppLanguage.RUSSIAN -> "Скрывать откровенный контент (18+)"
-    }
-
-    fun excludeSafeTitle(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Exclude Safe Content"
-        AppLanguage.RUSSIAN -> "Исключить Safe-контент"
-    }
-
-    fun excludeSafeDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Show only NSFW (18+ / Explicit & Questionable)"
-        AppLanguage.RUSSIAN -> "Показывать только NSFW (18+ / Explicit)"
     }
 
     fun only18Badge(lang: AppLanguage) = when (lang) {
@@ -164,11 +139,6 @@ object Strings {
     fun colorPaletteTitle(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Color Palette"
         AppLanguage.RUSSIAN -> "Цветовая схема"
-    }
-
-    fun colorPaletteDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Choose dynamic Monet or curated preset themes"
-        AppLanguage.RUSSIAN -> "Динамический Monet или готовая цветовая тема"
     }
 
     fun dataSection(lang: AppLanguage) = when (lang) {
@@ -316,11 +286,6 @@ object Strings {
         AppLanguage.RUSSIAN -> "Удалить из чёрного списка"
     }
 
-    fun searchThisTag(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Search this Tag"
-        AppLanguage.RUSSIAN -> "Искать по тегу"
-    }
-
     fun tagAddedToBlacklist(tag: String, lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "\"$tag\" added to blacklist"
         AppLanguage.RUSSIAN -> "«$tag» добавлен в чёрный список"
@@ -329,16 +294,6 @@ object Strings {
     fun tagRemovedFromBlacklist(tag: String, lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "\"$tag\" removed from blacklist"
         AppLanguage.RUSSIAN -> "«$tag» удален из чёрного списка"
-    }
-
-    fun copyTags(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Copy"
-        AppLanguage.RUSSIAN -> "Копировать"
-    }
-
-    fun tagsCopied(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Tags copied to clipboard"
-        AppLanguage.RUSSIAN -> "Теги скопированы в буфер обмена"
     }
 
     fun saveBtn(lang: AppLanguage) = when (lang) {
@@ -502,11 +457,6 @@ object Strings {
     fun clearAllBlacklist(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Clear all"
         AppLanguage.RUSSIAN -> "Очистить всё"
-    }
-
-    fun setWallpaperBtn(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Wallpaper"
-        AppLanguage.RUSSIAN -> "Обои"
     }
 
     fun setWallpaperTitle(lang: AppLanguage) = when (lang) {
