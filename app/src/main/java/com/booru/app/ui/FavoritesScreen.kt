@@ -53,8 +53,9 @@ fun FavoritesScreen(
             vm.favoritesList
         } else {
             val q = filterText.trim().lowercase()
-            vm.favoritesList.filter {
-                it.tags.contains(q, ignoreCase = true) || it.source.contains(q, ignoreCase = true)
+            vm.favoritesList.filter { media ->
+                media.tagList.any { it.contains(q, ignoreCase = true) } ||
+                        media.source.contains(q, ignoreCase = true)
             }
         }
     }
@@ -104,7 +105,7 @@ fun FavoritesScreen(
         )
     }
 
-    Column(modifier = modifier.fillMaxSize().padding(bottom = 80.dp)) {
+    Column(modifier = modifier.fillMaxSize()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -234,15 +235,15 @@ fun FavoritesScreen(
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 160.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 86.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                itemsIndexed(
+                items(
                     items = filteredList,
-                    key = { _, m -> m.id.ifBlank { m.url } }
-                ) { index, media ->
+                    key = { m -> "${m.source}_${m.id.ifBlank { m.url }}" }
+                ) { media ->
                     AnimatedVisibility(
                         visible = true,
                         enter = fadeIn(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) +

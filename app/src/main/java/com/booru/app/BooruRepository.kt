@@ -131,7 +131,7 @@ class BooruRepository(
             SOURCE_XBOORU    -> listOf("xbooru")
             SOURCE_TBIB      -> listOf("tbib")
             SOURCE_KONACHAN  -> listOf("konachan")
-            else             -> if (excludeSafe) listOf("rule34", "gelbooru", "realbooru", "xbooru") else listOf("rule34", "gelbooru", "realbooru", "xbooru", "tbib", "yande")
+            else             -> if (excludeSafe) listOf("rule34", "gelbooru", "realbooru", "xbooru") else listOf("rule34", "gelbooru", "realbooru", "xbooru", "tbib", "yande", "konachan", "safebooru")
         }
 
         if (targets.isEmpty() && excludeSafe && source == SOURCE_SAFEBOORU) {
@@ -319,7 +319,10 @@ class BooruRepository(
 
         if (noAi) {
             when (key) {
-                "gelbooru", "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> {
+                "gelbooru" -> {
+                    parts.add("-ai_generated")
+                }
+                "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> {
                     parts.add("-ai_generated")
                     parts.add("-novelai")
                 }
@@ -436,9 +439,6 @@ class BooruRepository(
 
         if (key == "gelbooru" && (credentials.gelbooruUserId.isBlank() || credentials.gelbooruApiKey.isBlank())) {
             throw BooruAuthException(sourceKey = "gelbooru", statusCode = 401, message = "Authentication required for Gelbooru (API Key & User ID needed)")
-        }
-        if (key == "rule34" && (credentials.rule34UserId.isBlank() || credentials.rule34ApiKey.isBlank())) {
-            throw BooruAuthException(sourceKey = "rule34", statusCode = 401, message = "Authentication required for Rule34 (API Key & User ID needed)")
         }
 
         val baseUrl = when (key) {

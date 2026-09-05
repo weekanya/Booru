@@ -122,11 +122,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             favoriteDao.getAllFavorites().collect { entities ->
                 val mediaList = entities.map { it.toRemoteMedia() }
                 updateFavoritesState(mediaList)
-                viewModelScope.launch(Dispatchers.IO) {
-                    mediaList.forEach { media ->
-                        BooruCacheManager.saveFavoriteMedia(getApplication(), media)
-                    }
-                }
             }
         }
 
@@ -411,6 +406,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     credentials = getCredentials()
                 )
                 val filtered = list.filterNot { isBlacklisted(it) }
+                    .distinctBy { "${it.source}_${it.id.ifBlank { it.url }}" }
                 results = filtered
                 hasMore = list.size >= BooruRepository.PAGE_SIZE
             } catch (authEx: BooruAuthException) {
@@ -457,7 +453,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     credentials = getCredentials()
                 )
                 val filtered = list.filterNot { isBlacklisted(it) }
-                results = results + filtered
+                results = (results + filtered).distinctBy { "${it.source}_${it.id.ifBlank { it.url }}" }
                 hasMore = list.size >= BooruRepository.PAGE_SIZE
             } catch (c: kotlinx.coroutines.CancellationException) {
 

@@ -15,6 +15,8 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.graphics.drawable.toBitmap
+import java.util.Locale
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -159,98 +161,104 @@ fun MediaDetailSheet(
                         .header("Accept", "*/*")
                         .build()
 
-                    var response = client.newCall(request).execute()
-                    if (!response.isSuccessful) {
-                        response.close()
-                        val candidates = LinkedHashSet<String>()
-                        val base = rawUrl.substringBeforeLast(".")
-                        candidates.add("$base.jpeg")
-                        candidates.add("$base.jpg")
-                        candidates.add("$base.png")
-                        candidates.add("$base.mp4")
-                        candidates.add("$base.webm")
-                        candidates.add("$base.gif")
+                    val candidates = LinkedHashSet<String>()
+                    val base = rawUrl.substringBeforeLast(".")
+                    candidates.add(rawUrl)
+                    candidates.add("$base.jpeg")
+                    candidates.add("$base.jpg")
+                    candidates.add("$base.png")
+                    candidates.add("$base.mp4")
+                    candidates.add("$base.webm")
+                    candidates.add("$base.gif")
 
-                        if (media.sample.isNotBlank() && media.sample != rawUrl) {
-                            candidates.add(media.sample)
-                        }
-                        if (media.preview.isNotBlank() && media.preview != rawUrl) {
-                            candidates.add(media.preview)
-                        }
-                        if (rawUrl.contains("xbooru.com") && !rawUrl.contains("?")) {
-                            candidates.add("$rawUrl?1")
-                        }
+                    if (media.sample.isNotBlank() && media.sample != rawUrl) {
+                        candidates.add(media.sample)
+                    }
+                    if (media.preview.isNotBlank() && media.preview != rawUrl) {
+                        candidates.add(media.preview)
+                    }
+                    if (rawUrl.contains("xbooru.com") && !rawUrl.contains("?")) {
+                        candidates.add("$rawUrl?1")
+                    }
 
-                        for (cand in candidates) {
-                            if (cand == rawUrl) continue
-                            val altReq = okhttp3.Request.Builder()
-                                .url(cand)
-                                .header("User-Agent", userAgent)
-                                .header("Referer", referer)
-                                .header("Accept", "*/*")
-                                .build()
+                    var successfulResp: okhttp3.Response? = null
+                    for (cand in candidates) {
+                        val altReq = okhttp3.Request.Builder()
+                            .url(cand)
+                            .header("User-Agent", userAgent)
+                            .header("Referer", referer)
+                            .header("Accept", "*/*")
+                            .build()
+                        try {
                             val altResp = client.newCall(altReq).execute()
-                            if (altResp.isSuccessful) {
-                                response = altResp
+                            if (altResp.isSuccessful && altResp.body != null) {
+                                successfulResp = altResp
                                 break
                             }
                             altResp.close()
-                        }
+                        } catch (_: Exception) {}
                     }
 
-                    if (!response.isSuccessful || response.body == null) {
-                        throw IOException("HTTP ${response.code}")
-                    }
+                    val response = successfulResp ?: throw IOException("HTTP download failed")
+                    response.use { resp ->
+                        val body = resp.body ?: throw IOException("Empty response body")
+                        val inputStream = body.byteStream()
 
-                    val body = response.body!!
-                    val inputStream = body.byteStream()
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            val contentValues = ContentValues().apply {
+                                put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                                put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                                put(
+                                    MediaStore.MediaColumns.RELATIVE_PATH,
+                                    if (media.isVideo) "${Environment.DIRECTORY_MOVIES}/Booru" else "${Environment.DIRECTORY_PICTURES}/Booru"
+                                )
+                                put(MediaStore.MediaColumns.IS_PENDING, 1)
+                            }
 
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        val contentValues = ContentValues().apply {
-                            put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
-                            put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                            put(
-                                MediaStore.MediaColumns.RELATIVE_PATH,
-                                if (media.isVideo) "${Environment.DIRECTORY_MOVIES}/Booru" else "${Environment.DIRECTORY_PICTURES}/Booru"
-                            )
-                            put(MediaStore.MediaColumns.IS_PENDING, 1)
-                        }
+                            val collection = if (media.isVideo) {
+                                MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                            } else {
+                                MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                            }
 
-                        val collection = if (media.isVideo) {
-                            MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                            val uri = context.contentResolver.insert(collection, contentValues)
+                                ?: throw IOException("MediaStore insert failed")
+
+                            context.contentResolver.openOutputStream(uri)?.use { outStream ->
+                                inputStream.copyTo(outStream)
+                            } ?: throw IOException("Could not open stream for saving")
+
+                            contentValues.clear()
+                            contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                            context.contentResolver.update(uri, contentValues, null, null)
                         } else {
-                            MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                            val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                                context,
+                                android.Manifest.permission.WRITE_EXTERNAL_STORAGE
+                            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                            if (!hasPermission) {
+                                throw IOException("Storage permission required")
+                            }
+
+                            val targetDir = File(
+                                Environment.getExternalStoragePublicDirectory(
+                                    if (media.isVideo) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES
+                                ),
+                                "Booru"
+                            ).apply { mkdirs() }
+
+                            val targetFile = File(targetDir, filename)
+                            targetFile.outputStream().use { outStream ->
+                                inputStream.copyTo(outStream)
+                            }
+
+                            MediaScannerConnection.scanFile(
+                                context,
+                                arrayOf(targetFile.absolutePath),
+                                arrayOf(mimeType),
+                                null
+                            )
                         }
-
-                        val uri = context.contentResolver.insert(collection, contentValues)
-                            ?: throw IOException("MediaStore insert failed")
-
-                        context.contentResolver.openOutputStream(uri)?.use { outStream ->
-                            inputStream.copyTo(outStream)
-                        } ?: throw IOException("Could not open stream for saving")
-
-                        contentValues.clear()
-                        contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
-                        context.contentResolver.update(uri, contentValues, null, null)
-                    } else {
-                        val targetDir = File(
-                            Environment.getExternalStoragePublicDirectory(
-                                if (media.isVideo) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES
-                            ),
-                            "Booru"
-                        ).apply { mkdirs() }
-
-                        val targetFile = File(targetDir, filename)
-                        targetFile.outputStream().use { outStream ->
-                            inputStream.copyTo(outStream)
-                        }
-
-                        MediaScannerConnection.scanFile(
-                            context,
-                            arrayOf(targetFile.absolutePath),
-                            arrayOf(mimeType),
-                            null
-                        )
                     }
 
                     withContext(Dispatchers.Main) {
@@ -291,7 +299,7 @@ fun MediaDetailSheet(
                         .build()
                     val result = imageLoader.execute(request)
                     if (result is SuccessResult) {
-                        val bitmap = (result.drawable as? BitmapDrawable)?.bitmap
+                        val bitmap = (result.drawable as? BitmapDrawable)?.bitmap ?: runCatching { result.drawable.toBitmap() }.getOrNull()
                         if (bitmap != null) {
                             val wallpaperManager = WallpaperManager.getInstance(context)
                             when (target) {
@@ -408,7 +416,12 @@ fun MediaDetailSheet(
                                 detectTransformGestures { _, pan, zoom, _ ->
                                     rawScale = (rawScale * zoom).coerceIn(1f, 4.5f)
                                     if (rawScale > 1f) {
-                                        rawOffset += pan
+                                        val maxOffset = (rawScale - 1f) * 600f
+                                        val newOffset = rawOffset + pan
+                                        rawOffset = Offset(
+                                            x = newOffset.x.coerceIn(-maxOffset, maxOffset),
+                                            y = newOffset.y.coerceIn(-maxOffset, maxOffset)
+                                        )
                                     } else {
                                         rawOffset = Offset.Zero
                                     }
@@ -1250,8 +1263,18 @@ fun BooruVideoPlayer(
         }
     }
 
-    DisposableEffect(exoPlayer) {
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(exoPlayer, lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE || event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
+                if (exoPlayer.isPlaying) {
+                    exoPlayer.pause()
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
             exoPlayer.release()
         }
     }
@@ -1470,5 +1493,5 @@ private fun formatVideoTime(ms: Long): String {
     val totalSeconds = (ms / 1000).coerceAtLeast(0)
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
-    return String.format("%02d:%02d", minutes, seconds)
+    return String.format(Locale.US, "%02d:%02d", minutes, seconds)
 }

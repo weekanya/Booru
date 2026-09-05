@@ -68,13 +68,14 @@ object BooruCacheManager {
                     .header("Referer", referer)
                     .build()
 
-                val resp = httpClient.newCall(req).execute()
-                if (resp.isSuccessful && resp.body != null) {
-                    val tempFile = File(getFavoritesMediaDir(context), "$hash.$ext.tmp")
-                    tempFile.outputStream().use { out ->
-                        resp.body!!.byteStream().copyTo(out)
+                httpClient.newCall(req).execute().use { resp ->
+                    if (resp.isSuccessful && resp.body != null) {
+                        val tempFile = File(getFavoritesMediaDir(context), "$hash.$ext.tmp")
+                        tempFile.outputStream().use { out ->
+                            resp.body!!.byteStream().copyTo(out)
+                        }
+                        tempFile.renameTo(targetFile)
                     }
-                    tempFile.renameTo(targetFile)
                 }
             } catch (_: Exception) {}
         }
@@ -111,8 +112,8 @@ object BooruCacheManager {
         return when {
             bytes < 1024 -> "$bytes B"
             bytes < 1024 * 1024 -> "${bytes / 1024} KB"
-            bytes < 1024 * 1024 * 1024 -> String.format("%.1f MB", bytes.toDouble() / (1024 * 1024))
-            else -> String.format("%.2f GB", bytes.toDouble() / (1024 * 1024 * 1024))
+            bytes < 1024 * 1024 * 1024 -> String.format(java.util.Locale.US, "%.1f MB", bytes.toDouble() / (1024 * 1024))
+            else -> String.format(java.util.Locale.US, "%.2f GB", bytes.toDouble() / (1024 * 1024 * 1024))
         }
     }
 
@@ -130,9 +131,7 @@ object BooruCacheManager {
         try {
             val cacheDir = context.cacheDir
             cacheDir.listFiles()?.forEach { file ->
-                if (file.name == "booru_video_cache") {
-                    file.listFiles()?.forEach { it.deleteRecursively() }
-                } else {
+                if (file.name != "booru_video_cache" && file.name != "image_cache") {
                     file.deleteRecursively()
                 }
             }

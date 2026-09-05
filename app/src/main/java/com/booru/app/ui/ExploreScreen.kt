@@ -464,10 +464,10 @@ fun ExploreScreen(
                         verticalItemSpacing = 8.dp,
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        itemsIndexed(
+                        items(
                             items = vm.results,
-                            key = { index, m -> if (m.id.isNotBlank()) "${m.id}_$index" else "${m.url}_$index" }
-                        ) { _, media ->
+                            key = { m -> "${m.source}_${m.id.ifBlank { m.url }}" }
+                        ) { media ->
                             val ratio = remember(media.id, media.width, media.height) {
                                 if (media.width > 0 && media.height > 0) {
                                     (media.width.toFloat() / media.height.toFloat()).coerceIn(0.55f, 1.6f)
@@ -618,7 +618,8 @@ fun ExploreScreen(
                                 value = localQuery,
                                 onValueChange = {
                                     localQuery = it
-                                    vm.fetchTagSuggestions(it)
+                                    val lastToken = it.substringAfterLast(" ").trim()
+                                    vm.fetchTagSuggestions(lastToken)
                                 },
                                 modifier = Modifier
                                     .weight(1f)
@@ -703,8 +704,14 @@ fun ExploreScreen(
                                     vm.tagSuggestions.forEach { suggestion ->
                                         Surface(
                                             onClick = {
-                                                localQuery = suggestion.value
-                                                vm.search(vm.source, suggestion.value, vm.safeMode)
+                                                val prefix = if (localQuery.contains(" ")) {
+                                                    localQuery.substringBeforeLast(" ") + " "
+                                                } else {
+                                                    ""
+                                                }
+                                                val fullQuery = (prefix + suggestion.value).trim() + " "
+                                                localQuery = fullQuery
+                                                vm.search(vm.source, fullQuery.trim(), vm.safeMode)
                                                 searchExpanded = false
                                                 vm.clearTagSuggestions()
                                             },

@@ -17,6 +17,9 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Protocol
 import okhttp3.Response
 import okhttp3.ResponseBody.Companion.toResponseBody
+import okhttp3.ResponseBody.Companion.asResponseBody
+import okio.buffer
+import okio.source
 
 class BooruApplication : Application(), ImageLoaderFactory {
 
@@ -39,7 +42,7 @@ class BooruApplication : Application(), ImageLoaderFactory {
                             else -> "image/jpeg"
                         }
                     }).toMediaType()
-                    val responseBody = favFile.readBytes().toResponseBody(mediaType)
+                    val responseBody = favFile.source().buffer().asResponseBody(mediaType, favFile.length())
                     return@addInterceptor Response.Builder()
                         .request(originalRequest)
                         .protocol(Protocol.HTTP_1_1)
@@ -143,11 +146,13 @@ class BooruApplication : Application(), ImageLoaderFactory {
                             .header("Referer", referer)
                             .header("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
                             .build()
-                        val altResp = chain.proceed(altReq)
-                        if (altResp.isSuccessful) {
-                            return@addInterceptor altResp
-                        }
-                        altResp.close()
+                        try {
+                            val altResp = chain.proceed(altReq)
+                            if (altResp.isSuccessful) {
+                                return@addInterceptor altResp
+                            }
+                            altResp.close()
+                        } catch (_: Exception) {}
                     }
                 }
 

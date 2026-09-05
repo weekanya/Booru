@@ -8,7 +8,7 @@ import androidx.security.crypto.MasterKey
 
 class SecureCredentialsStorage(context: Context) {
 
-    private val prefs: SharedPreferences? = try {
+    private val prefs: SharedPreferences = try {
         val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
@@ -21,8 +21,8 @@ class SecureCredentialsStorage(context: Context) {
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
     } catch (e: Exception) {
-        Log.e("SecureCredentials", "Hardware-backed keystore unavailable: ${e.message}", e)
-        null
+        Log.e("SecureCredentials", "Hardware-backed keystore unavailable, falling back to private prefs: ${e.message}", e)
+        context.getSharedPreferences("booru_fallback_credentials", Context.MODE_PRIVATE)
     }
 
     companion object {
@@ -33,29 +33,25 @@ class SecureCredentialsStorage(context: Context) {
     }
 
     val isSecureStorageAvailable: Boolean
-        get() = prefs != null
+        get() = prefs is EncryptedSharedPreferences
 
-    fun getRule34UserId(): String = prefs?.getString(KEY_R34_USER_ID, "") ?: ""
+    fun getRule34UserId(): String = prefs.getString(KEY_R34_USER_ID, "") ?: ""
     fun setRule34UserId(value: String) {
-        val storage = prefs ?: throw IllegalStateException("Secure credential storage unavailable on this device")
-        storage.edit().putString(KEY_R34_USER_ID, value.trim()).apply()
+        prefs.edit().putString(KEY_R34_USER_ID, value.trim()).apply()
     }
 
-    fun getRule34ApiKey(): String = prefs?.getString(KEY_R34_API_KEY, "") ?: ""
+    fun getRule34ApiKey(): String = prefs.getString(KEY_R34_API_KEY, "") ?: ""
     fun setRule34ApiKey(value: String) {
-        val storage = prefs ?: throw IllegalStateException("Secure credential storage unavailable on this device")
-        storage.edit().putString(KEY_R34_API_KEY, value.trim()).apply()
+        prefs.edit().putString(KEY_R34_API_KEY, value.trim()).apply()
     }
 
-    fun getGelbooruUserId(): String = prefs?.getString(KEY_GEL_USER_ID, "") ?: ""
+    fun getGelbooruUserId(): String = prefs.getString(KEY_GEL_USER_ID, "") ?: ""
     fun setGelbooruUserId(value: String) {
-        val storage = prefs ?: throw IllegalStateException("Secure credential storage unavailable on this device")
-        storage.edit().putString(KEY_GEL_USER_ID, value.trim()).apply()
+        prefs.edit().putString(KEY_GEL_USER_ID, value.trim()).apply()
     }
 
-    fun getGelbooruApiKey(): String = prefs?.getString(KEY_GEL_API_KEY, "") ?: ""
+    fun getGelbooruApiKey(): String = prefs.getString(KEY_GEL_API_KEY, "") ?: ""
     fun setGelbooruApiKey(value: String) {
-        val storage = prefs ?: throw IllegalStateException("Secure credential storage unavailable on this device")
-        storage.edit().putString(KEY_GEL_API_KEY, value.trim()).apply()
+        prefs.edit().putString(KEY_GEL_API_KEY, value.trim()).apply()
     }
 }
