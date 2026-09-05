@@ -19,14 +19,17 @@ import java.util.Locale
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateOffsetAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -845,74 +848,133 @@ fun MediaDetailSheet(
             Spacer(Modifier.height(18.dp))
 
             Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.6f),
+                shape = RoundedCornerShape(20.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.65f),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .bouncyPress()
-                    .clickable { isTagsExpanded = !isTagsExpanded }
+                    .animateContentSize(
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessMediumLow
+                        )
+                    )
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
                     Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .bouncyPress()
+                            .clickable { isTagsExpanded = !isTagsExpanded }
+                            .padding(horizontal = 16.dp, vertical = 13.dp),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Icon(
-                            Icons.Rounded.Sell,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Rounded.Sell,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                            Column {
+                                Text(
+                                    text = Strings.tagsLabel(currentMedia.tagList.size, lang),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (isTagsExpanded) {
+                                        if (lang == AppLanguage.RUSSIAN) "Нажмите, чтобы скрыть" else "Tap to collapse"
+                                    } else {
+                                        if (lang == AppLanguage.RUSSIAN) "Нажмите, чтобы показать" else "Tap to expand"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+
+                        val rotation by animateFloatAsState(
+                            targetValue = if (isTagsExpanded) 180f else 0f,
+                            animationSpec = spring(
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            ),
+                            label = "tagsChevron"
                         )
-                        Text(
-                            text = Strings.tagsLabel(currentMedia.tagList.size, lang),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Rounded.ExpandMore,
+                                    contentDescription = if (isTagsExpanded) "Collapse" else "Expand",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier
+                                        .size(22.dp)
+                                        .graphicsLayer { rotationZ = rotation }
+                                )
+                            }
+                        }
                     }
 
-                    val rotation by animateFloatAsState(
-                        targetValue = if (isTagsExpanded) 180f else 0f,
-                        animationSpec = tween(250),
-                        label = "tagsChevron"
-                    )
-                    Icon(
-                        Icons.Rounded.ExpandMore,
-                        contentDescription = if (isTagsExpanded) "Collapse" else "Expand",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .size(22.dp)
-                            .graphicsLayer { rotationZ = rotation }
-                    )
-                }
-            }
-
-            AnimatedVisibility(
-                visible = isTagsExpanded,
-                enter = fadeIn(tween(200)) + expandVertically(tween(250)),
-                exit = fadeOut(tween(150)) + shrinkVertically(tween(200))
-            ) {
-                Column {
-                    Spacer(Modifier.height(10.dp))
-                    OptInFlowDetailTags(
-                        tags = currentMedia.tagList,
-                        blacklistedTags = vm.tagBlacklist,
-                        onTagClick = { tag ->
-                            vm.searchTag(tag, currentMedia.source)
-                            onDismiss()
-                            onNavigateToExplore?.invoke()
-                        },
-                        onTagLongClick = { tag ->
-                            selectedTagForAction = tag
+                    AnimatedVisibility(
+                        visible = isTagsExpanded,
+                        enter = fadeIn(animationSpec = tween(280, easing = FastOutSlowInEasing)) +
+                                expandVertically(
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioLowBouncy,
+                                        stiffness = Spring.StiffnessMediumLow
+                                    ),
+                                    expandFrom = Alignment.Top
+                                ),
+                        exit = fadeOut(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                               shrinkVertically(
+                                   animationSpec = spring(
+                                       dampingRatio = Spring.DampingRatioNoBouncy,
+                                       stiffness = Spring.StiffnessMediumLow
+                                   ),
+                                   shrinkTowards = Alignment.Top
+                                )
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 14.dp, end = 14.dp, bottom = 14.dp, top = 2.dp)
+                        ) {
+                            HorizontalDivider(
+                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f),
+                                modifier = Modifier.padding(bottom = 12.dp)
+                            )
+                            OptInFlowDetailTags(
+                                tags = currentMedia.tagList,
+                                blacklistedTags = vm.tagBlacklist,
+                                onTagClick = { tag ->
+                                    vm.searchTag(tag, currentMedia.source)
+                                    onDismiss()
+                                    onNavigateToExplore?.invoke()
+                                },
+                                onTagLongClick = { tag ->
+                                    selectedTagForAction = tag
+                                }
+                            )
                         }
-                    )
+                    }
                 }
             }
         }
@@ -1144,9 +1206,6 @@ fun MediaDetailSheet(
                             MaterialTheme.colorScheme.surfaceContainerHighest
                         else
                             MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
-                        border = if (!isBlacklisted)
-                            BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.35f))
-                        else null,
                         modifier = Modifier
                             .fillMaxWidth()
                             .bouncyPress()
@@ -1443,10 +1502,7 @@ private fun OptInFlowDetailTags(
                 color = if (isBlacklisted)
                     MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
                 else
-                    MaterialTheme.colorScheme.surfaceContainerHigh,
-                border = if (isBlacklisted)
-                    BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.35f))
-                else null,
+                    MaterialTheme.colorScheme.surfaceContainerHighest,
                 modifier = Modifier
                     .bouncyPress()
                     .pointerInput(tag) {

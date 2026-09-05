@@ -201,6 +201,16 @@ object Strings {
         AppLanguage.RUSSIAN -> "Источник добавлен"
     }
 
+    fun editSourceTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Edit Booru Source"
+        AppLanguage.RUSSIAN -> "Редактировать Booru источник"
+    }
+
+    fun sourceUpdatedSuccess(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Source updated"
+        AppLanguage.RUSSIAN -> "Источник обновлен"
+    }
+
     fun deleteSourceConfirm(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Remove this source?"
         AppLanguage.RUSSIAN -> "Удалить этот источник?"

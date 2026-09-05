@@ -82,6 +82,7 @@ fun SettingsScreen(
     var newBlacklistTag by remember { mutableStateOf("") }
     var showClearBlacklistConfirm by remember { mutableStateOf(false) }
     var blacklistFilterQuery by remember { mutableStateOf("") }
+    var editingCustomSource by remember { mutableStateOf<CustomBooruSource?>(null) }
 
     if (showRule34Dialog) {
         AlertDialog(
@@ -334,8 +335,12 @@ fun SettingsScreen(
     }
 
     if (showAddCustomSourceDialog) {
+        val isEditing = editingCustomSource != null
         AlertDialog(
-            onDismissRequest = { showAddCustomSourceDialog = false },
+            onDismissRequest = {
+                showAddCustomSourceDialog = false
+                editingCustomSource = null
+            },
             shape = RoundedCornerShape(22.dp),
             title = {
                 Row(
@@ -349,15 +354,22 @@ fun SettingsScreen(
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
                         Icon(
-                            Icons.Rounded.AddCircleOutline,
+                            if (isEditing) Icons.Rounded.Edit else Icons.Rounded.AddCircleOutline,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
-                        Text(Strings.addSourceTitle(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            if (isEditing) Strings.editSourceTitle(lang) else Strings.addSourceTitle(lang),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                     IconButton(
-                        onClick = { showAddCustomSourceDialog = false },
+                        onClick = {
+                            showAddCustomSourceDialog = false
+                            editingCustomSource = null
+                        },
                         modifier = Modifier.size(28.dp)
                     ) {
                         Icon(
@@ -454,20 +466,30 @@ fun SettingsScreen(
                         val cleanName = customName.trim()
                         val cleanUrl = sanitizeBooruBaseUrl(customUrl.trim())
                         if (cleanName.isNotBlank() && cleanUrl.isNotBlank() && cleanUrl.startsWith("http")) {
+                            val targetId = editingCustomSource?.id ?: cleanName.lowercase().replace(" ", "_")
                             val newSource = CustomBooruSource(
-                                id = cleanName.lowercase().replace(" ", "_"),
+                                id = targetId,
                                 name = cleanName,
                                 baseUrl = cleanUrl,
                                 engine = customEngine,
                                 apiKey = customApiKey.trim(),
                                 userId = customUserId.trim()
                             )
+                            val wasEditingName = editingCustomSource != null && editingCustomSource?.name == vm.source && cleanName != editingCustomSource?.name
                             vm.addCustomSource(newSource)
-                            Toast.makeText(context, Strings.sourceAddedSuccess(lang), Toast.LENGTH_SHORT).show()
+                            if (wasEditingName) {
+                                vm.selectSource(cleanName)
+                            }
+                            Toast.makeText(
+                                context,
+                                if (isEditing) Strings.sourceUpdatedSuccess(lang) else Strings.sourceAddedSuccess(lang),
+                                Toast.LENGTH_SHORT
+                            ).show()
                             customName = ""
                             customUrl = ""
                             customApiKey = ""
                             customUserId = ""
+                            editingCustomSource = null
                             showAddCustomSourceDialog = false
                         } else {
                             Toast.makeText(context, "Invalid name or URL (must start with http/https)", Toast.LENGTH_SHORT).show()
@@ -747,10 +769,6 @@ fun SettingsScreen(
                                         Surface(
                                             shape = RoundedCornerShape(10.dp),
                                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                            border = BorderStroke(
-                                                1.dp,
-                                                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                                            ),
                                             modifier = Modifier.bouncyPress()
                                         ) {
                                             Row(
@@ -1114,7 +1132,15 @@ fun SettingsScreen(
                 title = Strings.addSourceTitle(lang),
                 subtitle = if (vm.customSources.isEmpty()) Strings.noCustomSources(lang) else "${vm.customSources.size} custom sources",
                 icon = Icons.Rounded.AddCircleOutline,
-                onClick = { showAddCustomSourceDialog = true }
+                onClick = {
+                    editingCustomSource = null
+                    customName = ""
+                    customUrl = ""
+                    customEngine = BooruEngine.GELBOORU
+                    customApiKey = ""
+                    customUserId = ""
+                    showAddCustomSourceDialog = true
+                }
             )
 
             if (vm.customSources.isNotEmpty()) {
@@ -1123,6 +1149,15 @@ fun SettingsScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .clickable {
+                                editingCustomSource = customSource
+                                customName = customSource.name
+                                customUrl = customSource.baseUrl
+                                customEngine = customSource.engine
+                                customApiKey = customSource.apiKey
+                                customUserId = customSource.userId
+                                showAddCustomSourceDialog = true
+                            }
                             .padding(horizontal = 20.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -1156,6 +1191,23 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        IconButton(
+                            onClick = {
+                                editingCustomSource = customSource
+                                customName = customSource.name
+                                customUrl = customSource.baseUrl
+                                customEngine = customSource.engine
+                                customApiKey = customSource.apiKey
+                                customUserId = customSource.userId
+                                showAddCustomSourceDialog = true
+                            }
+                        ) {
+                            Icon(
+                                Icons.Rounded.Edit,
+                                contentDescription = "Edit",
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
                         IconButton(onClick = { vm.removeCustomSource(customSource.id) }) {
