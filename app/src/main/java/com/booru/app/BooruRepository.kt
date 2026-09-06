@@ -478,6 +478,9 @@ class BooruRepository(
         val custom = customSources.find { it.key == key || it.name.equals(key, ignoreCase = true) }
         if (custom != null) {
             val base = custom.cleanBaseUrl
+            if (!custom.isHttps) {
+                throw BooruException("Insecure HTTP connections are not allowed for custom source '${custom.name}'. Please update its URL to HTTPS in Settings.")
+            }
             val fullUrl = when (custom.engine) {
                 BooruEngine.GELBOORU -> {
                     "$base/index.php".toHttpUrl().newBuilder().apply {

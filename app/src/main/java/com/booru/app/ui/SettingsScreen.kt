@@ -465,18 +465,26 @@ fun SettingsScreen(
                     onClick = {
                         val cleanName = customName.trim()
                         val cleanUrl = sanitizeBooruBaseUrl(customUrl.trim())
-                        if (cleanName.isNotBlank() && cleanUrl.isNotBlank() && cleanUrl.startsWith("http")) {
-                            val targetId = editingCustomSource?.id ?: cleanName.lowercase().replace(" ", "_")
-                            val newSource = CustomBooruSource(
-                                id = targetId,
-                                name = cleanName,
-                                baseUrl = cleanUrl,
-                                engine = customEngine,
-                                apiKey = customApiKey.trim(),
-                                userId = customUserId.trim()
-                            )
-                            val wasEditingName = editingCustomSource != null && editingCustomSource?.name == vm.source && cleanName != editingCustomSource?.name
-                            vm.addCustomSource(newSource)
+                        if (cleanName.isBlank()) {
+                            Toast.makeText(context, Strings.emptySourceNameError(lang), Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        if (!cleanUrl.startsWith("https://", ignoreCase = true)) {
+                            Toast.makeText(context, Strings.invalidHttpsUrlError(lang), Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        val targetId = editingCustomSource?.id ?: cleanName.lowercase().replace(" ", "_")
+                        val newSource = CustomBooruSource(
+                            id = targetId,
+                            name = cleanName,
+                            baseUrl = cleanUrl,
+                            engine = customEngine,
+                            apiKey = customApiKey.trim(),
+                            userId = customUserId.trim()
+                        )
+                        val wasEditingName = editingCustomSource != null && editingCustomSource?.name == vm.source && cleanName != editingCustomSource?.name
+                        val success = vm.addCustomSource(newSource)
+                        if (success) {
                             if (wasEditingName) {
                                 vm.selectSource(cleanName)
                             }
@@ -491,8 +499,6 @@ fun SettingsScreen(
                             customUserId = ""
                             editingCustomSource = null
                             showAddCustomSourceDialog = false
-                        } else {
-                            Toast.makeText(context, "Invalid name or URL (must start with http/https)", Toast.LENGTH_SHORT).show()
                         }
                     },
                     shape = RoundedCornerShape(12.dp),

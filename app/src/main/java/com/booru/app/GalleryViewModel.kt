@@ -11,6 +11,7 @@ import com.booru.app.data.AppUpdateInfo
 import com.booru.app.data.BooruCacheManager
 import com.booru.app.data.BooruPreferences
 import com.booru.app.data.CustomBooruSource
+import com.booru.app.data.sanitizeBooruBaseUrl
 import com.booru.app.data.ImageQuality
 import com.booru.app.data.UpdateChecker
 import com.booru.app.data.db.AppDatabase
@@ -129,13 +130,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             prefs.customSources.collect { sources ->
                 customSources = if (secureStorage.isSecureStorageAvailable) {
                     sources.map { src ->
+                        val secKey = secureStorage.getCustomApiKey(src.id)
+                        val secUid = secureStorage.getCustomUserId(src.id)
                         src.copy(
-                            apiKey = secureStorage.getCustomApiKey(src.id),
-                            userId = secureStorage.getCustomUserId(src.id)
+                            apiKey = secKey.ifBlank { src.apiKey },
+                            userId = secUid.ifBlank { src.userId }
                         )
                     }
                 } else {
-                    sources.map { it.copy(apiKey = "", userId = "") }
+                    sources
                 }
             }
         }
@@ -795,22 +798,29 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch { prefs.setImageQuality(quality) }
     }
 
-    fun addCustomSource(source: CustomBooruSource) {
+    fun addCustomSource(source: CustomBooruSource): Boolean {
+        val cleanUrl = sanitizeBooruBaseUrl(source.baseUrl)
+        if (!cleanUrl.startsWith("https://", ignoreCase = true)) {
+            error = "Custom source URL must use HTTPS"
+            return false
+        }
+        val safeSource = source.copy(baseUrl = cleanUrl)
         if (secureStorage.isSecureStorageAvailable) {
-            secureStorage.setCustomApiKey(source.id, source.apiKey)
-            secureStorage.setCustomUserId(source.id, source.userId)
+            secureStorage.setCustomApiKey(safeSource.id, safeSource.apiKey)
+            secureStorage.setCustomUserId(safeSource.id, safeSource.userId)
         }
         val sourceWithCredentials = if (secureStorage.isSecureStorageAvailable) {
-            source.copy(
-                apiKey = secureStorage.getCustomApiKey(source.id),
-                userId = secureStorage.getCustomUserId(source.id)
+            safeSource.copy(
+                apiKey = secureStorage.getCustomApiKey(safeSource.id),
+                userId = secureStorage.getCustomUserId(safeSource.id)
             )
         } else {
-            source.copy(apiKey = "", userId = "")
+            safeSource
         }
-        val updated = customSources.filterNot { it.id == source.id } + sourceWithCredentials
+        val updated = customSources.filterNot { it.id == safeSource.id } + sourceWithCredentials
         customSources = updated
         viewModelScope.launch { prefs.saveCustomSources(updated) }
+        return true
     }
 
     fun removeCustomSource(sourceId: String) {

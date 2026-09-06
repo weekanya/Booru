@@ -193,37 +193,62 @@ class BooruPreferences(private val context: Context) {
     }
 
     suspend fun migrateLegacyCredentialsAndCustomSources(secureStorage: SecureCredentialsStorage) {
+        if (!secureStorage.isSecureStorageAvailable) {
+            return
+        }
+
         context.dataStore.edit { prefs ->
-            // 1. Migrate Rule34 credentials
             val r34Uid = prefs[KEY_RULE34_USER_ID]?.trim()
             val r34Key = prefs[KEY_RULE34_API_KEY]?.trim()
             if (!r34Uid.isNullOrBlank() || !r34Key.isNullOrBlank()) {
-                if (secureStorage.isSecureStorageAvailable) {
-                    if (!r34Uid.isNullOrBlank() && secureStorage.getRule34UserId().isBlank()) {
+                var r34Migrated = true
+                if (!r34Uid.isNullOrBlank()) {
+                    if (secureStorage.getRule34UserId().isBlank()) {
                         secureStorage.setRule34UserId(r34Uid)
                     }
-                    if (!r34Key.isNullOrBlank() && secureStorage.getRule34ApiKey().isBlank()) {
-                        secureStorage.setRule34ApiKey(r34Key)
+                    if (secureStorage.getRule34UserId() != r34Uid) {
+                        r34Migrated = false
                     }
                 }
-                prefs.remove(KEY_RULE34_USER_ID)
-                prefs.remove(KEY_RULE34_API_KEY)
+                if (!r34Key.isNullOrBlank()) {
+                    if (secureStorage.getRule34ApiKey().isBlank()) {
+                        secureStorage.setRule34ApiKey(r34Key)
+                    }
+                    if (secureStorage.getRule34ApiKey() != r34Key) {
+                        r34Migrated = false
+                    }
+                }
+                if (r34Migrated) {
+                    prefs.remove(KEY_RULE34_USER_ID)
+                    prefs.remove(KEY_RULE34_API_KEY)
+                }
             }
 
             // 2. Migrate Gelbooru credentials
             val gelUid = prefs[KEY_GELBOORU_USER_ID]?.trim()
             val gelKey = prefs[KEY_GELBOORU_API_KEY]?.trim()
             if (!gelUid.isNullOrBlank() || !gelKey.isNullOrBlank()) {
-                if (secureStorage.isSecureStorageAvailable) {
-                    if (!gelUid.isNullOrBlank() && secureStorage.getGelbooruUserId().isBlank()) {
+                var gelMigrated = true
+                if (!gelUid.isNullOrBlank()) {
+                    if (secureStorage.getGelbooruUserId().isBlank()) {
                         secureStorage.setGelbooruUserId(gelUid)
                     }
-                    if (!gelKey.isNullOrBlank() && secureStorage.getGelbooruApiKey().isBlank()) {
-                        secureStorage.setGelbooruApiKey(gelKey)
+                    if (secureStorage.getGelbooruUserId() != gelUid) {
+                        gelMigrated = false
                     }
                 }
-                prefs.remove(KEY_GELBOORU_USER_ID)
-                prefs.remove(KEY_GELBOORU_API_KEY)
+                if (!gelKey.isNullOrBlank()) {
+                    if (secureStorage.getGelbooruApiKey().isBlank()) {
+                        secureStorage.setGelbooruApiKey(gelKey)
+                    }
+                    if (secureStorage.getGelbooruApiKey() != gelKey) {
+                        gelMigrated = false
+                    }
+                }
+                if (gelMigrated) {
+                    prefs.remove(KEY_GELBOORU_USER_ID)
+                    prefs.remove(KEY_GELBOORU_API_KEY)
+                }
             }
 
             // 3. Migrate CustomBooruSources credentials from JSON
@@ -232,6 +257,8 @@ class BooruPreferences(private val context: Context) {
                 runCatching {
                     val arr = JSONArray(jsonStr)
                     var hasCredentialsInJson = false
+                    var allCustomMigrated = true
+
                     val migratedSources = (0 until arr.length()).mapNotNull { i ->
                         val obj = arr.optJSONObject(i) ?: return@mapNotNull null
                         val parsed = CustomBooruSource.fromJson(obj) ?: return@mapNotNull null
@@ -240,19 +267,27 @@ class BooruPreferences(private val context: Context) {
 
                         if (rawApiKey.isNotBlank() || rawUserId.isNotBlank()) {
                             hasCredentialsInJson = true
-                            if (secureStorage.isSecureStorageAvailable) {
-                                if (rawApiKey.isNotBlank() && secureStorage.getCustomApiKey(parsed.id).isBlank()) {
+                            if (rawApiKey.isNotBlank()) {
+                                if (secureStorage.getCustomApiKey(parsed.id).isBlank()) {
                                     secureStorage.setCustomApiKey(parsed.id, rawApiKey)
                                 }
-                                if (rawUserId.isNotBlank() && secureStorage.getCustomUserId(parsed.id).isBlank()) {
+                                if (secureStorage.getCustomApiKey(parsed.id) != rawApiKey) {
+                                    allCustomMigrated = false
+                                }
+                            }
+                            if (rawUserId.isNotBlank()) {
+                                if (secureStorage.getCustomUserId(parsed.id).isBlank()) {
                                     secureStorage.setCustomUserId(parsed.id, rawUserId)
+                                }
+                                if (secureStorage.getCustomUserId(parsed.id) != rawUserId) {
+                                    allCustomMigrated = false
                                 }
                             }
                         }
                         parsed
                     }
 
-                    if (hasCredentialsInJson) {
+                    if (hasCredentialsInJson && allCustomMigrated) {
                         val sanitizedArr = JSONArray()
                         migratedSources.forEach { sanitizedArr.put(it.toJson()) }
                         prefs[KEY_CUSTOM_SOURCES] = sanitizedArr.toString()

@@ -1,63 +1,110 @@
 # Booru
 
-[![Platform](https://img.shields.io/badge/Platform-Android-3DDC84.svg?logo=android&logoColor=white)](https://www.android.com/)
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.0+-7F52FF.svg?logo=kotlin&logoColor=white)](https://kotlinlang.org/)
-[![Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3-4285F4.svg?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
-
-A modern, fast, and elegant Android client for exploring and managing art, animations, and videos from popular booru imageboards. Built with **Jetpack Compose** and **Material 3 Expressive**.
-
----
+An Android client for searching, browsing, and managing media from booru imageboards. Built with Kotlin, Jetpack Compose, and Material 3 Expressive.
 
 ## Supported Sources
 
-- **Rule34** — The classic imageboard database.
-- **Gelbooru** — Large anime and digital art community.
-- **Realbooru** — Popular imageboard with extensive video & image content.
-- **Xbooru** — Fast imageboard with full video and GIF support.
-- **TBIB (The Big ImageBoard)** — Massive collection of over 28 million posts.
-- **Yande.re** — High-resolution anime artwork and wallpapers.
-- **Konachan** — High-quality wallpaper collection.
-- **Safebooru** — Curated safe-for-work anime art.
-- **All Sources Feed** — Unified multi-source search feed.
+### Built-in Providers
+- Rule34 (DAPI)
+- Gelbooru (DAPI)
+- Realbooru (DAPI)
+- Xbooru (DAPI)
+- The Big ImageBoard / TBIB (DAPI)
+- Yande.re (Moebooru)
+- Konachan (Moebooru)
+- Safebooru (DAPI)
+- All Sources (Aggregated multi-provider feed)
 
----
+### Custom Booru Providers
+Users can add and manage custom booru instances using one of the following engines:
+- Gelbooru / DAPI (`index.php`)
+- Moebooru (`post.json`)
+- Danbooru / e621 (`posts.json`)
 
-## Features
+All custom provider endpoints require HTTPS. Insecure HTTP connections are rejected.
 
-- **Video & GIF Player**: Timeline scrubber, time elapsed/total duration, ±5s skip buttons, and animated GIF playback.
-- **Tag Blacklist**: Block unwanted tags in Settings to automatically exclude matching posts.
-- **Smart Search & Autocomplete**: Real-time server tag suggestions with post counts and search history.
-- **In-App Update Checker**: Automatic notifications for new GitHub releases with a "Don't remind again" option.
-- **Filters & Modes**: "No AI" toggle, rating filters (Safe, All, 18+), and multiple sorting options (Newest, Score, Random).
-- **Pinch-to-Zoom Viewer**: Smooth double-tap zoom, gesture panning, and clickable tag chips.
-- **Local Favorites**: Save posts locally with instant filtering by tag.
-- **Material You / Dynamic Colors**: Theme that adapts to your wallpaper with light and dark mode support.
-- **Set as Wallpaper**: Instant one-click wallpaper setup for home screen, lock screen, or both screens.
-- **Smart Cache**: Automatic cache cleanup on app exit to preserve storage.
+## Supported Media Types
 
----
+- Images (JPEG, PNG, WebP)
+- Animated GIFs
+- Videos (MP4, WebM)
 
-## Built With
+## Core Functionality
 
-- **Jetpack Compose** — Modern declarative UI toolkit.
-- **Material 3 Expressive** — Adaptive colors and spring physics animations.
-- **Media3 ExoPlayer** — Fast and smooth video streaming.
-- **Coil** — Image and GIF loading with hardware/software decoding.
-- **OkHttp** — Resilient networking with provider-specific headers.
-- **Jetpack DataStore** — Reactive local storage for settings, blacklist, and favorites.
+### Media Viewer and Playback
+- Fullscreen media viewer with pinch-to-zoom, pan, and double-tap zoom gestures.
+- Video playback powered by AndroidX Media3 ExoPlayer with progress scrubbing, play/pause controls, time display, and 5-second seek buttons.
+- Detail sheet displaying dimensions, score, rating, creation date, source, and clickable tag chips.
 
----
+### Search and Filtering
+- Multi-token tag search with server-driven autocomplete suggestions.
+- Search history management.
+- Content filters for rating (Safe, All, Questionable/Explicit) and AI-generated content exclusion.
+- Feed sorting modes: Newest (timestamp-sorted with score tie-breakers), Highest Score, and Random.
 
-## Getting Started
+### Tag Blacklist
+- Token-based blacklist matching that operates on exact tag tokens to prevent substring false positives.
+- Supports namespace tags (such as `character:xxx`, `artist:xxx`).
+- Case-insensitive matching applied across all search results.
 
-### Prerequisites
-- Android 8.0 (API level 26) or higher.
-- JDK 17+ or Android Studio Ladybug / Meerkat.
+### Favorites
+- Persistent favorite post storage backed by an SQLite database via Android Jetpack Room.
+- Dedicated offline media cache stored in app-private storage (`filesDir/favorites_media`), isolated from browsing cache.
+- Filter favorites by media type (Images, GIFs, Videos) and search favorites by tag or source.
 
-### Build from source
+### Cache Management
+- Image caching managed by Coil with 25% RAM memory cache and 200 MB LRU disk cache limits.
+- Video caching handled by Media3 `SimpleCache` with a 100 MB LRU eviction limit.
+- Manual cache clearing from Settings clears browsing caches without deleting saved favorites.
+
+### Media Downloads
+- Direct downloads to public device storage (`Pictures/Booru` and `Movies/Booru`).
+- MediaStore integration using `IS_PENDING` on Android 10+ with automatic cleanup of partial files upon failure.
+- Registered with `MediaScannerConnection` for immediate gallery indexation.
+
+### Security and Credentials
+- API keys and user credentials for Rule34, Gelbooru, and custom sources are stored in `EncryptedSharedPreferences` backed by the Android Keystore.
+- No plaintext credential fallback is permitted.
+- Safe, idempotent migration transfers legacy DataStore credentials to encrypted storage without data loss.
+- Sensitive authentication parameters (`api_key`, `user_id`, `password`, `token`, `secret`, `login`) are redacted from application logs.
+
+### Application Updater
+- Release checks against GitHub repository API over HTTPS.
+- Download URLs are restricted to `github.com` and `objects.githubusercontent.com`.
+- Unsafe redirects to third-party domains or unencrypted HTTP are rejected.
+- Downloaded APK packages are validated for package name and signing certificate match against the running application prior to installation.
+- Corrupted or partial APK files are deleted immediately on failure.
+
+## Technical Architecture
+
+- Language: Kotlin
+- UI Framework: Jetpack Compose, Material 3 Expressive
+- Local Database: Room (SQLite)
+- Local Preferences: Jetpack DataStore Preferences
+- Credential Security: AndroidX Security Crypto (EncryptedSharedPreferences)
+- Image Pipeline: Coil
+- Media Player: AndroidX Media3 ExoPlayer
+- Networking: OkHttp 4
+- Serialization: org.json
+
+## Building
+
+### Requirements
+- Android 8.0 (API level 26) or higher
+- JDK 17
+- Android SDK with platform tools (compileSdk 35)
+
+### Commands
+Debug build:
 ```bash
-git clone https://github.com/weekanya/Booru.git
-cd Booru
-./gradlew assembleRelease
+./gradlew :app:assembleDebug
 ```
-The compiled APK will be at `app/build/outputs/apk/release/app-release.apk`.
+
+Release build:
+```bash
+./gradlew :app:assembleRelease
+```
+
+## License
+
+Booru is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for details.

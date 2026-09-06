@@ -24,6 +24,11 @@ fun sanitizeBooruBaseUrl(raw: String): String {
     return url
 }
 
+fun isHttpsBooruUrl(raw: String): Boolean {
+    val clean = sanitizeBooruBaseUrl(raw)
+    return clean.startsWith("https://", ignoreCase = true) && clean.length > 8
+}
+
 data class CustomBooruSource(
     val id: String,
     val name: String,
@@ -34,6 +39,7 @@ data class CustomBooruSource(
 ) {
     val key: String get() = if (id.startsWith("custom_")) id else "custom_$id"
     val cleanBaseUrl: String get() = sanitizeBooruBaseUrl(baseUrl)
+    val isHttps: Boolean get() = cleanBaseUrl.startsWith("https://", ignoreCase = true)
 
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id)

@@ -221,6 +221,16 @@ object Strings {
         AppLanguage.RUSSIAN -> "Удалить этот источник?"
     }
 
+    fun invalidHttpsUrlError(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "URL must start with https://"
+        AppLanguage.RUSSIAN -> "URL должен начинаться с https://"
+    }
+
+    fun emptySourceNameError(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Name cannot be empty"
+        AppLanguage.RUSSIAN -> "Название не может быть пустым"
+    }
+
     fun noCustomSources(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "No custom sources added yet"
         AppLanguage.RUSSIAN -> "Кастомные источники пока не добавлены"
