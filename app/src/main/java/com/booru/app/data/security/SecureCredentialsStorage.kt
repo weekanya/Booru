@@ -43,46 +43,37 @@ class SecureCredentialsStorage(context: Context) {
         get() = prefs != null
 
     fun getRule34UserId(): String = prefs?.getString(KEY_R34_USER_ID, "") ?: ""
-    fun setRule34UserId(value: String) {
-        prefs?.edit()?.putString(KEY_R34_USER_ID, value.trim())?.apply()
-    }
+    fun setRule34UserId(value: String): Boolean =
+        prefs?.edit()?.putString(KEY_R34_USER_ID, value.trim())?.commit() ?: false
 
     fun getRule34ApiKey(): String = prefs?.getString(KEY_R34_API_KEY, "") ?: ""
-    fun setRule34ApiKey(value: String) {
-        prefs?.edit()?.putString(KEY_R34_API_KEY, value.trim())?.apply()
-    }
+    fun setRule34ApiKey(value: String): Boolean =
+        prefs?.edit()?.putString(KEY_R34_API_KEY, value.trim())?.commit() ?: false
 
     fun getGelbooruUserId(): String = prefs?.getString(KEY_GEL_USER_ID, "") ?: ""
-    fun setGelbooruUserId(value: String) {
-        prefs?.edit()?.putString(KEY_GEL_USER_ID, value.trim())?.apply()
-    }
+    fun setGelbooruUserId(value: String): Boolean =
+        prefs?.edit()?.putString(KEY_GEL_USER_ID, value.trim())?.commit() ?: false
 
     fun getGelbooruApiKey(): String = prefs?.getString(KEY_GEL_API_KEY, "") ?: ""
-    fun setGelbooruApiKey(value: String) {
-        prefs?.edit()?.putString(KEY_GEL_API_KEY, value.trim())?.apply()
-    }
+    fun setGelbooruApiKey(value: String): Boolean =
+        prefs?.edit()?.putString(KEY_GEL_API_KEY, value.trim())?.commit() ?: false
 
     fun getCustomApiKey(sourceId: String): String = prefs?.getString(customApiKey(sourceId), "") ?: ""
-    fun setCustomApiKey(sourceId: String, value: String) {
-        prefs?.edit()?.putString(customApiKey(sourceId), value.trim())?.apply()
-    }
-    fun removeCustomApiKey(sourceId: String) {
-        prefs?.edit()?.remove(customApiKey(sourceId))?.apply()
-    }
+    fun setCustomApiKey(sourceId: String, value: String): Boolean =
+        prefs?.edit()?.putString(customApiKey(sourceId), value.trim())?.commit() ?: false
+    fun removeCustomApiKey(sourceId: String): Boolean =
+        prefs?.edit()?.remove(customApiKey(sourceId))?.commit() ?: false
 
     fun getCustomUserId(sourceId: String): String = prefs?.getString(customUserId(sourceId), "") ?: ""
-    fun setCustomUserId(sourceId: String, value: String) {
-        prefs?.edit()?.putString(customUserId(sourceId), value.trim())?.apply()
-    }
-    fun removeCustomUserId(sourceId: String) {
-        prefs?.edit()?.remove(customUserId(sourceId))?.apply()
-    }
+    fun setCustomUserId(sourceId: String, value: String): Boolean =
+        prefs?.edit()?.putString(customUserId(sourceId), value.trim())?.commit() ?: false
+    fun removeCustomUserId(sourceId: String): Boolean =
+        prefs?.edit()?.remove(customUserId(sourceId))?.commit() ?: false
 
-    fun removeCustomCredentials(sourceId: String) {
+    fun removeCustomCredentials(sourceId: String): Boolean =
         prefs?.edit()
             ?.remove(customApiKey(sourceId))
             ?.remove(customUserId(sourceId))
-            ?.apply()
-    }
+            ?.commit() ?: false
 }
 

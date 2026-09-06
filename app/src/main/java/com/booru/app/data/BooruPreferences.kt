@@ -203,18 +203,14 @@ class BooruPreferences(private val context: Context) {
             if (!r34Uid.isNullOrBlank() || !r34Key.isNullOrBlank()) {
                 var r34Migrated = true
                 if (!r34Uid.isNullOrBlank()) {
-                    if (secureStorage.getRule34UserId().isBlank()) {
-                        secureStorage.setRule34UserId(r34Uid)
-                    }
-                    if (secureStorage.getRule34UserId() != r34Uid) {
+                    val writeOk = if (secureStorage.getRule34UserId() == r34Uid) true else secureStorage.setRule34UserId(r34Uid)
+                    if (!writeOk || secureStorage.getRule34UserId() != r34Uid) {
                         r34Migrated = false
                     }
                 }
                 if (!r34Key.isNullOrBlank()) {
-                    if (secureStorage.getRule34ApiKey().isBlank()) {
-                        secureStorage.setRule34ApiKey(r34Key)
-                    }
-                    if (secureStorage.getRule34ApiKey() != r34Key) {
+                    val writeOk = if (secureStorage.getRule34ApiKey() == r34Key) true else secureStorage.setRule34ApiKey(r34Key)
+                    if (!writeOk || secureStorage.getRule34ApiKey() != r34Key) {
                         r34Migrated = false
                     }
                 }
@@ -224,24 +220,19 @@ class BooruPreferences(private val context: Context) {
                 }
             }
 
-            // 2. Migrate Gelbooru credentials
             val gelUid = prefs[KEY_GELBOORU_USER_ID]?.trim()
             val gelKey = prefs[KEY_GELBOORU_API_KEY]?.trim()
             if (!gelUid.isNullOrBlank() || !gelKey.isNullOrBlank()) {
                 var gelMigrated = true
                 if (!gelUid.isNullOrBlank()) {
-                    if (secureStorage.getGelbooruUserId().isBlank()) {
-                        secureStorage.setGelbooruUserId(gelUid)
-                    }
-                    if (secureStorage.getGelbooruUserId() != gelUid) {
+                    val writeOk = if (secureStorage.getGelbooruUserId() == gelUid) true else secureStorage.setGelbooruUserId(gelUid)
+                    if (!writeOk || secureStorage.getGelbooruUserId() != gelUid) {
                         gelMigrated = false
                     }
                 }
                 if (!gelKey.isNullOrBlank()) {
-                    if (secureStorage.getGelbooruApiKey().isBlank()) {
-                        secureStorage.setGelbooruApiKey(gelKey)
-                    }
-                    if (secureStorage.getGelbooruApiKey() != gelKey) {
+                    val writeOk = if (secureStorage.getGelbooruApiKey() == gelKey) true else secureStorage.setGelbooruApiKey(gelKey)
+                    if (!writeOk || secureStorage.getGelbooruApiKey() != gelKey) {
                         gelMigrated = false
                     }
                 }
@@ -251,7 +242,6 @@ class BooruPreferences(private val context: Context) {
                 }
             }
 
-            // 3. Migrate CustomBooruSources credentials from JSON
             val jsonStr = prefs[KEY_CUSTOM_SOURCES] ?: ""
             if (jsonStr.isNotBlank()) {
                 runCatching {
@@ -268,18 +258,14 @@ class BooruPreferences(private val context: Context) {
                         if (rawApiKey.isNotBlank() || rawUserId.isNotBlank()) {
                             hasCredentialsInJson = true
                             if (rawApiKey.isNotBlank()) {
-                                if (secureStorage.getCustomApiKey(parsed.id).isBlank()) {
-                                    secureStorage.setCustomApiKey(parsed.id, rawApiKey)
-                                }
-                                if (secureStorage.getCustomApiKey(parsed.id) != rawApiKey) {
+                                val writeOk = if (secureStorage.getCustomApiKey(parsed.id) == rawApiKey) true else secureStorage.setCustomApiKey(parsed.id, rawApiKey)
+                                if (!writeOk || secureStorage.getCustomApiKey(parsed.id) != rawApiKey) {
                                     allCustomMigrated = false
                                 }
                             }
                             if (rawUserId.isNotBlank()) {
-                                if (secureStorage.getCustomUserId(parsed.id).isBlank()) {
-                                    secureStorage.setCustomUserId(parsed.id, rawUserId)
-                                }
-                                if (secureStorage.getCustomUserId(parsed.id) != rawUserId) {
+                                val writeOk = if (secureStorage.getCustomUserId(parsed.id) == rawUserId) true else secureStorage.setCustomUserId(parsed.id, rawUserId)
+                                if (!writeOk || secureStorage.getCustomUserId(parsed.id) != rawUserId) {
                                     allCustomMigrated = false
                                 }
                             }
