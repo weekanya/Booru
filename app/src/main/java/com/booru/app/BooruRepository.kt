@@ -193,14 +193,13 @@ class BooruRepository(
         }
 
         if (source == SOURCE_ALL && sortOrder == SortOrder.NEWEST && allResults.isNotEmpty()) {
-            allResults.sortedWith(
+            allResults.sortWith(
                 compareByDescending<RemoteMedia> { it.createdAt > 0 }
                     .thenByDescending { it.createdAt }
                     .thenByDescending { it.score }
             )
-        } else {
-            allResults
         }
+        allResults
     }
 
     suspend fun getTagSuggestions(source: String, query: String): List<TagSuggestion> = withContext(Dispatchers.IO) {
@@ -664,13 +663,15 @@ class BooruRepository(
     }
 
     private fun logSanitized(key: String, url: HttpUrl) {
-
-        val sanitized = url.newBuilder()
-            .apply {
-                if (url.queryParameter("api_key") != null) setQueryParameter("api_key", "[REDACTED]")
-                if (url.queryParameter("user_id") != null) setQueryParameter("user_id", "[REDACTED]")
+        val sensitiveKeys = setOf("api_key", "user_id", "password", "login", "token", "secret", "auth", "pass", "api-key", "apikey")
+        val builder = url.newBuilder()
+        for (paramName in url.queryParameterNames) {
+            val lower = paramName.lowercase()
+            if (sensitiveKeys.any { lower.contains(it) }) {
+                builder.setQueryParameter(paramName, "[REDACTED]")
             }
-            .build()
+        }
+        val sanitized = builder.build()
         Log.d(TAG, "[$key] GET $sanitized")
     }
 

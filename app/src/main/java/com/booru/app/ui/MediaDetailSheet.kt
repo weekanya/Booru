@@ -249,6 +249,7 @@ fun MediaDetailSheet(
 
                     val response = successfulResp ?: throw IOException("HTTP download failed")
                     var insertedUri: Uri? = null
+                    var targetPreQFile: File? = null
                     var isSuccess = false
                     var downloadedFilename = ""
                     try {
@@ -260,12 +261,18 @@ fun MediaDetailSheet(
                                 headerContentType == "image/png" -> "png"
                                 headerContentType == "image/gif" -> "gif"
                                 headerContentType == "image/webp" -> "webp"
+                                headerContentType == "image/jpeg" -> "jpg"
                                 headerContentType == "video/mp4" -> "mp4"
                                 headerContentType == "video/webm" -> "webm"
-                                headerContentType == "image/jpeg" -> "jpg"
                                 else -> {
-                                    successfulCandUrl.substringAfterLast(".").substringBefore("?").ifBlank {
-                                        if (media.isVideo) "mp4" else if (media.isGif) "gif" else "jpg"
+                                    val cleanPath = successfulCandUrl.substringBefore("?").lowercase()
+                                    when {
+                                        cleanPath.endsWith(".png") -> "png"
+                                        cleanPath.endsWith(".gif") -> "gif"
+                                        cleanPath.endsWith(".webp") -> "webp"
+                                        cleanPath.endsWith(".mp4") -> "mp4"
+                                        cleanPath.endsWith(".webm") -> "webm"
+                                        else -> "jpg"
                                     }
                                 }
                             }
@@ -329,6 +336,7 @@ fun MediaDetailSheet(
                                 ).apply { mkdirs() }
 
                                 val targetFile = File(targetDir, filename)
+                                targetPreQFile = targetFile
                                 targetFile.outputStream().use { outStream ->
                                     inputStream.copyTo(outStream)
                                 }
@@ -347,6 +355,11 @@ fun MediaDetailSheet(
                             insertedUri?.let { uri ->
                                 try {
                                     context.contentResolver.delete(uri, null, null)
+                                } catch (_: Exception) {}
+                            }
+                            targetPreQFile?.let { f ->
+                                try {
+                                    if (f.exists()) f.delete()
                                 } catch (_: Exception) {}
                             }
                         }

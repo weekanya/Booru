@@ -40,8 +40,6 @@ data class CustomBooruSource(
         put("name", name)
         put("baseUrl", cleanBaseUrl)
         put("engine", engine.name)
-        put("apiKey", apiKey)
-        put("userId", userId)
     }
 
     companion object {

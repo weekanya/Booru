@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
+import com.booru.app.data.security.SecureCredentialsStorage
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "booru_settings")
 
@@ -38,10 +39,10 @@ class BooruPreferences(private val context: Context) {
         val KEY_SEARCH_HISTORY = stringSetPreferencesKey("search_history")
         val KEY_FAVORITES_JSON = stringPreferencesKey("favorites_json")
 
-        val KEY_RULE34_USER_ID = stringPreferencesKey("rule34_user_id")
-        val KEY_RULE34_API_KEY = stringPreferencesKey("rule34_api_key")
-        val KEY_GELBOORU_USER_ID = stringPreferencesKey("gelbooru_user_id")
-        val KEY_GELBOORU_API_KEY = stringPreferencesKey("gelbooru_api_key")
+        private val KEY_RULE34_USER_ID = stringPreferencesKey("rule34_user_id")
+        private val KEY_RULE34_API_KEY = stringPreferencesKey("rule34_api_key")
+        private val KEY_GELBOORU_USER_ID = stringPreferencesKey("gelbooru_user_id")
+        private val KEY_GELBOORU_API_KEY = stringPreferencesKey("gelbooru_api_key")
         val KEY_TAG_BLACKLIST = stringSetPreferencesKey("tag_blacklist")
         val KEY_IGNORED_UPDATE_VERSION = stringPreferencesKey("ignored_update_version")
 
@@ -91,21 +92,7 @@ class BooruPreferences(private val context: Context) {
         prefs[KEY_SEARCH_HISTORY]?.toList() ?: emptyList()
     }
 
-    val rule34UserId: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_RULE34_USER_ID] ?: ""
-    }
 
-    val rule34ApiKey: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_RULE34_API_KEY] ?: ""
-    }
-
-    val gelbooruUserId: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_GELBOORU_USER_ID] ?: ""
-    }
-
-    val gelbooruApiKey: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_GELBOORU_API_KEY] ?: ""
-    }
 
     val tagBlacklist: Flow<List<String>> = context.dataStore.data.map { prefs ->
         prefs[KEY_TAG_BLACKLIST]?.toList() ?: emptyList()
@@ -201,17 +188,77 @@ class BooruPreferences(private val context: Context) {
         context.dataStore.edit { it[KEY_DEFAULT_SOURCE] = source }
     }
 
-    suspend fun setRule34Credentials(userId: String, apiKey: String) {
-        context.dataStore.edit {
-            it[KEY_RULE34_USER_ID] = userId.trim()
-            it[KEY_RULE34_API_KEY] = apiKey.trim()
-        }
+    suspend fun clearLegacyFavorites() {
+        context.dataStore.edit { it.remove(KEY_FAVORITES_JSON) }
     }
 
-    suspend fun setGelbooruCredentials(userId: String, apiKey: String) {
-        context.dataStore.edit {
-            it[KEY_GELBOORU_USER_ID] = userId.trim()
-            it[KEY_GELBOORU_API_KEY] = apiKey.trim()
+    suspend fun migrateLegacyCredentialsAndCustomSources(secureStorage: SecureCredentialsStorage) {
+        context.dataStore.edit { prefs ->
+            // 1. Migrate Rule34 credentials
+            val r34Uid = prefs[KEY_RULE34_USER_ID]?.trim()
+            val r34Key = prefs[KEY_RULE34_API_KEY]?.trim()
+            if (!r34Uid.isNullOrBlank() || !r34Key.isNullOrBlank()) {
+                if (secureStorage.isSecureStorageAvailable) {
+                    if (!r34Uid.isNullOrBlank() && secureStorage.getRule34UserId().isBlank()) {
+                        secureStorage.setRule34UserId(r34Uid)
+                    }
+                    if (!r34Key.isNullOrBlank() && secureStorage.getRule34ApiKey().isBlank()) {
+                        secureStorage.setRule34ApiKey(r34Key)
+                    }
+                }
+                prefs.remove(KEY_RULE34_USER_ID)
+                prefs.remove(KEY_RULE34_API_KEY)
+            }
+
+            // 2. Migrate Gelbooru credentials
+            val gelUid = prefs[KEY_GELBOORU_USER_ID]?.trim()
+            val gelKey = prefs[KEY_GELBOORU_API_KEY]?.trim()
+            if (!gelUid.isNullOrBlank() || !gelKey.isNullOrBlank()) {
+                if (secureStorage.isSecureStorageAvailable) {
+                    if (!gelUid.isNullOrBlank() && secureStorage.getGelbooruUserId().isBlank()) {
+                        secureStorage.setGelbooruUserId(gelUid)
+                    }
+                    if (!gelKey.isNullOrBlank() && secureStorage.getGelbooruApiKey().isBlank()) {
+                        secureStorage.setGelbooruApiKey(gelKey)
+                    }
+                }
+                prefs.remove(KEY_GELBOORU_USER_ID)
+                prefs.remove(KEY_GELBOORU_API_KEY)
+            }
+
+            // 3. Migrate CustomBooruSources credentials from JSON
+            val jsonStr = prefs[KEY_CUSTOM_SOURCES] ?: ""
+            if (jsonStr.isNotBlank()) {
+                runCatching {
+                    val arr = JSONArray(jsonStr)
+                    var hasCredentialsInJson = false
+                    val migratedSources = (0 until arr.length()).mapNotNull { i ->
+                        val obj = arr.optJSONObject(i) ?: return@mapNotNull null
+                        val parsed = CustomBooruSource.fromJson(obj) ?: return@mapNotNull null
+                        val rawApiKey = obj.optString("apiKey", "").trim()
+                        val rawUserId = obj.optString("userId", "").trim()
+
+                        if (rawApiKey.isNotBlank() || rawUserId.isNotBlank()) {
+                            hasCredentialsInJson = true
+                            if (secureStorage.isSecureStorageAvailable) {
+                                if (rawApiKey.isNotBlank() && secureStorage.getCustomApiKey(parsed.id).isBlank()) {
+                                    secureStorage.setCustomApiKey(parsed.id, rawApiKey)
+                                }
+                                if (rawUserId.isNotBlank() && secureStorage.getCustomUserId(parsed.id).isBlank()) {
+                                    secureStorage.setCustomUserId(parsed.id, rawUserId)
+                                }
+                            }
+                        }
+                        parsed
+                    }
+
+                    if (hasCredentialsInJson) {
+                        val sanitizedArr = JSONArray()
+                        migratedSources.forEach { sanitizedArr.put(it.toJson()) }
+                        prefs[KEY_CUSTOM_SOURCES] = sanitizedArr.toString()
+                    }
+                }
+            }
         }
     }
 

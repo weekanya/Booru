@@ -85,6 +85,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     init {
 
+        viewModelScope.launch {
+            prefs.migrateLegacyCredentialsAndCustomSources(secureStorage)
+            rule34UserId = secureStorage.getRule34UserId()
+            rule34ApiKey = secureStorage.getRule34ApiKey()
+            gelbooruUserId = secureStorage.getGelbooruUserId()
+            gelbooruApiKey = secureStorage.getGelbooruApiKey()
+        }
+
         rule34UserId = secureStorage.getRule34UserId()
         rule34ApiKey = secureStorage.getRule34ApiKey()
         gelbooruUserId = secureStorage.getGelbooruUserId()
@@ -118,7 +126,18 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             prefs.imageQuality.collect { imageQuality = it }
         }
         viewModelScope.launch {
-            prefs.customSources.collect { customSources = it }
+            prefs.customSources.collect { sources ->
+                customSources = if (secureStorage.isSecureStorageAvailable) {
+                    sources.map { src ->
+                        src.copy(
+                            apiKey = secureStorage.getCustomApiKey(src.id),
+                            userId = secureStorage.getCustomUserId(src.id)
+                        )
+                    }
+                } else {
+                    sources.map { it.copy(apiKey = "", userId = "") }
+                }
+            }
         }
         viewModelScope.launch {
             prefs.tagBlacklist.collect { bl ->
@@ -143,7 +162,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     legacyFavs.forEach { fav ->
                         favoriteDao.insert(FavoriteEntity.fromRemoteMedia(fav))
                     }
-                    prefs.saveFavorites(emptyList())
+                    prefs.clearLegacyFavorites()
                 }
             }
         }
@@ -229,11 +248,24 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             updateDownloadProgressText = "0%"
             updateDownloadError = null
 
+            val updatesDir = java.io.File(context.cacheDir, "updates").apply { mkdirs() }
+            val targetFile = java.io.File(updatesDir, "Booru_${info.latestVersion}.apk")
+            if (targetFile.exists()) {
+                targetFile.delete()
+            }
+
             try {
-                val updatesDir = java.io.File(context.cacheDir, "updates").apply { mkdirs() }
-                val targetFile = java.io.File(updatesDir, "Booru_${info.latestVersion}.apk")
-                if (targetFile.exists()) {
-                    targetFile.delete()
+                val downloadUrl = info.apkDownloadUrl
+                val parsedUri = android.net.Uri.parse(downloadUrl)
+                val scheme = parsedUri.scheme ?: ""
+                val host = parsedUri.host?.lowercase() ?: ""
+                if (!scheme.equals("https", ignoreCase = true)) {
+                    throw SecurityException("Insecure download protocol: $scheme")
+                }
+                val isTrustedHost = host == "github.com" || host.endsWith(".github.com") ||
+                        host == "objects.githubusercontent.com" || host.endsWith(".githubusercontent.com")
+                if (!isTrustedHost) {
+                    throw SecurityException("Untrusted download host: $host")
                 }
 
                 val client = okhttp3.OkHttpClient.Builder()
@@ -241,10 +273,23 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
                     .followRedirects(true)
                     .followSslRedirects(true)
+                    .addNetworkInterceptor { chain ->
+                        val reqUrl = chain.request().url
+                        if (!reqUrl.isHttps) {
+                            throw java.io.IOException("Insecure HTTP redirect blocked: $reqUrl")
+                        }
+                        val redirectHost = reqUrl.host.lowercase()
+                        val allowedRedirect = redirectHost == "github.com" || redirectHost.endsWith(".github.com") ||
+                                redirectHost == "objects.githubusercontent.com" || redirectHost.endsWith(".githubusercontent.com")
+                        if (!allowedRedirect) {
+                            throw java.io.IOException("Redirect to untrusted host blocked: $redirectHost")
+                        }
+                        chain.proceed(chain.request())
+                    }
                     .build()
 
                 val request = okhttp3.Request.Builder()
-                    .url(info.apkDownloadUrl)
+                    .url(downloadUrl)
                     .header("User-Agent", "BooruApp/${info.latestVersion}")
                     .build()
 
@@ -292,6 +337,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
             } catch (e: Exception) {
+                if (targetFile.exists()) {
+                    targetFile.delete()
+                }
                 kotlinx.coroutines.withContext(Dispatchers.Main) {
                     isDownloadingUpdate = false
                     updateDownloadError = e.message ?: "Download failed"
@@ -302,6 +350,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun installApk(context: android.content.Context, file: java.io.File) {
         try {
+            if (!verifyApkSignature(context, file)) {
+                if (file.exists()) file.delete()
+                updateDownloadError = "APK signature verification failed"
+                return
+            }
+
             val apkUri = androidx.core.content.FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
@@ -314,6 +368,57 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             context.startActivity(intent)
         } catch (e: Exception) {
             updateDownloadError = "Installation error: ${e.message}"
+        }
+    }
+
+    private fun verifyApkSignature(context: android.content.Context, apkFile: java.io.File): Boolean {
+        return try {
+            val pm = context.packageManager
+            val archiveInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                pm.getPackageArchiveInfo(
+                    apkFile.absolutePath,
+                    android.content.pm.PackageManager.PackageInfoFlags.of(android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES.toLong())
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                pm.getPackageArchiveInfo(apkFile.absolutePath, android.content.pm.PackageManager.GET_SIGNATURES)
+            } ?: return false
+
+            if (archiveInfo.packageName != context.packageName) {
+                return false
+            }
+
+            val currentInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                pm.getPackageInfo(
+                    context.packageName,
+                    android.content.pm.PackageManager.PackageInfoFlags.of(android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES.toLong())
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                pm.getPackageInfo(context.packageName, android.content.pm.PackageManager.GET_SIGNATURES)
+            }
+
+            val apkSignatures: List<ByteArray> = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                archiveInfo.signingInfo?.apkContentsSigners?.map { it.toByteArray() } ?: emptyList()
+            } else {
+                @Suppress("DEPRECATION")
+                archiveInfo.signatures?.map { it.toByteArray() } ?: emptyList()
+            }
+
+            val currentSignatures: List<ByteArray> = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                currentInfo.signingInfo?.apkContentsSigners?.map { it.toByteArray() } ?: emptyList()
+            } else {
+                @Suppress("DEPRECATION")
+                currentInfo.signatures?.map { it.toByteArray() } ?: emptyList()
+            }
+
+            if (apkSignatures.isEmpty() || currentSignatures.isEmpty()) return false
+
+            apkSignatures.any { apkSig ->
+                currentSignatures.any { curSig -> apkSig.contentEquals(curSig) }
+            }
+        } catch (_: Exception) {
+            false
         }
     }
 
@@ -338,9 +443,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun isBlacklisted(media: RemoteMedia, blacklist: List<String> = tagBlacklist): Boolean {
         if (blacklist.isEmpty()) return false
         val mediaTags = media.tagList.map { it.lowercase() }.toSet()
+        val mediaTagsStripped = mediaTags.mapNotNull { if (it.contains(":")) it.substringAfter(":") else null }.toSet()
+
         return blacklist.any { bl ->
             val clean = bl.trim().lowercase()
-            clean.isNotBlank() && clean in mediaTags
+            if (clean.isBlank()) return@any false
+            clean in mediaTags ||
+            clean in mediaTagsStripped ||
+            (clean.contains(":") && clean.substringAfter(":") in mediaTags)
         }
     }
 
@@ -686,12 +796,25 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun addCustomSource(source: CustomBooruSource) {
-        val updated = customSources.filterNot { it.id == source.id } + source
+        if (secureStorage.isSecureStorageAvailable) {
+            secureStorage.setCustomApiKey(source.id, source.apiKey)
+            secureStorage.setCustomUserId(source.id, source.userId)
+        }
+        val sourceWithCredentials = if (secureStorage.isSecureStorageAvailable) {
+            source.copy(
+                apiKey = secureStorage.getCustomApiKey(source.id),
+                userId = secureStorage.getCustomUserId(source.id)
+            )
+        } else {
+            source.copy(apiKey = "", userId = "")
+        }
+        val updated = customSources.filterNot { it.id == source.id } + sourceWithCredentials
         customSources = updated
         viewModelScope.launch { prefs.saveCustomSources(updated) }
     }
 
     fun removeCustomSource(sourceId: String) {
+        secureStorage.removeCustomCredentials(sourceId)
         val target = customSources.find { it.id == sourceId }
         val updated = customSources.filterNot { it.id == sourceId }
         customSources = updated
@@ -702,7 +825,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             source.equals(target.key, ignoreCase = true)
         )
         if (isCurrentSourceDeleted || availableSources.none { it.equals(source, ignoreCase = true) }) {
-            selectSource(BooruRepository.SOURCE_ALL)
+            source = BooruRepository.SOURCE_ALL
+            viewModelScope.launch { prefs.setDefaultSource(BooruRepository.SOURCE_ALL) }
+            refresh()
         }
     }
 

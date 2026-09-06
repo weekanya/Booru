@@ -31,3 +31,7 @@
 
 -keep class androidx.security.crypto.** { *; }
 -dontwarn androidx.security.crypto.**
+
+-keep class com.booru.app.data.CustomBooruSource { *; }
+-keep class com.booru.app.data.BooruEngine { *; }
+
