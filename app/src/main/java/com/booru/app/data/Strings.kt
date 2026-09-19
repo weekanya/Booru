@@ -147,13 +147,13 @@ object Strings {
     }
 
     fun imageQualityTitle(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Image Quality"
-        AppLanguage.RUSSIAN -> "Качество изображений"
+        AppLanguage.ENGLISH -> "Quality"
+        AppLanguage.RUSSIAN -> "Качество"
     }
 
     fun imageQualityDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.ENGLISH -> "Default resolution for images"
-        AppLanguage.RUSSIAN -> "Разрешение изображений при просмотре"
+        AppLanguage.ENGLISH -> "Default resolution for media"
+        AppLanguage.RUSSIAN -> "Разрешение контента при просмотре"
     }
 
     fun qualityOriginal(lang: AppLanguage) = when (lang) {

@@ -432,16 +432,57 @@ fun SettingsScreen(
                         ImageQuality.ORIGINAL -> Icons.Rounded.HighQuality
                         ImageQuality.SAVER -> Icons.Rounded.DataSaverOn
                     }
+
+                    val containerColor by animateColorAsState(
+                        targetValue = if (isSelected)
+                            MaterialTheme.colorScheme.primaryContainer
+                        else
+                            MaterialTheme.colorScheme.surfaceContainerHigh,
+                        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                        label = "qualityBg"
+                    )
+
+                    val contentColor by animateColorAsState(
+                        targetValue = if (isSelected)
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        else
+                            MaterialTheme.colorScheme.onSurface,
+                        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                        label = "qualityContent"
+                    )
+
+                    val iconTint by animateColorAsState(
+                        targetValue = if (isSelected)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant,
+                        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                        label = "qualityIcon"
+                    )
+
+                    val scale by animateFloatAsState(
+                        targetValue = if (isSelected) 1.02f else 1.0f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioMediumBouncy,
+                            stiffness = Spring.StiffnessLow
+                        ),
+                        label = "qualityScale"
+                    )
+
                     Surface(
                         onClick = {
                             vm.updateImageQuality(q)
-                            showQualityDialog = false
                         },
                         shape = RoundedCornerShape(18.dp),
-                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        color = containerColor,
+                        contentColor = contentColor,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 5.dp)
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            }
                             .bouncyPress()
                     ) {
                         Row(
@@ -451,7 +492,7 @@ fun SettingsScreen(
                             Icon(
                                 imageVector = icon,
                                 contentDescription = null,
-                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = iconTint,
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(Modifier.width(14.dp))
@@ -460,22 +501,37 @@ fun SettingsScreen(
                                     text = title,
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                    color = contentColor
                                 )
                                 Spacer(Modifier.height(2.dp))
                                 Text(
                                     text = subtitle,
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (isSelected)
+                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                                    else
+                                        MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            if (isSelected) {
-                                Icon(
-                                    Icons.Rounded.CheckCircle,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(22.dp)
-                                )
+                            AnimatedVisibility(
+                                visible = isSelected,
+                                enter = fadeIn(tween(200)) + expandHorizontally(
+                                    animationSpec = spring(
+                                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                                        stiffness = Spring.StiffnessMediumLow
+                                    )
+                                ),
+                                exit = fadeOut(tween(150)) + shrinkHorizontally(tween(150))
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Icon(
+                                        Icons.Rounded.CheckCircle,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -571,54 +627,18 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.primary
                 )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    BooruEngine.entries.forEach { engine ->
-                        val selected = (customEngine == engine)
-                        Surface(
-                            onClick = { customEngine = engine },
-                            shape = RoundedCornerShape(16.dp),
-                            color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(46.dp)
-                                .bouncyPress()
-                        ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxSize().padding(horizontal = 4.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    if (selected) {
-                                        Icon(
-                                            Icons.Rounded.Check,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                        Spacer(Modifier.width(4.dp))
-                                    }
-                                    Text(
-                                        text = when (engine) {
-                                            BooruEngine.GELBOORU -> "Gelbooru"
-                                            BooruEngine.MOEBOORU -> "Moebooru"
-                                            BooruEngine.DANBOORU -> "Danbooru"
-                                        },
-                                        maxLines = 1,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
+                MD3SegmentedChoiceRow(
+                    options = BooruEngine.entries,
+                    selectedOption = customEngine,
+                    onOptionSelected = { customEngine = it },
+                    labelProvider = { engine ->
+                        when (engine) {
+                            BooruEngine.GELBOORU -> "Gelbooru"
+                            BooruEngine.MOEBOORU -> "Moebooru"
+                            BooruEngine.DANBOORU -> "Danbooru"
                         }
                     }
-                }
+                )
 
                 OutlinedTextField(
                     value = customUserId,

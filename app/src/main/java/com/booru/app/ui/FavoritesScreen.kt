@@ -1,5 +1,16 @@
 package com.booru.app.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -21,6 +32,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -571,25 +583,78 @@ private fun FavoriteFilterTab(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val containerColor by animateColorAsState(
+        targetValue = if (selected)
+            MaterialTheme.colorScheme.primary
+        else
+            MaterialTheme.colorScheme.surfaceContainerHighest,
+        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+        label = "favFilterBg"
+    )
+
+    val contentColor by animateColorAsState(
+        targetValue = if (selected)
+            MaterialTheme.colorScheme.onPrimary
+        else
+            MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+        label = "favFilterFg"
+    )
+
+    val scale by animateFloatAsState(
+        targetValue = if (selected) 1.03f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "favFilterScale"
+    )
+
     Surface(
         onClick = onClick,
-        shape = CircleShape,
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = RoundedCornerShape(14.dp),
+        color = containerColor,
+        contentColor = contentColor,
         modifier = modifier
-            .height(36.dp)
+            .height(38.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
             .bouncyPress()
     ) {
-        Box(
-            contentAlignment = Alignment.Center,
+        Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 4.dp)
+                .padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
+            AnimatedVisibility(
+                visible = selected,
+                enter = fadeIn(tween(200)) + expandHorizontally(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                ),
+                exit = fadeOut(tween(150)) + shrinkHorizontally(tween(150))
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(13.dp),
+                        tint = contentColor
+                    )
+                    Spacer(Modifier.width(3.dp))
+                }
+            }
             Text(
                 text = if (count > 0) "$text $count" else text,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                color = contentColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
