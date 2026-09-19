@@ -44,14 +44,19 @@ object UpdateChecker {
                 var apkDownloadUrl: String? = null
                 val assets = json.optJSONArray("assets")
                 if (assets != null) {
+                    val apkCandidates = mutableListOf<Pair<String, String>>()
                     for (i in 0 until assets.length()) {
                         val asset = assets.optJSONObject(i) ?: continue
                         val assetName = asset.optString("name", "")
-                        if (assetName.endsWith(".apk", ignoreCase = true)) {
-                            apkDownloadUrl = asset.optString("browser_download_url").takeIf { it.isNotBlank() }
-                            break
+                        val downloadUrl = asset.optString("browser_download_url").trim()
+                        if (assetName.endsWith(".apk", ignoreCase = true) && downloadUrl.isNotBlank()) {
+                            apkCandidates.add(assetName to downloadUrl)
                         }
                     }
+                    val selected = apkCandidates.find { it.first.contains("release", ignoreCase = true) && !it.first.contains("debug", ignoreCase = true) }
+                        ?: apkCandidates.find { !it.first.contains("debug", ignoreCase = true) }
+                        ?: apkCandidates.firstOrNull()
+                    apkDownloadUrl = selected?.second
                 }
 
                 if (tagName.isNotEmpty()) {

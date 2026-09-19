@@ -1,6 +1,8 @@
 package com.booru.app.data
 
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONObject
+import java.util.UUID
 
 enum class BooruEngine(val displayName: String) {
     GELBOORU("Gelbooru / DAPI (index.php)"),
@@ -26,11 +28,31 @@ fun sanitizeBooruBaseUrl(raw: String): String {
 
 fun isHttpsBooruUrl(raw: String): Boolean {
     val clean = sanitizeBooruBaseUrl(raw)
-    return clean.startsWith("https://", ignoreCase = true) && clean.length > 8
+    val parsed = clean.toHttpUrlOrNull() ?: return false
+    return parsed.isHttps && parsed.host.isNotBlank() && parsed.host.contains(".")
+}
+
+fun isBuiltInSourceName(name: String): Boolean {
+    val clean = name.trim().lowercase()
+    val builtIns = setOf(
+        "all sources",
+        "all",
+        "recommendations",
+        "rule34",
+        "gelbooru",
+        "realbooru",
+        "xbooru",
+        "tbib",
+        "yande",
+        "yande.re",
+        "konachan",
+        "safebooru"
+    )
+    return clean in builtIns
 }
 
 data class CustomBooruSource(
-    val id: String,
+    val id: String = UUID.randomUUID().toString(),
     val name: String,
     val baseUrl: String,
     val engine: BooruEngine = BooruEngine.GELBOORU,
@@ -39,7 +61,7 @@ data class CustomBooruSource(
 ) {
     val key: String get() = if (id.startsWith("custom_")) id else "custom_$id"
     val cleanBaseUrl: String get() = sanitizeBooruBaseUrl(baseUrl)
-    val isHttps: Boolean get() = cleanBaseUrl.startsWith("https://", ignoreCase = true)
+    val isHttps: Boolean get() = isHttpsBooruUrl(baseUrl)
 
     fun toJson(): JSONObject = JSONObject().apply {
         put("id", id)
@@ -49,6 +71,17 @@ data class CustomBooruSource(
     }
 
     companion object {
+        fun create(name: String, baseUrl: String, engine: BooruEngine, apiKey: String = "", userId: String = ""): CustomBooruSource {
+            return CustomBooruSource(
+                id = UUID.randomUUID().toString(),
+                name = name.trim(),
+                baseUrl = sanitizeBooruBaseUrl(baseUrl),
+                engine = engine,
+                apiKey = apiKey.trim(),
+                userId = userId.trim()
+            )
+        }
+
         fun fromJson(json: JSONObject): CustomBooruSource? {
             val id = json.optString("id").ifBlank { return null }
             val name = json.optString("name").ifBlank { return null }

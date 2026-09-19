@@ -2,16 +2,19 @@ package com.booru.app.data
 
 import android.content.Context
 import com.booru.app.RemoteMedia
-import com.booru.app.data.db.FavoriteEntity
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
+import java.io.IOException
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
 object BooruCacheManager {
+
+    private const val MAX_MEDIA_CACHE_BYTES = 100L * 1024L * 1024L
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -71,12 +74,28 @@ object BooruCacheManager {
 
                 httpClient.newCall(req).execute().use { resp ->
                     if (resp.isSuccessful && resp.body != null) {
+                        val body = resp.body!!
+                        val input = body.byteStream()
                         tempFile.outputStream().use { out ->
-                            resp.body!!.byteStream().copyTo(out)
+                            val buffer = ByteArray(8192)
+                            var bytesRead: Int
+                            var totalBytes = 0L
+                            while (input.read(buffer).also { bytesRead = it } != -1) {
+                                totalBytes += bytesRead
+                                if (totalBytes > MAX_MEDIA_CACHE_BYTES) {
+                                    throw IOException("Media exceeds max download size limit")
+                                }
+                                out.write(buffer, 0, bytesRead)
+                            }
                         }
-                        tempFile.renameTo(targetFile)
+                        if (tempFile.exists() && tempFile.length() > 0) {
+                            tempFile.renameTo(targetFile)
+                        }
                     }
                 }
+            } catch (c: CancellationException) {
+                if (tempFile.exists()) tempFile.delete()
+                throw c
             } catch (_: Exception) {
             } finally {
                 if (tempFile.exists() && !targetFile.exists()) {

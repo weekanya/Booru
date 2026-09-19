@@ -1,9 +1,23 @@
 package com.booru.app.data.parser
 
+import com.booru.app.Rating
 import com.booru.app.RemoteMedia
 import org.jsoup.Jsoup
 
 object RealbooruHtmlParser {
+
+    private val AI_TAGS = setOf(
+        "ai_generated",
+        "novelai",
+        "stable_diffusion",
+        "midjourney",
+        "dall-e",
+        "synthetic",
+        "created_by_ai",
+        "ai_art",
+        "ai_upscale",
+        "deepfake"
+    )
 
     fun parse(html: String, noAi: Boolean): List<RemoteMedia> {
         if (html.isBlank()) return emptyList()
@@ -23,40 +37,51 @@ object RealbooruHtmlParser {
             val thumbSrc = img.attr("src").ifBlank { img.attr("data-src") }
             if (thumbSrc.isBlank()) continue
 
-            val previewUrl = if (thumbSrc.startsWith("//")) {
-                "https:$thumbSrc"
-            } else if (thumbSrc.startsWith("/")) {
-                "https://realbooru.com$thumbSrc"
-            } else if (!thumbSrc.startsWith("http")) {
-                "https://realbooru.com/$thumbSrc"
-            } else {
-                thumbSrc
+            val previewUrl = when {
+                thumbSrc.startsWith("//") -> "https:$thumbSrc"
+                thumbSrc.startsWith("/") -> "https://realbooru.com$thumbSrc"
+                !thumbSrc.startsWith("http") -> "https://realbooru.com/$thumbSrc"
+                else -> thumbSrc
             }
 
             val rawTags = img.attr("title").ifBlank { img.attr("alt") }.trim()
 
-            val tags = if (rawTags.contains(",")) {
+            val tagTokens = if (rawTags.contains(",")) {
                 rawTags.split(",")
                     .map { it.trim().replace("\\s+".toRegex(), "_").removeSuffix(",").removePrefix(",").trim() }
                     .filter { it.isNotBlank() }
-                    .joinToString(" ")
             } else {
                 rawTags.split("\\s+".toRegex())
                     .map { it.trim().removeSuffix(",").removePrefix(",").trim() }
                     .filter { it.isNotBlank() }
-                    .joinToString(" ")
             }
 
-            if (noAi && (tags.contains("ai_generated", ignoreCase = true) || tags.contains("novelai", ignoreCase = true))) {
-                continue
+            val tags = tagTokens.joinToString(" ")
+
+            if (noAi) {
+                val hasAi = tagTokens.any { tag ->
+                    val lower = tag.lowercase()
+                    AI_TAGS.any { ai -> lower == ai || lower.contains(ai) }
+                }
+                if (hasAi) continue
             }
 
-            val imgStyle = img.attr("style")
-            val isVideo = imgStyle.contains("0000ff", ignoreCase = true) ||
-                    imgStyle.contains("blue", ignoreCase = true) ||
-                    tags.contains("webm", ignoreCase = true) ||
-                    tags.contains("mp4", ignoreCase = true) ||
-                    tags.contains("video", ignoreCase = true)
+            val thumbClass = thumb.className().lowercase()
+            val linkClass = link.className().lowercase()
+            val imgClass = img.className().lowercase()
+            val dataType = thumb.attr("data-type").lowercase()
+
+            val isVideo = dataType == "video" ||
+                    thumbClass.contains("video") ||
+                    thumbClass.contains("webm") ||
+                    linkClass.contains("video") ||
+                    imgClass.contains("video") ||
+                    previewUrl.endsWith(".webm", ignoreCase = true) ||
+                    previewUrl.endsWith(".mp4", ignoreCase = true) ||
+                    tagTokens.any { t ->
+                        val l = t.lowercase()
+                        l == "video" || l == "webm" || l == "mp4" || l == "animated"
+                    }
 
             val originalUrl = if (isVideo) {
                 previewUrl
@@ -84,6 +109,8 @@ object RealbooruHtmlParser {
             val dateRaw = thumb.attr("data-posted").ifBlank { thumb.attr("data-time") }
             val createdAt = TimestampParser.parseToEpochSeconds(dateRaw)
 
+            val parsedRating = extractRating(tagTokens, thumb.attr("data-rating"))
+
             results.add(
                 RemoteMedia(
                     id = id,
@@ -93,12 +120,28 @@ object RealbooruHtmlParser {
                     tags = tags,
                     score = scoreAttr,
                     source = "Realbooru",
-                    rating = "e",
+                    rating = parsedRating.code,
                     createdAt = createdAt
                 )
             )
         }
 
         return results
+    }
+
+    private fun extractRating(tagTokens: List<String>, dataRating: String): Rating {
+        if (dataRating.isNotBlank()) {
+            val fromData = Rating.fromString(dataRating)
+            if (fromData != Rating.UNKNOWN) return fromData
+        }
+        for (token in tagTokens) {
+            val lower = token.lowercase()
+            when {
+                lower == "rating:s" || lower == "rating:safe" || lower == "rating:g" || lower == "rating:general" -> return Rating.SAFE
+                lower == "rating:q" || lower == "rating:questionable" || lower == "rating:sensitive" -> return Rating.QUESTIONABLE
+                lower == "rating:e" || lower == "rating:explicit" -> return Rating.EXPLICIT
+            }
+        }
+        return Rating.UNKNOWN
     }
 }

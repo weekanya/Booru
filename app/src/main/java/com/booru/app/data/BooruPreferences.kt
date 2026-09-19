@@ -37,6 +37,7 @@ class BooruPreferences(private val context: Context) {
         val KEY_LANGUAGE = stringPreferencesKey("app_language")
         val KEY_DEFAULT_SOURCE = stringPreferencesKey("default_source")
         val KEY_SEARCH_HISTORY = stringSetPreferencesKey("search_history")
+        val KEY_SEARCH_HISTORY_JSON = stringPreferencesKey("search_history_json")
         val KEY_FAVORITES_JSON = stringPreferencesKey("favorites_json")
 
         private val KEY_RULE34_USER_ID = stringPreferencesKey("rule34_user_id")
@@ -90,7 +91,15 @@ class BooruPreferences(private val context: Context) {
     }
 
     val searchHistory: Flow<List<String>> = context.dataStore.data.map { prefs ->
-        prefs[KEY_SEARCH_HISTORY]?.toList() ?: emptyList()
+        val jsonStr = prefs[KEY_SEARCH_HISTORY_JSON]
+        if (!jsonStr.isNullOrBlank()) {
+            runCatching {
+                val arr = JSONArray(jsonStr)
+                (0 until arr.length()).mapNotNull { i -> arr.optString(i).takeIf { it.isNotBlank() } }
+            }.getOrDefault(emptyList())
+        } else {
+            prefs[KEY_SEARCH_HISTORY]?.toList() ?: emptyList()
+        }
     }
 
     val recommendationTags: Flow<Map<String, Int>> = context.dataStore.data.map { prefs ->
@@ -139,25 +148,28 @@ class BooruPreferences(private val context: Context) {
         }
     }
 
-    suspend fun setImageQuality(quality: ImageQuality) {
-        context.dataStore.edit { it[KEY_IMAGE_QUALITY] = quality.code }
+    val favorites: Flow<List<RemoteMedia>> = context.dataStore.data.map { prefs ->
+        val jsonStr = prefs[KEY_FAVORITES_JSON] ?: ""
+        if (jsonStr.isBlank()) emptyList()
+        else deserializeFavorites(jsonStr)
     }
 
     suspend fun saveCustomSources(sources: List<CustomBooruSource>) {
-        context.dataStore.edit { prefs ->
-            val arr = JSONArray()
-            sources.forEach { arr.put(it.toJson()) }
-            prefs[KEY_CUSTOM_SOURCES] = arr.toString()
-        }
-    }
-
-    val favorites: Flow<List<RemoteMedia>> = context.dataStore.data.map { prefs ->
-        val jsonStr = prefs[KEY_FAVORITES_JSON] ?: "[]"
-        deserializeFavorites(jsonStr)
+        val arr = JSONArray()
+        sources.forEach { arr.put(it.toJson()) }
+        context.dataStore.edit { it[KEY_CUSTOM_SOURCES] = arr.toString() }
     }
 
     suspend fun setIgnoredUpdateVersion(version: String) {
         context.dataStore.edit { it[KEY_IGNORED_UPDATE_VERSION] = version }
+    }
+
+    suspend fun clearIgnoredUpdateVersion() {
+        context.dataStore.edit { it.remove(KEY_IGNORED_UPDATE_VERSION) }
+    }
+
+    suspend fun setImageQuality(quality: ImageQuality) {
+        context.dataStore.edit { it[KEY_IMAGE_QUALITY] = quality.code }
     }
 
     suspend fun setThemeMode(mode: ThemeMode) {
@@ -170,10 +182,6 @@ class BooruPreferences(private val context: Context) {
 
     suspend fun setDynamicColor(enabled: Boolean) {
         context.dataStore.edit { it[KEY_DYNAMIC_COLOR] = enabled }
-    }
-
-    suspend fun setLanguage(lang: AppLanguage) {
-        context.dataStore.edit { it[KEY_LANGUAGE] = lang.code }
     }
 
     suspend fun setSafeMode(enabled: Boolean) {
@@ -195,9 +203,11 @@ class BooruPreferences(private val context: Context) {
     }
 
     suspend fun setNoAiFilter(enabled: Boolean) {
-        context.dataStore.edit {
-            it[KEY_NO_AI] = enabled
-        }
+        context.dataStore.edit { it[KEY_NO_AI] = enabled }
+    }
+
+    suspend fun setLanguage(lang: AppLanguage) {
+        context.dataStore.edit { it[KEY_LANGUAGE] = lang.code }
     }
 
     suspend fun setDefaultSource(source: String) {
@@ -258,41 +268,29 @@ class BooruPreferences(private val context: Context) {
                 }
             }
 
-            val jsonStr = prefs[KEY_CUSTOM_SOURCES] ?: ""
-            if (jsonStr.isNotBlank()) {
+            val rawCustom = prefs[KEY_CUSTOM_SOURCES] ?: ""
+            if (rawCustom.isNotBlank()) {
                 runCatching {
-                    val arr = JSONArray(jsonStr)
-                    var hasCredentialsInJson = false
-                    var allCustomMigrated = true
-
-                    val migratedSources = (0 until arr.length()).mapNotNull { i ->
-                        val obj = arr.optJSONObject(i) ?: return@mapNotNull null
-                        val parsed = CustomBooruSource.fromJson(obj) ?: return@mapNotNull null
-                        val rawApiKey = obj.optString("apiKey", "").trim()
-                        val rawUserId = obj.optString("userId", "").trim()
-
-                        if (rawApiKey.isNotBlank() || rawUserId.isNotBlank()) {
-                            hasCredentialsInJson = true
-                            if (rawApiKey.isNotBlank()) {
-                                val writeOk = if (secureStorage.getCustomApiKey(parsed.id) == rawApiKey) true else secureStorage.setCustomApiKey(parsed.id, rawApiKey)
-                                if (!writeOk || secureStorage.getCustomApiKey(parsed.id) != rawApiKey) {
-                                    allCustomMigrated = false
-                                }
-                            }
-                            if (rawUserId.isNotBlank()) {
-                                val writeOk = if (secureStorage.getCustomUserId(parsed.id) == rawUserId) true else secureStorage.setCustomUserId(parsed.id, rawUserId)
-                                if (!writeOk || secureStorage.getCustomUserId(parsed.id) != rawUserId) {
-                                    allCustomMigrated = false
-                                }
-                            }
+                    val arr = JSONArray(rawCustom)
+                    var rewritten = false
+                    val cleanArr = JSONArray()
+                    for (i in 0 until arr.length()) {
+                        val obj = arr.optJSONObject(i) ?: continue
+                        val parsed = CustomBooruSource.fromJson(obj) ?: continue
+                        val legacyKey = obj.optString("apiKey", "").trim()
+                        val legacyUid = obj.optString("userId", "").trim()
+                        if (legacyKey.isNotBlank()) {
+                            secureStorage.setCustomApiKey(parsed.id, legacyKey)
+                            rewritten = true
                         }
-                        parsed
+                        if (legacyUid.isNotBlank()) {
+                            secureStorage.setCustomUserId(parsed.id, legacyUid)
+                            rewritten = true
+                        }
+                        cleanArr.put(parsed.toJson())
                     }
-
-                    if (hasCredentialsInJson && allCustomMigrated) {
-                        val sanitizedArr = JSONArray()
-                        migratedSources.forEach { sanitizedArr.put(it.toJson()) }
-                        prefs[KEY_CUSTOM_SOURCES] = sanitizedArr.toString()
+                    if (rewritten) {
+                        prefs[KEY_CUSTOM_SOURCES] = cleanArr.toString()
                     }
                 }
             }
@@ -303,24 +301,59 @@ class BooruPreferences(private val context: Context) {
         val clean = query.trim()
         if (clean.isBlank()) return
         context.dataStore.edit { prefs ->
-            val current = prefs[KEY_SEARCH_HISTORY]?.toMutableSet() ?: mutableSetOf()
-            current.remove(clean)
-            val updated = linkedSetOf(clean)
-            updated.addAll(current.take(19))
-            prefs[KEY_SEARCH_HISTORY] = updated
+            val existingList = mutableListOf<String>()
+            val jsonStr = prefs[KEY_SEARCH_HISTORY_JSON]
+            if (!jsonStr.isNullOrBlank()) {
+                runCatching {
+                    val arr = JSONArray(jsonStr)
+                    for (i in 0 until arr.length()) {
+                        val item = arr.optString(i)
+                        if (item.isNotBlank()) existingList.add(item)
+                    }
+                }
+            } else {
+                prefs[KEY_SEARCH_HISTORY]?.let { existingList.addAll(it) }
+            }
+            existingList.removeAll { it.equals(clean, ignoreCase = true) }
+            val updated = mutableListOf(clean)
+            updated.addAll(existingList.take(19))
+            val arr = JSONArray()
+            updated.forEach { arr.put(it) }
+            prefs[KEY_SEARCH_HISTORY_JSON] = arr.toString()
+            prefs.remove(KEY_SEARCH_HISTORY)
         }
     }
 
     suspend fun removeSearchQuery(query: String) {
+        val clean = query.trim()
+        if (clean.isBlank()) return
         context.dataStore.edit { prefs ->
-            val current = prefs[KEY_SEARCH_HISTORY]?.toMutableSet() ?: return@edit
-            current.remove(query)
-            prefs[KEY_SEARCH_HISTORY] = current
+            val existingList = mutableListOf<String>()
+            val jsonStr = prefs[KEY_SEARCH_HISTORY_JSON]
+            if (!jsonStr.isNullOrBlank()) {
+                runCatching {
+                    val arr = JSONArray(jsonStr)
+                    for (i in 0 until arr.length()) {
+                        val item = arr.optString(i)
+                        if (item.isNotBlank()) existingList.add(item)
+                    }
+                }
+            } else {
+                prefs[KEY_SEARCH_HISTORY]?.let { existingList.addAll(it) }
+            }
+            existingList.removeAll { it.equals(clean, ignoreCase = true) }
+            val arr = JSONArray()
+            existingList.forEach { arr.put(it) }
+            prefs[KEY_SEARCH_HISTORY_JSON] = arr.toString()
+            prefs.remove(KEY_SEARCH_HISTORY)
         }
     }
 
     suspend fun clearSearchHistory() {
-        context.dataStore.edit { it.remove(KEY_SEARCH_HISTORY) }
+        context.dataStore.edit {
+            it.remove(KEY_SEARCH_HISTORY_JSON)
+            it.remove(KEY_SEARCH_HISTORY)
+        }
     }
 
     suspend fun recordSearchTags(tags: List<String>) {

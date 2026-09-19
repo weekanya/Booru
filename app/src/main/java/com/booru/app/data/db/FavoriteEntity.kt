@@ -7,6 +7,7 @@ import com.booru.app.RemoteMedia
 @Entity(tableName = "favorites")
 data class FavoriteEntity(
     @PrimaryKey
+    val mediaKey: String,
     val url: String,
     val id: String = "",
     val preview: String = "",
@@ -14,7 +15,7 @@ data class FavoriteEntity(
     val tags: String = "",
     val score: Int = 0,
     val source: String = "",
-    val rating: String = "s",
+    val rating: String = "u",
     val width: Int = 0,
     val height: Int = 0,
     val createdAt: Long = 0L,
@@ -38,7 +39,9 @@ data class FavoriteEntity(
 
     companion object {
         fun fromRemoteMedia(media: RemoteMedia): FavoriteEntity {
+            val key = if (media.id.isNotBlank()) "${media.source.lowercase().trim()}_${media.id.trim()}" else media.url
             return FavoriteEntity(
+                mediaKey = key,
                 url = media.url,
                 id = media.id,
                 preview = media.preview,

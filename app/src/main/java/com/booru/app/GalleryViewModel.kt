@@ -1,9 +1,16 @@
 package com.booru.app
 
 import android.app.Application
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.core.content.FileProvider
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.booru.app.data.AppLanguage
@@ -11,20 +18,30 @@ import com.booru.app.data.AppUpdateInfo
 import com.booru.app.data.BooruCacheManager
 import com.booru.app.data.BooruPreferences
 import com.booru.app.data.CustomBooruSource
-import com.booru.app.data.sanitizeBooruBaseUrl
 import com.booru.app.data.ImageQuality
 import com.booru.app.data.UpdateChecker
 import com.booru.app.data.db.AppDatabase
 import com.booru.app.data.db.FavoriteEntity
+import com.booru.app.data.isBuiltInSourceName
+import com.booru.app.data.isHttpsBooruUrl
+import com.booru.app.data.sanitizeBooruBaseUrl
 import com.booru.app.data.security.SecureCredentialsStorage
 import com.booru.app.ui.AppPalette
 import com.booru.app.ui.ThemeMode
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
+import java.io.IOException
+import java.util.concurrent.TimeUnit
 
 enum class ContentType { PHOTOS, VIDEOS, GIFS }
 
@@ -39,48 +56,49 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var isCheckingUpdate by mutableStateOf(false); private set
     var manualCheckResult by mutableStateOf<String?>(null); private set
     var isDownloadingUpdate by mutableStateOf(false); private set
-    var updateDownloadProgress by androidx.compose.runtime.mutableFloatStateOf(0f); private set
+    var updateDownloadProgress by mutableFloatStateOf(0f); private set
     var updateDownloadProgressText by mutableStateOf(""); private set
     var updateDownloadError by mutableStateOf<String?>(null); private set
-    var downloadedApkFile by mutableStateOf<java.io.File?>(null); private set
+    var downloadedApkFile by mutableStateOf<File?>(null); private set
 
     var cacheSizeFormatted by mutableStateOf("0 B"); private set
     var isClearingCache by mutableStateOf(false); private set
 
-    var results     by mutableStateOf<List<RemoteMedia>>(emptyList()); private set
-    var loading     by mutableStateOf(false);                           private set
-    var loadingMore by mutableStateOf(false);                           private set
-    var error           by mutableStateOf<String?>(null);  private set
-    var isAuthError     by mutableStateOf(false);          private set
-    var authErrorSource by mutableStateOf<String?>(null);  private set
-    var authErrorCode   by mutableStateOf<Int?>(null);     private set
+    var results by mutableStateOf<List<RemoteMedia>>(emptyList()); private set
+    var loading by mutableStateOf(false); private set
+    var loadingMore by mutableStateOf(false); private set
+    var error by mutableStateOf<String?>(null); private set
+    var isAuthError by mutableStateOf(false); private set
+    var authErrorSource by mutableStateOf<String?>(null); private set
+    var authErrorCode by mutableStateOf<Int?>(null); private set
 
-    var query       by mutableStateOf("");                             private set
-    var source      by mutableStateOf(BooruRepository.SOURCE_ALL);    private set
-    var safeMode    by mutableStateOf(false);                          private set
-    var excludeSafe by mutableStateOf(false);                          private set
-    var noAi        by mutableStateOf(false);                          private set
-    var sortOrder   by mutableStateOf(SortOrder.NEWEST);             private set
+    var query by mutableStateOf(""); private set
+    var source by mutableStateOf(BooruRepository.SOURCE_ALL); private set
+    var safeMode by mutableStateOf(false); private set
+    var excludeSafe by mutableStateOf(false); private set
+    var noAi by mutableStateOf(false); private set
+    var sortOrder by mutableStateOf(SortOrder.NEWEST); private set
 
-    var themeMode       by mutableStateOf(ThemeMode.SYSTEM); private set
-    var palette         by mutableStateOf(AppPalette.MONET); private set
-    var useDynamicColor by mutableStateOf(true);             private set
-    var language        by mutableStateOf(AppLanguage.ENGLISH); private set
+    var themeMode by mutableStateOf(ThemeMode.SYSTEM); private set
+    var palette by mutableStateOf(AppPalette.MONET); private set
+    var useDynamicColor by mutableStateOf(true); private set
+    var language by mutableStateOf(AppLanguage.ENGLISH); private set
 
-    var rule34UserId   by mutableStateOf(""); private set
-    var rule34ApiKey   by mutableStateOf(""); private set
+    var rule34UserId by mutableStateOf(""); private set
+    var rule34ApiKey by mutableStateOf(""); private set
     var gelbooruUserId by mutableStateOf(""); private set
     var gelbooruApiKey by mutableStateOf(""); private set
 
     var favoritesList by mutableStateOf<List<RemoteMedia>>(emptyList()); private set
-    var favoriteIds   by mutableStateOf<Set<String>>(emptySet());        private set
-    var favoriteUrls  by mutableStateOf<Set<String>>(emptySet());        private set
+    var favoriteKeys by mutableStateOf<Set<String>>(emptySet()); private set
+    var favoriteIds by mutableStateOf<Set<String>>(emptySet()); private set
+    var favoriteUrls by mutableStateOf<Set<String>>(emptySet()); private set
 
-    var searchHistory  by mutableStateOf<List<String>>(emptyList());        private set
+    var searchHistory by mutableStateOf<List<String>>(emptyList()); private set
     var tagSuggestions by mutableStateOf<List<TagSuggestion>>(emptyList()); private set
-    var tagBlacklist   by mutableStateOf<List<String>>(emptyList());        private set
+    var tagBlacklist by mutableStateOf<List<String>>(emptyList()); private set
 
-    var imageQuality  by mutableStateOf(ImageQuality.SAMPLE);             private set
+    var imageQuality by mutableStateOf(ImageQuality.SAMPLE); private set
     var customSources by mutableStateOf<List<CustomBooruSource>>(emptyList()); private set
     var selectedContentTypes by mutableStateOf<Set<ContentType>>(emptySet()); private set
     var recommendationTags by mutableStateOf<List<String>>(emptyList()); private set
@@ -89,22 +107,39 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var hasMore by mutableStateOf(true); private set
     var activeTagCount by mutableStateOf(0); private set
     private var searchJob: Job? = null
+    private var loadMoreJob: Job? = null
     private var suggestionJob: Job? = null
+    private var currentSearchGeneration = 0L
+    private val favoriteMutex = Mutex()
 
     init {
-
         viewModelScope.launch {
-            prefs.migrateLegacyCredentialsAndCustomSources(secureStorage)
+            if (secureStorage.isSecureStorageAvailable) {
+                prefs.migrateLegacyCredentialsAndCustomSources(secureStorage)
+            }
             rule34UserId = secureStorage.getRule34UserId()
             rule34ApiKey = secureStorage.getRule34ApiKey()
             gelbooruUserId = secureStorage.getGelbooruUserId()
             gelbooruApiKey = secureStorage.getGelbooruApiKey()
-        }
 
-        rule34UserId = secureStorage.getRule34UserId()
-        rule34ApiKey = secureStorage.getRule34ApiKey()
-        gelbooruUserId = secureStorage.getGelbooruUserId()
-        gelbooruApiKey = secureStorage.getGelbooruApiKey()
+            val initialSource = prefs.defaultSource.first()
+            val initialSafe = prefs.safeMode.first()
+            val initialExcludeSafe = prefs.excludeSafe.first()
+            val initialNoAi = prefs.noAiFilter.first()
+            val initialLang = prefs.language.first()
+            val initialTheme = prefs.themeMode.first()
+            val initialPalette = prefs.palette.first()
+
+            source = initialSource
+            safeMode = initialSafe
+            excludeSafe = initialExcludeSafe
+            noAi = initialNoAi
+            language = initialLang
+            themeMode = initialTheme
+            palette = initialPalette
+
+            search(source, "", safeMode)
+        }
 
         viewModelScope.launch {
             prefs.themeMode.collect { themeMode = it }
@@ -184,24 +219,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
 
         viewModelScope.launch {
-            val initialSource = prefs.defaultSource.first()
-            val initialSafe = prefs.safeMode.first()
-            val initialExcludeSafe = prefs.excludeSafe.first()
-            val initialNoAi = prefs.noAiFilter.first()
-            val initialLang = prefs.language.first()
-            val initialTheme = prefs.themeMode.first()
-            val initialPalette = prefs.palette.first()
-            source = initialSource
-            safeMode = initialSafe
-            excludeSafe = initialExcludeSafe
-            noAi = initialNoAi
-            language = initialLang
-            themeMode = initialTheme
-            palette = initialPalette
-            search(source, "", safeMode)
-        }
-
-        viewModelScope.launch {
             checkForUpdates(isAutoCheck = true)
         }
 
@@ -216,7 +233,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 val currentVer = try {
                     val pInfo = getApplication<Application>().packageManager.getPackageInfo(getApplication<Application>().packageName, 0)
                     pInfo.versionName ?: "5.0"
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     "5.0"
                 }
 
@@ -235,9 +252,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         manualCheckResult = "UP_TO_DATE"
                     }
                 }
-            } catch (e: Exception) {
+            } catch (c: CancellationException) {
+                throw c
+            } catch (_: Exception) {
                 if (!isAutoCheck) {
-                    manualCheckResult = "FAILED"
+                    manualCheckResult = "ERROR"
                 }
             } finally {
                 isCheckingUpdate = false
@@ -245,34 +264,28 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun downloadAndInstallUpdate(context: android.content.Context, info: AppUpdateInfo) {
-        val targetUrl = info.apkDownloadUrl ?: info.releaseUrl
-        if (info.apkDownloadUrl.isNullOrBlank()) {
-            runCatching {
-                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(targetUrl)).apply {
-                    flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                context.startActivity(intent)
-            }
-            dismissUpdate()
-            return
-        }
+    fun downloadAndInstallUpdate(context: Context, info: AppUpdateInfo) {
+        downloadUpdate(context, info)
+    }
+
+    fun downloadUpdate(context: Context, info: AppUpdateInfo) {
+        if (isDownloadingUpdate || info.apkDownloadUrl.isNullOrBlank()) return
+
+        isDownloadingUpdate = true
+        updateDownloadProgress = 0f
+        updateDownloadProgressText = "0%"
+        updateDownloadError = null
 
         viewModelScope.launch(Dispatchers.IO) {
-            isDownloadingUpdate = true
-            updateDownloadProgress = 0f
-            updateDownloadProgressText = "0%"
-            updateDownloadError = null
-
-            val updatesDir = java.io.File(context.cacheDir, "updates").apply { mkdirs() }
-            val targetFile = java.io.File(updatesDir, "Booru_${info.latestVersion}.apk")
+            val downloadDir = File(context.cacheDir, "updates").apply { mkdirs() }
+            val targetFile = File(downloadDir, "booru_${info.latestVersion}.apk")
             if (targetFile.exists()) {
                 targetFile.delete()
             }
 
             try {
                 val downloadUrl = info.apkDownloadUrl
-                val parsedUri = android.net.Uri.parse(downloadUrl)
+                val parsedUri = Uri.parse(downloadUrl)
                 val scheme = parsedUri.scheme ?: ""
                 val host = parsedUri.host?.lowercase() ?: ""
                 if (!scheme.equals("https", ignoreCase = true)) {
@@ -284,37 +297,37 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     throw SecurityException("Untrusted download host: $host")
                 }
 
-                val client = okhttp3.OkHttpClient.Builder()
-                    .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-                    .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+                val client = OkHttpClient.Builder()
+                    .connectTimeout(30, TimeUnit.SECONDS)
+                    .readTimeout(60, TimeUnit.SECONDS)
                     .followRedirects(true)
                     .followSslRedirects(true)
                     .addNetworkInterceptor { chain ->
                         val reqUrl = chain.request().url
                         if (!reqUrl.isHttps) {
-                            throw java.io.IOException("Insecure HTTP redirect blocked: $reqUrl")
+                            throw IOException("Insecure HTTP redirect blocked: $reqUrl")
                         }
                         val redirectHost = reqUrl.host.lowercase()
                         val allowedRedirect = redirectHost == "github.com" || redirectHost.endsWith(".github.com") ||
                                 redirectHost == "objects.githubusercontent.com" || redirectHost.endsWith(".githubusercontent.com")
                         if (!allowedRedirect) {
-                            throw java.io.IOException("Redirect to untrusted host blocked: $redirectHost")
+                            throw IOException("Redirect to untrusted host blocked: $redirectHost")
                         }
                         chain.proceed(chain.request())
                     }
                     .build()
 
-                val request = okhttp3.Request.Builder()
+                val request = Request.Builder()
                     .url(downloadUrl)
                     .header("User-Agent", "BooruApp/${info.latestVersion}")
                     .build()
 
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
-                        throw java.io.IOException("HTTP error: ${response.code}")
+                        throw IOException("HTTP error: ${response.code}")
                     }
 
-                    val body = response.body ?: throw java.io.IOException("Empty response body")
+                    val body = response.body ?: throw IOException("Empty response body")
                     val contentLength = body.contentLength()
                     val inputStream = body.byteStream()
                     val outputStream = targetFile.outputStream()
@@ -322,19 +335,23 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     val buffer = ByteArray(8192)
                     var bytesRead: Int
                     var totalRead = 0L
+                    val maxAllowedBytes = 100L * 1024L * 1024L
                     var lastUpdateMs = System.currentTimeMillis()
 
                     outputStream.use { out ->
                         inputStream.use { input ->
                             while (input.read(buffer).also { bytesRead = it } != -1) {
-                                out.write(buffer, 0, bytesRead)
                                 totalRead += bytesRead
+                                if (totalRead > maxAllowedBytes) {
+                                    throw SecurityException("Update package exceeds maximum allowed size")
+                                }
+                                out.write(buffer, 0, bytesRead)
                                 val now = System.currentTimeMillis()
                                 if (contentLength > 0 && now - lastUpdateMs > 100) {
                                     val progress = (totalRead.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f)
                                     val readMb = String.format(java.util.Locale.US, "%.1f", totalRead / (1024f * 1024f))
                                     val totalMb = String.format(java.util.Locale.US, "%.1f", contentLength / (1024f * 1024f))
-                                    kotlinx.coroutines.withContext(Dispatchers.Main) {
+                                    withContext(Dispatchers.Main) {
                                         updateDownloadProgress = progress
                                         updateDownloadProgressText = "${(progress * 100).toInt()}% ($readMb MB / $totalMb MB)"
                                     }
@@ -344,7 +361,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         }
                     }
 
-                    kotlinx.coroutines.withContext(Dispatchers.Main) {
+                    withContext(Dispatchers.Main) {
                         updateDownloadProgress = 1f
                         updateDownloadProgressText = "100%"
                         downloadedApkFile = targetFile
@@ -352,11 +369,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         installApk(context, targetFile)
                     }
                 }
+            } catch (c: CancellationException) {
+                if (targetFile.exists()) targetFile.delete()
+                throw c
             } catch (e: Exception) {
                 if (targetFile.exists()) {
                     targetFile.delete()
                 }
-                kotlinx.coroutines.withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Main) {
                     isDownloadingUpdate = false
                     updateDownloadError = e.message ?: "Download failed"
                 }
@@ -364,7 +384,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun installApk(context: android.content.Context, file: java.io.File) {
+    fun installApk(context: Context, file: File) {
         try {
             if (!verifyApkSignature(context, file)) {
                 if (file.exists()) file.delete()
@@ -372,14 +392,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 return
             }
 
-            val apkUri = androidx.core.content.FileProvider.getUriForFile(
+            val apkUri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
                 file
             )
-            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW).apply {
+            val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(apkUri, "application/vnd.android.package-archive")
-                flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
             }
             context.startActivity(intent)
         } catch (e: Exception) {
@@ -387,42 +407,68 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    private fun verifyApkSignature(context: android.content.Context, apkFile: java.io.File): Boolean {
+    private fun verifyApkSignature(context: Context, apkFile: File): Boolean {
         return try {
             val pm = context.packageManager
-            val archiveInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            val archiveInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 pm.getPackageArchiveInfo(
                     apkFile.absolutePath,
-                    android.content.pm.PackageManager.PackageInfoFlags.of(android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES.toLong())
+                    PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong())
                 )
             } else {
                 @Suppress("DEPRECATION")
-                pm.getPackageArchiveInfo(apkFile.absolutePath, android.content.pm.PackageManager.GET_SIGNATURES)
+                pm.getPackageArchiveInfo(apkFile.absolutePath, PackageManager.GET_SIGNATURES)
             } ?: return false
 
             if (archiveInfo.packageName != context.packageName) {
                 return false
             }
 
-            val currentInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            val currentInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 pm.getPackageInfo(
                     context.packageName,
-                    android.content.pm.PackageManager.PackageInfoFlags.of(android.content.pm.PackageManager.GET_SIGNING_CERTIFICATES.toLong())
+                    PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong())
                 )
             } else {
                 @Suppress("DEPRECATION")
-                pm.getPackageInfo(context.packageName, android.content.pm.PackageManager.GET_SIGNATURES)
+                pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES)
             }
 
-            val apkSignatures: List<ByteArray> = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                archiveInfo.signingInfo?.apkContentsSigners?.map { it.toByteArray() } ?: emptyList()
+            val currentVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                currentInfo.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                currentInfo.versionCode.toLong()
+            }
+            val apkVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                archiveInfo.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                archiveInfo.versionCode.toLong()
+            }
+            if (apkVersionCode < currentVersionCode) {
+                return false
+            }
+
+            val apkSignatures: List<ByteArray> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val signingInfo = archiveInfo.signingInfo
+                if (signingInfo != null) {
+                    val signers = signingInfo.apkContentsSigners?.map { it.toByteArray() } ?: emptyList()
+                    if (signers.isNotEmpty()) signers
+                    else signingInfo.signingCertificateHistory?.map { it.toByteArray() } ?: emptyList()
+                } else emptyList()
             } else {
                 @Suppress("DEPRECATION")
                 archiveInfo.signatures?.map { it.toByteArray() } ?: emptyList()
             }
 
-            val currentSignatures: List<ByteArray> = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-                currentInfo.signingInfo?.apkContentsSigners?.map { it.toByteArray() } ?: emptyList()
+            val currentSignatures: List<ByteArray> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val signingInfo = currentInfo.signingInfo
+                if (signingInfo != null) {
+                    val signers = signingInfo.apkContentsSigners?.map { it.toByteArray() } ?: emptyList()
+                    if (signers.isNotEmpty()) signers
+                    else signingInfo.signingCertificateHistory?.map { it.toByteArray() } ?: emptyList()
+                } else emptyList()
             } else {
                 @Suppress("DEPRECATION")
                 currentInfo.signatures?.map { it.toByteArray() } ?: emptyList()
@@ -448,8 +494,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun dismissUpdate() {
         updateInfo = null
         isDownloadingUpdate = false
-        updateDownloadError = null
-        downloadedApkFile = null
     }
 
     fun clearManualCheckResult() {
@@ -465,13 +509,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             val clean = bl.trim().lowercase()
             if (clean.isBlank()) return@any false
             clean in mediaTags ||
-            clean in mediaTagsStripped ||
-            (clean.contains(":") && clean.substringAfter(":") in mediaTags)
+                    clean in mediaTagsStripped ||
+                    (clean.contains(":") && clean.substringAfter(":") in mediaTags)
         }
     }
 
     private fun updateFavoritesState(list: List<RemoteMedia>) {
         favoritesList = list
+        favoriteKeys = list.map { it.mediaKey }.toSet()
         favoriteIds = list.mapNotNull { it.id.ifBlank { null } }.toSet()
         favoriteUrls = list.mapNotNull { it.url.ifBlank { null } }.toSet()
     }
@@ -485,7 +530,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         search(newSource, query, safeMode)
     }
 
-    var needsFeedRefresh by mutableStateOf(false);                     private set
+    var needsFeedRefresh by mutableStateOf(false); private set
 
     fun getCredentials(): BooruCredentials {
         return BooruCredentials(
@@ -512,7 +557,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         tags: String = this.query,
         safeMode: Boolean = this.safeMode
     ) {
+        val searchGen = ++currentSearchGeneration
         searchJob?.cancel()
+        loadMoreJob?.cancel()
+
         this.source = source
         this.query = tags
         this.safeMode = safeMode
@@ -564,7 +612,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                                     credentials = getCredentials(),
                                     customSources = customSources
                                 )
-                            } catch (e: Exception) {
+                            } catch (_: Exception) {
                                 emptyList()
                             }
                         }
@@ -581,13 +629,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                                     credentials = getCredentials(),
                                     customSources = customSources
                                 )
-                            } catch (e: Exception) {
+                            } catch (_: Exception) {
                                 emptyList()
                             }
                         }
                         val r1 = d1.await()
                         val r2 = d2.await()
-                        val combined = (r1 + r2).distinctBy { "${it.source}_${it.id.ifBlank { it.url }}" }
+                        val combined = (r1 + r2).distinctBy { it.mediaKey }
                         if (combined.isNotEmpty()) combined else {
                             repo.search(
                                 source = source,
@@ -614,7 +662,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                                 credentials = getCredentials(),
                                 customSources = customSources
                             )
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             emptyList()
                         }
                         if (r.isNotEmpty()) r else {
@@ -644,8 +692,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         customSources = customSources
                     )
                 }
+
+                if (searchGen != currentSearchGeneration) return@launch
+
                 val filtered = list.filterNot { isBlacklisted(it) }
-                    .distinctBy { "${it.source}_${it.id.ifBlank { it.url }}" }
+                    .distinctBy { it.mediaKey }
                     .filter { item ->
                         if (selectedContentTypes.isEmpty()) true
                         else (
@@ -657,36 +708,46 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 results = filtered
                 hasMore = list.size >= BooruRepository.PAGE_SIZE
             } catch (authEx: BooruAuthException) {
-                results = emptyList()
-                isAuthError = true
-                authErrorSource = authEx.sourceKey
-                authErrorCode = authEx.statusCode
-                error = authEx.message
+                if (searchGen == currentSearchGeneration) {
+                    results = emptyList()
+                    isAuthError = true
+                    authErrorSource = authEx.sourceKey
+                    authErrorCode = authEx.statusCode
+                    error = authEx.message
+                }
             } catch (httpEx: BooruHttpException) {
-                results = emptyList()
-                isAuthError = httpEx.statusCode == 401 || httpEx.statusCode == 403
-                authErrorSource = httpEx.sourceKey
-                authErrorCode = httpEx.statusCode
-                error = httpEx.message
-            } catch (c: kotlinx.coroutines.CancellationException) {
-
+                if (searchGen == currentSearchGeneration) {
+                    results = emptyList()
+                    isAuthError = httpEx.statusCode == 401 || httpEx.statusCode == 403
+                    authErrorSource = httpEx.sourceKey
+                    authErrorCode = httpEx.statusCode
+                    error = httpEx.message
+                }
+            } catch (c: CancellationException) {
+                throw c
             } catch (e: Exception) {
-                results = emptyList()
-                isAuthError = false
-                authErrorSource = null
-                authErrorCode = null
-                error = e.message ?: "Failed to load data"
+                if (searchGen == currentSearchGeneration) {
+                    results = emptyList()
+                    isAuthError = false
+                    authErrorSource = null
+                    authErrorCode = null
+                    error = e.message ?: "Failed to load data"
+                }
             } finally {
-                loading = false
+                if (searchGen == currentSearchGeneration) {
+                    loading = false
+                }
             }
         }
     }
 
     fun loadMore() {
         if (loading || loadingMore || !hasMore) return
+        val searchGen = currentSearchGeneration
         currentPage++
 
-        viewModelScope.launch {
+        loadMoreJob?.cancel()
+        loadMoreJob = viewModelScope.launch {
             loadingMore = true
             try {
                 val list = if (source == BooruRepository.SOURCE_ALL && query.isBlank() && recommendationTags.isNotEmpty()) {
@@ -717,6 +778,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         customSources = customSources
                     )
                 }
+
+                if (searchGen != currentSearchGeneration) return@launch
+
                 val filtered = list.filterNot { isBlacklisted(it) }
                     .filter { item ->
                         if (selectedContentTypes.isEmpty()) true
@@ -726,14 +790,18 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                             (selectedContentTypes.contains(ContentType.GIFS) && item.isGif)
                         )
                     }
-                results = (results + filtered).distinctBy { "${it.source}_${it.id.ifBlank { it.url }}" }
+                results = (results + filtered).distinctBy { it.mediaKey }
                 hasMore = list.size >= BooruRepository.PAGE_SIZE
-            } catch (c: kotlinx.coroutines.CancellationException) {
-
-            } catch (e: Exception) {
-                currentPage--
+            } catch (c: CancellationException) {
+                throw c
+            } catch (_: Exception) {
+                if (searchGen == currentSearchGeneration) {
+                    currentPage--
+                }
             } finally {
-                loadingMore = false
+                if (searchGen == currentSearchGeneration) {
+                    loadingMore = false
+                }
             }
         }
     }
@@ -762,8 +830,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             try {
                 val suggestions = repo.getTagSuggestions(source, input)
                 tagSuggestions = suggestions
-            } catch (c: kotlinx.coroutines.CancellationException) {
-
+            } catch (c: CancellationException) {
+                throw c
             } catch (_: Exception) {
                 tagSuggestions = emptyList()
             }
@@ -776,23 +844,31 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun toggleFavorite(media: RemoteMedia) {
         viewModelScope.launch {
-            if (isFavorite(media)) {
-                favoriteDao.deleteByUrl(media.url)
-                BooruCacheManager.removeFavoriteMedia(getApplication(), media)
-            } else {
-                favoriteDao.insert(FavoriteEntity.fromRemoteMedia(media))
-                BooruCacheManager.saveFavoriteMedia(getApplication(), media)
+            favoriteMutex.withLock {
+                val key = media.mediaKey
+                if (isFavorite(media)) {
+                    favoriteDao.deleteByKey(key)
+                    if (media.url.isNotBlank()) {
+                        favoriteDao.deleteByUrl(media.url)
+                    }
+                    BooruCacheManager.removeFavoriteMedia(getApplication(), media)
+                } else {
+                    favoriteDao.insert(FavoriteEntity.fromRemoteMedia(media))
+                    BooruCacheManager.saveFavoriteMedia(getApplication(), media)
+                }
+                updateCacheSize()
             }
-            updateCacheSize()
         }
     }
 
     fun clearFavorites() {
         viewModelScope.launch {
-            val allFavs = favoritesList
-            favoriteDao.clearAll()
-            allFavs.forEach { BooruCacheManager.removeFavoriteMedia(getApplication(), it) }
-            updateCacheSize()
+            favoriteMutex.withLock {
+                val allFavs = favoritesList
+                favoriteDao.clearAll()
+                allFavs.forEach { BooruCacheManager.removeFavoriteMedia(getApplication(), it) }
+                updateCacheSize()
+            }
         }
     }
 
@@ -818,8 +894,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun isFavorite(media: RemoteMedia): Boolean {
-        return (media.id.isNotBlank() && media.id in favoriteIds) ||
-               (media.url.isNotBlank() && media.url in favoriteUrls)
+        val key = media.mediaKey
+        return key in favoriteKeys || (media.url.isNotBlank() && media.url in favoriteUrls)
     }
 
     fun updateThemeMode(mode: ThemeMode) {
@@ -997,12 +1073,19 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun addCustomSource(source: CustomBooruSource): Boolean {
-        val cleanUrl = sanitizeBooruBaseUrl(source.baseUrl)
-        if (!cleanUrl.startsWith("https://", ignoreCase = true)) {
-            error = "Custom source URL must use HTTPS"
+        if (!isHttpsBooruUrl(source.baseUrl)) {
+            error = "Custom source URL must use a valid HTTPS URL"
             return false
         }
-        val safeSource = source.copy(baseUrl = cleanUrl)
+        if (isBuiltInSourceName(source.name)) {
+            error = "Custom source name cannot conflict with built-in sources"
+            return false
+        }
+        if (source.name.isBlank()) {
+            error = "Custom source name cannot be empty"
+            return false
+        }
+        val safeSource = source.copy(baseUrl = sanitizeBooruBaseUrl(source.baseUrl))
         if (secureStorage.isSecureStorageAvailable) {
             secureStorage.setCustomApiKey(safeSource.id, safeSource.apiKey)
             secureStorage.setCustomUserId(safeSource.id, safeSource.userId)
@@ -1028,10 +1111,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         customSources = updated
         viewModelScope.launch { prefs.saveCustomSources(updated) }
         val isCurrentSourceDeleted = target != null && (
-            source.equals(target.name, ignoreCase = true) ||
-            source.equals(target.id, ignoreCase = true) ||
-            source.equals(target.key, ignoreCase = true)
-        )
+                source.equals(target.name, ignoreCase = true) ||
+                        source.equals(target.id, ignoreCase = true) ||
+                        source.equals(target.key, ignoreCase = true)
+                )
         if (isCurrentSourceDeleted || availableSources.none { it.equals(source, ignoreCase = true) }) {
             source = BooruRepository.SOURCE_ALL
             viewModelScope.launch { prefs.setDefaultSource(BooruRepository.SOURCE_ALL) }

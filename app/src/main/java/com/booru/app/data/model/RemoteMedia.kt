@@ -1,5 +1,26 @@
 package com.booru.app
 
+enum class Rating(val code: String) {
+    SAFE("s"),
+    QUESTIONABLE("q"),
+    EXPLICIT("e"),
+    UNKNOWN("u");
+
+    companion object {
+        fun fromString(value: String?): Rating {
+            val v = value?.trim()?.lowercase() ?: return UNKNOWN
+            return when (v) {
+                "s", "safe", "g", "general" -> SAFE
+                "q", "questionable", "sensitive" -> QUESTIONABLE
+                "e", "explicit" -> EXPLICIT
+                else -> UNKNOWN
+            }
+        }
+
+        fun fromCode(code: String?): Rating = fromString(code)
+    }
+}
+
 data class RemoteMedia(
     val url: String,
     val preview: String,
@@ -7,12 +28,30 @@ data class RemoteMedia(
     val tags: String,
     val score: Int,
     val source: String,
-    val rating: String,
+    val rating: String = "u",
     val id: String = "",
     val width: Int = 0,
     val height: Int = 0,
     val createdAt: Long = 0L
 ) {
+    val mediaKey: String
+        get() = if (id.isNotBlank()) "${source.lowercase().trim()}_$id" else url
+
+    val ratingType: Rating
+        get() = Rating.fromString(rating)
+
+    val isSafe: Boolean
+        get() = ratingType == Rating.SAFE
+
+    val isQuestionable: Boolean
+        get() = ratingType == Rating.QUESTIONABLE
+
+    val isExplicit: Boolean
+        get() = ratingType == Rating.EXPLICIT
+
+    val isUnknownRating: Boolean
+        get() = ratingType == Rating.UNKNOWN
+
     val tagList: List<String> by lazy {
         tags.split(Regex("[\\s,]+"))
             .map { it.trim().removeSuffix(",").removePrefix(",").trim() }
