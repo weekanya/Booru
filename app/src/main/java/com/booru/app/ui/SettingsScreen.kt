@@ -1023,16 +1023,14 @@ fun SettingsScreen(
                                             )
                                             Box(
                                                 modifier = Modifier
-                                                    .size(22.dp)
-                                                    .clip(CircleShape)
-                                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                                                    .size(20.dp)
                                                     .clickable { vm.removeBlacklistedTag(tag) },
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Icon(
                                                     Icons.Rounded.Close,
                                                     contentDescription = "Remove",
-                                                    modifier = Modifier.size(12.dp),
+                                                    modifier = Modifier.size(14.dp),
                                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }

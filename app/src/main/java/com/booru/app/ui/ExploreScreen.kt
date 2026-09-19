@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -1177,6 +1178,94 @@ fun SourceSelectionSheet(
     }
 }
 
+@Composable
+private fun FilterOptionButton(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String,
+    icon: ImageVector? = null,
+    modifier: Modifier = Modifier,
+    selectedContainerColor: Color = MaterialTheme.colorScheme.primary,
+    selectedContentColor: Color = MaterialTheme.colorScheme.onPrimary,
+    unselectedContainerColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
+    unselectedContentColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) selectedContainerColor else unselectedContainerColor,
+        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+        label = "filterBtnBg"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (selected) selectedContentColor else unselectedContentColor,
+        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+        label = "filterBtnContent"
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (selected) 1.02f else 1.0f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "filterBtnScale"
+    )
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = containerColor,
+        contentColor = contentColor,
+        modifier = modifier
+            .height(46.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .bouncyPress()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            AnimatedVisibility(
+                visible = selected,
+                enter = fadeIn(tween(200)) + expandHorizontally(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                ),
+                exit = fadeOut(tween(150)) + shrinkHorizontally(tween(150))
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                }
+            }
+            if (icon != null && !selected) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+            }
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FilterSelectionBottomSheet(
@@ -1282,38 +1371,15 @@ private fun FilterSelectionBottomSheet(
 
                 types.forEach { (type, label, icon) ->
                     val selected = tempContentTypes.contains(type)
-                    Surface(
+                    FilterOptionButton(
+                        selected = selected,
                         onClick = {
                             tempContentTypes = if (selected) tempContentTypes - type else tempContentTypes + type
                         },
-                        shape = RoundedCornerShape(16.dp),
-                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                            .bouncyPress()
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                icon,
-                                contentDescription = null,
-                                tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1
-                            )
-                        }
-                    }
+                        label = label,
+                        icon = icon,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
@@ -1339,38 +1405,12 @@ private fun FilterSelectionBottomSheet(
 
                 sortOrders.forEach { (order, label) ->
                     val selected = (tempSortOrder == order)
-                    Surface(
+                    FilterOptionButton(
+                        selected = selected,
                         onClick = { tempSortOrder = order },
-                        shape = RoundedCornerShape(16.dp),
-                        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                            .bouncyPress()
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            if (selected) {
-                                Icon(
-                                    Icons.Rounded.Check,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(Modifier.width(4.dp))
-                            }
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1
-                            )
-                        }
-                    }
+                        label = label,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
 
@@ -1389,96 +1429,39 @@ private fun FilterSelectionBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 val isAllRating = !tempSafeMode && !tempExcludeSafe
-                Surface(
+                FilterOptionButton(
+                    selected = isAllRating,
                     onClick = {
                         tempSafeMode = false
                         tempExcludeSafe = false
                     },
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (isAllRating) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                        .bouncyPress()
-                ) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = Strings.allRatings(lang),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (isAllRating) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isAllRating) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
-                    }
-                }
+                    label = Strings.allRatings(lang),
+                    modifier = Modifier.weight(1f)
+                )
 
-                Surface(
+                FilterOptionButton(
+                    selected = tempExcludeSafe,
                     onClick = {
                         tempExcludeSafe = !tempExcludeSafe
                         if (tempExcludeSafe) tempSafeMode = false
                     },
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (tempExcludeSafe) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                        .bouncyPress()
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            Icons.Rounded.Explicit,
-                            contentDescription = null,
-                            tint = if (tempExcludeSafe) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = Strings.only18Badge(lang),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (tempExcludeSafe) FontWeight.Bold else FontWeight.Medium,
-                            color = if (tempExcludeSafe) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
-                    }
-                }
+                    label = Strings.only18Badge(lang),
+                    icon = Icons.Rounded.Explicit,
+                    selectedContainerColor = MaterialTheme.colorScheme.error,
+                    selectedContentColor = MaterialTheme.colorScheme.onError,
+                    modifier = Modifier.weight(1f)
+                )
 
-                Surface(
+                FilterOptionButton(
+                    selected = tempSafeMode,
                     onClick = {
                         tempSafeMode = !tempSafeMode
                         if (tempSafeMode) tempExcludeSafe = false
                     },
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (tempSafeMode) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                        .bouncyPress()
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            Icons.Rounded.Shield,
-                            contentDescription = null,
-                            tint = if (tempSafeMode) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = Strings.safeModeBadge(lang),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (tempSafeMode) FontWeight.Bold else FontWeight.Medium,
-                            color = if (tempSafeMode) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1
-                        )
-                    }
-                }
+                    label = Strings.safeModeBadge(lang),
+                    icon = Icons.Rounded.Shield,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             Spacer(Modifier.height(16.dp))
