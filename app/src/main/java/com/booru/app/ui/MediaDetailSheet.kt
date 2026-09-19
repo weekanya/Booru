@@ -65,7 +65,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -478,23 +480,6 @@ fun MediaDetailSheet(
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
     ) {
-        val isTallInitial = remember(currentMedia.id, currentMedia.url) {
-            !currentMedia.isVideo && currentMedia.width > 0 && currentMedia.height > 0 &&
-            (currentMedia.height.toFloat() / currentMedia.width.toFloat() > 1.35f)
-        }
-        var detectedRatio by remember(currentMedia.id, currentMedia.url) {
-            mutableFloatStateOf(
-                if (currentMedia.width > 0 && currentMedia.height > 0) {
-                    currentMedia.height.toFloat() / currentMedia.width.toFloat()
-                } else 1f
-            )
-        }
-        var isComicScrollMode by remember(currentMedia.id, currentMedia.url) {
-            mutableStateOf(isTallInitial)
-        }
-        val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
-        val comicHeight = (screenWidth * detectedRatio).coerceIn(380.dp, 3600.dp)
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -502,21 +487,12 @@ fun MediaDetailSheet(
                 .padding(bottom = 36.dp)
         ) {
             Box(
-                modifier = if (isComicScrollMode && !currentMedia.isVideo) {
-                    Modifier
-                        .fillMaxWidth()
-                        .height(comicHeight)
-                        .padding(horizontal = 8.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                } else {
-                    Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 360.dp, max = 560.dp)
-                        .padding(horizontal = 16.dp)
-                        .clip(RoundedCornerShape(26.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
-                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 360.dp, max = 560.dp)
+                    .padding(horizontal = 16.dp)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                 contentAlignment = Alignment.Center
             ) {
                 HorizontalPager(
@@ -543,53 +519,12 @@ fun MediaDetailSheet(
                             vm = vm,
                             isActive = (pagerState.currentPage == page),
                             resetZoomKey = if (pagerState.currentPage == page) resetZoomKey else 0,
-                            isComicMode = (isComicScrollMode && pagerState.currentPage == page),
-                            onAspectRatioDetected = { ratio ->
-                                if (pagerState.currentPage == page) {
-                                    detectedRatio = ratio
-                                    if (ratio > 1.35f && !isComicScrollMode && !isTallInitial) {
-                                        isComicScrollMode = true
-                                    }
-                                }
-                            },
                             onZoomChanged = { zoomed ->
                                 if (pagerState.currentPage == page) {
                                     isCurrentPageZoomed = zoomed
                                 }
                             }
                         )
-                    }
-                }
-
-                if (!currentMedia.isVideo && (isTallInitial || detectedRatio > 1.35f)) {
-                    Surface(
-                        onClick = { isComicScrollMode = !isComicScrollMode },
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.90f),
-                        shadowElevation = 2.dp,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(14.dp)
-                            .bouncyPress()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = if (isComicScrollMode) Icons.Rounded.FitScreen else Icons.Rounded.ViewStream,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = if (isComicScrollMode) Strings.fitMode(lang) else Strings.comicMode(lang),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
                     }
                 }
 
@@ -1357,19 +1292,44 @@ fun DetailZoomableImage(
     vm: GalleryViewModel,
     isActive: Boolean,
     resetZoomKey: Int = 0,
-    isComicMode: Boolean = false,
-    onAspectRatioDetected: (Float) -> Unit = {},
     onZoomChanged: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
     var rawScale by remember { mutableFloatStateOf(1f) }
     var rawOffset by remember { mutableStateOf(Offset.Zero) }
     var detailLoadError by remember(media.id, media.url) { mutableStateOf(false) }
+    var containerSize by remember { mutableStateOf(IntSize.Zero) }
+    var detectedRatio by remember(media.id, media.url) {
+        mutableFloatStateOf(
+            if (media.width > 0 && media.height > 0) {
+                media.height.toFloat() / media.width.toFloat()
+            } else 1f
+        )
+    }
+    var hasInitializedOffset by remember(media.id, media.url) { mutableStateOf(false) }
+
+    val cw = containerSize.width.toFloat()
+    val ch = containerSize.height.toFloat()
+    val isTall = cw > 0f && ch > 0f && ((cw * detectedRatio) > (ch * 1.05f))
+    val baseHeight = if (isTall) cw * detectedRatio else ch
+    val maxOffsetY = ((baseHeight * rawScale - ch) / 2f).coerceAtLeast(0f)
+    val maxOffsetX = ((cw * rawScale - cw) / 2f).coerceAtLeast(0f)
+
+    LaunchedEffect(containerSize, detectedRatio, isActive) {
+        if (containerSize.height > 0 && !hasInitializedOffset) {
+            if (isTall) {
+                val initMaxY = ((cw * detectedRatio - ch) / 2f).coerceAtLeast(0f)
+                rawOffset = Offset(0f, initMaxY)
+                hasInitializedOffset = true
+            }
+        }
+    }
 
     LaunchedEffect(isActive) {
         if (!isActive) {
             rawScale = 1f
-            rawOffset = Offset.Zero
+            val initMaxY = if (isTall) ((cw * detectedRatio - ch) / 2f).coerceAtLeast(0f) else 0f
+            rawOffset = Offset(0f, initMaxY)
             onZoomChanged(false)
         }
     }
@@ -1377,7 +1337,8 @@ fun DetailZoomableImage(
     LaunchedEffect(resetZoomKey) {
         if (resetZoomKey > 0) {
             rawScale = 1f
-            rawOffset = Offset.Zero
+            val initMaxY = if (isTall) ((cw * detectedRatio - ch) / 2f).coerceAtLeast(0f) else 0f
+            rawOffset = Offset(0f, initMaxY)
             onZoomChanged(false)
         }
     }
@@ -1396,30 +1357,32 @@ fun DetailZoomableImage(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
+            .onSizeChanged { containerSize = it }
+            .pointerInput(isTall, maxOffsetX, maxOffsetY) {
                 detectTapGestures(
                     onDoubleTap = { tapOffset ->
                         if (rawScale > 1.05f) {
                             rawScale = 1f
-                            rawOffset = Offset.Zero
+                            val initMaxY = if (isTall) ((cw * detectedRatio - ch) / 2f).coerceAtLeast(0f) else 0f
+                            rawOffset = Offset(0f, initMaxY)
                             onZoomChanged(false)
                         } else {
                             val newScale = 2.5f
                             rawScale = newScale
-                            val maxOffsetX = ((newScale - 1f) * size.width.toFloat() / 2f).coerceAtLeast(0f)
-                            val maxOffsetY = ((newScale - 1f) * size.height.toFloat() / 2f).coerceAtLeast(0f)
-                            val targetX = (size.width.toFloat() / 2f - tapOffset.x) * (newScale - 1f)
-                            val targetY = (size.height.toFloat() / 2f - tapOffset.y) * (newScale - 1f)
+                            val currentMaxOX = ((cw * newScale - cw) / 2f).coerceAtLeast(0f)
+                            val currentMaxOY = ((baseHeight * newScale - ch) / 2f).coerceAtLeast(0f)
+                            val targetX = (cw / 2f - tapOffset.x) * (newScale - 1f)
+                            val targetY = (ch / 2f - tapOffset.y) * (newScale - 1f)
                             rawOffset = Offset(
-                                x = targetX.coerceIn(-maxOffsetX, maxOffsetX),
-                                y = targetY.coerceIn(-maxOffsetY, maxOffsetY)
+                                x = targetX.coerceIn(-currentMaxOX, currentMaxOX),
+                                y = targetY.coerceIn(-currentMaxOY, currentMaxOY)
                             )
                             onZoomChanged(true)
                         }
                     }
                 )
             }
-            .pointerInput(Unit) {
+            .pointerInput(isTall, maxOffsetX, maxOffsetY) {
                 awaitEachGesture {
                     var zoom = 1f
                     var pan = Offset.Zero
@@ -1455,18 +1418,29 @@ fun DetailZoomableImage(
                                 val isZoomNow = newScale > 1.05f
                                 onZoomChanged(isZoomNow)
 
-                                if (isZoomNow) {
-                                    val maxOffsetX = ((newScale - 1f) * size.width.toFloat() / 2f).coerceAtLeast(0f)
-                                    val maxOffsetY = ((newScale - 1f) * size.height.toFloat() / 2f).coerceAtLeast(0f)
-                                    val candidateOffset = rawOffset + panChange
-                                    rawOffset = Offset(
-                                        x = candidateOffset.x.coerceIn(-maxOffsetX, maxOffsetX),
-                                        y = candidateOffset.y.coerceIn(-maxOffsetY, maxOffsetY)
-                                    )
-                                } else {
-                                    rawOffset = Offset.Zero
-                                }
+                                val currentMaxOX = ((cw * newScale - cw) / 2f).coerceAtLeast(0f)
+                                val currentMaxOY = ((baseHeight * newScale - ch) / 2f).coerceAtLeast(0f)
+                                val candidateOffset = rawOffset + panChange
+                                rawOffset = Offset(
+                                    x = candidateOffset.x.coerceIn(-currentMaxOX, currentMaxOX),
+                                    y = candidateOffset.y.coerceIn(-currentMaxOY, currentMaxOY)
+                                )
                                 event.changes.forEach { it.consume() }
+                            }
+                        } else if (pointerCount == 1 && isTall && maxOffsetY > 5f) {
+                            val panChange = event.calculatePan()
+                            if (!pastTouchSlop) {
+                                pan += panChange
+                                if (abs(pan.y) > touchSlop && abs(pan.y) > abs(pan.x) * 1.2f) {
+                                    pastTouchSlop = true
+                                }
+                            }
+                            if (pastTouchSlop) {
+                                val canScroll = (panChange.y < 0 && rawOffset.y > -maxOffsetY) || (panChange.y > 0 && rawOffset.y < maxOffsetY)
+                                if (canScroll) {
+                                    rawOffset = Offset(0f, (rawOffset.y + panChange.y).coerceIn(-maxOffsetY, maxOffsetY))
+                                    event.changes.forEach { it.consume() }
+                                }
                             }
                         }
                     } while (event.changes.any { it.pressed })
@@ -1485,13 +1459,13 @@ fun DetailZoomableImage(
                 .data(detailTargetUrl)
                 .placeholderMemoryCacheKey(media.sample)
                 .crossfade(300)
-                .allowHardware(!media.isGif)
+                .allowHardware(!media.isGif && detectedRatio <= 2.5f)
                 .listener(
                     onSuccess = { _, result ->
                         val w = result.drawable.intrinsicWidth
                         val h = result.drawable.intrinsicHeight
                         if (w > 0 && h > 0) {
-                            onAspectRatioDetected(h.toFloat() / w.toFloat())
+                            detectedRatio = h.toFloat() / w.toFloat()
                         }
                     },
                     onError = { _, _ ->
@@ -1510,14 +1484,15 @@ fun DetailZoomableImage(
                     translationX = animatedOffset.x,
                     translationY = animatedOffset.y
                 ),
-            contentScale = if (isComicMode) ContentScale.FillWidth else ContentScale.Fit
+            contentScale = if (isTall) ContentScale.FillWidth else ContentScale.Fit
         )
 
         if (rawScale > 1.05f) {
             FilledTonalIconButton(
                 onClick = {
                     rawScale = 1f
-                    rawOffset = Offset.Zero
+                    val initMaxY = if (isTall) ((cw * detectedRatio - ch) / 2f).coerceAtLeast(0f) else 0f
+                    rawOffset = Offset(0f, initMaxY)
                     onZoomChanged(false)
                 },
                 shape = CircleShape,

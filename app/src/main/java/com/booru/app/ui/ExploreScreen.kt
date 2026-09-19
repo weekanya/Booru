@@ -130,7 +130,7 @@ fun ExploreScreen(
                 ) {
                     Icon(
                         imageVector = when (vm.source) {
-                            BooruRepository.SOURCE_ALL -> Icons.Rounded.Layers
+                            BooruRepository.SOURCE_ALL -> Icons.Rounded.AutoAwesome
                             BooruRepository.SOURCE_GELBOORU -> Icons.Rounded.Image
                             BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit
                             BooruRepository.SOURCE_REALBOORU -> Icons.Rounded.VideoLibrary
@@ -206,152 +206,6 @@ fun ExploreScreen(
                 }
             }
 
-            val hasActiveFilters = vm.safeMode || vm.excludeSafe || vm.noAi ||
-                    vm.sortOrder != SortOrder.NEWEST || vm.selectedContentTypes.isNotEmpty()
-
-            if (hasActiveFilters) {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (vm.selectedContentTypes.contains(ContentType.PHOTOS)) {
-                        item {
-                            InputChip(
-                                selected = true,
-                                onClick = { vm.toggleContentType(ContentType.PHOTOS) },
-                                label = { Text(Strings.contentTypePhotos(lang), style = MaterialTheme.typography.labelSmall) },
-                                trailingIcon = { Icon(Icons.Rounded.Close, null, modifier = Modifier.size(14.dp)) },
-                                shape = CircleShape,
-                                modifier = Modifier.height(30.dp)
-                            )
-                        }
-                    }
-                    if (vm.selectedContentTypes.contains(ContentType.VIDEOS)) {
-                        item {
-                            InputChip(
-                                selected = true,
-                                onClick = { vm.toggleContentType(ContentType.VIDEOS) },
-                                label = { Text(Strings.contentTypeVideos(lang), style = MaterialTheme.typography.labelSmall) },
-                                trailingIcon = { Icon(Icons.Rounded.Close, null, modifier = Modifier.size(14.dp)) },
-                                shape = CircleShape,
-                                modifier = Modifier.height(30.dp)
-                            )
-                        }
-                    }
-                    if (vm.selectedContentTypes.contains(ContentType.GIFS)) {
-                        item {
-                            InputChip(
-                                selected = true,
-                                onClick = { vm.toggleContentType(ContentType.GIFS) },
-                                label = { Text(Strings.contentTypeGifs(lang), style = MaterialTheme.typography.labelSmall) },
-                                trailingIcon = { Icon(Icons.Rounded.Close, null, modifier = Modifier.size(14.dp)) },
-                                shape = CircleShape,
-                                modifier = Modifier.height(30.dp)
-                            )
-                        }
-                    }
-                    if (vm.excludeSafe) {
-                        item {
-                            InputChip(
-                                selected = true,
-                                onClick = { vm.setExcludeSafeEnabled(false) },
-                                label = { Text(Strings.only18Badge(lang), style = MaterialTheme.typography.labelSmall) },
-                                trailingIcon = { Icon(Icons.Rounded.Close, null, modifier = Modifier.size(14.dp)) },
-                                shape = CircleShape,
-                                modifier = Modifier.height(30.dp)
-                            )
-                        }
-                    }
-                    if (vm.safeMode) {
-                        item {
-                            InputChip(
-                                selected = true,
-                                onClick = { vm.setSafeModeEnabled(false) },
-                                label = { Text(Strings.safeModeBadge(lang), style = MaterialTheme.typography.labelSmall) },
-                                trailingIcon = { Icon(Icons.Rounded.Close, null, modifier = Modifier.size(14.dp)) },
-                                shape = CircleShape,
-                                modifier = Modifier.height(30.dp)
-                            )
-                        }
-                    }
-                    if (vm.noAi) {
-                        item {
-                            InputChip(
-                                selected = true,
-                                onClick = { vm.setNoAiEnabled(false) },
-                                label = { Text(Strings.noAiBadge(lang), style = MaterialTheme.typography.labelSmall) },
-                                trailingIcon = { Icon(Icons.Rounded.Close, null, modifier = Modifier.size(14.dp)) },
-                                shape = CircleShape,
-                                modifier = Modifier.height(30.dp)
-                            )
-                        }
-                    }
-                    if (vm.sortOrder != SortOrder.NEWEST) {
-                        item {
-                            val sortLabel = when (vm.sortOrder) {
-                                SortOrder.SCORE -> Strings.sortScore(lang)
-                                SortOrder.RANDOM -> Strings.sortRandom(lang)
-                                else -> ""
-                            }
-                            InputChip(
-                                selected = true,
-                                onClick = { vm.applySort(SortOrder.NEWEST) },
-                                label = { Text(sortLabel, style = MaterialTheme.typography.labelSmall) },
-                                trailingIcon = { Icon(Icons.Rounded.Close, null, modifier = Modifier.size(14.dp)) },
-                                shape = CircleShape,
-                                modifier = Modifier.height(30.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (vm.recommendationTags.isNotEmpty() && vm.query.isBlank()) {
-                LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    item {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(end = 2.dp)
-                        ) {
-                            Icon(
-                                Icons.Rounded.AutoAwesome,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = Strings.recommendationsTitle(lang),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                    items(vm.recommendationTags) { recTag ->
-                        SuggestionChip(
-                            onClick = {
-                                localQuery = recTag
-                                vm.search(vm.source, recTag, vm.safeMode)
-                            },
-                            label = { Text(recTag, style = MaterialTheme.typography.labelSmall) },
-                            shape = CircleShape,
-                            colors = SuggestionChipDefaults.suggestionChipColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                            ),
-                            border = null,
-                            modifier = Modifier.height(28.dp).bouncyPress()
-                        )
-                    }
-                }
-            }
 
             Row(
                 modifier = Modifier
@@ -1266,7 +1120,7 @@ fun SourceSelectionSheet(
             sources.forEach { src ->
                 val isSelected = currentSource == src
                 val (icon, desc) = when (src) {
-                    BooruRepository.SOURCE_ALL -> Pair(Icons.Rounded.Layers, "Search all available boorus")
+                    BooruRepository.SOURCE_ALL -> Pair(Icons.Rounded.AutoAwesome, Strings.sourceRecommendationsDesc(lang))
                     BooruRepository.SOURCE_RULE34 -> Pair(Icons.Rounded.Explicit, "Rule34 imageboard database")
                     BooruRepository.SOURCE_GELBOORU -> Pair(Icons.Rounded.Image, "Huge anime & art collection")
                     BooruRepository.SOURCE_REALBOORU -> Pair(Icons.Rounded.VideoLibrary, "Realbooru media board")
@@ -1303,10 +1157,16 @@ fun SourceSelectionSheet(
                         Spacer(Modifier.width(14.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = src,
+                                text = if (src == BooruRepository.SOURCE_ALL) Strings.sourceRecommendations(lang) else src,
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
                                 color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = desc,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         if (isSelected) {
@@ -1336,21 +1196,21 @@ private fun FilterSelectionBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         dragHandle = { BottomSheetDefaults.DragHandle() },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 36.dp)
+                .padding(horizontal = 18.dp)
+                .padding(bottom = 24.dp)
                 .verticalScroll(rememberScrollState())
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
+                    .padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -1359,12 +1219,12 @@ private fun FilterSelectionBottomSheet(
                         Icons.Rounded.Tune,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(20.dp)
                     )
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text(
                         text = Strings.filtersAndSorting(lang),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -1376,80 +1236,85 @@ private fun FilterSelectionBottomSheet(
                         vm.setNoAiEnabled(false)
                         vm.applySort(SortOrder.NEWEST)
                         vm.clearContentTypes()
-                    }
+                    },
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                 ) {
-                    Text(Strings.resetFilters(lang), style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        text = Strings.resetFilters(lang),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
 
             Text(
                 text = Strings.contentTypeTitle(lang),
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(top = 4.dp, bottom = 6.dp)
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                val isPhotosSelected = vm.selectedContentTypes.contains(ContentType.PHOTOS)
+                val isPhotos = vm.selectedContentTypes.contains(ContentType.PHOTOS)
                 FilterChip(
-                    selected = isPhotosSelected,
+                    selected = isPhotos,
                     onClick = { vm.toggleContentType(ContentType.PHOTOS) },
-                    label = { Text(Strings.contentTypePhotos(lang), fontWeight = if (isPhotosSelected) FontWeight.Bold else FontWeight.Medium) },
-                    leadingIcon = { Icon(Icons.Rounded.Image, null, modifier = Modifier.size(16.dp)) },
-                    shape = RoundedCornerShape(14.dp),
+                    label = { Text(Strings.contentTypePhotos(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (isPhotos) FontWeight.Bold else FontWeight.Medium) },
+                    leadingIcon = { Icon(Icons.Rounded.Image, null, modifier = Modifier.size(15.dp)) },
+                    shape = RoundedCornerShape(12.dp),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                         selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ),
-                    modifier = Modifier.weight(1f).bouncyPress()
+                    modifier = Modifier.weight(1f).height(34.dp).bouncyPress()
                 )
 
-                val isVideosSelected = vm.selectedContentTypes.contains(ContentType.VIDEOS)
+                val isVideos = vm.selectedContentTypes.contains(ContentType.VIDEOS)
                 FilterChip(
-                    selected = isVideosSelected,
+                    selected = isVideos,
                     onClick = { vm.toggleContentType(ContentType.VIDEOS) },
-                    label = { Text(Strings.contentTypeVideos(lang), fontWeight = if (isVideosSelected) FontWeight.Bold else FontWeight.Medium) },
-                    leadingIcon = { Icon(Icons.Rounded.Videocam, null, modifier = Modifier.size(16.dp)) },
-                    shape = RoundedCornerShape(14.dp),
+                    label = { Text(Strings.contentTypeVideos(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (isVideos) FontWeight.Bold else FontWeight.Medium) },
+                    leadingIcon = { Icon(Icons.Rounded.Videocam, null, modifier = Modifier.size(15.dp)) },
+                    shape = RoundedCornerShape(12.dp),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                         selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ),
-                    modifier = Modifier.weight(1f).bouncyPress()
+                    modifier = Modifier.weight(1f).height(34.dp).bouncyPress()
                 )
 
-                val isGifsSelected = vm.selectedContentTypes.contains(ContentType.GIFS)
+                val isGifs = vm.selectedContentTypes.contains(ContentType.GIFS)
                 FilterChip(
-                    selected = isGifsSelected,
+                    selected = isGifs,
                     onClick = { vm.toggleContentType(ContentType.GIFS) },
-                    label = { Text(Strings.contentTypeGifs(lang), fontWeight = if (isGifsSelected) FontWeight.Bold else FontWeight.Medium) },
-                    leadingIcon = { Icon(Icons.Rounded.Gif, null, modifier = Modifier.size(18.dp)) },
-                    shape = RoundedCornerShape(14.dp),
+                    label = { Text(Strings.contentTypeGifs(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (isGifs) FontWeight.Bold else FontWeight.Medium) },
+                    leadingIcon = { Icon(Icons.Rounded.Gif, null, modifier = Modifier.size(16.dp)) },
+                    shape = RoundedCornerShape(12.dp),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
                         selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                     ),
-                    modifier = Modifier.weight(1f).bouncyPress()
+                    modifier = Modifier.weight(1f).height(34.dp).bouncyPress()
                 )
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(10.dp))
 
             Text(
-                text = Strings.sortScore(lang).let { if (lang == AppLanguage.RUSSIAN) "Сортировка" else "Sort by" },
-                style = MaterialTheme.typography.labelLarge,
+                text = if (lang == AppLanguage.RUSSIAN) "Сортировка" else "Sort by",
+                style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(bottom = 6.dp)
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 SortOrder.entries.forEach { order ->
                     val isSelected = vm.sortOrder == order
@@ -1461,33 +1326,33 @@ private fun FilterSelectionBottomSheet(
                     FilterChip(
                         selected = isSelected,
                         onClick = { vm.applySort(order) },
-                        label = { Text(orderLabel, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium) },
+                        label = { Text(orderLabel, style = MaterialTheme.typography.labelSmall, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium) },
                         leadingIcon = if (isSelected) {
-                            { Icon(Icons.Rounded.Check, null, modifier = Modifier.size(16.dp)) }
+                            { Icon(Icons.Rounded.Check, null, modifier = Modifier.size(14.dp)) }
                         } else null,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
                             selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
                         ),
-                        modifier = Modifier.weight(1f).bouncyPress()
+                        modifier = Modifier.weight(1f).height(34.dp).bouncyPress()
                     )
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(10.dp))
 
             Text(
                 text = Strings.allRatings(lang),
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 8.dp)
+                modifier = Modifier.padding(bottom = 6.dp)
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 val isAllRating = !vm.safeMode && !vm.excludeSafe
                 FilterChip(
@@ -1496,54 +1361,54 @@ private fun FilterSelectionBottomSheet(
                         vm.setSafeModeEnabled(false)
                         vm.setExcludeSafeEnabled(false)
                     },
-                    label = { Text(Strings.allRatings(lang), fontWeight = if (isAllRating) FontWeight.Bold else FontWeight.Medium) },
-                    shape = RoundedCornerShape(14.dp),
+                    label = { Text(Strings.allRatings(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (isAllRating) FontWeight.Bold else FontWeight.Medium) },
+                    shape = RoundedCornerShape(12.dp),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
                         selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer
                     ),
-                    modifier = Modifier.weight(1f).bouncyPress()
+                    modifier = Modifier.weight(1f).height(34.dp).bouncyPress()
                 )
 
                 FilterChip(
                     selected = vm.excludeSafe,
                     onClick = { vm.setExcludeSafeEnabled(!vm.excludeSafe) },
-                    label = { Text(Strings.only18Badge(lang), fontWeight = if (vm.excludeSafe) FontWeight.Bold else FontWeight.Medium) },
-                    leadingIcon = { Icon(Icons.Rounded.Explicit, null, modifier = Modifier.size(16.dp)) },
-                    shape = RoundedCornerShape(14.dp),
+                    label = { Text(Strings.only18Badge(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (vm.excludeSafe) FontWeight.Bold else FontWeight.Medium) },
+                    leadingIcon = { Icon(Icons.Rounded.Explicit, null, modifier = Modifier.size(15.dp)) },
+                    shape = RoundedCornerShape(12.dp),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.errorContainer,
                         selectedLabelColor = MaterialTheme.colorScheme.onErrorContainer
                     ),
-                    modifier = Modifier.weight(1f).bouncyPress()
+                    modifier = Modifier.weight(1f).height(34.dp).bouncyPress()
                 )
 
                 FilterChip(
                     selected = vm.safeMode,
                     onClick = { vm.setSafeModeEnabled(!vm.safeMode) },
-                    label = { Text(Strings.safeModeBadge(lang), fontWeight = if (vm.safeMode) FontWeight.Bold else FontWeight.Medium) },
-                    leadingIcon = { Icon(Icons.Rounded.Shield, null, modifier = Modifier.size(16.dp)) },
-                    shape = RoundedCornerShape(14.dp),
+                    label = { Text(Strings.safeModeBadge(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (vm.safeMode) FontWeight.Bold else FontWeight.Medium) },
+                    leadingIcon = { Icon(Icons.Rounded.Shield, null, modifier = Modifier.size(15.dp)) },
+                    shape = RoundedCornerShape(12.dp),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
                         selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer
                     ),
-                    modifier = Modifier.weight(1f).bouncyPress()
+                    modifier = Modifier.weight(1f).height(34.dp).bouncyPress()
                 )
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(10.dp))
 
             Surface(
                 onClick = { vm.setNoAiEnabled(!vm.noAi) },
-                shape = RoundedCornerShape(18.dp),
-                color = if (vm.noAi) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+                shape = RoundedCornerShape(14.dp),
+                color = if (vm.noAi) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier
                     .fillMaxWidth()
                     .bouncyPress()
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -1552,12 +1417,12 @@ private fun FilterSelectionBottomSheet(
                             Icons.Rounded.AutoAwesome,
                             contentDescription = null,
                             tint = if (vm.noAi) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(18.dp)
                         )
-                        Spacer(Modifier.width(14.dp))
+                        Spacer(Modifier.width(10.dp))
                         Text(
                             text = Strings.noAiBadge(lang),
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
@@ -1568,17 +1433,17 @@ private fun FilterSelectionBottomSheet(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(14.dp))
 
             Button(
                 onClick = onDismiss,
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .height(42.dp)
                     .bouncyPress()
             ) {
-                Text(Strings.applyFilters(lang), fontWeight = FontWeight.Bold)
+                Text(Strings.applyFilters(lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
             }
         }
     }

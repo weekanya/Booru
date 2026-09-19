@@ -105,6 +105,7 @@ class BooruRepository(
         fun getSourceDisplayName(key: String, customSources: List<CustomBooruSource> = emptyList()): String {
             val custom = customSources.find { it.key == key || it.name.equals(key, ignoreCase = true) }
             if (custom != null) return custom.name
+            if (key == SOURCE_ALL || key.equals("all sources", ignoreCase = true)) return "Recommendations"
             return when (key.lowercase()) {
                 "rule34"    -> SOURCE_RULE34
                 "gelbooru"  -> SOURCE_GELBOORU

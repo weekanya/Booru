@@ -21,6 +21,7 @@ import com.booru.app.ui.AppPalette
 import com.booru.app.ui.ThemeMode
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -533,17 +534,101 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
         searchJob = viewModelScope.launch {
             try {
-                val list = repo.search(
-                    source = source,
-                    tags = tags,
-                    safeMode = safeMode,
-                    excludeSafe = excludeSafe,
-                    noAi = noAi,
-                    page = 0,
-                    sortOrder = sortOrder,
-                    credentials = getCredentials(),
-                    customSources = customSources
-                )
+                val list = if (source == BooruRepository.SOURCE_ALL && tags.isBlank() && recommendationTags.isNotEmpty()) {
+                    if (recommendationTags.size >= 2) {
+                        val d1 = async {
+                            try {
+                                repo.search(
+                                    source = source,
+                                    tags = recommendationTags[0],
+                                    safeMode = safeMode,
+                                    excludeSafe = excludeSafe,
+                                    noAi = noAi,
+                                    page = 0,
+                                    sortOrder = sortOrder,
+                                    credentials = getCredentials(),
+                                    customSources = customSources
+                                )
+                            } catch (e: Exception) {
+                                emptyList()
+                            }
+                        }
+                        val d2 = async {
+                            try {
+                                repo.search(
+                                    source = source,
+                                    tags = recommendationTags[1],
+                                    safeMode = safeMode,
+                                    excludeSafe = excludeSafe,
+                                    noAi = noAi,
+                                    page = 0,
+                                    sortOrder = sortOrder,
+                                    credentials = getCredentials(),
+                                    customSources = customSources
+                                )
+                            } catch (e: Exception) {
+                                emptyList()
+                            }
+                        }
+                        val r1 = d1.await()
+                        val r2 = d2.await()
+                        val combined = (r1 + r2).distinctBy { "${it.source}_${it.id.ifBlank { it.url }}" }
+                        if (combined.isNotEmpty()) combined else {
+                            repo.search(
+                                source = source,
+                                tags = "",
+                                safeMode = safeMode,
+                                excludeSafe = excludeSafe,
+                                noAi = noAi,
+                                page = 0,
+                                sortOrder = sortOrder,
+                                credentials = getCredentials(),
+                                customSources = customSources
+                            )
+                        }
+                    } else {
+                        val r = try {
+                            repo.search(
+                                source = source,
+                                tags = recommendationTags[0],
+                                safeMode = safeMode,
+                                excludeSafe = excludeSafe,
+                                noAi = noAi,
+                                page = 0,
+                                sortOrder = sortOrder,
+                                credentials = getCredentials(),
+                                customSources = customSources
+                            )
+                        } catch (e: Exception) {
+                            emptyList()
+                        }
+                        if (r.isNotEmpty()) r else {
+                            repo.search(
+                                source = source,
+                                tags = "",
+                                safeMode = safeMode,
+                                excludeSafe = excludeSafe,
+                                noAi = noAi,
+                                page = 0,
+                                sortOrder = sortOrder,
+                                credentials = getCredentials(),
+                                customSources = customSources
+                            )
+                        }
+                    }
+                } else {
+                    repo.search(
+                        source = source,
+                        tags = tags,
+                        safeMode = safeMode,
+                        excludeSafe = excludeSafe,
+                        noAi = noAi,
+                        page = 0,
+                        sortOrder = sortOrder,
+                        credentials = getCredentials(),
+                        customSources = customSources
+                    )
+                }
                 val filtered = list.filterNot { isBlacklisted(it) }
                     .distinctBy { "${it.source}_${it.id.ifBlank { it.url }}" }
                     .filter { item ->
@@ -589,17 +674,34 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             loadingMore = true
             try {
-                val list = repo.search(
-                    source = source,
-                    tags = query,
-                    safeMode = safeMode,
-                    excludeSafe = excludeSafe,
-                    noAi = noAi,
-                    page = currentPage,
-                    sortOrder = sortOrder,
-                    credentials = getCredentials(),
-                    customSources = customSources
-                )
+                val list = if (source == BooruRepository.SOURCE_ALL && query.isBlank() && recommendationTags.isNotEmpty()) {
+                    val tagIndex = (currentPage + 1) % recommendationTags.size
+                    val targetTag = recommendationTags[tagIndex]
+                    val subPage = currentPage / recommendationTags.size
+                    repo.search(
+                        source = source,
+                        tags = targetTag,
+                        safeMode = safeMode,
+                        excludeSafe = excludeSafe,
+                        noAi = noAi,
+                        page = subPage,
+                        sortOrder = sortOrder,
+                        credentials = getCredentials(),
+                        customSources = customSources
+                    )
+                } else {
+                    repo.search(
+                        source = source,
+                        tags = query,
+                        safeMode = safeMode,
+                        excludeSafe = excludeSafe,
+                        noAi = noAi,
+                        page = currentPage,
+                        sortOrder = sortOrder,
+                        credentials = getCredentials(),
+                        customSources = customSources
+                    )
+                }
                 val filtered = list.filterNot { isBlacklisted(it) }
                     .filter { item ->
                         if (selectedContentTypes.isEmpty()) true
@@ -901,7 +1003,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         ImageQuality.SAMPLE   -> media.sample.ifBlank { media.url.ifBlank { media.preview } }
     }
 
-    fun getSourceDisplayName(key: String): String = BooruRepository.getSourceDisplayName(key, customSources)
+    fun getSourceDisplayName(key: String): String {
+        if (key == BooruRepository.SOURCE_ALL || key.equals("all sources", ignoreCase = true)) {
+            return com.booru.app.data.Strings.sourceRecommendations(language)
+        }
+        return BooruRepository.getSourceDisplayName(key, customSources)
+    }
 
     var fullscreenState by mutableStateOf<FullscreenState?>(null)
         private set

@@ -754,6 +754,16 @@ object Strings {
         AppLanguage.RUSSIAN -> "Для вас"
     }
 
+    fun sourceRecommendations(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Recommendations"
+        AppLanguage.RUSSIAN -> "Рекомендации"
+    }
+
+    fun sourceRecommendationsDesc(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Dynamic feed tailored to your interests"
+        AppLanguage.RUSSIAN -> "Умная лента под ваши интересы"
+    }
+
     fun clearRecommendationsTitle(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Clear recommendation memory"
         AppLanguage.RUSSIAN -> "Стереть память рекомендаций"
