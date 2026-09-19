@@ -2,6 +2,7 @@ package com.booru.app.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
@@ -55,6 +56,7 @@ import com.booru.app.RemoteMedia
 import com.booru.app.data.AppLanguage
 import com.booru.app.data.ImageQuality
 import com.booru.app.data.Strings
+import kotlinx.coroutines.delay
 
 enum class FavoriteMediaTypeFilter {
     ALL,
@@ -85,12 +87,20 @@ fun FavoritesScreen(
     var mediaTypeFilter by rememberSaveable { mutableStateOf(FavoriteMediaTypeFilter.ALL) }
     var sortOrder by rememberSaveable { mutableStateOf(FavoriteSortOrder.NEWEST) }
     var showFilterSheet by remember { mutableStateOf(false) }
-    var showClearSheet by remember { mutableStateOf(false) }
+    var confirmDeleteActive by remember { mutableStateOf(false) }
+
+    LaunchedEffect(confirmDeleteActive) {
+        if (confirmDeleteActive) {
+            delay(3500)
+            confirmDeleteActive = false
+        }
+    }
 
     LaunchedEffect(gridState.isScrollInProgress) {
         if (gridState.isScrollInProgress) {
             focusManager.clearFocus()
             keyboardController?.hide()
+            confirmDeleteActive = false
         }
     }
 
@@ -141,19 +151,14 @@ fun FavoritesScreen(
         }
     }
 
-    if (showClearSheet) {
-        FavoritesClearConfirmBottomSheet(
-            count = vm.favoritesList.size,
-            lang = lang,
-            onConfirm = { vm.clearFavorites() },
-            onDismiss = { showClearSheet = false }
-        )
-    }
-
     if (showFilterSheet) {
         FavoritesFilterBottomSheet(
             currentSort = sortOrder,
             currentType = mediaTypeFilter,
+            allCount = allCount,
+            imagesCount = imagesCount,
+            gifsCount = gifsCount,
+            videosCount = videosCount,
             lang = lang,
             onSortSelected = { sortOrder = it },
             onTypeSelected = { mediaTypeFilter = it },
@@ -170,6 +175,7 @@ fun FavoritesScreen(
             ) {
                 focusManager.clearFocus()
                 keyboardController?.hide()
+                confirmDeleteActive = false
             }
     ) {
         Row(
@@ -282,27 +288,69 @@ fun FavoritesScreen(
                         }
                     }
 
-                    FilledTonalIconButton(
+                    Surface(
                         onClick = {
                             focusManager.clearFocus()
                             keyboardController?.hide()
-                            showClearSheet = true
+                            if (confirmDeleteActive) {
+                                confirmDeleteActive = false
+                                vm.clearFavorites()
+                            } else {
+                                confirmDeleteActive = true
+                            }
                         },
                         shape = CircleShape,
+                        color = if (confirmDeleteActive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
+                        contentColor = if (confirmDeleteActive) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.error,
                         modifier = Modifier
-                            .size(38.dp)
-                            .bouncyPress(),
-                        colors = IconButtonDefaults.filledTonalIconButtonColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
-                            contentColor = MaterialTheme.colorScheme.onErrorContainer
-                        )
+                            .height(38.dp)
+                            .animateContentSize(
+                                animationSpec = spring(
+                                    dampingRatio = 0.82f,
+                                    stiffness = Spring.StiffnessMediumLow
+                                )
+                            )
+                            .bouncyPress()
                     ) {
-                        Icon(
-                            Icons.Rounded.DeleteSweep,
-                            contentDescription = Strings.clearFavoritesConfirm(lang),
-                            modifier = Modifier.size(19.dp),
-                            tint = MaterialTheme.colorScheme.error
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .padding(horizontal = if (confirmDeleteActive) 14.dp else 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.DeleteSweep,
+                                contentDescription = Strings.clearFavoritesConfirm(lang),
+                                modifier = Modifier.size(19.dp),
+                                tint = if (confirmDeleteActive) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.error
+                            )
+                            AnimatedVisibility(
+                                visible = confirmDeleteActive,
+                                enter = fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) +
+                                    expandHorizontally(
+                                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                                        expandFrom = Alignment.Start
+                                    ),
+                                exit = fadeOut(animationSpec = tween(140, easing = FastOutLinearInEasing)) +
+                                    shrinkHorizontally(
+                                        animationSpec = tween(180, easing = FastOutLinearInEasing),
+                                        shrinkTowards = Alignment.Start
+                                    )
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = if (lang == AppLanguage.RUSSIAN) "Удалить всё?" else "Confirm delete?",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onError,
+                                        maxLines = 1,
+                                        softWrap = false
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -372,72 +420,7 @@ fun FavoritesScreen(
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                FavoriteFilterTab(
-                    text = Strings.favFilterAll(lang),
-                    count = allCount,
-                    selected = (mediaTypeFilter == FavoriteMediaTypeFilter.ALL),
-                    onClick = {
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                        mediaTypeFilter = FavoriteMediaTypeFilter.ALL
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-                FavoriteFilterTab(
-                    text = Strings.favFilterImages(lang),
-                    count = imagesCount,
-                    selected = (mediaTypeFilter == FavoriteMediaTypeFilter.IMAGES),
-                    onClick = {
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                        mediaTypeFilter = if (mediaTypeFilter == FavoriteMediaTypeFilter.IMAGES) {
-                            FavoriteMediaTypeFilter.ALL
-                        } else {
-                            FavoriteMediaTypeFilter.IMAGES
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-                FavoriteFilterTab(
-                    text = Strings.favFilterGifs(lang),
-                    count = gifsCount,
-                    selected = (mediaTypeFilter == FavoriteMediaTypeFilter.GIFS),
-                    onClick = {
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                        mediaTypeFilter = if (mediaTypeFilter == FavoriteMediaTypeFilter.GIFS) {
-                            FavoriteMediaTypeFilter.ALL
-                        } else {
-                            FavoriteMediaTypeFilter.GIFS
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-                FavoriteFilterTab(
-                    text = Strings.favFilterVideos(lang),
-                    count = videosCount,
-                    selected = (mediaTypeFilter == FavoriteMediaTypeFilter.VIDEOS),
-                    onClick = {
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                        mediaTypeFilter = if (mediaTypeFilter == FavoriteMediaTypeFilter.VIDEOS) {
-                            FavoriteMediaTypeFilter.ALL
-                        } else {
-                            FavoriteMediaTypeFilter.VIDEOS
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            Spacer(Modifier.height(4.dp))
 
             if (filterText.isNotBlank()) {
                 Row(
@@ -577,6 +560,10 @@ fun FavoritesScreen(
 private fun FavoritesFilterBottomSheet(
     currentSort: FavoriteSortOrder,
     currentType: FavoriteMediaTypeFilter,
+    allCount: Int,
+    imagesCount: Int,
+    gifsCount: Int,
+    videosCount: Int,
     lang: AppLanguage,
     onSortSelected: (FavoriteSortOrder) -> Unit,
     onTypeSelected: (FavoriteMediaTypeFilter) -> Unit,
@@ -694,22 +681,41 @@ private fun FavoritesFilterBottomSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val typeOptions = listOf(
-                    Triple(FavoriteMediaTypeFilter.ALL, Strings.favFilterAll(lang), null),
-                    Triple(FavoriteMediaTypeFilter.IMAGES, Strings.favFilterImages(lang), Icons.Rounded.Image),
-                    Triple(FavoriteMediaTypeFilter.GIFS, Strings.favFilterGifs(lang), Icons.Rounded.Gif),
-                    Triple(FavoriteMediaTypeFilter.VIDEOS, Strings.favFilterVideos(lang), Icons.Rounded.Videocam)
+                FilterOptionButton(
+                    selected = currentType == FavoriteMediaTypeFilter.ALL,
+                    onClick = { onTypeSelected(FavoriteMediaTypeFilter.ALL) },
+                    label = "${Strings.favFilterAll(lang)} ($allCount)",
+                    modifier = Modifier.weight(1f)
                 )
-                typeOptions.forEach { (type, label, icon) ->
-                    val selected = currentType == type
-                    FilterOptionButton(
-                        selected = selected,
-                        onClick = { onTypeSelected(type) },
-                        label = label,
-                        icon = icon,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                FilterOptionButton(
+                    selected = currentType == FavoriteMediaTypeFilter.IMAGES,
+                    onClick = { onTypeSelected(FavoriteMediaTypeFilter.IMAGES) },
+                    label = "${Strings.favFilterImages(lang)} ($imagesCount)",
+                    icon = Icons.Rounded.Image,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterOptionButton(
+                    selected = currentType == FavoriteMediaTypeFilter.GIFS,
+                    onClick = { onTypeSelected(FavoriteMediaTypeFilter.GIFS) },
+                    label = "${Strings.favFilterGifs(lang)} ($gifsCount)",
+                    icon = Icons.Rounded.Gif,
+                    modifier = Modifier.weight(1f)
+                )
+                FilterOptionButton(
+                    selected = currentType == FavoriteMediaTypeFilter.VIDEOS,
+                    onClick = { onTypeSelected(FavoriteMediaTypeFilter.VIDEOS) },
+                    label = "${Strings.favFilterVideos(lang)} ($videosCount)",
+                    icon = Icons.Rounded.Videocam,
+                    modifier = Modifier.weight(1f)
+                )
             }
 
             Spacer(Modifier.height(24.dp))
@@ -734,211 +740,6 @@ private fun FavoritesFilterBottomSheet(
                     style = MaterialTheme.typography.labelLarge
                 )
             }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FavoritesClearConfirmBottomSheet(
-    count: Int,
-    lang: AppLanguage,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = {
-            Surface(
-                modifier = Modifier.padding(vertical = 12.dp).size(width = 36.dp, height = 4.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            ) {}
-        },
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
-                modifier = Modifier.size(56.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Rounded.DeleteSweep,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            Text(
-                text = Strings.clearFavoritesConfirm(lang),
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            Text(
-                text = Strings.clearFavoritesDesc(count, lang),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-
-            Spacer(Modifier.height(24.dp))
-
-            Button(
-                onClick = {
-                    onConfirm()
-                    onDismiss()
-                },
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
-                    contentColor = MaterialTheme.colorScheme.onError
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .bouncyPress()
-            ) {
-                Icon(Icons.Rounded.DeleteOutline, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = Strings.clearBtn(lang),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            FilledTonalButton(
-                onClick = onDismiss,
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    contentColor = MaterialTheme.colorScheme.onSurface
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .bouncyPress()
-            ) {
-                Text(
-                    text = Strings.cancelBtn(lang),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun FavoriteFilterTab(
-    text: String,
-    count: Int,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val containerColor by animateColorAsState(
-        targetValue = if (selected)
-            MaterialTheme.colorScheme.primary
-        else
-            MaterialTheme.colorScheme.surfaceContainerHighest,
-        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
-        label = "favFilterBg"
-    )
-
-    val contentColor by animateColorAsState(
-        targetValue = if (selected)
-            MaterialTheme.colorScheme.onPrimary
-        else
-            MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
-        label = "favFilterFg"
-    )
-
-    val scale by animateFloatAsState(
-        targetValue = if (selected) 1.02f else 1.0f,
-        animationSpec = spring(
-            dampingRatio = 0.82f,
-            stiffness = Spring.StiffnessMediumLow
-        ),
-        label = "favFilterScale"
-    )
-
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
-        color = containerColor,
-        contentColor = contentColor,
-        modifier = modifier
-            .height(38.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .bouncyPress()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            AnimatedVisibility(
-                visible = selected,
-                enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
-                    expandHorizontally(
-                        animationSpec = tween(240, easing = FastOutSlowInEasing),
-                        expandFrom = Alignment.Start
-                    ),
-                exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
-                    shrinkHorizontally(
-                        animationSpec = tween(200, easing = FastOutLinearInEasing),
-                        shrinkTowards = Alignment.Start
-                    )
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Rounded.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(13.dp),
-                        tint = contentColor
-                    )
-                    Spacer(Modifier.width(3.dp))
-                }
-            }
-            Text(
-                text = if (count > 0) "$text $count" else text,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                color = contentColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
         }
     }
 }
