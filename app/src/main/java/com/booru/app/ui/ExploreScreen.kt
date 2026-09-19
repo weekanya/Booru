@@ -1192,19 +1192,19 @@ private fun FilterOptionButton(
 ) {
     val containerColor by animateColorAsState(
         targetValue = if (selected) selectedContainerColor else unselectedContainerColor,
-        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
         label = "filterBtnBg"
     )
     val contentColor by animateColorAsState(
         targetValue = if (selected) selectedContentColor else unselectedContentColor,
-        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
         label = "filterBtnContent"
     )
     val scale by animateFloatAsState(
         targetValue = if (selected) 1.02f else 1.0f,
         animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow
+            dampingRatio = 0.82f,
+            stiffness = Spring.StiffnessMediumLow
         ),
         label = "filterBtnScale"
     )
@@ -1229,32 +1229,54 @@ private fun FilterOptionButton(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            AnimatedVisibility(
-                visible = selected,
-                enter = fadeIn(tween(200)) + expandHorizontally(
-                    animationSpec = spring(
-                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                        stiffness = Spring.StiffnessMediumLow
-                    )
-                ),
-                exit = fadeOut(tween(150)) + shrinkHorizontally(tween(150))
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Rounded.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(4.dp))
+            if (icon != null) {
+                Box(
+                    modifier = Modifier.size(18.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AnimatedContent(
+                        targetState = selected,
+                        transitionSpec = {
+                            (fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                                scaleIn(initialScale = 0.6f, animationSpec = tween(220, easing = FastOutSlowInEasing)))
+                                .togetherWith(
+                                    fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
+                                        scaleOut(targetScale = 0.6f, animationSpec = tween(180, easing = FastOutLinearInEasing))
+                                )
+                        },
+                        label = "filterBtnIconAnim"
+                    ) { isSel ->
+                        Icon(
+                            imageVector = if (isSel) Icons.Rounded.Check else icon,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
-            }
-            if (icon != null && !selected) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
                 Spacer(Modifier.width(4.dp))
+            } else {
+                AnimatedVisibility(
+                    visible = selected,
+                    enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                        expandHorizontally(
+                            animationSpec = tween(240, easing = FastOutSlowInEasing),
+                            expandFrom = Alignment.Start
+                        ),
+                    exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
+                        shrinkHorizontally(
+                            animationSpec = tween(200, easing = FastOutLinearInEasing),
+                            shrinkTowards = Alignment.Start
+                        )
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                    }
+                }
             }
             Text(
                 text = label,
