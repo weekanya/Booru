@@ -6,7 +6,9 @@ import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -438,7 +440,7 @@ fun SettingsScreen(
                             MaterialTheme.colorScheme.primaryContainer
                         else
                             MaterialTheme.colorScheme.surfaceContainerHigh,
-                        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
                         label = "qualityBg"
                     )
 
@@ -447,7 +449,7 @@ fun SettingsScreen(
                             MaterialTheme.colorScheme.onPrimaryContainer
                         else
                             MaterialTheme.colorScheme.onSurface,
-                        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
                         label = "qualityContent"
                     )
 
@@ -456,15 +458,15 @@ fun SettingsScreen(
                             MaterialTheme.colorScheme.primary
                         else
                             MaterialTheme.colorScheme.onSurfaceVariant,
-                        animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
                         label = "qualityIcon"
                     )
 
                     val scale by animateFloatAsState(
                         targetValue = if (isSelected) 1.02f else 1.0f,
                         animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioMediumBouncy,
-                            stiffness = Spring.StiffnessLow
+                            dampingRatio = 0.82f,
+                            stiffness = Spring.StiffnessMediumLow
                         ),
                         label = "qualityScale"
                     )
@@ -515,13 +517,16 @@ fun SettingsScreen(
                             }
                             AnimatedVisibility(
                                 visible = isSelected,
-                                enter = fadeIn(tween(200)) + expandHorizontally(
-                                    animationSpec = spring(
-                                        dampingRatio = Spring.DampingRatioMediumBouncy,
-                                        stiffness = Spring.StiffnessMediumLow
+                                enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                                    expandHorizontally(
+                                        animationSpec = tween(240, easing = FastOutSlowInEasing),
+                                        expandFrom = Alignment.Start
+                                    ),
+                                exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
+                                    shrinkHorizontally(
+                                        animationSpec = tween(200, easing = FastOutLinearInEasing),
+                                        shrinkTowards = Alignment.Start
                                     )
-                                ),
-                                exit = fadeOut(tween(150)) + shrinkHorizontally(tween(150))
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Spacer(Modifier.width(8.dp))
@@ -1919,7 +1924,7 @@ fun <T> MD3SegmentedChoiceRow(
                     MaterialTheme.colorScheme.primary
                 else
                     MaterialTheme.colorScheme.surfaceContainerHighest,
-                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
                 label = "segmentedBg"
             )
 
@@ -1928,15 +1933,15 @@ fun <T> MD3SegmentedChoiceRow(
                     MaterialTheme.colorScheme.onPrimary
                 else
                     MaterialTheme.colorScheme.onSurfaceVariant,
-                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing),
+                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
                 label = "segmentedContent"
             )
 
             val scale by animateFloatAsState(
                 targetValue = if (isSelected) 1.02f else 1.0f,
                 animationSpec = spring(
-                    dampingRatio = Spring.DampingRatioMediumBouncy,
-                    stiffness = Spring.StiffnessLow
+                    dampingRatio = 0.82f,
+                    stiffness = Spring.StiffnessMediumLow
                 ),
                 label = "segmentedScale"
             )
@@ -1964,13 +1969,16 @@ fun <T> MD3SegmentedChoiceRow(
                 ) {
                     AnimatedVisibility(
                         visible = isSelected,
-                        enter = fadeIn(tween(200)) + expandHorizontally(
-                            animationSpec = spring(
-                                dampingRatio = Spring.DampingRatioMediumBouncy,
-                                stiffness = Spring.StiffnessMediumLow
+                        enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                            expandHorizontally(
+                                animationSpec = tween(240, easing = FastOutSlowInEasing),
+                                expandFrom = Alignment.Start
+                            ),
+                        exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
+                            shrinkHorizontally(
+                                animationSpec = tween(200, easing = FastOutLinearInEasing),
+                                shrinkTowards = Alignment.Start
                             )
-                        ),
-                        exit = fadeOut(tween(150)) + shrinkHorizontally(tween(150))
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
