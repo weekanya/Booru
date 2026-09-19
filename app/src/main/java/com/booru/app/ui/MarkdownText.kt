@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -78,6 +79,15 @@ fun MarkdownText(
                 trimmed.isEmpty() -> {
                     Spacer(Modifier.height(2.dp))
                 }
+                trimmed.matches("^[-*_]{3,}$".toRegex()) -> {
+                    HorizontalDivider(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                        thickness = 1.dp
+                    )
+                }
                 trimmed.startsWith("### ") -> {
                     Text(
                         text = parseInlineMarkdown(trimmed.removePrefix("### ")),
@@ -106,13 +116,17 @@ fun MarkdownText(
                     )
                 }
                 trimmed.startsWith("- ") || trimmed.startsWith("* ") -> {
+                    val indentSpaces = rawLine.takeWhile { it == ' ' }.length
+                    val indentLevel = (indentSpaces / 2).coerceIn(0, 4)
                     val content = trimmed.substring(2)
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = (indentLevel * 12).dp),
                         verticalAlignment = Alignment.Top
                     ) {
                         Text(
-                            text = "•",
+                            text = if (indentLevel > 0) "◦" else "•",
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
