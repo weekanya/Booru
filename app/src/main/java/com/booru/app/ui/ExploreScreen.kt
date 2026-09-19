@@ -1179,7 +1179,7 @@ fun SourceSelectionSheet(
 }
 
 @Composable
-private fun FilterOptionButton(
+fun FilterOptionButton(
     selected: Boolean,
     onClick: () -> Unit,
     label: String,
