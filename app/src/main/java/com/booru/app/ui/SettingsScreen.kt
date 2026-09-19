@@ -430,8 +430,9 @@ fun SettingsScreen(
                                         text = when (engine) {
                                             BooruEngine.GELBOORU -> "Gelbooru"
                                             BooruEngine.MOEBOORU -> "Moebooru"
-                                            BooruEngine.DANBOORU -> "Danbooru / e621"
+                                            BooruEngine.DANBOORU -> "Danbooru"
                                         },
+                                        maxLines = 1,
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                                         color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface

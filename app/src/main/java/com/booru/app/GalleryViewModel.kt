@@ -829,6 +829,33 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun applyAllFilters(
+        contentTypes: Set<ContentType>,
+        sortOrder: SortOrder,
+        safeMode: Boolean,
+        excludeSafe: Boolean,
+        noAi: Boolean
+    ) {
+        val changed = this.selectedContentTypes != contentTypes ||
+                this.sortOrder != sortOrder ||
+                this.safeMode != safeMode ||
+                this.excludeSafe != excludeSafe ||
+                this.noAi != noAi
+        this.selectedContentTypes = contentTypes
+        this.sortOrder = sortOrder
+        this.safeMode = safeMode
+        this.excludeSafe = excludeSafe
+        this.noAi = noAi
+        if (changed) {
+            viewModelScope.launch {
+                prefs.setSafeMode(safeMode)
+                prefs.setExcludeSafe(excludeSafe)
+                prefs.setNoAiFilter(noAi)
+            }
+            refresh()
+        }
+    }
+
     fun setSafeModeEnabled(enabled: Boolean) {
         viewModelScope.launch {
             prefs.setSafeMode(enabled)

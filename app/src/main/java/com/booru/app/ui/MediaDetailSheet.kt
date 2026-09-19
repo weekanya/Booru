@@ -65,6 +65,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import coil.compose.SubcomposeAsyncImage
+import coil.compose.SubcomposeAsyncImageContent
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.IntSize
@@ -1298,7 +1300,6 @@ fun DetailZoomableImage(
     var rawScale by remember { mutableFloatStateOf(1f) }
     var rawOffset by remember { mutableStateOf(Offset.Zero) }
     var detailLoadError by remember(media.id, media.url) { mutableStateOf(false) }
-    var containerSize by remember { mutableStateOf(IntSize.Zero) }
     var detectedRatio by remember(media.id, media.url) {
         mutableFloatStateOf(
             if (media.width > 0 && media.height > 0) {
@@ -1306,30 +1307,13 @@ fun DetailZoomableImage(
             } else 1f
         )
     }
-    var hasInitializedOffset by remember(media.id, media.url) { mutableStateOf(false) }
 
-    val cw = containerSize.width.toFloat()
-    val ch = containerSize.height.toFloat()
-    val isTall = cw > 0f && ch > 0f && ((cw * detectedRatio) > (ch * 1.05f))
-    val baseHeight = if (isTall) cw * detectedRatio else ch
-    val maxOffsetY = ((baseHeight * rawScale - ch) / 2f).coerceAtLeast(0f)
-    val maxOffsetX = ((cw * rawScale - cw) / 2f).coerceAtLeast(0f)
-
-    LaunchedEffect(containerSize, detectedRatio, isActive) {
-        if (containerSize.height > 0 && !hasInitializedOffset) {
-            if (isTall) {
-                val initMaxY = ((cw * detectedRatio - ch) / 2f).coerceAtLeast(0f)
-                rawOffset = Offset(0f, initMaxY)
-                hasInitializedOffset = true
-            }
-        }
-    }
+    val isTall = (media.width > 0 && media.height > 0 && media.height.toFloat() / media.width.toFloat() > 1.35f) || (detectedRatio > 1.35f)
 
     LaunchedEffect(isActive) {
         if (!isActive) {
             rawScale = 1f
-            val initMaxY = if (isTall) ((cw * detectedRatio - ch) / 2f).coerceAtLeast(0f) else 0f
-            rawOffset = Offset(0f, initMaxY)
+            rawOffset = Offset.Zero
             onZoomChanged(false)
         }
     }
@@ -1337,176 +1321,253 @@ fun DetailZoomableImage(
     LaunchedEffect(resetZoomKey) {
         if (resetZoomKey > 0) {
             rawScale = 1f
-            val initMaxY = if (isTall) ((cw * detectedRatio - ch) / 2f).coerceAtLeast(0f) else 0f
-            rawOffset = Offset(0f, initMaxY)
+            rawOffset = Offset.Zero
             onZoomChanged(false)
         }
     }
 
-    val animatedScale by animateFloatAsState(
-        targetValue = rawScale,
-        animationSpec = Motion.softSpring(),
-        label = "zoomScale"
-    )
-    val animatedOffset by animateOffsetAsState(
-        targetValue = rawOffset,
-        animationSpec = Motion.softSpring(),
-        label = "zoomOffset"
-    )
+    val detailTargetUrl = if (detailLoadError) {
+        media.preview.ifBlank { media.sample.ifBlank { media.url } }
+    } else {
+        vm.resolveMediaUrl(media)
+    }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .onSizeChanged { containerSize = it }
-            .pointerInput(isTall, maxOffsetX, maxOffsetY) {
-                detectTapGestures(
-                    onDoubleTap = { tapOffset ->
-                        if (rawScale > 1.05f) {
-                            rawScale = 1f
-                            val initMaxY = if (isTall) ((cw * detectedRatio - ch) / 2f).coerceAtLeast(0f) else 0f
-                            rawOffset = Offset(0f, initMaxY)
-                            onZoomChanged(false)
-                        } else {
-                            val newScale = 2.5f
-                            rawScale = newScale
-                            val currentMaxOX = ((cw * newScale - cw) / 2f).coerceAtLeast(0f)
-                            val currentMaxOY = ((baseHeight * newScale - ch) / 2f).coerceAtLeast(0f)
-                            val targetX = (cw / 2f - tapOffset.x) * (newScale - 1f)
-                            val targetY = (ch / 2f - tapOffset.y) * (newScale - 1f)
-                            rawOffset = Offset(
-                                x = targetX.coerceIn(-currentMaxOX, currentMaxOX),
-                                y = targetY.coerceIn(-currentMaxOY, currentMaxOY)
+    if (isTall) {
+        val scrollState = rememberScrollState()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            SubcomposeAsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(detailTargetUrl)
+                    .size(coil.size.Size(1080, 4096))
+                    .crossfade(300)
+                    .allowHardware(false)
+                    .listener(
+                        onSuccess = { _, result ->
+                            val w = result.drawable.intrinsicWidth
+                            val h = result.drawable.intrinsicHeight
+                            if (w > 0 && h > 0) {
+                                detectedRatio = h.toFloat() / w.toFloat()
+                            }
+                        },
+                        onError = { _, _ ->
+                            if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
+                                detailLoadError = true
+                            } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
+                                detailLoadError = true
+                            }
+                        }
+                    )
+                    .build(),
+                contentDescription = media.tags,
+                contentScale = ContentScale.FillWidth,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                val state = painter.state
+                if (state is coil.compose.AsyncImagePainter.State.Loading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(420.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(36.dp),
+                            strokeWidth = 3.dp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                } else if (state is coil.compose.AsyncImagePainter.State.Error) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(420.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                Icons.Rounded.BrokenImage,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.outlineVariant,
+                                modifier = Modifier.size(40.dp)
                             )
-                            onZoomChanged(true)
                         }
                     }
-                )
+                } else {
+                    SubcomposeAsyncImageContent()
+                }
             }
-            .pointerInput(isTall, maxOffsetX, maxOffsetY) {
-                awaitEachGesture {
-                    var zoom = 1f
-                    var pan = Offset.Zero
-                    var pastTouchSlop = false
-                    val touchSlop = viewConfiguration.touchSlop
+        }
+    } else {
+        val animatedScale by animateFloatAsState(
+            targetValue = rawScale,
+            animationSpec = Motion.softSpring(),
+            label = "zoomScale"
+        )
+        val animatedOffset by animateOffsetAsState(
+            targetValue = rawOffset,
+            animationSpec = Motion.softSpring(),
+            label = "zoomOffset"
+        )
 
-                    awaitFirstDown(requireUnconsumed = false)
-                    do {
-                        val event = awaitPointerEvent()
-                        val canceled = event.changes.any { it.isConsumed }
-                        if (canceled) break
-
-                        val pointerCount = event.changes.size
-                        if (pointerCount >= 2 || rawScale > 1.05f) {
-                            val zoomChange = event.calculateZoom()
-                            val panChange = event.calculatePan()
-
-                            if (!pastTouchSlop) {
-                                zoom *= zoomChange
-                                pan += panChange
-                                val centroidSize = event.calculateCentroidSize(useCurrent = false)
-                                val zoomMotion = abs(1 - zoom) * centroidSize
-                                val panMotion = pan.getDistance()
-
-                                if (zoomMotion > touchSlop || panMotion > touchSlop || rawScale > 1.05f) {
-                                    pastTouchSlop = true
-                                }
-                            }
-
-                            if (pastTouchSlop) {
-                                val newScale = (rawScale * zoomChange).coerceIn(1f, 4.5f)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onDoubleTap = { tapOffset ->
+                            if (rawScale > 1.05f) {
+                                rawScale = 1f
+                                rawOffset = Offset.Zero
+                                onZoomChanged(false)
+                            } else {
+                                val newScale = 2.5f
                                 rawScale = newScale
-                                val isZoomNow = newScale > 1.05f
-                                onZoomChanged(isZoomNow)
-
-                                val currentMaxOX = ((cw * newScale - cw) / 2f).coerceAtLeast(0f)
-                                val currentMaxOY = ((baseHeight * newScale - ch) / 2f).coerceAtLeast(0f)
-                                val candidateOffset = rawOffset + panChange
+                                val maxOffsetX = ((newScale - 1f) * size.width.toFloat() / 2f).coerceAtLeast(0f)
+                                val maxOffsetY = ((newScale - 1f) * size.height.toFloat() / 2f).coerceAtLeast(0f)
+                                val targetX = (size.width.toFloat() / 2f - tapOffset.x) * (newScale - 1f)
+                                val targetY = (size.height.toFloat() / 2f - tapOffset.y) * (newScale - 1f)
                                 rawOffset = Offset(
-                                    x = candidateOffset.x.coerceIn(-currentMaxOX, currentMaxOX),
-                                    y = candidateOffset.y.coerceIn(-currentMaxOY, currentMaxOY)
+                                    x = targetX.coerceIn(-maxOffsetX, maxOffsetX),
+                                    y = targetY.coerceIn(-maxOffsetY, maxOffsetY)
                                 )
-                                event.changes.forEach { it.consume() }
+                                onZoomChanged(true)
                             }
-                        } else if (pointerCount == 1 && isTall && maxOffsetY > 5f) {
-                            val panChange = event.calculatePan()
-                            if (!pastTouchSlop) {
-                                pan += panChange
-                                if (abs(pan.y) > touchSlop && abs(pan.y) > abs(pan.x) * 1.2f) {
-                                    pastTouchSlop = true
+                        }
+                    )
+                }
+                .pointerInput(Unit) {
+                    awaitEachGesture {
+                        var zoom = 1f
+                        var pan = Offset.Zero
+                        var pastTouchSlop = false
+                        val touchSlop = viewConfiguration.touchSlop
+
+                        awaitFirstDown(requireUnconsumed = false)
+                        do {
+                            val event = awaitPointerEvent()
+                            val canceled = event.changes.any { it.isConsumed }
+                            if (canceled) break
+
+                            val pointerCount = event.changes.size
+                            if (pointerCount >= 2 || rawScale > 1.05f) {
+                                val zoomChange = event.calculateZoom()
+                                val panChange = event.calculatePan()
+
+                                if (!pastTouchSlop) {
+                                    zoom *= zoomChange
+                                    pan += panChange
+                                    val centroidSize = event.calculateCentroidSize(useCurrent = false)
+                                    val zoomMotion = abs(1 - zoom) * centroidSize
+                                    val panMotion = pan.getDistance()
+
+                                    if (zoomMotion > touchSlop || panMotion > touchSlop || rawScale > 1.05f) {
+                                        pastTouchSlop = true
+                                    }
                                 }
-                            }
-                            if (pastTouchSlop) {
-                                val canScroll = (panChange.y < 0 && rawOffset.y > -maxOffsetY) || (panChange.y > 0 && rawOffset.y < maxOffsetY)
-                                if (canScroll) {
-                                    rawOffset = Offset(0f, (rawOffset.y + panChange.y).coerceIn(-maxOffsetY, maxOffsetY))
+
+                                if (pastTouchSlop) {
+                                    val newScale = (rawScale * zoomChange).coerceIn(1f, 4.5f)
+                                    rawScale = newScale
+                                    val isZoomNow = newScale > 1.05f
+                                    onZoomChanged(isZoomNow)
+
+                                    if (isZoomNow) {
+                                        val maxOffsetX = ((newScale - 1f) * size.width.toFloat() / 2f).coerceAtLeast(0f)
+                                        val maxOffsetY = ((newScale - 1f) * size.height.toFloat() / 2f).coerceAtLeast(0f)
+                                        val candidateOffset = rawOffset + panChange
+                                        rawOffset = Offset(
+                                            x = candidateOffset.x.coerceIn(-maxOffsetX, maxOffsetX),
+                                            y = candidateOffset.y.coerceIn(-maxOffsetY, maxOffsetY)
+                                        )
+                                    } else {
+                                        rawOffset = Offset.Zero
+                                    }
                                     event.changes.forEach { it.consume() }
                                 }
                             }
-                        }
-                    } while (event.changes.any { it.pressed })
-                }
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        val detailTargetUrl = if (detailLoadError) {
-            media.sample.ifBlank { media.preview.ifBlank { media.url } }
-        } else {
-            vm.resolveMediaUrl(media)
-        }
-
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(detailTargetUrl)
-                .placeholderMemoryCacheKey(media.sample)
-                .crossfade(300)
-                .allowHardware(!media.isGif && detectedRatio <= 2.5f)
-                .listener(
-                    onSuccess = { _, result ->
-                        val w = result.drawable.intrinsicWidth
-                        val h = result.drawable.intrinsicHeight
-                        if (w > 0 && h > 0) {
-                            detectedRatio = h.toFloat() / w.toFloat()
-                        }
-                    },
-                    onError = { _, _ ->
-                        if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
-                            detailLoadError = true
-                        }
+                        } while (event.changes.any { it.pressed })
                     }
-                )
-                .build(),
-            contentDescription = media.tags,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer(
-                    scaleX = animatedScale,
-                    scaleY = animatedScale,
-                    translationX = animatedOffset.x,
-                    translationY = animatedOffset.y
-                ),
-            contentScale = if (isTall) ContentScale.FillWidth else ContentScale.Fit
-        )
-
-        if (rawScale > 1.05f) {
-            FilledTonalIconButton(
-                onClick = {
-                    rawScale = 1f
-                    val initMaxY = if (isTall) ((cw * detectedRatio - ch) / 2f).coerceAtLeast(0f) else 0f
-                    rawOffset = Offset(0f, initMaxY)
-                    onZoomChanged(false)
                 },
-                shape = CircleShape,
+            contentAlignment = Alignment.Center
+        ) {
+            SubcomposeAsyncImage(
+                model = ImageRequest.Builder(context)
+                    .data(detailTargetUrl)
+                    .placeholderMemoryCacheKey(media.sample)
+                    .crossfade(300)
+                    .allowHardware(!media.isGif)
+                    .listener(
+                        onSuccess = { _, result ->
+                            val w = result.drawable.intrinsicWidth
+                            val h = result.drawable.intrinsicHeight
+                            if (w > 0 && h > 0) {
+                                detectedRatio = h.toFloat() / w.toFloat()
+                            }
+                        },
+                        onError = { _, _ ->
+                            if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
+                                detailLoadError = true
+                            } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
+                                detailLoadError = true
+                            }
+                        }
+                    )
+                    .build(),
+                contentDescription = media.tags,
                 modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(14.dp)
-                    .size(38.dp)
-                    .bouncyPress()
+                    .fillMaxSize()
+                    .graphicsLayer(
+                        scaleX = animatedScale,
+                        scaleY = animatedScale,
+                        translationX = animatedOffset.x,
+                        translationY = animatedOffset.y
+                    ),
+                contentScale = ContentScale.Fit
             ) {
-                Icon(
-                    Icons.Rounded.ZoomOutMap,
-                    contentDescription = "Reset zoom",
-                    modifier = Modifier.size(18.dp)
-                )
+                val state = painter.state
+                if (state is coil.compose.AsyncImagePainter.State.Loading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(36.dp),
+                        strokeWidth = 3.dp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else if (state is coil.compose.AsyncImagePainter.State.Error) {
+                    Icon(
+                        Icons.Rounded.BrokenImage,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.outlineVariant,
+                        modifier = Modifier.size(40.dp)
+                    )
+                } else {
+                    SubcomposeAsyncImageContent()
+                }
+            }
+
+            if (rawScale > 1.05f) {
+                FilledTonalIconButton(
+                    onClick = {
+                        rawScale = 1f
+                        rawOffset = Offset.Zero
+                        onZoomChanged(false)
+                    },
+                    shape = CircleShape,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(14.dp)
+                        .size(38.dp)
+                        .bouncyPress()
+                ) {
+                    Icon(
+                        Icons.Rounded.ZoomOutMap,
+                        contentDescription = "Reset zoom",
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }

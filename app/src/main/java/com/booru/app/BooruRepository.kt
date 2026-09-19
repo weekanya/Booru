@@ -219,14 +219,17 @@ class BooruRepository(
                 "rule34" -> {
                     val url = "https://api.rule34.xxx/autocomplete.php?q=$q"
                     val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
+                    val countRegex = Regex("""\((\d+)\)""")
                     client.newCall(req).execute().use { res ->
                         val body = res.body?.string()?.trim() ?: return@use emptyList()
                         if (body.startsWith("[")) {
                             val arr = JSONArray(body)
                             (0 until arr.length()).mapNotNull { i ->
                                 val o = arr.optJSONObject(i) ?: return@mapNotNull null
-                                val v = o.optString("value").ifBlank { o.optString("label") }
-                                if (v.isNotBlank()) TagSuggestion(value = v, label = o.optString("label", v)) else null
+                                val rawLabel = o.optString("label")
+                                val count = countRegex.find(rawLabel)?.groupValues?.get(1)?.toIntOrNull() ?: o.optInt("count", 0)
+                                val v = o.optString("value").ifBlank { rawLabel.substringBefore(" (").trim() }
+                                if (v.isNotBlank()) TagSuggestion(value = v, label = if (count > 0) "$v ($count)" else rawLabel.ifBlank { v }, count = count) else null
                             }
                         } else emptyList()
                     }
@@ -234,14 +237,17 @@ class BooruRepository(
                 "safebooru" -> {
                     val url = "https://safebooru.org/autocomplete.php?q=$q"
                     val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
+                    val countRegex = Regex("""\((\d+)\)""")
                     client.newCall(req).execute().use { res ->
                         val body = res.body?.string()?.trim() ?: return@use emptyList()
                         if (body.startsWith("[")) {
                             val arr = JSONArray(body)
                             (0 until arr.length()).mapNotNull { i ->
                                 val o = arr.optJSONObject(i) ?: return@mapNotNull null
-                                val v = o.optString("value").ifBlank { o.optString("label") }
-                                if (v.isNotBlank()) TagSuggestion(value = v, label = o.optString("label", v)) else null
+                                val rawLabel = o.optString("label")
+                                val count = countRegex.find(rawLabel)?.groupValues?.get(1)?.toIntOrNull() ?: o.optInt("count", 0)
+                                val v = o.optString("value").ifBlank { rawLabel.substringBefore(" (").trim() }
+                                if (v.isNotBlank()) TagSuggestion(value = v, label = if (count > 0) "$v ($count)" else rawLabel.ifBlank { v }, count = count) else null
                             }
                         } else emptyList()
                     }

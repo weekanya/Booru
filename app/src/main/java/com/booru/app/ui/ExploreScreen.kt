@@ -698,25 +698,10 @@ fun ExploreScreen(
                                                     )
                                                     Spacer(Modifier.width(14.dp))
                                                     Text(
-                                                        suggestion.value,
+                                                        text = if (suggestion.count > 0) "${suggestion.value} (${suggestion.count})" else suggestion.label.ifBlank { suggestion.value },
                                                         style = MaterialTheme.typography.bodyLarge,
                                                         fontWeight = FontWeight.Medium
                                                     )
-                                                }
-
-                                                if (suggestion.count > 0) {
-                                                    Surface(
-                                                        shape = CircleShape,
-                                                        color = MaterialTheme.colorScheme.secondaryContainer
-                                                    ) {
-                                                        Text(
-                                                            "${suggestion.count}",
-                                                            style = MaterialTheme.typography.labelSmall,
-                                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                                            fontWeight = FontWeight.Bold,
-                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                                        )
-                                                    }
                                                 }
                                             }
                                         }
@@ -1193,6 +1178,12 @@ private fun FilterSelectionBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
+    var tempContentTypes by remember { mutableStateOf(vm.selectedContentTypes) }
+    var tempSortOrder by remember { mutableStateOf(vm.sortOrder) }
+    var tempSafeMode by remember { mutableStateOf(vm.safeMode) }
+    var tempExcludeSafe by remember { mutableStateOf(vm.excludeSafe) }
+    var tempNoAi by remember { mutableStateOf(vm.noAi) }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -1231,11 +1222,11 @@ private fun FilterSelectionBottomSheet(
 
                 TextButton(
                     onClick = {
-                        vm.setSafeModeEnabled(false)
-                        vm.setExcludeSafeEnabled(false)
-                        vm.setNoAiEnabled(false)
-                        vm.applySort(SortOrder.NEWEST)
-                        vm.clearContentTypes()
+                        tempContentTypes = emptySet()
+                        tempSortOrder = SortOrder.NEWEST
+                        tempSafeMode = false
+                        tempExcludeSafe = false
+                        tempNoAi = false
                     },
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                 ) {
@@ -1259,10 +1250,12 @@ private fun FilterSelectionBottomSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                val isPhotos = vm.selectedContentTypes.contains(ContentType.PHOTOS)
+                val isPhotos = tempContentTypes.contains(ContentType.PHOTOS)
                 FilterChip(
                     selected = isPhotos,
-                    onClick = { vm.toggleContentType(ContentType.PHOTOS) },
+                    onClick = {
+                        tempContentTypes = if (isPhotos) tempContentTypes - ContentType.PHOTOS else tempContentTypes + ContentType.PHOTOS
+                    },
                     label = { Text(Strings.contentTypePhotos(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (isPhotos) FontWeight.Bold else FontWeight.Medium) },
                     leadingIcon = { Icon(Icons.Rounded.Image, null, modifier = Modifier.size(15.dp)) },
                     shape = RoundedCornerShape(12.dp),
@@ -1273,10 +1266,12 @@ private fun FilterSelectionBottomSheet(
                     modifier = Modifier.weight(1f).height(34.dp).bouncyPress()
                 )
 
-                val isVideos = vm.selectedContentTypes.contains(ContentType.VIDEOS)
+                val isVideos = tempContentTypes.contains(ContentType.VIDEOS)
                 FilterChip(
                     selected = isVideos,
-                    onClick = { vm.toggleContentType(ContentType.VIDEOS) },
+                    onClick = {
+                        tempContentTypes = if (isVideos) tempContentTypes - ContentType.VIDEOS else tempContentTypes + ContentType.VIDEOS
+                    },
                     label = { Text(Strings.contentTypeVideos(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (isVideos) FontWeight.Bold else FontWeight.Medium) },
                     leadingIcon = { Icon(Icons.Rounded.Videocam, null, modifier = Modifier.size(15.dp)) },
                     shape = RoundedCornerShape(12.dp),
@@ -1287,10 +1282,12 @@ private fun FilterSelectionBottomSheet(
                     modifier = Modifier.weight(1f).height(34.dp).bouncyPress()
                 )
 
-                val isGifs = vm.selectedContentTypes.contains(ContentType.GIFS)
+                val isGifs = tempContentTypes.contains(ContentType.GIFS)
                 FilterChip(
                     selected = isGifs,
-                    onClick = { vm.toggleContentType(ContentType.GIFS) },
+                    onClick = {
+                        tempContentTypes = if (isGifs) tempContentTypes - ContentType.GIFS else tempContentTypes + ContentType.GIFS
+                    },
                     label = { Text(Strings.contentTypeGifs(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (isGifs) FontWeight.Bold else FontWeight.Medium) },
                     leadingIcon = { Icon(Icons.Rounded.Gif, null, modifier = Modifier.size(16.dp)) },
                     shape = RoundedCornerShape(12.dp),
@@ -1317,7 +1314,7 @@ private fun FilterSelectionBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 SortOrder.entries.forEach { order ->
-                    val isSelected = vm.sortOrder == order
+                    val isSelected = tempSortOrder == order
                     val orderLabel = when (order) {
                         SortOrder.NEWEST -> Strings.sortNewest(lang)
                         SortOrder.SCORE -> Strings.sortScore(lang)
@@ -1325,7 +1322,7 @@ private fun FilterSelectionBottomSheet(
                     }
                     FilterChip(
                         selected = isSelected,
-                        onClick = { vm.applySort(order) },
+                        onClick = { tempSortOrder = order },
                         label = { Text(orderLabel, style = MaterialTheme.typography.labelSmall, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium) },
                         leadingIcon = if (isSelected) {
                             { Icon(Icons.Rounded.Check, null, modifier = Modifier.size(14.dp)) }
@@ -1354,12 +1351,12 @@ private fun FilterSelectionBottomSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                val isAllRating = !vm.safeMode && !vm.excludeSafe
+                val isAllRating = !tempSafeMode && !tempExcludeSafe
                 FilterChip(
                     selected = isAllRating,
                     onClick = {
-                        vm.setSafeModeEnabled(false)
-                        vm.setExcludeSafeEnabled(false)
+                        tempSafeMode = false
+                        tempExcludeSafe = false
                     },
                     label = { Text(Strings.allRatings(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (isAllRating) FontWeight.Bold else FontWeight.Medium) },
                     shape = RoundedCornerShape(12.dp),
@@ -1371,9 +1368,12 @@ private fun FilterSelectionBottomSheet(
                 )
 
                 FilterChip(
-                    selected = vm.excludeSafe,
-                    onClick = { vm.setExcludeSafeEnabled(!vm.excludeSafe) },
-                    label = { Text(Strings.only18Badge(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (vm.excludeSafe) FontWeight.Bold else FontWeight.Medium) },
+                    selected = tempExcludeSafe,
+                    onClick = {
+                        tempExcludeSafe = !tempExcludeSafe
+                        if (tempExcludeSafe) tempSafeMode = false
+                    },
+                    label = { Text(Strings.only18Badge(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (tempExcludeSafe) FontWeight.Bold else FontWeight.Medium) },
                     leadingIcon = { Icon(Icons.Rounded.Explicit, null, modifier = Modifier.size(15.dp)) },
                     shape = RoundedCornerShape(12.dp),
                     colors = FilterChipDefaults.filterChipColors(
@@ -1384,9 +1384,12 @@ private fun FilterSelectionBottomSheet(
                 )
 
                 FilterChip(
-                    selected = vm.safeMode,
-                    onClick = { vm.setSafeModeEnabled(!vm.safeMode) },
-                    label = { Text(Strings.safeModeBadge(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (vm.safeMode) FontWeight.Bold else FontWeight.Medium) },
+                    selected = tempSafeMode,
+                    onClick = {
+                        tempSafeMode = !tempSafeMode
+                        if (tempSafeMode) tempExcludeSafe = false
+                    },
+                    label = { Text(Strings.safeModeBadge(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (tempSafeMode) FontWeight.Bold else FontWeight.Medium) },
                     leadingIcon = { Icon(Icons.Rounded.Shield, null, modifier = Modifier.size(15.dp)) },
                     shape = RoundedCornerShape(12.dp),
                     colors = FilterChipDefaults.filterChipColors(
@@ -1400,9 +1403,9 @@ private fun FilterSelectionBottomSheet(
             Spacer(Modifier.height(10.dp))
 
             Surface(
-                onClick = { vm.setNoAiEnabled(!vm.noAi) },
+                onClick = { tempNoAi = !tempNoAi },
                 shape = RoundedCornerShape(14.dp),
-                color = if (vm.noAi) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                color = if (tempNoAi) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier
                     .fillMaxWidth()
                     .bouncyPress()
@@ -1416,7 +1419,7 @@ private fun FilterSelectionBottomSheet(
                         Icon(
                             Icons.Rounded.AutoAwesome,
                             contentDescription = null,
-                            tint = if (vm.noAi) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = if (tempNoAi) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.width(10.dp))
@@ -1427,8 +1430,8 @@ private fun FilterSelectionBottomSheet(
                         )
                     }
                     Switch(
-                        checked = vm.noAi,
-                        onCheckedChange = { vm.setNoAiEnabled(it) }
+                        checked = tempNoAi,
+                        onCheckedChange = { tempNoAi = it }
                     )
                 }
             }
@@ -1436,7 +1439,16 @@ private fun FilterSelectionBottomSheet(
             Spacer(Modifier.height(14.dp))
 
             Button(
-                onClick = onDismiss,
+                onClick = {
+                    vm.applyAllFilters(
+                        contentTypes = tempContentTypes,
+                        sortOrder = tempSortOrder,
+                        safeMode = tempSafeMode,
+                        excludeSafe = tempExcludeSafe,
+                        noAi = tempNoAi
+                    )
+                    onDismiss()
+                },
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()
