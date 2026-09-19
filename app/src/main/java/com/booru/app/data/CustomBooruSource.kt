@@ -56,8 +56,7 @@ data class CustomBooruSource(
     val name: String,
     val baseUrl: String,
     val engine: BooruEngine = BooruEngine.GELBOORU,
-    val apiKey: String = "",
-    val userId: String = ""
+    val enabled: Boolean = true
 ) {
     val key: String get() = if (id.startsWith("custom_")) id else "custom_$id"
     val cleanBaseUrl: String get() = sanitizeBooruBaseUrl(baseUrl)
@@ -68,17 +67,22 @@ data class CustomBooruSource(
         put("name", name)
         put("baseUrl", cleanBaseUrl)
         put("engine", engine.name)
+        put("enabled", enabled)
     }
 
     companion object {
-        fun create(name: String, baseUrl: String, engine: BooruEngine, apiKey: String = "", userId: String = ""): CustomBooruSource {
+        fun create(
+            name: String,
+            baseUrl: String,
+            engine: BooruEngine,
+            enabled: Boolean = true
+        ): CustomBooruSource {
             return CustomBooruSource(
                 id = UUID.randomUUID().toString(),
                 name = name.trim(),
                 baseUrl = sanitizeBooruBaseUrl(baseUrl),
                 engine = engine,
-                apiKey = apiKey.trim(),
-                userId = userId.trim()
+                enabled = enabled
             )
         }
 
@@ -88,13 +92,13 @@ data class CustomBooruSource(
             val baseUrl = json.optString("baseUrl").ifBlank { return null }
             val engineName = json.optString("engine", BooruEngine.GELBOORU.name)
             val engine = runCatching { BooruEngine.valueOf(engineName) }.getOrDefault(BooruEngine.GELBOORU)
+            val enabled = json.optBoolean("enabled", true)
             return CustomBooruSource(
                 id = id,
                 name = name,
                 baseUrl = sanitizeBooruBaseUrl(baseUrl),
                 engine = engine,
-                apiKey = json.optString("apiKey", ""),
-                userId = json.optString("userId", "")
+                enabled = enabled
             )
         }
     }

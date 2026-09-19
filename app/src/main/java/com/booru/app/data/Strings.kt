@@ -724,6 +724,11 @@ object Strings {
         AppLanguage.RUSSIAN -> "Временный кэш ленты (избранное защищено)"
     }
 
+    fun favoritesStorageDesc(lang: AppLanguage, size: String) = when (lang) {
+        AppLanguage.ENGLISH -> "Favorites storage: $size"
+        AppLanguage.RUSSIAN -> "Хранилище избранного: $size"
+    }
+
     fun clearCacheSuccess(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Cache cleared (Favorites preserved)"
         AppLanguage.RUSSIAN -> "Кэш очищен (Избранное сохранено)"

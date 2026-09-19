@@ -23,6 +23,29 @@ object UpdateChecker {
         .readTimeout(10, TimeUnit.SECONDS)
         .build()
 
+    fun selectReleaseApk(candidates: List<Pair<String, String>>): String? {
+        if (candidates.isEmpty()) return null
+        val nonDebug = candidates.filterNot { it.first.contains("debug", ignoreCase = true) }
+        if (nonDebug.isEmpty()) return null
+
+        val exactRelease = nonDebug.find {
+            it.first.equals("app-release.apk", ignoreCase = true) ||
+            it.first.equals("booru-release.apk", ignoreCase = true)
+        }
+        if (exactRelease != null) return exactRelease.second
+
+        val endsWithRelease = nonDebug.find {
+            it.first.endsWith("-release.apk", ignoreCase = true) ||
+            it.first.endsWith("_release.apk", ignoreCase = true)
+        }
+        if (endsWithRelease != null) return endsWithRelease.second
+
+        val containsRelease = nonDebug.find { it.first.contains("release", ignoreCase = true) }
+        if (containsRelease != null) return containsRelease.second
+
+        return nonDebug.firstOrNull()?.second
+    }
+
     suspend fun fetchLatestRelease(): AppUpdateInfo? = withContext(Dispatchers.IO) {
         runCatching {
             val request = Request.Builder()
@@ -53,10 +76,7 @@ object UpdateChecker {
                             apkCandidates.add(assetName to downloadUrl)
                         }
                     }
-                    val selected = apkCandidates.find { it.first.contains("release", ignoreCase = true) && !it.first.contains("debug", ignoreCase = true) }
-                        ?: apkCandidates.find { !it.first.contains("debug", ignoreCase = true) }
-                        ?: apkCandidates.firstOrNull()
-                    apkDownloadUrl = selected?.second
+                    apkDownloadUrl = selectReleaseApk(apkCandidates)
                 }
 
                 if (tagName.isNotEmpty()) {

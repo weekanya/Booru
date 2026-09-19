@@ -39,9 +39,8 @@ data class FavoriteEntity(
 
     companion object {
         fun fromRemoteMedia(media: RemoteMedia): FavoriteEntity {
-            val key = if (media.id.isNotBlank()) "${media.source.lowercase().trim()}_${media.id.trim()}" else media.url
             return FavoriteEntity(
-                mediaKey = key,
+                mediaKey = media.mediaKey,
                 url = media.url,
                 id = media.id,
                 preview = media.preview,

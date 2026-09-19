@@ -131,6 +131,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20231013")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    testImplementation("org.xerial:sqlite-jdbc:3.41.2.2")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }

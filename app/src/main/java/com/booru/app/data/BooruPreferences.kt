@@ -277,8 +277,13 @@ class BooruPreferences(private val context: Context) {
                     for (i in 0 until arr.length()) {
                         val obj = arr.optJSONObject(i) ?: continue
                         val parsed = CustomBooruSource.fromJson(obj) ?: continue
-                        val legacyKey = obj.optString("apiKey", "").trim()
-                        val legacyUid = obj.optString("userId", "").trim()
+                        val legacyKey = obj.optString("apiKey", "")
+                            .ifBlank { obj.optString("password", "") }
+                            .ifBlank { obj.optString("token", "") }
+                            .trim()
+                        val legacyUid = obj.optString("userId", "")
+                            .ifBlank { obj.optString("login", "") }
+                            .trim()
                         if (legacyKey.isNotBlank()) {
                             secureStorage.setCustomApiKey(parsed.id, legacyKey)
                             rewritten = true
@@ -289,7 +294,7 @@ class BooruPreferences(private val context: Context) {
                         }
                         cleanArr.put(parsed.toJson())
                     }
-                    if (rewritten) {
+                    if (rewritten || cleanArr.toString() != rawCustom) {
                         prefs[KEY_CUSTOM_SOURCES] = cleanArr.toString()
                     }
                 }

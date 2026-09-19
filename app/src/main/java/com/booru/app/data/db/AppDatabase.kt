@@ -41,7 +41,7 @@ abstract class AppDatabase : RoomDatabase() {
                     """
                     INSERT OR REPLACE INTO favorites_new (mediaKey, url, id, preview, sample, tags, score, source, rating, width, height, createdAt, savedAt)
                     SELECT 
-                        CASE WHEN length(source) > 0 AND length(id) > 0 THEN lower(source) || '_' || id ELSE url END,
+                        CASE WHEN length(trim(source)) > 0 AND length(trim(id)) > 0 THEN lower(trim(source)) || '_' || trim(id) ELSE url END,
                         url, id, preview, sample, tags, score, source, rating, width, height, createdAt, savedAt
                     FROM favorites
                     """.trimIndent()
@@ -59,7 +59,6 @@ abstract class AppDatabase : RoomDatabase() {
                     "booru_database"
                 )
                     .addMigrations(MIGRATION_1_2)
-                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance

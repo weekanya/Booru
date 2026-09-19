@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit
 
 object BooruCacheManager {
 
-    private const val MAX_MEDIA_CACHE_BYTES = 100L * 1024L * 1024L
+    const val MAX_MEDIA_CACHE_BYTES = 100L * 1024L * 1024L
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -75,6 +75,10 @@ object BooruCacheManager {
                 httpClient.newCall(req).execute().use { resp ->
                     if (resp.isSuccessful && resp.body != null) {
                         val body = resp.body!!
+                        val contentLength = body.contentLength()
+                        if (contentLength > MAX_MEDIA_CACHE_BYTES) {
+                            throw IOException("Media Content-Length $contentLength exceeds limit of $MAX_MEDIA_CACHE_BYTES")
+                        }
                         val input = body.byteStream()
                         tempFile.outputStream().use { out ->
                             val buffer = ByteArray(8192)
@@ -118,7 +122,7 @@ object BooruCacheManager {
         }
     }
 
-    fun getCacheSizeBytes(context: Context): Long {
+    fun getBrowsingCacheSizeBytes(context: Context): Long {
         var size = calculateDirSize(context.cacheDir)
         try {
             context.externalCacheDir?.let {
@@ -126,6 +130,14 @@ object BooruCacheManager {
             }
         } catch (_: Exception) {}
         return size
+    }
+
+    fun getFavoritesStorageSizeBytes(context: Context): Long {
+        return calculateDirSize(getFavoritesMediaDir(context))
+    }
+
+    fun getCacheSizeBytes(context: Context): Long {
+        return getBrowsingCacheSizeBytes(context)
     }
 
     private fun calculateDirSize(dir: File): Long {

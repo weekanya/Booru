@@ -681,12 +681,10 @@ fun SettingsScreen(
                             id = targetId,
                             name = cleanName,
                             baseUrl = cleanUrl,
-                            engine = customEngine,
-                            apiKey = customApiKey.trim(),
-                            userId = customUserId.trim()
+                            engine = customEngine
                         )
                         val wasEditingName = editingCustomSource != null && editingCustomSource?.name == vm.source && cleanName != editingCustomSource?.name
-                        val success = vm.addCustomSource(newSource)
+                        val success = vm.addCustomSource(newSource, customApiKey.trim(), customUserId.trim())
                         if (success) {
                             if (wasEditingName) {
                                 vm.selectSource(cleanName)
@@ -1380,8 +1378,8 @@ fun SettingsScreen(
                                 customName = customSource.name
                                 customUrl = customSource.baseUrl
                                 customEngine = customSource.engine
-                                customApiKey = customSource.apiKey
-                                customUserId = customSource.userId
+                                customApiKey = vm.getCustomSourceApiKey(customSource.id)
+                                customUserId = vm.getCustomSourceUserId(customSource.id)
                                 showAddCustomSourceDialog = true
                             }
                             .padding(horizontal = 20.dp, vertical = 12.dp),
@@ -1425,8 +1423,8 @@ fun SettingsScreen(
                                 customName = customSource.name
                                 customUrl = customSource.baseUrl
                                 customEngine = customSource.engine
-                                customApiKey = customSource.apiKey
-                                customUserId = customSource.userId
+                                customApiKey = vm.getCustomSourceApiKey(customSource.id)
+                                customUserId = vm.getCustomSourceUserId(customSource.id)
                                 showAddCustomSourceDialog = true
                             }
                         ) {
@@ -1643,7 +1641,7 @@ fun SettingsScreen(
 
             SettingRowItem(
                 title = Strings.clearCacheTitle(lang),
-                subtitle = Strings.clearCacheDesc(lang),
+                subtitle = "${Strings.clearCacheDesc(lang)} • ${Strings.favoritesStorageDesc(lang, vm.favoritesStorageSizeFormatted)}",
                 icon = Icons.Rounded.CleaningServices,
                 trailing = {
                     FilledTonalButton(

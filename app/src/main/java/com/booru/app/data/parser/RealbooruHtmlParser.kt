@@ -2,22 +2,10 @@ package com.booru.app.data.parser
 
 import com.booru.app.Rating
 import com.booru.app.RemoteMedia
+import com.booru.app.data.AiFilter
 import org.jsoup.Jsoup
 
 object RealbooruHtmlParser {
-
-    private val AI_TAGS = setOf(
-        "ai_generated",
-        "novelai",
-        "stable_diffusion",
-        "midjourney",
-        "dall-e",
-        "synthetic",
-        "created_by_ai",
-        "ai_art",
-        "ai_upscale",
-        "deepfake"
-    )
 
     fun parse(html: String, noAi: Boolean): List<RemoteMedia> {
         if (html.isBlank()) return emptyList()
@@ -58,12 +46,8 @@ object RealbooruHtmlParser {
 
             val tags = tagTokens.joinToString(" ")
 
-            if (noAi) {
-                val hasAi = tagTokens.any { tag ->
-                    val lower = tag.lowercase()
-                    AI_TAGS.any { ai -> lower == ai || lower.contains(ai) }
-                }
-                if (hasAi) continue
+            if (noAi && AiFilter.isAiGeneratedPost(tags)) {
+                continue
             }
 
             val thumbClass = thumb.className().lowercase()

@@ -78,6 +78,10 @@ object MediaActionHandler {
                 }
 
                 val body = response.body ?: return@withContext Result.failure(IOException("Empty response body"))
+                val contentLength = body.contentLength()
+                if (contentLength > MAX_DOWNLOAD_BYTES) {
+                    return@withContext Result.failure(IOException("Download Content-Length $contentLength exceeds limit of $MAX_DOWNLOAD_BYTES"))
+                }
                 val cleanUrl = downloadUrl.substringBefore("?")
                 val originalExt = cleanUrl.substringAfterLast(".", "jpg").lowercase()
 
@@ -153,8 +157,10 @@ object MediaActionHandler {
                     ).apply { mkdirs() }
 
                     val targetFile = File(targetDir, filename)
-                    targetPreQFile = targetFile
-                    targetFile.outputStream().use { outStream ->
+                    val tempFile = File(targetDir, "$filename.tmp")
+                    targetPreQFile = tempFile
+
+                    tempFile.outputStream().use { outStream ->
                         val buffer = ByteArray(8192)
                         var bytesRead: Int
                         var totalRead = 0L
@@ -166,6 +172,15 @@ object MediaActionHandler {
                             outStream.write(buffer, 0, bytesRead)
                         }
                     }
+
+                    if (!tempFile.exists() || tempFile.length() == 0L) {
+                        throw IOException("Downloaded file is empty")
+                    }
+
+                    if (!tempFile.renameTo(targetFile)) {
+                        throw IOException("Failed to rename temporary file to target")
+                    }
+                    targetPreQFile = targetFile
 
                     MediaScannerConnection.scanFile(
                         context,

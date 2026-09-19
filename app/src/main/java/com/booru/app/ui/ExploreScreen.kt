@@ -46,6 +46,7 @@ import com.booru.app.GalleryViewModel
 import com.booru.app.RemoteMedia
 import com.booru.app.SortOrder
 import com.booru.app.data.AppLanguage
+import com.booru.app.data.CustomBooruSource
 import com.booru.app.data.ImageQuality
 import com.booru.app.data.Strings
 
@@ -824,9 +825,10 @@ fun ExploreScreen(
             SourceSelectionSheet(
                 currentSource = vm.source,
                 sources = vm.availableSources,
+                customSources = vm.customSources,
                 lang = lang,
                 onSelect = { selectedSource ->
-                    vm.search(selectedSource, vm.query, vm.safeMode)
+                    vm.selectSource(selectedSource)
                 },
                 onDismiss = { showSourceSheet = false }
             )
@@ -1076,6 +1078,7 @@ private fun MediaCard(
 fun SourceSelectionSheet(
     currentSource: String,
     sources: List<String> = BooruRepository.AVAILABLE_SOURCES,
+    customSources: List<CustomBooruSource> = emptyList(),
     lang: AppLanguage,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
@@ -1115,7 +1118,7 @@ fun SourceSelectionSheet(
             }
 
             sources.forEach { src ->
-                val isSelected = currentSource == src
+                val isSelected = currentSource == src || (customSources.find { it.key == src || it.id == src }?.let { it.key == currentSource || it.id == currentSource || it.name.equals(currentSource, ignoreCase = true) } ?: false)
                 val icon = when (src) {
                     BooruRepository.SOURCE_ALL -> Icons.Rounded.AutoAwesome
                     BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit
@@ -1153,7 +1156,7 @@ fun SourceSelectionSheet(
                         )
                         Spacer(Modifier.width(14.dp))
                         Text(
-                            text = if (src == BooruRepository.SOURCE_ALL) Strings.sourceRecommendations(lang) else src,
+                            text = if (src == BooruRepository.SOURCE_ALL) Strings.sourceRecommendations(lang) else BooruRepository.getSourceDisplayName(src, customSources),
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,

@@ -62,6 +62,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var downloadedApkFile by mutableStateOf<File?>(null); private set
 
     var cacheSizeFormatted by mutableStateOf("0 B"); private set
+    var favoritesStorageSizeFormatted by mutableStateOf("0 B"); private set
     var isClearingCache by mutableStateOf(false); private set
 
     var results by mutableStateOf<List<RemoteMedia>>(emptyList()); private set
@@ -91,8 +92,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     var favoritesList by mutableStateOf<List<RemoteMedia>>(emptyList()); private set
     var favoriteKeys by mutableStateOf<Set<String>>(emptySet()); private set
-    var favoriteIds by mutableStateOf<Set<String>>(emptySet()); private set
-    var favoriteUrls by mutableStateOf<Set<String>>(emptySet()); private set
 
     var searchHistory by mutableStateOf<List<String>>(emptyList()); private set
     var tagSuggestions by mutableStateOf<List<TagSuggestion>>(emptyList()); private set
@@ -122,6 +121,16 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             gelbooruUserId = secureStorage.getGelbooruUserId()
             gelbooruApiKey = secureStorage.getGelbooruApiKey()
 
+            runCatching {
+                val legacyFavs = prefs.favorites.first()
+                if (legacyFavs.isNotEmpty()) {
+                    legacyFavs.forEach { fav ->
+                        favoriteDao.insert(FavoriteEntity.fromRemoteMedia(fav))
+                    }
+                    prefs.clearLegacyFavorites()
+                }
+            }
+
             val initialSource = prefs.defaultSource.first()
             val initialSafe = prefs.safeMode.first()
             val initialExcludeSafe = prefs.excludeSafe.first()
@@ -129,6 +138,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             val initialLang = prefs.language.first()
             val initialTheme = prefs.themeMode.first()
             val initialPalette = prefs.palette.first()
+            val initialCustom = prefs.customSources.first()
+            val initialBlacklist = prefs.tagBlacklist.first()
 
             source = initialSource
             safeMode = initialSafe
@@ -137,10 +148,18 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             language = initialLang
             themeMode = initialTheme
             palette = initialPalette
+            customSources = initialCustom
+            tagBlacklist = initialBlacklist
+
+            updateCacheSize()
 
             search(source, "", safeMode)
-        }
 
+            startLongLivedObservers()
+        }
+    }
+
+    private fun startLongLivedObservers() {
         viewModelScope.launch {
             prefs.themeMode.collect { themeMode = it }
         }
@@ -176,18 +195,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
         viewModelScope.launch {
             prefs.customSources.collect { sources ->
-                customSources = if (secureStorage.isSecureStorageAvailable) {
-                    sources.map { src ->
-                        val secKey = secureStorage.getCustomApiKey(src.id)
-                        val secUid = secureStorage.getCustomUserId(src.id)
-                        src.copy(
-                            apiKey = secKey.ifBlank { src.apiKey },
-                            userId = secUid.ifBlank { src.userId }
-                        )
-                    }
-                } else {
-                    sources
-                }
+                customSources = sources
             }
         }
         viewModelScope.launch {
@@ -198,31 +206,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
         }
-
         viewModelScope.launch {
             favoriteDao.getAllFavorites().collect { entities ->
                 val mediaList = entities.map { it.toRemoteMedia() }
                 updateFavoritesState(mediaList)
             }
         }
-
-        viewModelScope.launch {
-            runCatching {
-                val legacyFavs = prefs.favorites.first()
-                if (legacyFavs.isNotEmpty()) {
-                    legacyFavs.forEach { fav ->
-                        favoriteDao.insert(FavoriteEntity.fromRemoteMedia(fav))
-                    }
-                    prefs.clearLegacyFavorites()
-                }
-            }
-        }
-
         viewModelScope.launch {
             checkForUpdates(isAutoCheck = true)
         }
-
-        updateCacheSize()
     }
 
     fun checkForUpdates(isAutoCheck: Boolean = false) {
@@ -329,13 +321,20 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
                     val body = response.body ?: throw IOException("Empty response body")
                     val contentLength = body.contentLength()
+                    val maxAllowedBytes = 100L * 1024L * 1024L
+                    if (contentLength > maxAllowedBytes) {
+                        throw SecurityException("Update package Content-Length $contentLength exceeds limit of $maxAllowedBytes bytes")
+                    }
+
+                    val tempFile = File(downloadDir, "booru_${info.latestVersion}.apk.tmp")
+                    if (tempFile.exists()) tempFile.delete()
+
                     val inputStream = body.byteStream()
-                    val outputStream = targetFile.outputStream()
+                    val outputStream = tempFile.outputStream()
 
                     val buffer = ByteArray(8192)
                     var bytesRead: Int
                     var totalRead = 0L
-                    val maxAllowedBytes = 100L * 1024L * 1024L
                     var lastUpdateMs = System.currentTimeMillis()
 
                     outputStream.use { out ->
@@ -361,6 +360,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         }
                     }
 
+                    if (!tempFile.exists() || tempFile.length() == 0L) {
+                        throw IOException("Downloaded APK file is empty")
+                    }
+
+                    if (targetFile.exists()) targetFile.delete()
+                    if (!tempFile.renameTo(targetFile)) {
+                        throw IOException("Failed to rename temporary APK to target file")
+                    }
+
                     withContext(Dispatchers.Main) {
                         updateDownloadProgress = 1f
                         updateDownloadProgressText = "100%"
@@ -370,12 +378,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     }
                 }
             } catch (c: CancellationException) {
+                val tempFile = File(downloadDir, "booru_${info.latestVersion}.apk.tmp")
+                if (tempFile.exists()) tempFile.delete()
                 if (targetFile.exists()) targetFile.delete()
                 throw c
             } catch (e: Exception) {
-                if (targetFile.exists()) {
-                    targetFile.delete()
-                }
+                val tempFile = File(downloadDir, "booru_${info.latestVersion}.apk.tmp")
+                if (tempFile.exists()) tempFile.delete()
+                if (targetFile.exists()) targetFile.delete()
                 withContext(Dispatchers.Main) {
                     isDownloadingUpdate = false
                     updateDownloadError = e.message ?: "Download failed"
@@ -407,7 +417,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    private fun verifyApkSignature(context: Context, apkFile: File): Boolean {
+    fun verifyApkSignature(context: Context, apkFile: File): Boolean {
         return try {
             val pm = context.packageManager
             val archiveInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -450,34 +460,38 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 return false
             }
 
-            val apkSignatures: List<ByteArray> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                val signingInfo = archiveInfo.signingInfo
-                if (signingInfo != null) {
-                    val signers = signingInfo.apkContentsSigners?.map { it.toByteArray() } ?: emptyList()
-                    if (signers.isNotEmpty()) signers
-                    else signingInfo.signingCertificateHistory?.map { it.toByteArray() } ?: emptyList()
-                } else emptyList()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                val apkSigningInfo = archiveInfo.signingInfo ?: return false
+                val curSigningInfo = currentInfo.signingInfo ?: return false
+
+                if (apkSigningInfo.hasMultipleSigners() || curSigningInfo.hasMultipleSigners()) {
+                    if (apkSigningInfo.hasMultipleSigners() != curSigningInfo.hasMultipleSigners()) return false
+                    val apkSigners = apkSigningInfo.apkContentsSigners?.map { it.toByteArray() } ?: return false
+                    val curSigners = curSigningInfo.apkContentsSigners?.map { it.toByteArray() } ?: return false
+                    if (apkSigners.size != curSigners.size) return false
+                    apkSigners.all { apkSig -> curSigners.any { curSig -> apkSig.contentEquals(curSig) } }
+                } else {
+                    val apkCurrent = apkSigningInfo.apkContentsSigners?.firstOrNull()?.toByteArray() ?: return false
+                    val curCurrent = curSigningInfo.apkContentsSigners?.firstOrNull()?.toByteArray() ?: return false
+
+                    if (apkCurrent.contentEquals(curCurrent)) {
+                        true
+                    } else {
+                        val apkHistory = apkSigningInfo.signingCertificateHistory?.map { it.toByteArray() } ?: emptyList()
+                        val curHistory = curSigningInfo.signingCertificateHistory?.map { it.toByteArray() } ?: emptyList()
+                        curHistory.any { it.contentEquals(apkCurrent) } || apkHistory.any { it.contentEquals(curCurrent) }
+                    }
+                }
             } else {
                 @Suppress("DEPRECATION")
-                archiveInfo.signatures?.map { it.toByteArray() } ?: emptyList()
-            }
-
-            val currentSignatures: List<ByteArray> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                val signingInfo = currentInfo.signingInfo
-                if (signingInfo != null) {
-                    val signers = signingInfo.apkContentsSigners?.map { it.toByteArray() } ?: emptyList()
-                    if (signers.isNotEmpty()) signers
-                    else signingInfo.signingCertificateHistory?.map { it.toByteArray() } ?: emptyList()
-                } else emptyList()
-            } else {
+                val apkSignatures = archiveInfo.signatures?.map { it.toByteArray() } ?: return false
                 @Suppress("DEPRECATION")
-                currentInfo.signatures?.map { it.toByteArray() } ?: emptyList()
-            }
-
-            if (apkSignatures.isEmpty() || currentSignatures.isEmpty()) return false
-
-            apkSignatures.any { apkSig ->
-                currentSignatures.any { curSig -> apkSig.contentEquals(curSig) }
+                val currentSignatures = currentInfo.signatures?.map { it.toByteArray() } ?: return false
+                if (apkSignatures.isEmpty() || currentSignatures.isEmpty()) return false
+                if (apkSignatures.size != currentSignatures.size) return false
+                apkSignatures.all { apkSig ->
+                    currentSignatures.any { curSig -> apkSig.contentEquals(curSig) }
+                }
             }
         } catch (_: Exception) {
             false
@@ -517,8 +531,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private fun updateFavoritesState(list: List<RemoteMedia>) {
         favoritesList = list
         favoriteKeys = list.map { it.mediaKey }.toSet()
-        favoriteIds = list.mapNotNull { it.id.ifBlank { null } }.toSet()
-        favoriteUrls = list.mapNotNull { it.url.ifBlank { null } }.toSet()
     }
 
     fun selectSource(newSource: String) {
@@ -533,11 +545,23 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var needsFeedRefresh by mutableStateOf(false); private set
 
     fun getCredentials(): BooruCredentials {
+        val customCreds = mutableMapOf<String, Pair<String, String>>()
+        if (secureStorage.isSecureStorageAvailable) {
+            for (cs in customSources) {
+                val k = secureStorage.getCustomApiKey(cs.id)
+                val u = secureStorage.getCustomUserId(cs.id)
+                if (k.isNotBlank() || u.isNotBlank()) {
+                    customCreds[cs.id] = Pair(k, u)
+                    customCreds[cs.key] = Pair(k, u)
+                }
+            }
+        }
         return BooruCredentials(
             rule34UserId = rule34UserId,
             rule34ApiKey = rule34ApiKey,
             gelbooruUserId = gelbooruUserId,
-            gelbooruApiKey = gelbooruApiKey
+            gelbooruApiKey = gelbooruApiKey,
+            customCredentials = customCreds
         )
     }
 
@@ -744,16 +768,16 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun loadMore() {
         if (loading || loadingMore || !hasMore) return
         val searchGen = currentSearchGeneration
-        currentPage++
+        val targetPage = currentPage + 1
 
         loadMoreJob?.cancel()
         loadMoreJob = viewModelScope.launch {
             loadingMore = true
             try {
                 val list = if (source == BooruRepository.SOURCE_ALL && query.isBlank() && recommendationTags.isNotEmpty()) {
-                    val tagIndex = (currentPage + 1) % recommendationTags.size
+                    val tagIndex = (targetPage + 1) % recommendationTags.size
                     val targetTag = recommendationTags[tagIndex]
-                    val subPage = currentPage / recommendationTags.size
+                    val subPage = targetPage / recommendationTags.size
                     repo.search(
                         source = source,
                         tags = targetTag,
@@ -772,7 +796,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         safeMode = safeMode,
                         excludeSafe = excludeSafe,
                         noAi = noAi,
-                        page = currentPage,
+                        page = targetPage,
                         sortOrder = sortOrder,
                         credentials = getCredentials(),
                         customSources = customSources
@@ -790,14 +814,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                             (selectedContentTypes.contains(ContentType.GIFS) && item.isGif)
                         )
                     }
+                currentPage = targetPage
                 results = (results + filtered).distinctBy { it.mediaKey }
                 hasMore = list.size >= BooruRepository.PAGE_SIZE
             } catch (c: CancellationException) {
                 throw c
             } catch (_: Exception) {
-                if (searchGen == currentSearchGeneration) {
-                    currentPage--
-                }
             } finally {
                 if (searchGen == currentSearchGeneration) {
                     loadingMore = false
@@ -848,9 +870,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 val key = media.mediaKey
                 if (isFavorite(media)) {
                     favoriteDao.deleteByKey(key)
-                    if (media.url.isNotBlank()) {
-                        favoriteDao.deleteByUrl(media.url)
-                    }
                     BooruCacheManager.removeFavoriteMedia(getApplication(), media)
                 } else {
                     favoriteDao.insert(FavoriteEntity.fromRemoteMedia(media))
@@ -874,8 +893,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun updateCacheSize() {
         viewModelScope.launch(Dispatchers.IO) {
-            val bytes = BooruCacheManager.getCacheSizeBytes(getApplication())
-            cacheSizeFormatted = BooruCacheManager.formatBytes(bytes)
+            val browsingBytes = BooruCacheManager.getBrowsingCacheSizeBytes(getApplication())
+            val favsBytes = BooruCacheManager.getFavoritesStorageSizeBytes(getApplication())
+            cacheSizeFormatted = BooruCacheManager.formatBytes(browsingBytes)
+            favoritesStorageSizeFormatted = BooruCacheManager.formatBytes(favsBytes)
         }
     }
 
@@ -885,8 +906,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             isClearingCache = true
             BooruCacheManager.clearBrowsingCache(getApplication())
             withContext(Dispatchers.IO) {
-                val bytes = BooruCacheManager.getCacheSizeBytes(getApplication())
-                cacheSizeFormatted = BooruCacheManager.formatBytes(bytes)
+                val browsingBytes = BooruCacheManager.getBrowsingCacheSizeBytes(getApplication())
+                val favsBytes = BooruCacheManager.getFavoritesStorageSizeBytes(getApplication())
+                cacheSizeFormatted = BooruCacheManager.formatBytes(browsingBytes)
+                favoritesStorageSizeFormatted = BooruCacheManager.formatBytes(favsBytes)
             }
             isClearingCache = false
             onComplete()
@@ -894,8 +917,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun isFavorite(media: RemoteMedia): Boolean {
-        val key = media.mediaKey
-        return key in favoriteKeys || (media.url.isNotBlank() && media.url in favoriteUrls)
+        return media.mediaKey in favoriteKeys
     }
 
     fun updateThemeMode(mode: ThemeMode) {
@@ -1072,7 +1094,17 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch { prefs.setImageQuality(quality) }
     }
 
-    fun addCustomSource(source: CustomBooruSource): Boolean {
+    fun getCustomSourceApiKey(sourceId: String): String =
+        if (secureStorage.isSecureStorageAvailable) secureStorage.getCustomApiKey(sourceId) else ""
+
+    fun getCustomSourceUserId(sourceId: String): String =
+        if (secureStorage.isSecureStorageAvailable) secureStorage.getCustomUserId(sourceId) else ""
+
+    fun addCustomSource(
+        source: CustomBooruSource,
+        apiKey: String = "",
+        userId: String = ""
+    ): Boolean {
         if (!isHttpsBooruUrl(source.baseUrl)) {
             error = "Custom source URL must use a valid HTTPS URL"
             return false
@@ -1087,18 +1119,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
         val safeSource = source.copy(baseUrl = sanitizeBooruBaseUrl(source.baseUrl))
         if (secureStorage.isSecureStorageAvailable) {
-            secureStorage.setCustomApiKey(safeSource.id, safeSource.apiKey)
-            secureStorage.setCustomUserId(safeSource.id, safeSource.userId)
+            if (apiKey.isNotBlank()) secureStorage.setCustomApiKey(safeSource.id, apiKey)
+            else secureStorage.removeCustomApiKey(safeSource.id)
+
+            if (userId.isNotBlank()) secureStorage.setCustomUserId(safeSource.id, userId)
+            else secureStorage.removeCustomUserId(safeSource.id)
         }
-        val sourceWithCredentials = if (secureStorage.isSecureStorageAvailable) {
-            safeSource.copy(
-                apiKey = secureStorage.getCustomApiKey(safeSource.id),
-                userId = secureStorage.getCustomUserId(safeSource.id)
-            )
-        } else {
-            safeSource
-        }
-        val updated = customSources.filterNot { it.id == safeSource.id } + sourceWithCredentials
+        val updated = customSources.filterNot { it.id == safeSource.id } + safeSource
         customSources = updated
         viewModelScope.launch { prefs.saveCustomSources(updated) }
         return true
@@ -1123,7 +1150,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     val availableSources: List<String>
-        get() = BooruRepository.AVAILABLE_SOURCES + customSources.map { it.name }
+        get() = BooruRepository.AVAILABLE_SOURCES + customSources.map { it.key }
 
     fun resolveMediaUrl(media: RemoteMedia): String = when (imageQuality) {
         ImageQuality.ORIGINAL -> media.url.ifBlank { media.sample.ifBlank { media.preview } }

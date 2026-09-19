@@ -44,7 +44,8 @@ data class BooruCredentials(
     val rule34UserId: String = "",
     val rule34ApiKey: String = "",
     val gelbooruUserId: String = "",
-    val gelbooruApiKey: String = ""
+    val gelbooruApiKey: String = "",
+    val customCredentials: Map<String, Pair<String, String>> = emptyMap()
 )
 
 open class BooruException(message: String, cause: Throwable? = null) : Exception(message, cause)
@@ -117,19 +118,12 @@ class BooruRepository(
         )
 
         fun isAiGeneratedPost(tags: String): Boolean {
-            if (tags.isBlank()) return false
-            val tokens = tags.lowercase().split(Regex("[\\s,]+"))
-            return tokens.any { token ->
-                val clean = token.removePrefix("-").trim()
-                clean in AI_TAG_KEYWORDS ||
-                        clean.startsWith("ai:") ||
-                        clean.endsWith(":ai") ||
-                        AI_TAG_KEYWORDS.any { clean == it || clean.contains(it) }
-            }
+            return com.booru.app.data.AiFilter.isAiGeneratedPost(tags)
         }
 
         fun getSourceDisplayName(key: String, customSources: List<CustomBooruSource> = emptyList()): String {
-            val custom = customSources.find { it.key == key || it.name.equals(key, ignoreCase = true) }
+            val custom = customSources.find { it.key == key || it.id == key }
+                ?: customSources.find { it.name.equals(key, ignoreCase = true) }
             if (custom != null) return custom.name
             if (key == SOURCE_ALL || key.equals("all sources", ignoreCase = true)) return "Recommendations"
             return when (key.lowercase()) {
@@ -157,7 +151,8 @@ class BooruRepository(
         credentials: BooruCredentials = BooruCredentials(),
         customSources: List<CustomBooruSource> = emptyList()
     ): List<RemoteMedia> = withContext(Dispatchers.IO) {
-        val customMatch = customSources.find { it.name.equals(source, ignoreCase = true) || it.key == source }
+        val customMatch = customSources.find { it.key == source || it.id == source }
+            ?: customSources.find { it.name.equals(source, ignoreCase = true) }
         val targets = when {
             customMatch != null -> listOf(customMatch.key)
             source == SOURCE_SAFEBOORU -> if (excludeSafe) emptyList() else listOf("safebooru")
@@ -408,7 +403,8 @@ class BooruRepository(
             parts.add(cleaned)
         }
 
-        val custom = customSources.find { it.key == key || it.name.equals(key, ignoreCase = true) }
+        val custom = customSources.find { it.key == key || it.id == key }
+            ?: customSources.find { it.name.equals(key, ignoreCase = true) }
 
         if (safe) {
             if (custom != null) {
@@ -503,7 +499,22 @@ class BooruRepository(
                     }
                 }
             }
-            SortOrder.NEWEST -> Unit
+            SortOrder.NEWEST -> {
+                val hasExplicitSort = parts.any { it.startsWith("sort:") || it.startsWith("order:") }
+                if (!hasExplicitSort) {
+                    if (custom != null) {
+                        when (custom.engine) {
+                            BooruEngine.MOEBOORU, BooruEngine.DANBOORU -> parts.add("order:id_desc")
+                            BooruEngine.GELBOORU -> parts.add("sort:id:desc")
+                        }
+                    } else {
+                        when (key) {
+                            "yande", "konachan" -> parts.add("order:id_desc")
+                            "gelbooru", "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> parts.add("sort:id:desc")
+                        }
+                    }
+                }
+            }
         }
 
         return parts.joinToString(" ")
@@ -574,12 +585,17 @@ class BooruRepository(
     ): List<RemoteMedia> {
         val tagQuery = buildTagQuery(userTags, safe, excludeSafe, noAi, key, sortOrder, customSources)
 
-        val custom = customSources.find { it.key == key || it.name.equals(key, ignoreCase = true) }
+        val custom = customSources.find { it.key == key || it.id == key }
+            ?: customSources.find { it.name.equals(key, ignoreCase = true) }
         if (custom != null) {
             val base = custom.cleanBaseUrl
             if (!custom.isHttps) {
                 throw BooruException("Insecure HTTP connections are not allowed for custom source '${custom.name}'. Please update its URL to HTTPS in Settings.")
             }
+            val customKey = credentials.customCredentials[custom.id]?.first
+                ?: credentials.customCredentials[custom.key]?.first ?: ""
+            val customUid = credentials.customCredentials[custom.id]?.second
+                ?: credentials.customCredentials[custom.key]?.second ?: ""
             val fullUrl = when (custom.engine) {
                 BooruEngine.GELBOORU -> {
                     "$base/index.php".toHttpUrl().newBuilder().apply {
@@ -590,9 +606,9 @@ class BooruRepository(
                         if (tagQuery.isNotBlank()) addQueryParameter("tags", tagQuery)
                         addQueryParameter("limit", PAGE_SIZE.toString())
                         addQueryParameter("pid", page.toString())
-                        if (custom.apiKey.isNotBlank() && custom.userId.isNotBlank()) {
-                            addQueryParameter("api_key", custom.apiKey.trim())
-                            addQueryParameter("user_id", custom.userId.trim())
+                        if (customKey.isNotBlank() && customUid.isNotBlank()) {
+                            addQueryParameter("api_key", customKey.trim())
+                            addQueryParameter("user_id", customUid.trim())
                         }
                     }.build()
                 }
@@ -608,9 +624,9 @@ class BooruRepository(
                         if (tagQuery.isNotBlank()) addQueryParameter("tags", tagQuery)
                         addQueryParameter("limit", PAGE_SIZE.toString())
                         addQueryParameter("page", (page + 1).toString())
-                        if (custom.apiKey.isNotBlank() && custom.userId.isNotBlank()) {
-                            addQueryParameter("api_key", custom.apiKey.trim())
-                            addQueryParameter("login", custom.userId.trim())
+                        if (customKey.isNotBlank() && customUid.isNotBlank()) {
+                            addQueryParameter("api_key", customKey.trim())
+                            addQueryParameter("login", customUid.trim())
                         }
                     }.build()
                 }
@@ -622,8 +638,8 @@ class BooruRepository(
                 .header("User-Agent", USER_AGENT)
                 .header("Referer", "$base/")
 
-            if (custom.engine == BooruEngine.DANBOORU && custom.userId.isNotBlank() && custom.apiKey.isNotBlank()) {
-                reqBuilder.header("Authorization", Credentials.basic(custom.userId.trim(), custom.apiKey.trim()))
+            if (custom.engine == BooruEngine.DANBOORU && customUid.isNotBlank() && customKey.isNotBlank()) {
+                reqBuilder.header("Authorization", Credentials.basic(customUid.trim(), customKey.trim()))
             }
 
             val req = reqBuilder.build()
@@ -986,7 +1002,7 @@ class BooruRepository(
                     .ifBlank { o.optString("tag_string_general") }
             }
 
-            if (noAi && (tags.contains("ai_generated", ignoreCase = true) || tags.contains("novelai", ignoreCase = true))) {
+            if (noAi && com.booru.app.data.AiFilter.isAiGeneratedPost(tags)) {
                 continue
             }
 
