@@ -48,6 +48,7 @@ import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
 import com.booru.app.GalleryViewModel
 import com.booru.app.RemoteMedia
+import com.booru.app.data.ImageQuality
 import com.booru.app.data.Strings
 
 enum class FavoriteMediaTypeFilter {
@@ -562,6 +563,7 @@ fun FavoritesScreen(
                 ) { index, media ->
                     FavoriteCard(
                         media = media,
+                        quality = vm.imageQuality,
                         onRemove = { vm.toggleFavorite(media) },
                         onClick = {
                             focusManager.clearFocus()
@@ -665,17 +667,20 @@ private fun FavoriteFilterTab(
 @Composable
 private fun FavoriteCard(
     media: RemoteMedia,
+    quality: ImageQuality,
     onRemove: () -> Unit,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
     var loadError by remember(media.id, media.url) { mutableStateOf(false) }
 
-    val imageModel = remember(media.sample, media.preview, media.url, loadError) {
+    val imageModel = remember(media.sample, media.preview, media.url, loadError, quality) {
         val targetUrl = if (loadError) {
             media.preview.ifBlank { media.url }
-        } else {
-            media.sample.ifBlank { media.preview.ifBlank { media.url } }
+        } else when (quality) {
+            ImageQuality.SAVER -> media.preview.ifBlank { media.sample.ifBlank { media.url } }
+            ImageQuality.ORIGINAL -> media.sample.ifBlank { media.url.ifBlank { media.preview } }
+            ImageQuality.SAMPLE -> media.sample.ifBlank { media.preview.ifBlank { media.url } }
         }
         ImageRequest.Builder(context)
             .data(targetUrl)
