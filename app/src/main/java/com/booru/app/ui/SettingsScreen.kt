@@ -752,14 +752,14 @@ fun SettingsScreen(
                     ) {
                         Surface(
                             shape = CircleShape,
-                            color = MaterialTheme.colorScheme.errorContainer,
+                            color = MaterialTheme.colorScheme.primaryContainer,
                             modifier = Modifier.size(40.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
-                                    Icons.Rounded.Block,
+                                    Icons.Rounded.Shield,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -770,11 +770,19 @@ fun SettingsScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
                             )
-                            Text(
-                                text = "${vm.tagBlacklist.size} ${if (lang == AppLanguage.RUSSIAN) "тегов" else "tags"}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Spacer(Modifier.height(2.dp))
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                            ) {
+                                Text(
+                                    text = "${vm.tagBlacklist.size} ${if (lang == AppLanguage.RUSSIAN) "тегов" else "tags"}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                )
+                            }
                         }
                     }
                     IconButton(
@@ -844,15 +852,22 @@ fun SettingsScreen(
                         modifier = Modifier.weight(1f)
                     )
 
-                    FilledTonalIconButton(
+                    IconButton(
                         onClick = addTagAction,
                         enabled = newBlacklistTag.isNotBlank(),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.size(50.dp)
+                        modifier = Modifier
+                            .size(50.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(
+                                if (newBlacklistTag.isNotBlank()) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.surfaceContainerHighest
+                            )
                     ) {
                         Icon(
                             Icons.Rounded.Add,
                             contentDescription = Strings.addTagBtn(lang),
+                            tint = if (newBlacklistTag.isNotBlank()) MaterialTheme.colorScheme.onPrimary
+                                   else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -872,7 +887,7 @@ fun SettingsScreen(
                             Icon(
                                 Icons.Rounded.Search,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
                             )
                         },
@@ -967,8 +982,9 @@ fun SettingsScreen(
                             ) {
                                 filteredBlacklist.forEach { tag ->
                                     Surface(
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
                                         modifier = Modifier.bouncyPress()
                                     ) {
                                         Row(
@@ -977,7 +993,13 @@ fun SettingsScreen(
                                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
                                             Text(
-                                                text = "#$tag",
+                                                text = "#",
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                            Text(
+                                                text = tag,
                                                 style = MaterialTheme.typography.labelMedium,
                                                 fontWeight = FontWeight.Medium,
                                                 color = MaterialTheme.colorScheme.onSurface
@@ -986,7 +1008,7 @@ fun SettingsScreen(
                                                 modifier = Modifier
                                                     .size(22.dp)
                                                     .clip(CircleShape)
-                                                    .background(MaterialTheme.colorScheme.error.copy(alpha = 0.12f))
+                                                    .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f))
                                                     .clickable { vm.removeBlacklistedTag(tag) },
                                                 contentAlignment = Alignment.Center
                                             ) {
@@ -1031,14 +1053,16 @@ fun SettingsScreen(
                         Spacer(Modifier.width(1.dp))
                     }
 
-                    FilledTonalButton(
+                    Button(
                         onClick = {
                             showBlacklistDialog = false
                             blacklistFilterQuery = ""
                         },
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
                     ) {
+                        Icon(Icons.Rounded.Done, null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
                         Text(Strings.closeBtn(lang), fontWeight = FontWeight.Bold)
                     }
                 }
