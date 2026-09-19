@@ -1111,17 +1111,17 @@ fun SourceSelectionSheet(
 
             sources.forEach { src ->
                 val isSelected = currentSource == src
-                val (icon, desc) = when (src) {
-                    BooruRepository.SOURCE_ALL -> Pair(Icons.Rounded.AutoAwesome, Strings.sourceRecommendationsDesc(lang))
-                    BooruRepository.SOURCE_RULE34 -> Pair(Icons.Rounded.Explicit, "Rule34 imageboard database")
-                    BooruRepository.SOURCE_GELBOORU -> Pair(Icons.Rounded.Image, "Huge anime & art collection")
-                    BooruRepository.SOURCE_REALBOORU -> Pair(Icons.Rounded.VideoLibrary, "Realbooru media board")
-                    BooruRepository.SOURCE_XBOORU -> Pair(Icons.Rounded.PhotoLibrary, "Massive anime & game gallery")
-                    BooruRepository.SOURCE_TBIB -> Pair(Icons.Rounded.Public, "The Big ImageBoard (28M+ posts)")
-                    BooruRepository.SOURCE_YANDE -> Pair(Icons.Rounded.Collections, "High-resolution wallpapers & art")
-                    BooruRepository.SOURCE_KONACHAN -> Pair(Icons.Rounded.Wallpaper, "Wallpaper anime board")
-                    BooruRepository.SOURCE_SAFEBOORU -> Pair(Icons.Rounded.Shield, "Safe-for-work anime art")
-                    else -> Pair(Icons.Rounded.Language, "Custom Booru source")
+                val icon = when (src) {
+                    BooruRepository.SOURCE_ALL -> Icons.Rounded.AutoAwesome
+                    BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit
+                    BooruRepository.SOURCE_GELBOORU -> Icons.Rounded.Image
+                    BooruRepository.SOURCE_REALBOORU -> Icons.Rounded.VideoLibrary
+                    BooruRepository.SOURCE_XBOORU -> Icons.Rounded.PhotoLibrary
+                    BooruRepository.SOURCE_TBIB -> Icons.Rounded.Public
+                    BooruRepository.SOURCE_YANDE -> Icons.Rounded.Collections
+                    BooruRepository.SOURCE_KONACHAN -> Icons.Rounded.Wallpaper
+                    BooruRepository.SOURCE_SAFEBOORU -> Icons.Rounded.Shield
+                    else -> Icons.Rounded.Language
                 }
 
                 Surface(
@@ -1129,7 +1129,7 @@ fun SourceSelectionSheet(
                         onSelect(src)
                         onDismiss()
                     },
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(16.dp),
                     color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1137,7 +1137,7 @@ fun SourceSelectionSheet(
                         .bouncyPress()
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -1147,26 +1147,19 @@ fun SourceSelectionSheet(
                             modifier = Modifier.size(22.dp)
                         )
                         Spacer(Modifier.width(14.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = if (src == BooruRepository.SOURCE_ALL) Strings.sourceRecommendations(lang) else src,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                text = desc,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        Text(
+                            text = if (src == BooruRepository.SOURCE_ALL) Strings.sourceRecommendations(lang) else src,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f)
+                        )
                         if (isSelected) {
                             Icon(
                                 Icons.Rounded.CheckCircle,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                 modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
