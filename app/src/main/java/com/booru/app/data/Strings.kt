@@ -743,4 +743,79 @@ object Strings {
         AppLanguage.ENGLISH -> "Failed to load image"
         AppLanguage.RUSSIAN -> "Не удалось загрузить"
     }
+
+    fun pressBackAgainToExit(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Press back again to exit"
+        AppLanguage.RUSSIAN -> "Нажмите ещё раз для выхода"
+    }
+
+    fun recommendationsTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "For you"
+        AppLanguage.RUSSIAN -> "Для вас"
+    }
+
+    fun clearRecommendationsTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Clear recommendation memory"
+        AppLanguage.RUSSIAN -> "Стереть память рекомендаций"
+    }
+
+    fun clearRecommendationsDesc(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Reset smart tag interests and search preferences"
+        AppLanguage.RUSSIAN -> "Сбросить историю предпочтений и память тегов"
+    }
+
+    fun clearRecommendationsSuccess(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Recommendation memory cleared"
+        AppLanguage.RUSSIAN -> "Память рекомендаций очищена"
+    }
+
+    fun contentTypeTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Content type"
+        AppLanguage.RUSSIAN -> "Тип контента"
+    }
+
+    fun contentTypeAll(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "All types"
+        AppLanguage.RUSSIAN -> "Все типы"
+    }
+
+    fun contentTypePhotos(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Photos"
+        AppLanguage.RUSSIAN -> "Фото"
+    }
+
+    fun contentTypeVideos(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Videos"
+        AppLanguage.RUSSIAN -> "Видео"
+    }
+
+    fun contentTypeGifs(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "GIFs"
+        AppLanguage.RUSSIAN -> "GIF"
+    }
+
+    fun filtersAndSorting(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Filters & Sorting"
+        AppLanguage.RUSSIAN -> "Фильтры и сортировка"
+    }
+
+    fun filtersButton(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Filters"
+        AppLanguage.RUSSIAN -> "Фильтры"
+    }
+
+    fun applyFilters(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Apply"
+        AppLanguage.RUSSIAN -> "Применить"
+    }
+
+    fun comicMode(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Comic scroll"
+        AppLanguage.RUSSIAN -> "Режим комикса"
+    }
+
+    fun fitMode(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Fit"
+        AppLanguage.RUSSIAN -> "Вписать"
+    }
 }

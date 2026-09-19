@@ -48,6 +48,7 @@ class BooruPreferences(private val context: Context) {
 
         val KEY_IMAGE_QUALITY = stringPreferencesKey("image_quality")
         val KEY_CUSTOM_SOURCES = stringPreferencesKey("custom_sources")
+        val KEY_RECOMMENDATION_TAGS = stringPreferencesKey("recommendation_tags")
     }
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
@@ -92,7 +93,22 @@ class BooruPreferences(private val context: Context) {
         prefs[KEY_SEARCH_HISTORY]?.toList() ?: emptyList()
     }
 
-
+    val recommendationTags: Flow<Map<String, Int>> = context.dataStore.data.map { prefs ->
+        val jsonStr = prefs[KEY_RECOMMENDATION_TAGS] ?: ""
+        if (jsonStr.isBlank()) emptyMap()
+        else {
+            runCatching {
+                val obj = JSONObject(jsonStr)
+                val map = mutableMapOf<String, Int>()
+                val keys = obj.keys()
+                while (keys.hasNext()) {
+                    val k = keys.next()
+                    map[k] = obj.optInt(k, 0)
+                }
+                map
+            }.getOrDefault(emptyMap())
+        }
+    }
 
     val tagBlacklist: Flow<List<String>> = context.dataStore.data.map { prefs ->
         prefs[KEY_TAG_BLACKLIST]?.toList() ?: emptyList()
@@ -305,6 +321,40 @@ class BooruPreferences(private val context: Context) {
 
     suspend fun clearSearchHistory() {
         context.dataStore.edit { it.remove(KEY_SEARCH_HISTORY) }
+    }
+
+    suspend fun recordSearchTags(tags: List<String>) {
+        if (tags.isEmpty()) return
+        context.dataStore.edit { prefs ->
+            val jsonStr = prefs[KEY_RECOMMENDATION_TAGS] ?: ""
+            val currentMap = mutableMapOf<String, Int>()
+            if (jsonStr.isNotBlank()) {
+                runCatching {
+                    val obj = JSONObject(jsonStr)
+                    val keys = obj.keys()
+                    while (keys.hasNext()) {
+                        val k = keys.next()
+                        currentMap[k] = obj.optInt(k, 0)
+                    }
+                }
+            }
+            val cleanTags = tags.map { it.trim().lowercase() }
+                .filter { it.isNotBlank() && it.length > 1 && !it.contains(":") && !it.startsWith("-") }
+            for (tag in cleanTags) {
+                val count = (currentMap[tag] ?: 0) + 1
+                currentMap[tag] = count.coerceAtMost(10)
+            }
+            val sorted = currentMap.entries.sortedByDescending { it.value }.take(40)
+            val newObj = JSONObject()
+            for (entry in sorted) {
+                newObj.put(entry.key, entry.value)
+            }
+            prefs[KEY_RECOMMENDATION_TAGS] = newObj.toString()
+        }
+    }
+
+    suspend fun clearRecommendationData() {
+        context.dataStore.edit { it.remove(KEY_RECOMMENDATION_TAGS) }
     }
 
     suspend fun addTagToBlacklist(tag: String) {

@@ -24,6 +24,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
+enum class ContentType { PHOTOS, VIDEOS, GIFS }
+
 class GalleryViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repo = BooruRepository()
@@ -78,6 +80,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     var imageQuality  by mutableStateOf(ImageQuality.SAMPLE);             private set
     var customSources by mutableStateOf<List<CustomBooruSource>>(emptyList()); private set
+    var selectedContentTypes by mutableStateOf<Set<ContentType>>(emptySet()); private set
+    var recommendationTags by mutableStateOf<List<String>>(emptyList()); private set
 
     private var currentPage = 0
     private var hasMore = true
@@ -122,6 +126,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
         viewModelScope.launch {
             prefs.searchHistory.collect { searchHistory = it }
+        }
+        viewModelScope.launch {
+            prefs.recommendationTags.collect { map ->
+                val sorted = map.entries.sortedByDescending { it.value }.map { it.key }
+                recommendationTags = sorted.take(15)
+            }
         }
         viewModelScope.launch {
             prefs.imageQuality.collect { imageQuality = it }
@@ -515,7 +525,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
         val trimmedTags = tags.trim()
         if (trimmedTags.isNotEmpty()) {
-            viewModelScope.launch { prefs.saveSearchQuery(trimmedTags) }
+            viewModelScope.launch {
+                prefs.saveSearchQuery(trimmedTags)
+                prefs.recordSearchTags(trimmedTags.split(Regex("\\s+")))
+            }
         }
 
         searchJob = viewModelScope.launch {
@@ -533,6 +546,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 )
                 val filtered = list.filterNot { isBlacklisted(it) }
                     .distinctBy { "${it.source}_${it.id.ifBlank { it.url }}" }
+                    .filter { item ->
+                        if (selectedContentTypes.isEmpty()) true
+                        else (
+                            (selectedContentTypes.contains(ContentType.PHOTOS) && !item.isVideo && !item.isGif) ||
+                            (selectedContentTypes.contains(ContentType.VIDEOS) && item.isVideo) ||
+                            (selectedContentTypes.contains(ContentType.GIFS) && item.isGif)
+                        )
+                    }
                 results = filtered
                 hasMore = list.size >= BooruRepository.PAGE_SIZE
             } catch (authEx: BooruAuthException) {
@@ -580,6 +601,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     customSources = customSources
                 )
                 val filtered = list.filterNot { isBlacklisted(it) }
+                    .filter { item ->
+                        if (selectedContentTypes.isEmpty()) true
+                        else (
+                            (selectedContentTypes.contains(ContentType.PHOTOS) && !item.isVideo && !item.isGif) ||
+                            (selectedContentTypes.contains(ContentType.VIDEOS) && item.isVideo) ||
+                            (selectedContentTypes.contains(ContentType.GIFS) && item.isGif)
+                        )
+                    }
                 results = (results + filtered).distinctBy { "${it.source}_${it.id.ifBlank { it.url }}" }
                 hasMore = list.size >= BooruRepository.PAGE_SIZE
             } catch (c: kotlinx.coroutines.CancellationException) {
@@ -756,6 +785,28 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearHistory() {
         viewModelScope.launch { prefs.clearSearchHistory() }
+    }
+
+    fun toggleContentType(type: ContentType) {
+        selectedContentTypes = if (selectedContentTypes.contains(type)) {
+            selectedContentTypes - type
+        } else {
+            selectedContentTypes + type
+        }
+        refresh()
+    }
+
+    fun clearContentTypes() {
+        selectedContentTypes = emptySet()
+        refresh()
+    }
+
+    fun clearRecommendationMemory(onDone: () -> Unit = {}) {
+        viewModelScope.launch {
+            prefs.clearRecommendationData()
+            recommendationTags = emptyList()
+            onDone()
+        }
     }
 
     fun addBlacklistedTag(tag: String) {

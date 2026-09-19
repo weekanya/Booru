@@ -41,6 +41,7 @@ import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
 import com.booru.app.BooruRepository
+import com.booru.app.ContentType
 import com.booru.app.GalleryViewModel
 import com.booru.app.RemoteMedia
 import com.booru.app.SortOrder
@@ -58,6 +59,7 @@ fun ExploreScreen(
     var searchExpanded by remember { mutableStateOf(false) }
     var localQuery     by remember { mutableStateOf(vm.query) }
     var showSourceSheet by remember { mutableStateOf(false) }
+    var showFilterSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(vm.query) {
         localQuery = vm.query
@@ -71,9 +73,14 @@ fun ExploreScreen(
         }
     }
 
-    BackHandler(enabled = searchExpanded) {
-        searchExpanded = false
-        vm.clearTagSuggestions()
+    BackHandler(enabled = searchExpanded || vm.query.isNotBlank()) {
+        if (searchExpanded) {
+            searchExpanded = false
+            vm.clearTagSuggestions()
+        } else if (vm.query.isNotBlank()) {
+            localQuery = ""
+            vm.search(vm.source, "", vm.safeMode)
+        }
     }
 
     val gridState = rememberLazyStaggeredGridState()
@@ -102,274 +109,247 @@ fun ExploreScreen(
                 .padding(top = 70.dp)
         ) {
 
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-
-                item {
-                    FilledTonalButton(
-                        onClick = { showSourceSheet = true },
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                        shape = CircleShape,
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        ),
-                        modifier = Modifier
-                            .height(36.dp)
-                            .bouncyPress()
-                    ) {
-                        Icon(
-                            imageVector = when (vm.source) {
-                                BooruRepository.SOURCE_ALL -> Icons.Rounded.Layers
-                                BooruRepository.SOURCE_GELBOORU -> Icons.Rounded.Image
-                                BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit
-                                BooruRepository.SOURCE_REALBOORU -> Icons.Rounded.VideoLibrary
-                                BooruRepository.SOURCE_XBOORU -> Icons.Rounded.PhotoLibrary
-                                BooruRepository.SOURCE_TBIB -> Icons.Rounded.Public
-                                BooruRepository.SOURCE_YANDE -> Icons.Rounded.Collections
-                                BooruRepository.SOURCE_KONACHAN -> Icons.Rounded.Wallpaper
-                                else -> Icons.Rounded.Shield
-                            },
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = vm.getSourceDisplayName(vm.source),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(Modifier.width(2.dp))
-                        Icon(
-                            Icons.Rounded.ArrowDropDown,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                FilledTonalButton(
+                    onClick = { showSourceSheet = true },
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    modifier = Modifier
+                        .height(38.dp)
+                        .bouncyPress()
+                ) {
+                    Icon(
+                        imageVector = when (vm.source) {
+                            BooruRepository.SOURCE_ALL -> Icons.Rounded.Layers
+                            BooruRepository.SOURCE_GELBOORU -> Icons.Rounded.Image
+                            BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit
+                            BooruRepository.SOURCE_REALBOORU -> Icons.Rounded.VideoLibrary
+                            BooruRepository.SOURCE_XBOORU -> Icons.Rounded.PhotoLibrary
+                            BooruRepository.SOURCE_TBIB -> Icons.Rounded.Public
+                            BooruRepository.SOURCE_YANDE -> Icons.Rounded.Collections
+                            BooruRepository.SOURCE_KONACHAN -> Icons.Rounded.Wallpaper
+                            else -> Icons.Rounded.Shield
+                        },
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = vm.getSourceDisplayName(vm.source),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Icon(
+                        Icons.Rounded.ArrowDropDown,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
 
-                item {
-                    var showSortMenu by remember { mutableStateOf(false) }
-                    Box {
-                        FilledTonalButton(
-                            onClick = { showSortMenu = true },
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                            shape = CircleShape,
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                contentColor = MaterialTheme.colorScheme.onSurface
-                            ),
-                            modifier = Modifier
-                                .height(36.dp)
-                                .bouncyPress()
-                        ) {
-                            Icon(
-                                Icons.Rounded.SwapVert,
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            val sortLabel = when (vm.sortOrder) {
-                                SortOrder.NEWEST -> Strings.sortNewest(lang)
-                                SortOrder.SCORE -> Strings.sortScore(lang)
-                                SortOrder.RANDOM -> Strings.sortRandom(lang)
-                            }
-                            Text(sortLabel, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.SemiBold)
-                            Spacer(Modifier.width(2.dp))
-                            Icon(
-                                Icons.Rounded.ArrowDropDown,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                val activeFilterCount = (if (vm.safeMode || vm.excludeSafe) 1 else 0) +
+                        (if (vm.noAi) 1 else 0) +
+                        (if (vm.sortOrder != SortOrder.NEWEST) 1 else 0) +
+                        (if (vm.selectedContentTypes.isNotEmpty()) 1 else 0)
 
-                        DropdownMenu(
-                            expanded = showSortMenu,
-                            onDismissRequest = { showSortMenu = false },
-                            shape = RoundedCornerShape(20.dp),
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            shadowElevation = 8.dp
+                FilledTonalButton(
+                    onClick = { showFilterSheet = true },
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+                    ),
+                    modifier = Modifier
+                        .height(38.dp)
+                        .bouncyPress()
+                ) {
+                    Icon(
+                        Icons.Rounded.Tune,
+                        contentDescription = null,
+                        modifier = Modifier.size(17.dp),
+                        tint = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        text = Strings.filtersButton(lang),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (activeFilterCount > 0) {
+                        Spacer(Modifier.width(6.dp))
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
                         ) {
-                            SortOrder.entries.forEach { order ->
-                                val itemLabel = when (order) {
-                                    SortOrder.NEWEST -> Strings.sortNewest(lang)
-                                    SortOrder.SCORE -> Strings.sortScore(lang)
-                                    SortOrder.RANDOM -> Strings.sortRandom(lang)
-                                }
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            itemLabel,
-                                            fontWeight = if (vm.sortOrder == order) FontWeight.Bold else FontWeight.Normal
-                                        )
-                                    },
-                                    onClick = {
-                                        vm.applySort(order)
-                                        showSortMenu = false
-                                    },
-                                    leadingIcon = if (vm.sortOrder == order) {
-                                        { Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.primary) }
-                                    } else null,
-                                    modifier = Modifier
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                                        .clip(RoundedCornerShape(14.dp))
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = "$activeFilterCount",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onPrimary
                                 )
                             }
                         }
                     }
                 }
+            }
 
-                item {
-                    var showRatingMenu by remember { mutableStateOf(false) }
-                    Box {
-                        val isCustomRating = vm.safeMode || vm.excludeSafe
-                        FilledTonalButton(
-                            onClick = { showRatingMenu = true },
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                            shape = CircleShape,
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = when {
-                                    vm.excludeSafe -> MaterialTheme.colorScheme.errorContainer
-                                    vm.safeMode -> MaterialTheme.colorScheme.tertiaryContainer
-                                    else -> MaterialTheme.colorScheme.surfaceContainerHigh
-                                },
-                                contentColor = when {
-                                    vm.excludeSafe -> MaterialTheme.colorScheme.onErrorContainer
-                                    vm.safeMode -> MaterialTheme.colorScheme.onTertiaryContainer
-                                    else -> MaterialTheme.colorScheme.onSurface
-                                }
-                            ),
-                            modifier = Modifier
-                                .height(36.dp)
-                                .bouncyPress()
-                        ) {
-                            Icon(
-                                imageVector = when {
-                                    vm.excludeSafe -> Icons.Rounded.Explicit
-                                    vm.safeMode -> Icons.Rounded.Shield
-                                    else -> Icons.Rounded.Tune
-                                },
-                                contentDescription = null,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            val ratingLabel = when {
-                                vm.excludeSafe -> Strings.only18Badge(lang)
-                                vm.safeMode -> Strings.safeModeBadge(lang)
-                                else -> Strings.allRatings(lang)
-                            }
-                            Text(
-                                ratingLabel,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = if (isCustomRating) FontWeight.Bold else FontWeight.Medium
-                            )
-                            Spacer(Modifier.width(2.dp))
-                            Icon(
-                                Icons.Rounded.ArrowDropDown,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
+            val hasActiveFilters = vm.safeMode || vm.excludeSafe || vm.noAi ||
+                    vm.sortOrder != SortOrder.NEWEST || vm.selectedContentTypes.isNotEmpty()
+
+            if (hasActiveFilters) {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (vm.selectedContentTypes.contains(ContentType.PHOTOS)) {
+                        item {
+                            InputChip(
+                                selected = true,
+                                onClick = { vm.toggleContentType(ContentType.PHOTOS) },
+                                label = { Text(Strings.contentTypePhotos(lang), style = MaterialTheme.typography.labelSmall) },
+                                trailingIcon = { Icon(Icons.Rounded.Close, null, modifier = Modifier.size(14.dp)) },
+                                shape = CircleShape,
+                                modifier = Modifier.height(30.dp)
                             )
                         }
-
-                        DropdownMenu(
-                            expanded = showRatingMenu,
-                            onDismissRequest = { showRatingMenu = false },
-                            shape = RoundedCornerShape(20.dp),
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            shadowElevation = 8.dp
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text(Strings.allRatings(lang), fontWeight = if (!vm.safeMode && !vm.excludeSafe) FontWeight.Bold else FontWeight.Normal) },
-                                onClick = {
-                                    vm.setSafeModeEnabled(false)
-                                    vm.setExcludeSafeEnabled(false)
-                                    showRatingMenu = false
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Rounded.Tune,
-                                        null,
-                                        tint = if (!vm.safeMode && !vm.excludeSafe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
-                                trailingIcon = if (!vm.safeMode && !vm.excludeSafe) {
-                                    { Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.primary) }
-                                } else null
+                    }
+                    if (vm.selectedContentTypes.contains(ContentType.VIDEOS)) {
+                        item {
+                            InputChip(
+                                selected = true,
+                                onClick = { vm.toggleContentType(ContentType.VIDEOS) },
+                                label = { Text(Strings.contentTypeVideos(lang), style = MaterialTheme.typography.labelSmall) },
+                                trailingIcon = { Icon(Icons.Rounded.Close, null, modifier = Modifier.size(14.dp)) },
+                                shape = CircleShape,
+                                modifier = Modifier.height(30.dp)
                             )
-                            DropdownMenuItem(
-                                text = { Text(Strings.safeModeBadge(lang), fontWeight = if (vm.safeMode) FontWeight.Bold else FontWeight.Normal) },
-                                onClick = {
-                                    vm.setSafeModeEnabled(true)
-                                    showRatingMenu = false
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Rounded.Shield,
-                                        null,
-                                        tint = if (vm.safeMode) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
-                                trailingIcon = if (vm.safeMode) {
-                                    { Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.tertiary) }
-                                } else null
+                        }
+                    }
+                    if (vm.selectedContentTypes.contains(ContentType.GIFS)) {
+                        item {
+                            InputChip(
+                                selected = true,
+                                onClick = { vm.toggleContentType(ContentType.GIFS) },
+                                label = { Text(Strings.contentTypeGifs(lang), style = MaterialTheme.typography.labelSmall) },
+                                trailingIcon = { Icon(Icons.Rounded.Close, null, modifier = Modifier.size(14.dp)) },
+                                shape = CircleShape,
+                                modifier = Modifier.height(30.dp)
                             )
-                            DropdownMenuItem(
-                                text = { Text(Strings.only18Badge(lang), fontWeight = if (vm.excludeSafe) FontWeight.Bold else FontWeight.Normal) },
-                                onClick = {
-                                    vm.setExcludeSafeEnabled(true)
-                                    showRatingMenu = false
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Rounded.Explicit,
-                                        null,
-                                        tint = if (vm.excludeSafe) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                },
-                                trailingIcon = if (vm.excludeSafe) {
-                                    { Icon(Icons.Rounded.Check, null, tint = MaterialTheme.colorScheme.error) }
-                                } else null
+                        }
+                    }
+                    if (vm.excludeSafe) {
+                        item {
+                            InputChip(
+                                selected = true,
+                                onClick = { vm.setExcludeSafeEnabled(false) },
+                                label = { Text(Strings.only18Badge(lang), style = MaterialTheme.typography.labelSmall) },
+                                trailingIcon = { Icon(Icons.Rounded.Close, null, modifier = Modifier.size(14.dp)) },
+                                shape = CircleShape,
+                                modifier = Modifier.height(30.dp)
+                            )
+                        }
+                    }
+                    if (vm.safeMode) {
+                        item {
+                            InputChip(
+                                selected = true,
+                                onClick = { vm.setSafeModeEnabled(false) },
+                                label = { Text(Strings.safeModeBadge(lang), style = MaterialTheme.typography.labelSmall) },
+                                trailingIcon = { Icon(Icons.Rounded.Close, null, modifier = Modifier.size(14.dp)) },
+                                shape = CircleShape,
+                                modifier = Modifier.height(30.dp)
+                            )
+                        }
+                    }
+                    if (vm.noAi) {
+                        item {
+                            InputChip(
+                                selected = true,
+                                onClick = { vm.setNoAiEnabled(false) },
+                                label = { Text(Strings.noAiBadge(lang), style = MaterialTheme.typography.labelSmall) },
+                                trailingIcon = { Icon(Icons.Rounded.Close, null, modifier = Modifier.size(14.dp)) },
+                                shape = CircleShape,
+                                modifier = Modifier.height(30.dp)
+                            )
+                        }
+                    }
+                    if (vm.sortOrder != SortOrder.NEWEST) {
+                        item {
+                            val sortLabel = when (vm.sortOrder) {
+                                SortOrder.SCORE -> Strings.sortScore(lang)
+                                SortOrder.RANDOM -> Strings.sortRandom(lang)
+                                else -> ""
+                            }
+                            InputChip(
+                                selected = true,
+                                onClick = { vm.applySort(SortOrder.NEWEST) },
+                                label = { Text(sortLabel, style = MaterialTheme.typography.labelSmall) },
+                                trailingIcon = { Icon(Icons.Rounded.Close, null, modifier = Modifier.size(14.dp)) },
+                                shape = CircleShape,
+                                modifier = Modifier.height(30.dp)
                             )
                         }
                     }
                 }
+            }
 
-                item {
-                    FilterChip(
-                        selected = vm.noAi,
-                        onClick = { vm.setNoAiEnabled(!vm.noAi) },
-                        modifier = Modifier
-                            .height(36.dp)
-                            .bouncyPress(),
-                        label = {
-                            Text(
-                                Strings.noAiBadge(lang),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = if (vm.noAi) FontWeight.Bold else FontWeight.Medium
-                            )
-                        },
-                        leadingIcon = {
+            if (vm.recommendationTags.isNotEmpty() && vm.query.isBlank()) {
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    item {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(end = 2.dp)
+                        ) {
                             Icon(
                                 Icons.Rounded.AutoAwesome,
                                 contentDescription = null,
-                                modifier = Modifier.size(15.dp),
-                                tint = if (vm.noAi) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(15.dp)
                             )
-                        },
-                        shape = CircleShape,
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        border = null
-                    )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = Strings.recommendationsTitle(lang),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                    items(vm.recommendationTags) { recTag ->
+                        SuggestionChip(
+                            onClick = {
+                                localQuery = recTag
+                                vm.search(vm.source, recTag, vm.safeMode)
+                            },
+                            label = { Text(recTag, style = MaterialTheme.typography.labelSmall) },
+                            shape = CircleShape,
+                            colors = SuggestionChipDefaults.suggestionChipColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                            ),
+                            border = null,
+                            modifier = Modifier.height(28.dp).bouncyPress()
+                        )
+                    }
                 }
             }
 
@@ -1003,6 +983,14 @@ fun ExploreScreen(
                 onDismiss = { showSourceSheet = false }
             )
         }
+
+        if (showFilterSheet) {
+            FilterSelectionBottomSheet(
+                vm = vm,
+                lang = lang,
+                onDismiss = { showFilterSheet = false }
+            )
+        }
     }
 }
 
@@ -1326,11 +1314,271 @@ fun SourceSelectionSheet(
                                 Icons.Rounded.CheckCircle,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
+                                 modifier = Modifier.size(20.dp)
                             )
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FilterSelectionBottomSheet(
+    vm: GalleryViewModel,
+    lang: AppLanguage,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 36.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Rounded.Tune,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = Strings.filtersAndSorting(lang),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                TextButton(
+                    onClick = {
+                        vm.setSafeModeEnabled(false)
+                        vm.setExcludeSafeEnabled(false)
+                        vm.setNoAiEnabled(false)
+                        vm.applySort(SortOrder.NEWEST)
+                        vm.clearContentTypes()
+                    }
+                ) {
+                    Text(Strings.resetFilters(lang), style = MaterialTheme.typography.labelMedium)
+                }
+            }
+
+            Text(
+                text = Strings.contentTypeTitle(lang),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val isPhotosSelected = vm.selectedContentTypes.contains(ContentType.PHOTOS)
+                FilterChip(
+                    selected = isPhotosSelected,
+                    onClick = { vm.toggleContentType(ContentType.PHOTOS) },
+                    label = { Text(Strings.contentTypePhotos(lang), fontWeight = if (isPhotosSelected) FontWeight.Bold else FontWeight.Medium) },
+                    leadingIcon = { Icon(Icons.Rounded.Image, null, modifier = Modifier.size(16.dp)) },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    modifier = Modifier.weight(1f).bouncyPress()
+                )
+
+                val isVideosSelected = vm.selectedContentTypes.contains(ContentType.VIDEOS)
+                FilterChip(
+                    selected = isVideosSelected,
+                    onClick = { vm.toggleContentType(ContentType.VIDEOS) },
+                    label = { Text(Strings.contentTypeVideos(lang), fontWeight = if (isVideosSelected) FontWeight.Bold else FontWeight.Medium) },
+                    leadingIcon = { Icon(Icons.Rounded.Videocam, null, modifier = Modifier.size(16.dp)) },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    modifier = Modifier.weight(1f).bouncyPress()
+                )
+
+                val isGifsSelected = vm.selectedContentTypes.contains(ContentType.GIFS)
+                FilterChip(
+                    selected = isGifsSelected,
+                    onClick = { vm.toggleContentType(ContentType.GIFS) },
+                    label = { Text(Strings.contentTypeGifs(lang), fontWeight = if (isGifsSelected) FontWeight.Bold else FontWeight.Medium) },
+                    leadingIcon = { Icon(Icons.Rounded.Gif, null, modifier = Modifier.size(18.dp)) },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ),
+                    modifier = Modifier.weight(1f).bouncyPress()
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Text(
+                text = Strings.sortScore(lang).let { if (lang == AppLanguage.RUSSIAN) "Сортировка" else "Sort by" },
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SortOrder.entries.forEach { order ->
+                    val isSelected = vm.sortOrder == order
+                    val orderLabel = when (order) {
+                        SortOrder.NEWEST -> Strings.sortNewest(lang)
+                        SortOrder.SCORE -> Strings.sortScore(lang)
+                        SortOrder.RANDOM -> Strings.sortRandom(lang)
+                    }
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = { vm.applySort(order) },
+                        label = { Text(orderLabel, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium) },
+                        leadingIcon = if (isSelected) {
+                            { Icon(Icons.Rounded.Check, null, modifier = Modifier.size(16.dp)) }
+                        } else null,
+                        shape = RoundedCornerShape(14.dp),
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ),
+                        modifier = Modifier.weight(1f).bouncyPress()
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Text(
+                text = Strings.allRatings(lang),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val isAllRating = !vm.safeMode && !vm.excludeSafe
+                FilterChip(
+                    selected = isAllRating,
+                    onClick = {
+                        vm.setSafeModeEnabled(false)
+                        vm.setExcludeSafeEnabled(false)
+                    },
+                    label = { Text(Strings.allRatings(lang), fontWeight = if (isAllRating) FontWeight.Bold else FontWeight.Medium) },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer
+                    ),
+                    modifier = Modifier.weight(1f).bouncyPress()
+                )
+
+                FilterChip(
+                    selected = vm.excludeSafe,
+                    onClick = { vm.setExcludeSafeEnabled(!vm.excludeSafe) },
+                    label = { Text(Strings.only18Badge(lang), fontWeight = if (vm.excludeSafe) FontWeight.Bold else FontWeight.Medium) },
+                    leadingIcon = { Icon(Icons.Rounded.Explicit, null, modifier = Modifier.size(16.dp)) },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.errorContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onErrorContainer
+                    ),
+                    modifier = Modifier.weight(1f).bouncyPress()
+                )
+
+                FilterChip(
+                    selected = vm.safeMode,
+                    onClick = { vm.setSafeModeEnabled(!vm.safeMode) },
+                    label = { Text(Strings.safeModeBadge(lang), fontWeight = if (vm.safeMode) FontWeight.Bold else FontWeight.Medium) },
+                    leadingIcon = { Icon(Icons.Rounded.Shield, null, modifier = Modifier.size(16.dp)) },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer
+                    ),
+                    modifier = Modifier.weight(1f).bouncyPress()
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Surface(
+                onClick = { vm.setNoAiEnabled(!vm.noAi) },
+                shape = RoundedCornerShape(18.dp),
+                color = if (vm.noAi) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .bouncyPress()
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Rounded.AutoAwesome,
+                            contentDescription = null,
+                            tint = if (vm.noAi) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(22.dp)
+                        )
+                        Spacer(Modifier.width(14.dp))
+                        Text(
+                            text = Strings.noAiBadge(lang),
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Switch(
+                        checked = vm.noAi,
+                        onCheckedChange = { vm.setNoAiEnabled(it) }
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            Button(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .bouncyPress()
+            ) {
+                Text(Strings.applyFilters(lang), fontWeight = FontWeight.Bold)
             }
         }
     }

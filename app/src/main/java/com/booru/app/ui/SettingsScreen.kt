@@ -1464,6 +1464,39 @@ fun SettingsScreen(
             )
 
             SettingRowItem(
+                title = Strings.clearRecommendationsTitle(lang),
+                subtitle = Strings.clearRecommendationsDesc(lang),
+                icon = Icons.Rounded.AutoAwesome,
+                trailing = {
+                    FilledTonalButton(
+                        onClick = {
+                            vm.clearRecommendationMemory {
+                                Toast.makeText(context, Strings.clearRecommendationsSuccess(lang), Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        ),
+                        modifier = Modifier.bouncyPress()
+                    ) {
+                        Text(
+                            text = Strings.resetFilters(lang),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            )
+
+            SettingRowItem(
                 title = Strings.checkUpdatesTitle(lang),
                 subtitle = Strings.checkUpdatesDesc(lang),
                 icon = Icons.Rounded.SystemUpdate,

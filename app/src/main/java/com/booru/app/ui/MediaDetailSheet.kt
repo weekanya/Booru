@@ -478,6 +478,23 @@ fun MediaDetailSheet(
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
     ) {
+        val isTallInitial = remember(currentMedia.id, currentMedia.url) {
+            !currentMedia.isVideo && currentMedia.width > 0 && currentMedia.height > 0 &&
+            (currentMedia.height.toFloat() / currentMedia.width.toFloat() > 1.35f)
+        }
+        var detectedRatio by remember(currentMedia.id, currentMedia.url) {
+            mutableFloatStateOf(
+                if (currentMedia.width > 0 && currentMedia.height > 0) {
+                    currentMedia.height.toFloat() / currentMedia.width.toFloat()
+                } else 1f
+            )
+        }
+        var isComicScrollMode by remember(currentMedia.id, currentMedia.url) {
+            mutableStateOf(isTallInitial)
+        }
+        val screenWidth = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp
+        val comicHeight = (screenWidth * detectedRatio).coerceIn(380.dp, 3600.dp)
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -485,12 +502,21 @@ fun MediaDetailSheet(
                 .padding(bottom = 36.dp)
         ) {
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 360.dp, max = 560.dp)
-                    .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                modifier = if (isComicScrollMode && !currentMedia.isVideo) {
+                    Modifier
+                        .fillMaxWidth()
+                        .height(comicHeight)
+                        .padding(horizontal = 8.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                } else {
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 360.dp, max = 560.dp)
+                        .padding(horizontal = 16.dp)
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                },
                 contentAlignment = Alignment.Center
             ) {
                 HorizontalPager(
@@ -517,12 +543,53 @@ fun MediaDetailSheet(
                             vm = vm,
                             isActive = (pagerState.currentPage == page),
                             resetZoomKey = if (pagerState.currentPage == page) resetZoomKey else 0,
+                            isComicMode = (isComicScrollMode && pagerState.currentPage == page),
+                            onAspectRatioDetected = { ratio ->
+                                if (pagerState.currentPage == page) {
+                                    detectedRatio = ratio
+                                    if (ratio > 1.35f && !isComicScrollMode && !isTallInitial) {
+                                        isComicScrollMode = true
+                                    }
+                                }
+                            },
                             onZoomChanged = { zoomed ->
                                 if (pagerState.currentPage == page) {
                                     isCurrentPageZoomed = zoomed
                                 }
                             }
                         )
+                    }
+                }
+
+                if (!currentMedia.isVideo && (isTallInitial || detectedRatio > 1.35f)) {
+                    Surface(
+                        onClick = { isComicScrollMode = !isComicScrollMode },
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.90f),
+                        shadowElevation = 2.dp,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(14.dp)
+                            .bouncyPress()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (isComicScrollMode) Icons.Rounded.FitScreen else Icons.Rounded.ViewStream,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = if (isComicScrollMode) Strings.fitMode(lang) else Strings.comicMode(lang),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
                     }
                 }
 
@@ -1290,6 +1357,8 @@ fun DetailZoomableImage(
     vm: GalleryViewModel,
     isActive: Boolean,
     resetZoomKey: Int = 0,
+    isComicMode: Boolean = false,
+    onAspectRatioDetected: (Float) -> Unit = {},
     onZoomChanged: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
@@ -1418,6 +1487,13 @@ fun DetailZoomableImage(
                 .crossfade(300)
                 .allowHardware(!media.isGif)
                 .listener(
+                    onSuccess = { _, result ->
+                        val w = result.drawable.intrinsicWidth
+                        val h = result.drawable.intrinsicHeight
+                        if (w > 0 && h > 0) {
+                            onAspectRatioDetected(h.toFloat() / w.toFloat())
+                        }
+                    },
                     onError = { _, _ ->
                         if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
                             detailLoadError = true
@@ -1434,7 +1510,7 @@ fun DetailZoomableImage(
                     translationX = animatedOffset.x,
                     translationY = animatedOffset.y
                 ),
-            contentScale = ContentScale.Fit
+            contentScale = if (isComicMode) ContentScale.FillWidth else ContentScale.Fit
         )
 
         if (rawScale > 1.05f) {
