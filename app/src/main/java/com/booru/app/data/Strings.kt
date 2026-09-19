@@ -46,6 +46,11 @@ object Strings {
         AppLanguage.RUSSIAN -> "Все посты"
     }
 
+    fun fullscreen(lang: AppLanguage) = when (lang) {
+        AppLanguage.ENGLISH -> "Fullscreen"
+        AppLanguage.RUSSIAN -> "На весь экран"
+    }
+
     fun sortNewest(lang: AppLanguage) = when (lang) {
         AppLanguage.ENGLISH -> "Newest"
         AppLanguage.RUSSIAN -> "Новые"

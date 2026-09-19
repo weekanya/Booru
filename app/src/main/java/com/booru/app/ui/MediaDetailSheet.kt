@@ -146,11 +146,13 @@ fun MediaDetailSheet(
     var isSettingWallpaper by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
     var isTagsExpanded by remember { mutableStateOf(false) }
+    var showTrueFullscreen by remember { mutableStateOf(false) }
 
     val currentMedia = mediaList.getOrNull(pagerState.currentPage) ?: mediaList.first()
 
     BackHandler {
         when {
+            showTrueFullscreen -> showTrueFullscreen = false
             selectedTagForAction != null -> selectedTagForAction = null
             showWallpaperDialog -> showWallpaperDialog = false
             isCurrentPageZoomed -> {
@@ -584,21 +586,41 @@ fun MediaDetailSheet(
                     }
                 }
 
-                if (mediaList.size > 1) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (mediaList.size > 1) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.90f),
+                            shadowElevation = 2.dp
+                        ) {
+                            Text(
+                                text = "${pagerState.currentPage + 1} / ${mediaList.size}",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
                     Surface(
+                        onClick = { showTrueFullscreen = true },
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.90f),
                         shadowElevation = 2.dp,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(14.dp)
+                        modifier = Modifier.bouncyPress()
                     ) {
-                        Text(
-                            text = "${pagerState.currentPage + 1} / ${mediaList.size}",
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        Icon(
+                            Icons.Rounded.Fullscreen,
+                            contentDescription = Strings.fullscreen(lang),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp).size(18.dp)
                         )
                     }
                 }
@@ -763,6 +785,24 @@ fun MediaDetailSheet(
                                 Icons.AutoMirrored.Rounded.OpenInNew,
                                 contentDescription = "Open in browser",
                                 modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        FilledTonalIconButton(
+                            onClick = { showTrueFullscreen = true },
+                            modifier = Modifier
+                                .size(44.dp)
+                                .bouncyPress(),
+                            shape = CircleShape,
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        ) {
+                            Icon(
+                                Icons.Rounded.Fullscreen,
+                                contentDescription = Strings.fullscreen(lang),
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }
@@ -1284,6 +1324,24 @@ fun MediaDetailSheet(
                 }
             },
             confirmButton = {}
+        )
+    }
+
+    if (showTrueFullscreen) {
+        ImmersiveMediaViewer(
+            initialIndex = pagerState.currentPage,
+            mediaList = mediaList,
+            vm = vm,
+            onDismiss = { newIndex ->
+                showTrueFullscreen = false
+                if (newIndex in mediaList.indices && newIndex != pagerState.currentPage) {
+                    coroutineScope.launch {
+                        pagerState.scrollToPage(newIndex)
+                    }
+                }
+            },
+            onDownload = { downloadCurrentMedia(it) },
+            onLoadMore = onLoadMore
         )
     }
 }
