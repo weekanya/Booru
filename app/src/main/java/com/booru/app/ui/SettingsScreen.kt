@@ -61,6 +61,10 @@ fun SettingsScreen(
     val context = LocalContext.current
     val lang = vm.language
 
+    LaunchedEffect(Unit) {
+        vm.updateCacheSize()
+    }
+
     var rule34User by remember(vm.rule34UserId) { mutableStateOf(vm.rule34UserId) }
     var rule34Key by remember(vm.rule34ApiKey) { mutableStateOf(vm.rule34ApiKey) }
 

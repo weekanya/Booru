@@ -100,7 +100,13 @@ object BooruCacheManager {
     }
 
     fun getCacheSizeBytes(context: Context): Long {
-        return calculateDirSize(context.cacheDir)
+        var size = calculateDirSize(context.cacheDir)
+        try {
+            context.externalCacheDir?.let {
+                size += calculateDirSize(it)
+            }
+        } catch (_: Exception) {}
+        return size
     }
 
     private fun calculateDirSize(dir: File): Long {
@@ -134,11 +140,14 @@ object BooruCacheManager {
         } catch (_: Exception) {}
 
         try {
-            val cacheDir = context.cacheDir
-            cacheDir.listFiles()?.forEach { file ->
-                if (file.name != "booru_video_cache" && file.name != "image_cache") {
-                    file.deleteRecursively()
-                }
+            context.cacheDir.listFiles()?.forEach { file ->
+                file.deleteRecursively()
+            }
+        } catch (_: Exception) {}
+
+        try {
+            context.externalCacheDir?.listFiles()?.forEach { file ->
+                file.deleteRecursively()
             }
         } catch (_: Exception) {}
     }

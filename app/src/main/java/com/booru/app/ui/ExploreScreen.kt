@@ -1287,7 +1287,6 @@ private fun FilterSelectionBottomSheet(
                         },
                         shape = RoundedCornerShape(16.dp),
                         color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        border = if (selected) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
                         modifier = Modifier
                             .weight(1f)
                             .height(44.dp)
@@ -1343,7 +1342,6 @@ private fun FilterSelectionBottomSheet(
                         onClick = { tempSortOrder = order },
                         shape = RoundedCornerShape(16.dp),
                         color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        border = if (selected) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
                         modifier = Modifier
                             .weight(1f)
                             .height(44.dp)
@@ -1397,7 +1395,6 @@ private fun FilterSelectionBottomSheet(
                     },
                     shape = RoundedCornerShape(16.dp),
                     color = if (isAllRating) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = if (isAllRating) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
                     modifier = Modifier
                         .weight(1f)
                         .height(44.dp)
@@ -1421,7 +1418,6 @@ private fun FilterSelectionBottomSheet(
                     },
                     shape = RoundedCornerShape(16.dp),
                     color = if (tempExcludeSafe) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = if (tempExcludeSafe) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
                     modifier = Modifier
                         .weight(1f)
                         .height(44.dp)
@@ -1456,7 +1452,6 @@ private fun FilterSelectionBottomSheet(
                     },
                     shape = RoundedCornerShape(16.dp),
                     color = if (tempSafeMode) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    border = if (tempSafeMode) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
                     modifier = Modifier
                         .weight(1f)
                         .height(44.dp)
@@ -1491,7 +1486,6 @@ private fun FilterSelectionBottomSheet(
                 onClick = { tempNoAi = !tempNoAi },
                 shape = RoundedCornerShape(18.dp),
                 color = if (tempNoAi) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surfaceContainerHigh,
-                border = androidx.compose.foundation.BorderStroke(1.dp, if (tempNoAi) MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .bouncyPress()

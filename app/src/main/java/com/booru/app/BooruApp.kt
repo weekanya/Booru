@@ -212,7 +212,19 @@ object BooruVideoCache {
         synchronized(lock) {
             try {
                 simpleCache?.keys?.toList()?.forEach { key ->
-                    simpleCache?.removeResource(key)
+                    try {
+                        simpleCache?.removeResource(key)
+                    } catch (_: Exception) {}
+                }
+            } catch (_: Exception) {}
+            try {
+                simpleCache?.release()
+            } catch (_: Exception) {}
+            simpleCache = null
+            try {
+                val videoDir = java.io.File(context.applicationContext.cacheDir, "booru_video_cache")
+                if (videoDir.exists()) {
+                    videoDir.deleteRecursively()
                 }
             } catch (_: Exception) {}
         }

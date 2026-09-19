@@ -24,6 +24,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class ContentType { PHOTOS, VIDEOS, GIFS }
 
@@ -807,7 +808,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             isClearingCache = true
             BooruCacheManager.clearBrowsingCache(getApplication())
-            updateCacheSize()
+            withContext(Dispatchers.IO) {
+                val bytes = BooruCacheManager.getCacheSizeBytes(getApplication())
+                cacheSizeFormatted = BooruCacheManager.formatBytes(bytes)
+            }
             isClearingCache = false
             onComplete()
         }
