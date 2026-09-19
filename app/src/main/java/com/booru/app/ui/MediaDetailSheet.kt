@@ -487,7 +487,6 @@ fun MediaDetailSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 36.dp)
         ) {
@@ -1788,18 +1787,30 @@ fun BooruVideoPlayer(
     videoUrl: String,
     previewUrl: String = "",
     modifier: Modifier = Modifier,
-    isActive: Boolean = true
+    isActive: Boolean = true,
+    isExternalControls: Boolean = false,
+    externalShowControls: Boolean = true,
+    onToggleControls: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(true) }
     var isMuted by remember { mutableStateOf(false) }
     var isReady by remember { mutableStateOf(false) }
-    var showControls by remember { mutableStateOf(true) }
+    var internalShowControls by remember { mutableStateOf(true) }
+    val effectiveShowControls = if (isExternalControls) externalShowControls else internalShowControls
     var currentPosMs by remember { mutableLongStateOf(0L) }
     var durationMs by remember { mutableLongStateOf(0L) }
     var isSeeking by remember { mutableStateOf(false) }
     var seekRatio by remember { mutableFloatStateOf(0f) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
+
+    fun toggleControls() {
+        if (isExternalControls) {
+            onToggleControls?.invoke()
+        } else {
+            internalShowControls = !internalShowControls
+        }
+    }
 
     val exoPlayer = remember(videoUrl) {
         val referer = when {
@@ -1892,10 +1903,10 @@ fun BooruVideoPlayer(
         }
     }
 
-    LaunchedEffect(showControls, isPlaying, isSeeking) {
-        if (showControls && isPlaying && !isSeeking) {
+    LaunchedEffect(internalShowControls, isPlaying, isSeeking, isExternalControls) {
+        if (!isExternalControls && internalShowControls && isPlaying && !isSeeking) {
             delay(4000)
-            showControls = false
+            internalShowControls = false
         }
     }
 
@@ -1944,7 +1955,7 @@ fun BooruVideoPlayer(
                 PlayerView(ctx).apply {
                     player = exoPlayer
                     useController = false
-                    setOnClickListener { showControls = !showControls }
+                    setOnClickListener { toggleControls() }
                     layoutParams = ViewGroup.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT,
                         ViewGroup.LayoutParams.MATCH_PARENT
@@ -1961,7 +1972,7 @@ fun BooruVideoPlayer(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
                 ) {
-                    showControls = !showControls
+                    toggleControls()
                 }
         )
 
@@ -1974,7 +1985,7 @@ fun BooruVideoPlayer(
         }
 
         AnimatedVisibility(
-            visible = showControls || !isPlaying,
+            visible = effectiveShowControls || !isPlaying,
             enter = fadeIn(),
             exit = fadeOut()
         ) {
@@ -2056,7 +2067,7 @@ fun BooruVideoPlayer(
         }
 
         AnimatedVisibility(
-            visible = showControls || !isPlaying,
+            visible = effectiveShowControls || !isPlaying,
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
@@ -2069,7 +2080,12 @@ fun BooruVideoPlayer(
                             listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
                         )
                     )
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                    .padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 10.dp,
+                        bottom = if (isExternalControls) 20.dp else 10.dp
+                    )
             ) {
                 val sliderPosition = when {
                     isSeeking -> seekRatio

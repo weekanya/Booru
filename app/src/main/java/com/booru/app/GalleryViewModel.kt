@@ -86,6 +86,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     private var currentPage = 0
     var hasMore by mutableStateOf(true); private set
+    var activeTagCount by mutableStateOf(0); private set
     private var searchJob: Job? = null
     private var suggestionJob: Job? = null
 
@@ -525,10 +526,23 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         results = emptyList()
 
         val trimmedTags = tags.trim()
+        activeTagCount = if (trimmedTags.isNotEmpty()) {
+            tagSuggestions.find { it.value.equals(trimmedTags, ignoreCase = true) }?.count ?: 0
+        } else 0
+
         if (trimmedTags.isNotEmpty()) {
             viewModelScope.launch {
                 prefs.saveSearchQuery(trimmedTags)
                 prefs.recordSearchTags(trimmedTags.split(Regex("\\s+")))
+            }
+            if (activeTagCount == 0 && !trimmedTags.contains(" ")) {
+                viewModelScope.launch {
+                    val s = repo.getTagSuggestions(source, trimmedTags)
+                    val m = s.find { it.value.equals(trimmedTags, ignoreCase = true) }
+                    if (m != null && m.count > 0) {
+                        activeTagCount = m.count
+                    }
+                }
             }
         }
 

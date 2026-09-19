@@ -137,7 +137,6 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                         .fillMaxSize()
                         .displayCutoutPadding()
                         .statusBarsPadding()
-                        .navigationBarsPadding()
                 ) {
                 Crossfade(
                     targetState = selectedTab,

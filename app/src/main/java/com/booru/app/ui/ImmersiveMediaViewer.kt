@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -178,7 +177,12 @@ fun ImmersiveMediaViewer(
                         videoUrl = item.url,
                         previewUrl = item.sample.ifBlank { item.preview.ifBlank { item.url } },
                         modifier = Modifier.fillMaxSize(),
-                        isActive = isCurrent
+                        isActive = isCurrent,
+                        isExternalControls = true,
+                        externalShowControls = showControls,
+                        onToggleControls = {
+                            showControls = !showControls
+                        }
                     )
                 } else {
                     FullscreenZoomableImage(
@@ -228,17 +232,37 @@ fun ImmersiveMediaViewer(
                             Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                         }
 
-                        Surface(
-                            shape = CircleShape,
-                            color = Color.Black.copy(alpha = 0.40f)
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = "${pagerState.currentPage + 1} / ${mediaList.size}",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                            )
+                            val current = mediaList[pagerState.currentPage]
+                            Surface(
+                                shape = CircleShape,
+                                color = Color.Black.copy(alpha = 0.40f)
+                            ) {
+                                Text(
+                                    text = "${pagerState.currentPage + 1} / ${mediaList.size}",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
+                            if (current.isVideo) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color.Black.copy(alpha = 0.40f)
+                                ) {
+                                    Text(
+                                        text = current.source.uppercase(),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
                         }
 
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -271,8 +295,9 @@ fun ImmersiveMediaViewer(
                 }
             }
 
+            val currentMediaItem = mediaList.getOrNull(pagerState.currentPage)
             AnimatedVisibility(
-                visible = showControls,
+                visible = showControls && (currentMediaItem?.isVideo == false),
                 enter = fadeIn() + slideInVertically { it },
                 exit = fadeOut() + slideOutVertically { it },
                 modifier = Modifier.align(Alignment.BottomCenter)
@@ -285,8 +310,7 @@ fun ImmersiveMediaViewer(
                                 colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
                             )
                         )
-                        .navigationBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                        .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 20.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -409,8 +433,6 @@ fun FullscreenZoomableImage(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onTap = { onToggleControls() }

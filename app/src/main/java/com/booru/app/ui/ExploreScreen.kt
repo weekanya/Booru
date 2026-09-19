@@ -226,17 +226,24 @@ fun ExploreScreen(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    if (vm.results.isNotEmpty()) {
+                    if (vm.query.isNotBlank() && vm.results.isNotEmpty()) {
                         Spacer(Modifier.width(8.dp))
                         Surface(
                             shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh
+                            color = MaterialTheme.colorScheme.primaryContainer
                         ) {
+                            val countText = if (vm.activeTagCount > 0) {
+                                "${vm.activeTagCount}"
+                            } else if (vm.hasMore) {
+                                "${vm.results.size}+"
+                            } else {
+                                "${vm.results.size}"
+                            }
                             Text(
-                                text = if (vm.hasMore) "${vm.results.size}+" else "${vm.results.size}",
+                                text = countText,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
                         }
@@ -1187,37 +1194,51 @@ private fun FilterSelectionBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        dragHandle = {
+            Surface(
+                modifier = Modifier.padding(vertical = 12.dp).size(width = 36.dp, height = 4.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            ) {}
+        },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 18.dp)
-                .padding(bottom = 24.dp)
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 20.dp)
                 .verticalScroll(rememberScrollState())
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 8.dp),
+                    .padding(bottom = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Rounded.Tune,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Rounded.Tune,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
                     Text(
                         text = Strings.filtersAndSorting(lang),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
 
@@ -1229,190 +1250,254 @@ private fun FilterSelectionBottomSheet(
                         tempExcludeSafe = false
                         tempNoAi = false
                     },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                    shape = CircleShape
                 ) {
                     Text(
                         text = Strings.resetFilters(lang),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.SemiBold
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
 
             Text(
                 text = Strings.contentTypeTitle(lang),
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(top = 4.dp, bottom = 6.dp)
+                modifier = Modifier.padding(top = 8.dp, bottom = 8.dp)
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val isPhotos = tempContentTypes.contains(ContentType.PHOTOS)
-                FilterChip(
-                    selected = isPhotos,
-                    onClick = {
-                        tempContentTypes = if (isPhotos) tempContentTypes - ContentType.PHOTOS else tempContentTypes + ContentType.PHOTOS
-                    },
-                    label = { Text(Strings.contentTypePhotos(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (isPhotos) FontWeight.Bold else FontWeight.Medium) },
-                    leadingIcon = { Icon(Icons.Rounded.Image, null, modifier = Modifier.size(15.dp)) },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    ),
-                    modifier = Modifier.weight(1f).height(34.dp).bouncyPress()
+                val types = listOf(
+                    Triple(ContentType.PHOTOS, Strings.contentTypePhotos(lang), Icons.Rounded.Image),
+                    Triple(ContentType.VIDEOS, Strings.contentTypeVideos(lang), Icons.Rounded.Videocam),
+                    Triple(ContentType.GIFS, Strings.contentTypeGifs(lang), Icons.Rounded.Gif)
                 )
 
-                val isVideos = tempContentTypes.contains(ContentType.VIDEOS)
-                FilterChip(
-                    selected = isVideos,
-                    onClick = {
-                        tempContentTypes = if (isVideos) tempContentTypes - ContentType.VIDEOS else tempContentTypes + ContentType.VIDEOS
-                    },
-                    label = { Text(Strings.contentTypeVideos(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (isVideos) FontWeight.Bold else FontWeight.Medium) },
-                    leadingIcon = { Icon(Icons.Rounded.Videocam, null, modifier = Modifier.size(15.dp)) },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    ),
-                    modifier = Modifier.weight(1f).height(34.dp).bouncyPress()
-                )
-
-                val isGifs = tempContentTypes.contains(ContentType.GIFS)
-                FilterChip(
-                    selected = isGifs,
-                    onClick = {
-                        tempContentTypes = if (isGifs) tempContentTypes - ContentType.GIFS else tempContentTypes + ContentType.GIFS
-                    },
-                    label = { Text(Strings.contentTypeGifs(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (isGifs) FontWeight.Bold else FontWeight.Medium) },
-                    leadingIcon = { Icon(Icons.Rounded.Gif, null, modifier = Modifier.size(16.dp)) },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    ),
-                    modifier = Modifier.weight(1f).height(34.dp).bouncyPress()
-                )
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            Text(
-                text = if (lang == AppLanguage.RUSSIAN) "Сортировка" else "Sort by",
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 6.dp)
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                SortOrder.entries.forEach { order ->
-                    val isSelected = tempSortOrder == order
-                    val orderLabel = when (order) {
-                        SortOrder.NEWEST -> Strings.sortNewest(lang)
-                        SortOrder.SCORE -> Strings.sortScore(lang)
-                        SortOrder.RANDOM -> Strings.sortRandom(lang)
+                types.forEach { (type, label, icon) ->
+                    val selected = tempContentTypes.contains(type)
+                    Surface(
+                        onClick = {
+                            tempContentTypes = if (selected) tempContentTypes - type else tempContentTypes + type
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        border = if (selected) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .bouncyPress()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                icon,
+                                contentDescription = null,
+                                tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
                     }
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { tempSortOrder = order },
-                        label = { Text(orderLabel, style = MaterialTheme.typography.labelSmall, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium) },
-                        leadingIcon = if (isSelected) {
-                            { Icon(Icons.Rounded.Check, null, modifier = Modifier.size(14.dp)) }
-                        } else null,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            selectedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        ),
-                        modifier = Modifier.weight(1f).height(34.dp).bouncyPress()
-                    )
                 }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(16.dp))
 
             Text(
-                text = Strings.allRatings(lang),
-                style = MaterialTheme.typography.labelSmall,
+                text = if (lang == AppLanguage.RUSSIAN) "Сортировка" else "Sort by",
+                style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 6.dp)
+                modifier = Modifier.padding(bottom = 8.dp)
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val sortOrders = listOf(
+                    Pair(SortOrder.NEWEST, Strings.sortNewest(lang)),
+                    Pair(SortOrder.SCORE, Strings.sortScore(lang)),
+                    Pair(SortOrder.RANDOM, Strings.sortRandom(lang))
+                )
+
+                sortOrders.forEach { (order, label) ->
+                    val selected = (tempSortOrder == order)
+                    Surface(
+                        onClick = { tempSortOrder = order },
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        border = if (selected) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .bouncyPress()
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            if (selected) {
+                                Icon(
+                                    Icons.Rounded.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(4.dp))
+                            }
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Text(
+                text = Strings.allRatings(lang),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 val isAllRating = !tempSafeMode && !tempExcludeSafe
-                FilterChip(
-                    selected = isAllRating,
+                Surface(
                     onClick = {
                         tempSafeMode = false
                         tempExcludeSafe = false
                     },
-                    label = { Text(Strings.allRatings(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (isAllRating) FontWeight.Bold else FontWeight.Medium) },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer
-                    ),
-                    modifier = Modifier.weight(1f).height(34.dp).bouncyPress()
-                )
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (isAllRating) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = if (isAllRating) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .bouncyPress()
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text(
+                            text = Strings.allRatings(lang),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (isAllRating) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isAllRating) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                }
 
-                FilterChip(
-                    selected = tempExcludeSafe,
+                Surface(
                     onClick = {
                         tempExcludeSafe = !tempExcludeSafe
                         if (tempExcludeSafe) tempSafeMode = false
                     },
-                    label = { Text(Strings.only18Badge(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (tempExcludeSafe) FontWeight.Bold else FontWeight.Medium) },
-                    leadingIcon = { Icon(Icons.Rounded.Explicit, null, modifier = Modifier.size(15.dp)) },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.errorContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onErrorContainer
-                    ),
-                    modifier = Modifier.weight(1f).height(34.dp).bouncyPress()
-                )
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (tempExcludeSafe) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = if (tempExcludeSafe) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .bouncyPress()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Rounded.Explicit,
+                            contentDescription = null,
+                            tint = if (tempExcludeSafe) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = Strings.only18Badge(lang),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (tempExcludeSafe) FontWeight.Bold else FontWeight.Medium,
+                            color = if (tempExcludeSafe) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                }
 
-                FilterChip(
-                    selected = tempSafeMode,
+                Surface(
                     onClick = {
                         tempSafeMode = !tempSafeMode
                         if (tempSafeMode) tempExcludeSafe = false
                     },
-                    label = { Text(Strings.safeModeBadge(lang), style = MaterialTheme.typography.labelSmall, fontWeight = if (tempSafeMode) FontWeight.Bold else FontWeight.Medium) },
-                    leadingIcon = { Icon(Icons.Rounded.Shield, null, modifier = Modifier.size(15.dp)) },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = FilterChipDefaults.filterChipColors(
-                        selectedContainerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                        selectedLabelColor = MaterialTheme.colorScheme.onTertiaryContainer
-                    ),
-                    modifier = Modifier.weight(1f).height(34.dp).bouncyPress()
-                )
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (tempSafeMode) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    border = if (tempSafeMode) null else androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .bouncyPress()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Rounded.Shield,
+                            contentDescription = null,
+                            tint = if (tempSafeMode) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = Strings.safeModeBadge(lang),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (tempSafeMode) FontWeight.Bold else FontWeight.Medium,
+                            color = if (tempSafeMode) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                    }
+                }
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(16.dp))
 
             Surface(
                 onClick = { tempNoAi = !tempNoAi },
-                shape = RoundedCornerShape(14.dp),
-                color = if (tempNoAi) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                shape = RoundedCornerShape(18.dp),
+                color = if (tempNoAi) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surfaceContainerHigh,
+                border = androidx.compose.foundation.BorderStroke(1.dp, if (tempNoAi) MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)),
                 modifier = Modifier
                     .fillMaxWidth()
                     .bouncyPress()
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -1421,13 +1506,14 @@ private fun FilterSelectionBottomSheet(
                             Icons.Rounded.AutoAwesome,
                             contentDescription = null,
                             tint = if (tempNoAi) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(22.dp)
                         )
-                        Spacer(Modifier.width(10.dp))
+                        Spacer(Modifier.width(12.dp))
                         Text(
                             text = Strings.noAiBadge(lang),
                             style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                     Switch(
@@ -1437,7 +1523,7 @@ private fun FilterSelectionBottomSheet(
                 }
             }
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(20.dp))
 
             Button(
                 onClick = {
@@ -1450,13 +1536,23 @@ private fun FilterSelectionBottomSheet(
                     )
                     onDismiss()
                 },
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(42.dp)
+                    .height(48.dp)
                     .bouncyPress()
             ) {
-                Text(Strings.applyFilters(lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = Strings.applyFilters(lang),
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
         }
     }
