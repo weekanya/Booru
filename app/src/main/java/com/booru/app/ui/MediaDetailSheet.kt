@@ -148,6 +148,18 @@ fun MediaDetailSheet(
     var isTagsExpanded by remember { mutableStateOf(false) }
     var showTrueFullscreen by remember { mutableStateOf(false) }
 
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var isDismissingSheet by remember { mutableStateOf(false) }
+    val dismissSheetAnimated: () -> Unit = {
+        if (!isDismissingSheet) {
+            isDismissingSheet = true
+            coroutineScope.launch {
+                sheetState.hide()
+                onDismiss()
+            }
+        }
+    }
+
     val currentMedia = mediaList.getOrNull(pagerState.currentPage) ?: mediaList.first()
 
     BackHandler {
@@ -159,7 +171,7 @@ fun MediaDetailSheet(
                 resetZoomKey++
                 isCurrentPageZoomed = false
             }
-            else -> onDismiss()
+            else -> dismissSheetAnimated()
         }
     }
 
@@ -481,7 +493,7 @@ fun MediaDetailSheet(
                 color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
             ) {}
         },
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
     ) {
         Column(
@@ -1336,6 +1348,7 @@ fun MediaDetailSheet(
                 showTrueFullscreen = false
                 if (newIndex in mediaList.indices && newIndex != pagerState.currentPage) {
                     coroutineScope.launch {
+                        delay(50)
                         pagerState.scrollToPage(newIndex)
                     }
                 }

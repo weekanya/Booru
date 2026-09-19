@@ -3,8 +3,12 @@ package com.booru.app.ui
 import android.app.Activity
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateOffsetAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -16,6 +20,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -53,6 +58,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -77,7 +83,9 @@ import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
 import com.booru.app.GalleryViewModel
 import com.booru.app.RemoteMedia
+import kotlin.math.abs
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -106,8 +114,26 @@ fun ImmersiveMediaViewer(
     var isPageZoomed by remember { mutableStateOf(false) }
     var resetZoomKey by remember { mutableIntStateOf(0) }
 
+    val coroutineScope = rememberCoroutineScope()
+    var isContentVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        isContentVisible = true
+    }
+
+    var isClosing by remember { mutableStateOf(false) }
+    val dismissWithAnimation: () -> Unit = {
+        if (!isClosing) {
+            isClosing = true
+            isContentVisible = false
+            coroutineScope.launch {
+                delay(220)
+                onDismiss(pagerState.currentPage)
+            }
+        }
+    }
+
     BackHandler {
-        onDismiss(pagerState.currentPage)
+        dismissWithAnimation()
     }
 
     LaunchedEffect(pagerState.currentPage) {
@@ -125,7 +151,7 @@ fun ImmersiveMediaViewer(
     }
 
     Dialog(
-        onDismissRequest = { onDismiss(pagerState.currentPage) },
+        onDismissRequest = { dismissWithAnimation() },
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
             decorFitsSystemWindows = false
@@ -143,6 +169,8 @@ fun ImmersiveMediaViewer(
             }
             val window = targetWindow ?: (context as? Activity)?.window
             if (window != null) {
+                window.setDimAmount(0f)
+                window.setBackgroundDrawableResource(android.R.color.transparent)
                 val insetsController = WindowCompat.getInsetsController(window, window.decorView)
                 insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
@@ -155,53 +183,111 @@ fun ImmersiveMediaViewer(
             }
         }
 
+        var dragDismissOffsetY by remember { mutableFloatStateOf(0f) }
+        val animatedDragOffsetY by animateFloatAsState(
+            targetValue = dragDismissOffsetY,
+            animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+            label = "dragDismissOffset"
+        )
+
+        val backgroundAlpha by animateFloatAsState(
+            targetValue = if (isContentVisible) {
+                (1f - (abs(animatedDragOffsetY) / 500f)).coerceIn(0.15f, 1f)
+            } else 0f,
+            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+            label = "bgAlpha"
+        )
+
+        val contentScale by animateFloatAsState(
+            targetValue = if (isContentVisible) {
+                (1f - (abs(animatedDragOffsetY) / 2500f)).coerceIn(0.85f, 1f)
+            } else 0.92f,
+            animationSpec = if (isClosing) tween(200, easing = FastOutSlowInEasing) else spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+            label = "contentScale"
+        )
+
+        val dragModifier = if (!isPageZoomed) {
+            Modifier.pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onVerticalDrag = { change, dragAmount ->
+                        change.consume()
+                        dragDismissOffsetY += dragAmount
+                    },
+                    onDragEnd = {
+                        if (abs(dragDismissOffsetY) > 130f) {
+                            dismissWithAnimation()
+                        } else {
+                            dragDismissOffsetY = 0f
+                        }
+                    },
+                    onDragCancel = {
+                        dragDismissOffsetY = 0f
+                    }
+                )
+            }
+        } else {
+            Modifier
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black)
+                .background(Color.Black.copy(alpha = backgroundAlpha))
+                .then(dragModifier)
         ) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxSize(),
-                userScrollEnabled = !isPageZoomed,
-                beyondViewportPageCount = 1,
-                key = { page ->
-                    val m = mediaList.getOrNull(page)
-                    if (m != null) "fs_${m.source}_${m.id.ifBlank { m.url }}_$page" else page
-                }
-            ) { page ->
-                val item = mediaList[page]
-                val isCurrent = (pagerState.currentPage == page)
-                if (item.isVideo) {
-                    BooruVideoPlayer(
-                        videoUrl = vm.resolveVideoUrl(item),
-                        previewUrl = if (vm.imageQuality == com.booru.app.data.ImageQuality.SAVER) item.preview.ifBlank { item.sample } else item.sample.ifBlank { item.preview.ifBlank { item.url } },
-                        modifier = Modifier.fillMaxSize(),
-                        isActive = isCurrent,
-                        isExternalControls = true,
-                        externalShowControls = showControls,
-                        onToggleControls = {
-                            showControls = !showControls
-                        }
-                    )
-                } else {
-                    FullscreenZoomableImage(
-                        media = item,
-                        vm = vm,
-                        isActive = isCurrent,
-                        resetZoomKey = if (isCurrent) resetZoomKey else 0,
-                        onZoomChanged = { zoomed ->
-                            if (isCurrent) isPageZoomed = zoomed
-                        },
-                        onToggleControls = {
-                            showControls = !showControls
-                        }
-                    )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        translationY = animatedDragOffsetY
+                        scaleX = contentScale
+                        scaleY = contentScale
+                        alpha = if (isClosing) backgroundAlpha else 1f
+                    }
+            ) {
+                HorizontalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize(),
+                    userScrollEnabled = !isPageZoomed && abs(dragDismissOffsetY) < 15f,
+                    beyondViewportPageCount = 1,
+                    key = { page ->
+                        val m = mediaList.getOrNull(page)
+                        if (m != null) "fs_${m.source}_${m.id.ifBlank { m.url }}_$page" else page
+                    }
+                ) { page ->
+                    val item = mediaList[page]
+                    val isCurrent = (pagerState.currentPage == page)
+                    if (item.isVideo) {
+                        BooruVideoPlayer(
+                            videoUrl = vm.resolveVideoUrl(item),
+                            previewUrl = if (vm.imageQuality == com.booru.app.data.ImageQuality.SAVER) item.preview.ifBlank { item.sample } else item.sample.ifBlank { item.preview.ifBlank { item.url } },
+                            modifier = Modifier.fillMaxSize(),
+                            isActive = isCurrent,
+                            isExternalControls = true,
+                            externalShowControls = showControls,
+                            onToggleControls = {
+                                showControls = !showControls
+                            }
+                        )
+                    } else {
+                        FullscreenZoomableImage(
+                            media = item,
+                            vm = vm,
+                            isActive = isCurrent,
+                            resetZoomKey = if (isCurrent) resetZoomKey else 0,
+                            onZoomChanged = { zoomed ->
+                                if (isCurrent) isPageZoomed = zoomed
+                            },
+                            onToggleControls = {
+                                showControls = !showControls
+                            }
+                        )
+                    }
                 }
             }
 
             AnimatedVisibility(
-                visible = showControls,
+                visible = showControls && isContentVisible && abs(dragDismissOffsetY) < 25f,
                 enter = fadeIn() + slideInVertically { -it },
                 exit = fadeOut() + slideOutVertically { -it },
                 modifier = Modifier.align(Alignment.TopCenter)
@@ -223,7 +309,7 @@ fun ImmersiveMediaViewer(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         IconButton(
-                            onClick = { onDismiss(pagerState.currentPage) },
+                            onClick = { dismissWithAnimation() },
                             colors = IconButtonDefaults.iconButtonColors(
                                 containerColor = Color.Black.copy(alpha = 0.40f),
                                 contentColor = Color.White
@@ -297,7 +383,7 @@ fun ImmersiveMediaViewer(
 
             val currentMediaItem = mediaList.getOrNull(pagerState.currentPage)
             AnimatedVisibility(
-                visible = showControls && (currentMediaItem?.isVideo == false),
+                visible = showControls && isContentVisible && (currentMediaItem?.isVideo == false) && abs(dragDismissOffsetY) < 25f,
                 enter = fadeIn() + slideInVertically { it },
                 exit = fadeOut() + slideOutVertically { it },
                 modifier = Modifier.align(Alignment.BottomCenter)
