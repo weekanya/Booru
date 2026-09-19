@@ -233,7 +233,7 @@ fun ExploreScreen(
                             color = MaterialTheme.colorScheme.surfaceContainerHigh
                         ) {
                             Text(
-                                text = "${vm.results.size}",
+                                text = if (vm.hasMore) "${vm.results.size}+" else "${vm.results.size}",
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.primary,
@@ -1194,6 +1194,7 @@ private fun FilterSelectionBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(horizontal = 18.dp)
                 .padding(bottom = 24.dp)
                 .verticalScroll(rememberScrollState())

@@ -85,7 +85,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var recommendationTags by mutableStateOf<List<String>>(emptyList()); private set
 
     private var currentPage = 0
-    private var hasMore = true
+    var hasMore by mutableStateOf(true); private set
     private var searchJob: Job? = null
     private var suggestionJob: Job? = null
 

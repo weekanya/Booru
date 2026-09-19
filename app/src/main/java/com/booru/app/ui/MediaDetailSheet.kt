@@ -487,6 +487,7 @@ fun MediaDetailSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 36.dp)
         ) {

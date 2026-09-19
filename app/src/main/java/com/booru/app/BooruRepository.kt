@@ -207,15 +207,32 @@ class BooruRepository(
         val q = query.trim().lowercase()
         if (q.length < 2) return@withContext emptyList()
 
-        val endpointKey = when (source) {
-            SOURCE_RULE34, SOURCE_XBOORU -> "rule34"
-            SOURCE_GELBOORU -> "gelbooru"
-            SOURCE_YANDE -> "yande"
-            else -> "safebooru"
+        val endpointKey = when {
+            source.contains("danbooru", ignoreCase = true) -> "danbooru"
+            source.contains("gelbooru", ignoreCase = true) -> "gelbooru"
+            source == SOURCE_YANDE || source.contains("yande", ignoreCase = true) -> "yande"
+            source == SOURCE_SAFEBOORU || source.contains("safe", ignoreCase = true) -> "safebooru"
+            else -> "rule34"
         }
 
         runCatching {
             when (endpointKey) {
+                "danbooru" -> {
+                    val url = "https://danbooru.donmai.us/autocomplete.json?search[query]=$q&search[type]=tag_query&limit=10"
+                    val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
+                    client.newCall(req).execute().use { res ->
+                        val body = res.body?.string()?.trim() ?: return@use emptyList()
+                        if (body.startsWith("[")) {
+                            val arr = JSONArray(body)
+                            (0 until arr.length()).mapNotNull { i ->
+                                val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                                val v = o.optString("value").ifBlank { o.optString("label") }
+                                val count = o.optInt("post_count", 0)
+                                if (v.isNotBlank()) TagSuggestion(value = v, label = if (count > 0) "$v ($count)" else v, count = count) else null
+                            }
+                        } else emptyList()
+                    }
+                }
                 "rule34" -> {
                     val url = "https://api.rule34.xxx/autocomplete.php?q=$q"
                     val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
@@ -253,26 +270,23 @@ class BooruRepository(
                     }
                 }
                 "gelbooru" -> {
-                    val url = "https://gelbooru.com/index.php?page=dapi&s=tag&q=index&json=1&name_pattern=%$q%&limit=8"
-                    val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
+                    val url = "https://gelbooru.com/index.php?page=autocomplete2&term=$q"
+                    val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).header("Referer", "https://gelbooru.com/").build()
                     client.newCall(req).execute().use { res ->
                         val body = res.body?.string()?.trim() ?: return@use emptyList()
-                        val arr = when {
-                            body.startsWith("[") -> JSONArray(body)
-                            body.startsWith("{") -> JSONObject(body).optJSONArray("tag")
-                            else -> null
-                        } ?: return@use emptyList()
-
-                        (0 until arr.length()).mapNotNull { i ->
-                            val o = arr.optJSONObject(i) ?: return@mapNotNull null
-                            val name = o.optString("name").ifBlank { o.optString("tag") }
-                            val count = o.optInt("count", 0)
-                            if (name.isNotBlank()) TagSuggestion(value = name, label = if (count > 0) "$name ($count)" else name, count = count) else null
-                        }
+                        if (body.startsWith("[")) {
+                            val arr = JSONArray(body)
+                            (0 until arr.length()).mapNotNull { i ->
+                                val o = arr.optJSONObject(i) ?: return@mapNotNull null
+                                val v = o.optString("value").ifBlank { o.optString("label") }
+                                val count = o.optString("post_count").toIntOrNull() ?: o.optInt("post_count", 0)
+                                if (v.isNotBlank()) TagSuggestion(value = v, label = if (count > 0) "$v ($count)" else v, count = count) else null
+                            }
+                        } else emptyList()
                     }
                 }
                 "yande" -> {
-                    val url = "https://yande.re/tag.json?name=$q*&limit=8"
+                    val url = "https://yande.re/tag.json?name=$q*&limit=10"
                     val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
                     client.newCall(req).execute().use { res ->
                         val body = res.body?.string()?.trim() ?: return@use emptyList()

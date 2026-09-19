@@ -11,8 +11,11 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -130,14 +133,22 @@ fun ImmersiveMediaViewer(
         )
     ) {
         DisposableEffect(Unit) {
-            val window = (view.parent as? DialogWindowProvider)?.window ?: (context as? Activity)?.window
+            var parent = view.parent
+            var targetWindow: android.view.Window? = null
+            while (parent != null) {
+                if (parent is DialogWindowProvider) {
+                    targetWindow = parent.window
+                    break
+                }
+                parent = parent.parent
+            }
+            val window = targetWindow ?: (context as? Activity)?.window
             if (window != null) {
                 val insetsController = WindowCompat.getInsetsController(window, window.decorView)
                 insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 insetsController.hide(WindowInsetsCompat.Type.systemBars())
             }
             onDispose {
-                val window = (view.parent as? DialogWindowProvider)?.window ?: (context as? Activity)?.window
                 if (window != null) {
                     val insetsController = WindowCompat.getInsetsController(window, window.decorView)
                     insetsController.show(WindowInsetsCompat.Type.systemBars())
@@ -191,66 +202,70 @@ fun ImmersiveMediaViewer(
                 exit = fadeOut() + slideOutVertically { -it },
                 modifier = Modifier.align(Alignment.TopCenter)
             ) {
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .statusBarsPadding()
                         .background(
                             Brush.verticalGradient(
-                                colors = listOf(Color.Black.copy(alpha = 0.70f), Color.Transparent)
+                                colors = listOf(Color.Black.copy(alpha = 0.75f), Color.Transparent)
                             )
                         )
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    IconButton(
-                        onClick = { onDismiss(pagerState.currentPage) },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = Color.Black.copy(alpha = 0.40f),
-                            contentColor = Color.White
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
-                    }
-
-                    Surface(
-                        shape = CircleShape,
-                        color = Color.Black.copy(alpha = 0.40f)
-                    ) {
-                        Text(
-                            text = "${pagerState.currentPage + 1} / ${mediaList.size}",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                        )
-                    }
-
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val current = mediaList[pagerState.currentPage]
-                        val isFav = vm.isFavorite(current)
                         IconButton(
-                            onClick = { vm.toggleFavorite(current) },
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = Color.Black.copy(alpha = 0.40f),
-                                contentColor = if (isFav) MaterialTheme.colorScheme.primary else Color.White
-                            )
-                        ) {
-                            Icon(
-                                if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = "Favorite"
-                            )
-                        }
-
-                        IconButton(
-                            onClick = { onDownload(current) },
+                            onClick = { onDismiss(pagerState.currentPage) },
                             colors = IconButtonDefaults.iconButtonColors(
                                 containerColor = Color.Black.copy(alpha = 0.40f),
                                 contentColor = Color.White
                             )
                         ) {
-                            Icon(Icons.Rounded.Download, contentDescription = "Download")
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                        }
+
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.40f)
+                        ) {
+                            Text(
+                                text = "${pagerState.currentPage + 1} / ${mediaList.size}",
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                            )
+                        }
+
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            val current = mediaList[pagerState.currentPage]
+                            val isFav = vm.isFavorite(current)
+                            IconButton(
+                                onClick = { vm.toggleFavorite(current) },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = Color.Black.copy(alpha = 0.40f),
+                                    contentColor = if (isFav) MaterialTheme.colorScheme.primary else Color.White
+                                )
+                            ) {
+                                Icon(
+                                    if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                    contentDescription = "Favorite"
+                                )
+                            }
+
+                            IconButton(
+                                onClick = { onDownload(current) },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = Color.Black.copy(alpha = 0.40f),
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Icon(Icons.Rounded.Download, contentDescription = "Download")
+                            }
                         }
                     }
                 }
@@ -262,65 +277,69 @@ fun ImmersiveMediaViewer(
                 exit = fadeOut() + slideOutVertically { it },
                 modifier = Modifier.align(Alignment.BottomCenter)
             ) {
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding()
                         .background(
                             Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.70f))
+                                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
                             )
                         )
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
                 ) {
-                    val current = mediaList[pagerState.currentPage]
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color.White.copy(alpha = 0.20f)
+                        val current = mediaList[pagerState.currentPage]
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = current.source.uppercase(),
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                            )
-                        }
-                        if (current.width > 0 && current.height > 0) {
                             Surface(
                                 shape = CircleShape,
                                 color = Color.White.copy(alpha = 0.20f)
                             ) {
                                 Text(
-                                    text = "${current.width} × ${current.height}",
+                                    text = current.source.uppercase(),
                                     style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Medium,
+                                    fontWeight = FontWeight.Bold,
                                     color = Color.White,
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                 )
                             }
+                            if (current.width > 0 && current.height > 0) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = Color.White.copy(alpha = 0.20f)
+                                ) {
+                                    Text(
+                                        text = "${current.width} × ${current.height}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Medium,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
                         }
-                    }
 
-                    if (isPageZoomed) {
-                        FilledTonalIconButton(
-                            onClick = {
-                                resetZoomKey++
-                                isPageZoomed = false
-                            },
-                            shape = CircleShape,
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = Color.White.copy(alpha = 0.25f),
-                                contentColor = Color.White
-                            )
-                        ) {
-                            Icon(Icons.Rounded.ZoomOutMap, contentDescription = "Reset Zoom")
+                        if (isPageZoomed) {
+                            FilledTonalIconButton(
+                                onClick = {
+                                    resetZoomKey++
+                                    isPageZoomed = false
+                                },
+                                shape = CircleShape,
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = Color.White.copy(alpha = 0.25f),
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Icon(Icons.Rounded.ZoomOutMap, contentDescription = "Reset Zoom")
+                            }
                         }
                     }
                 }
@@ -350,7 +369,7 @@ fun FullscreenZoomableImage(
         )
     }
 
-    val isTall = (media.width > 0 && media.height > 0 && media.height.toFloat() / media.width.toFloat() > 1.35f) || (detectedRatio > 1.35f)
+    val isComic = (media.width > 0 && media.height > 0 && media.height.toFloat() / media.width.toFloat() >= 2.5f) || (detectedRatio >= 2.5f)
 
     LaunchedEffect(isActive) {
         if (!isActive) {
@@ -385,11 +404,13 @@ fun FullscreenZoomableImage(
         label = "fsZoomOffset"
     )
 
-    if (isTall) {
+    if (isComic) {
         val scrollState = rememberScrollState()
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onTap = { onToggleControls() }
@@ -471,16 +492,15 @@ fun FullscreenZoomableImage(
                                 rawOffset = Offset.Zero
                                 onZoomChanged(false)
                             } else {
-                                rawScale = 2.5f
-                                val centerX = size.width / 2f
-                                val centerY = size.height / 2f
-                                val diffX = (centerX - tapOffset.x) * 1.5f
-                                val diffY = (centerY - tapOffset.y) * 1.5f
-                                val maxOffsetX = ((2.5f - 1f) * size.width / 2f).coerceAtLeast(0f)
-                                val maxOffsetY = ((2.5f - 1f) * size.height / 2f).coerceAtLeast(0f)
+                                val newScale = 2.5f
+                                rawScale = newScale
+                                val maxOffsetX = ((newScale - 1f) * size.width.toFloat() / 2f).coerceAtLeast(0f)
+                                val maxOffsetY = ((newScale - 1f) * size.height.toFloat() / 2f).coerceAtLeast(0f)
+                                val targetX = (size.width.toFloat() / 2f - tapOffset.x) * (newScale - 1f)
+                                val targetY = (size.height.toFloat() / 2f - tapOffset.y) * (newScale - 1f)
                                 rawOffset = Offset(
-                                    x = diffX.coerceIn(-maxOffsetX, maxOffsetX),
-                                    y = diffY.coerceIn(-maxOffsetY, maxOffsetY)
+                                    x = targetX.coerceIn(-maxOffsetX, maxOffsetX),
+                                    y = targetY.coerceIn(-maxOffsetY, maxOffsetY)
                                 )
                                 onZoomChanged(true)
                             }
@@ -488,22 +508,36 @@ fun FullscreenZoomableImage(
                     )
                 }
                 .pointerInput(Unit) {
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        val newScale = (rawScale * zoom).coerceIn(1f, 5f)
-                        rawScale = newScale
-                        val zoomed = newScale > 1.05f
-                        onZoomChanged(zoomed)
-                        if (zoomed) {
-                            val maxOffsetX = ((newScale - 1f) * size.width / 2f).coerceAtLeast(0f)
-                            val maxOffsetY = ((newScale - 1f) * size.height / 2f).coerceAtLeast(0f)
-                            val candidate = rawOffset + pan
-                            rawOffset = Offset(
-                                x = candidate.x.coerceIn(-maxOffsetX, maxOffsetX),
-                                y = candidate.y.coerceIn(-maxOffsetY, maxOffsetY)
-                            )
-                        } else {
-                            rawOffset = Offset.Zero
-                        }
+                    awaitEachGesture {
+                        awaitFirstDown(requireUnconsumed = false)
+                        do {
+                            val event = awaitPointerEvent()
+                            val canceled = event.changes.any { it.isConsumed }
+                            if (canceled) break
+
+                            val pointerCount = event.changes.size
+                            if (pointerCount >= 2 || rawScale > 1.05f) {
+                                val zoomChange = event.calculateZoom()
+                                val panChange = event.calculatePan()
+                                val newScale = (rawScale * zoomChange).coerceIn(1f, 5f)
+                                rawScale = newScale
+                                val zoomed = newScale > 1.05f
+                                onZoomChanged(zoomed)
+
+                                if (zoomed) {
+                                    val maxOffsetX = ((newScale - 1f) * size.width.toFloat() / 2f).coerceAtLeast(0f)
+                                    val maxOffsetY = ((newScale - 1f) * size.height.toFloat() / 2f).coerceAtLeast(0f)
+                                    val candidate = rawOffset + panChange
+                                    rawOffset = Offset(
+                                        x = candidate.x.coerceIn(-maxOffsetX, maxOffsetX),
+                                        y = candidate.y.coerceIn(-maxOffsetY, maxOffsetY)
+                                    )
+                                } else {
+                                    rawOffset = Offset.Zero
+                                }
+                                event.changes.forEach { it.consume() }
+                            }
+                        } while (event.changes.any { it.pressed })
                     }
                 },
             contentAlignment = Alignment.Center
