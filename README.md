@@ -34,7 +34,7 @@ Modern, private Android client for booru imageboards. Built with Kotlin, Jetpack
 
 ### Prerequisites
 - Android Studio or Gradle CLI
-- JDK 17
+- JDK 21
 - Android SDK (API 26 – 35)
 
 ### Commands
