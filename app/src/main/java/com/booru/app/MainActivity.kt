@@ -328,11 +328,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                     }
                 },
                 text = {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState())
-                    ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         if (vm.isDownloadingUpdate) {
                             Text(
                                 text = Strings.downloadingUpdate(lang),
@@ -391,18 +387,22 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             if (info.releaseNotes.isNotBlank()) {
-                                Spacer(Modifier.height(12.dp))
+                                Spacer(Modifier.height(10.dp))
                                 Surface(
                                     shape = RoundedCornerShape(16.dp),
                                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 220.dp)
                                 ) {
-                                    Text(
-                                        text = info.releaseNotes,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.padding(14.dp)
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .verticalScroll(rememberScrollState())
+                                            .padding(12.dp)
+                                    ) {
+                                        com.booru.app.ui.MarkdownText(markdown = info.releaseNotes)
+                                    }
                                 }
                             }
                         }

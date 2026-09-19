@@ -174,8 +174,8 @@ fun ImmersiveMediaViewer(
                 val isCurrent = (pagerState.currentPage == page)
                 if (item.isVideo) {
                     BooruVideoPlayer(
-                        videoUrl = item.url,
-                        previewUrl = item.sample.ifBlank { item.preview.ifBlank { item.url } },
+                        videoUrl = vm.resolveVideoUrl(item),
+                        previewUrl = if (vm.imageQuality == com.booru.app.data.ImageQuality.SAVER) item.preview.ifBlank { item.sample } else item.sample.ifBlank { item.preview.ifBlank { item.url } },
                         modifier = Modifier.fillMaxSize(),
                         isActive = isCurrent,
                         isExternalControls = true,

@@ -1048,6 +1048,27 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         ImageQuality.SAMPLE   -> media.sample.ifBlank { media.url.ifBlank { media.preview } }
     }
 
+    fun resolveVideoUrl(media: RemoteMedia): String {
+        if (!media.isVideo) return resolveMediaUrl(media)
+        return when (imageQuality) {
+            ImageQuality.ORIGINAL -> media.url.ifBlank { media.sample }
+            ImageQuality.SAMPLE, ImageQuality.SAVER -> {
+                val sampleClean = media.sample.substringBefore("?").lowercase()
+                if (sampleClean.endsWith(".mp4") || sampleClean.endsWith(".webm") || sampleClean.endsWith(".mkv")) {
+                    media.sample
+                } else {
+                    media.url
+                }
+            }
+        }
+    }
+
+    fun resolveThumbnailUrl(media: RemoteMedia): String = when (imageQuality) {
+        ImageQuality.SAVER -> media.preview.ifBlank { media.sample.ifBlank { media.url } }
+        ImageQuality.ORIGINAL -> media.sample.ifBlank { media.url.ifBlank { media.preview } }
+        ImageQuality.SAMPLE -> media.sample.ifBlank { media.preview.ifBlank { media.url } }
+    }
+
     fun getSourceDisplayName(key: String): String {
         if (key == BooruRepository.SOURCE_ALL || key.equals("all sources", ignoreCase = true)) {
             return com.booru.app.data.Strings.sourceRecommendations(language)
