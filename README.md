@@ -30,19 +30,6 @@ Modern, private Android client for booru imageboards. Built with Kotlin, Jetpack
 - **No Analytics / Telemetry**: Completely private, direct client-to-booru connections.
 - **In-App Updater**: GitHub Releases updater with signature verification and markdown release notes.
 
-## Tech Stack
-
-| Component | Technology |
-|---|---|
-| Language | Kotlin |
-| UI | Jetpack Compose, Material 3 Expressive |
-| Image Loading | Coil 2 |
-| Video Playback | AndroidX Media3 (ExoPlayer) |
-| Local Database | Room (SQLite) |
-| Preferences | DataStore + EncryptedSharedPreferences |
-| Networking | OkHttp 4 |
-| Minification | R8 / ProGuard |
-
 ## Building
 
 ### Prerequisites
