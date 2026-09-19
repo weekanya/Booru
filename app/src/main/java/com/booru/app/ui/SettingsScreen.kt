@@ -984,7 +984,6 @@ fun SettingsScreen(
                                     Surface(
                                         shape = RoundedCornerShape(12.dp),
                                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)),
                                         modifier = Modifier.bouncyPress()
                                     ) {
                                         Row(
@@ -1008,7 +1007,7 @@ fun SettingsScreen(
                                                 modifier = Modifier
                                                     .size(22.dp)
                                                     .clip(CircleShape)
-                                                    .background(MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.35f))
+                                                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                                                     .clickable { vm.removeBlacklistedTag(tag) },
                                                 contentAlignment = Alignment.Center
                                             ) {
@@ -1016,7 +1015,7 @@ fun SettingsScreen(
                                                     Icons.Rounded.Close,
                                                     contentDescription = "Remove",
                                                     modifier = Modifier.size(12.dp),
-                                                    tint = MaterialTheme.colorScheme.error
+                                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
                                         }
