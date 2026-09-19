@@ -17,7 +17,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.*
+import androidx.compose.foundation.lazy.staggeredgrid.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -76,7 +76,7 @@ fun FavoritesScreen(
     val lang = vm.language
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    val gridState = rememberLazyGridState()
+    val gridState = rememberLazyStaggeredGridState()
 
     var filterText by rememberSaveable { mutableStateOf("") }
     var mediaTypeFilter by rememberSaveable { mutableStateOf(FavoriteMediaTypeFilter.ALL) }
@@ -551,20 +551,32 @@ fun FavoritesScreen(
                 }
             }
         } else {
-            LazyVerticalGrid(
+            LazyVerticalStaggeredGrid(
                 state = gridState,
-                columns = GridCells.Adaptive(minSize = 160.dp),
+                columns = StaggeredGridCells.Fixed(2),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 86.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalItemSpacing = 8.dp,
                 modifier = Modifier.fillMaxSize()
             ) {
                 itemsIndexed(
                     items = filteredList,
                     key = { _, m -> "${m.source}_${m.id.ifBlank { m.url }}" }
                 ) { index, media ->
+                    val ratio = remember(media.id, media.width, media.height) {
+                        if (media.width > 0 && media.height > 0) {
+                            (media.width.toFloat() / media.height.toFloat()).coerceIn(0.55f, 1.6f)
+                        } else {
+                            when ((media.id.hashCode() and 0x7FFFFFFF) % 3) {
+                                0 -> 3f / 4f
+                                1 -> 2f / 3f
+                                else -> 1f
+                            }
+                        }
+                    }
                     FavoriteCard(
                         media = media,
+                        aspectRatio = ratio,
                         quality = vm.imageQuality,
                         onRemove = { vm.toggleFavorite(media) },
                         onClick = {
@@ -672,11 +684,22 @@ private fun FavoriteFilterTab(
 @Composable
 private fun FavoriteCard(
     media: RemoteMedia,
+    aspectRatio: Float,
     quality: ImageQuality,
     onRemove: () -> Unit,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
+    var isPressed by remember { mutableStateOf(false) }
+    val animatedScale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = spring(
+            dampingRatio = 0.82f,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "favCardScale"
+    )
+
     var loadError by remember(media.id, media.url) { mutableStateOf(false) }
 
     val imageModel = remember(media.sample, media.preview, media.url, loadError, quality) {
@@ -712,16 +735,21 @@ private fun FavoriteCard(
         ),
         modifier = Modifier
             .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = animatedScale
+                scaleY = animatedScale
+            }
             .clickable(onClick = onClick)
     ) {
-        Box {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(aspectRatio)
+        ) {
             SubcomposeAsyncImage(
                 model = imageModel,
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(3f / 4f)
-                    .clip(RoundedCornerShape(22.dp)),
+                contentDescription = media.tags,
+                modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             ) {
                 val state = painter.state
@@ -731,6 +759,20 @@ private fun FavoriteCard(
                             .fillMaxSize()
                             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                     )
+                } else if (state is AsyncImagePainter.State.Error) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Rounded.BrokenImage,
+                            contentDescription = "Failed to load",
+                            tint = MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
                 } else {
                     SubcomposeAsyncImageContent()
                 }
@@ -802,10 +844,12 @@ private fun FavoriteCard(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(8.dp)
-                    .size(36.dp),
+                    .size(36.dp)
+                    .bouncyPress(),
                 shape = CircleShape,
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.95f)
+                    containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.95f),
+                    contentColor = MaterialTheme.colorScheme.primary
                 )
             ) {
                 Icon(

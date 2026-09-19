@@ -11,11 +11,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -26,6 +28,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -187,7 +190,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                             val animatedScale by animateFloatAsState(
                                 targetValue = if (isSelected) 1.02f else 1.0f,
                                 animationSpec = spring(
-                                    dampingRatio = Spring.DampingRatioLowBouncy,
+                                    dampingRatio = 0.82f,
                                     stiffness = Spring.StiffnessMediumLow
                                 ),
                                 label = "navItemScale"
@@ -232,6 +235,28 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                     horizontalArrangement = Arrangement.Center,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
+                                    val iconView = @Composable {
+                                        AnimatedContent(
+                                            targetState = isSelected,
+                                            transitionSpec = {
+                                                (fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                                                    scaleIn(initialScale = 0.7f, animationSpec = tween(220, easing = FastOutSlowInEasing)))
+                                                    .togetherWith(
+                                                        fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
+                                                            scaleOut(targetScale = 0.7f, animationSpec = tween(180, easing = FastOutLinearInEasing))
+                                                    )
+                                            },
+                                            label = "navIconAnim"
+                                        ) { sel ->
+                                            Icon(
+                                                imageVector = if (sel) item.selectedIcon else item.icon,
+                                                contentDescription = item.label,
+                                                tint = contentColor,
+                                                modifier = Modifier.size(22.dp)
+                                            )
+                                        }
+                                    }
+
                                     if (item.badgeCount > 0) {
                                         BadgedBox(
                                             badge = {
@@ -243,29 +268,21 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                                 }
                                             }
                                         ) {
-                                            Icon(
-                                                imageVector = if (isSelected) item.selectedIcon else item.icon,
-                                                contentDescription = item.label,
-                                                tint = contentColor,
-                                                modifier = Modifier.size(22.dp)
-                                            )
+                                            iconView()
                                         }
                                     } else {
-                                        Icon(
-                                            imageVector = if (isSelected) item.selectedIcon else item.icon,
-                                            contentDescription = item.label,
-                                            tint = contentColor,
-                                            modifier = Modifier.size(22.dp)
-                                        )
+                                        iconView()
                                     }
 
                                     AnimatedVisibility(
                                         visible = isSelected,
-                                        enter = fadeIn(tween(180, easing = FastOutSlowInEasing)) + expandHorizontally(
-                                            animationSpec = tween(220, easing = FastOutSlowInEasing)
+                                        enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) + expandHorizontally(
+                                            animationSpec = tween(240, easing = FastOutSlowInEasing),
+                                            expandFrom = Alignment.Start
                                         ),
-                                        exit = fadeOut(tween(120)) + shrinkHorizontally(
-                                            animationSpec = tween(180, easing = FastOutSlowInEasing)
+                                        exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) + shrinkHorizontally(
+                                            animationSpec = tween(200, easing = FastOutLinearInEasing),
+                                            shrinkTowards = Alignment.Start
                                         )
                                     ) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
