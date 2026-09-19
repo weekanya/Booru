@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutLinearInEasing
@@ -16,6 +17,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -462,15 +465,6 @@ fun SettingsScreen(
                         label = "qualityIcon"
                     )
 
-                    val scale by animateFloatAsState(
-                        targetValue = if (isSelected) 1.02f else 1.0f,
-                        animationSpec = spring(
-                            dampingRatio = 0.82f,
-                            stiffness = Spring.StiffnessMediumLow
-                        ),
-                        label = "qualityScale"
-                    )
-
                     Surface(
                         onClick = {
                             vm.updateImageQuality(q)
@@ -481,10 +475,6 @@ fun SettingsScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 5.dp)
-                            .graphicsLayer {
-                                scaleX = scale
-                                scaleY = scale
-                            }
                             .bouncyPress()
                     ) {
                         Row(
@@ -515,27 +505,25 @@ fun SettingsScreen(
                                         MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                            AnimatedVisibility(
-                                visible = isSelected,
-                                enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
-                                    expandHorizontally(
-                                        animationSpec = tween(240, easing = FastOutSlowInEasing),
-                                        expandFrom = Alignment.Start
-                                    ),
-                                exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
-                                    shrinkHorizontally(
-                                        animationSpec = tween(200, easing = FastOutLinearInEasing),
-                                        shrinkTowards = Alignment.Start
-                                    )
+                            Box(
+                                modifier = Modifier
+                                    .padding(start = 8.dp)
+                                    .size(24.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Spacer(Modifier.width(8.dp))
-                                    Icon(
-                                        Icons.Rounded.CheckCircle,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(22.dp)
-                                    )
+                                Crossfade(
+                                    targetState = isSelected,
+                                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                                    label = "qualityCheck"
+                                ) { checked ->
+                                    if (checked) {
+                                        Icon(
+                                            Icons.Rounded.CheckCircle,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -1937,15 +1925,6 @@ fun <T> MD3SegmentedChoiceRow(
                 label = "segmentedContent"
             )
 
-            val scale by animateFloatAsState(
-                targetValue = if (isSelected) 1.02f else 1.0f,
-                animationSpec = spring(
-                    dampingRatio = 0.82f,
-                    stiffness = Spring.StiffnessMediumLow
-                ),
-                label = "segmentedScale"
-            )
-
             Surface(
                 onClick = { onOptionSelected(option) },
                 shape = RoundedCornerShape(16.dp),
@@ -1954,10 +1933,6 @@ fun <T> MD3SegmentedChoiceRow(
                 modifier = Modifier
                     .weight(1f)
                     .height(46.dp)
-                    .graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                    }
                     .bouncyPress()
             ) {
                 Row(

@@ -85,7 +85,7 @@ fun FavoritesScreen(
     var mediaTypeFilter by rememberSaveable { mutableStateOf(FavoriteMediaTypeFilter.ALL) }
     var sortOrder by rememberSaveable { mutableStateOf(FavoriteSortOrder.NEWEST) }
     var showFilterSheet by remember { mutableStateOf(false) }
-    var showClearDialog by remember { mutableStateOf(false) }
+    var showClearSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(gridState.isScrollInProgress) {
         if (gridState.isScrollInProgress) {
@@ -141,65 +141,12 @@ fun FavoritesScreen(
         }
     }
 
-    if (showClearDialog) {
-        AlertDialog(
-            onDismissRequest = { showClearDialog = false },
-            shape = RoundedCornerShape(22.dp),
-            title = {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.weight(1f, fill = false)
-                    ) {
-                        Icon(
-                            Icons.Rounded.DeleteSweep,
-                            null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            Strings.clearFavoritesConfirm(lang),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    IconButton(
-                        onClick = { showClearDialog = false },
-                        modifier = Modifier.size(28.dp)
-                    ) {
-                        Icon(
-                            Icons.Rounded.Close,
-                            contentDescription = "Close",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-            },
-            text = { Text(Strings.clearFavoritesDesc(vm.favoritesList.size, lang), style = MaterialTheme.typography.bodyMedium) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        vm.clearFavorites()
-                        showClearDialog = false
-                    },
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text(Strings.clearBtn(lang), fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearDialog = false }) {
-                    Text(Strings.cancelBtn(lang))
-                }
-            }
+    if (showClearSheet) {
+        FavoritesClearConfirmBottomSheet(
+            count = vm.favoritesList.size,
+            lang = lang,
+            onConfirm = { vm.clearFavorites() },
+            onDismiss = { showClearSheet = false }
         )
     }
 
@@ -210,7 +157,6 @@ fun FavoritesScreen(
             lang = lang,
             onSortSelected = { sortOrder = it },
             onTypeSelected = { mediaTypeFilter = it },
-            onClearAll = { showClearDialog = true },
             onDismiss = { showFilterSheet = false }
         )
     }
@@ -340,7 +286,7 @@ fun FavoritesScreen(
                         onClick = {
                             focusManager.clearFocus()
                             keyboardController?.hide()
-                            showClearDialog = true
+                            showClearSheet = true
                         },
                         shape = CircleShape,
                         modifier = Modifier
@@ -634,7 +580,6 @@ private fun FavoritesFilterBottomSheet(
     lang: AppLanguage,
     onSortSelected: (FavoriteSortOrder) -> Unit,
     onTypeSelected: (FavoriteMediaTypeFilter) -> Unit,
-    onClearAll: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -767,49 +712,7 @@ private fun FavoritesFilterBottomSheet(
                 }
             }
 
-            Spacer(Modifier.height(20.dp))
-
-            Surface(
-                onClick = {
-                    onDismiss()
-                    onClearAll()
-                },
-                shape = RoundedCornerShape(18.dp),
-                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .bouncyPress()
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            Icons.Rounded.DeleteOutline,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = Strings.clearFavoritesConfirm(lang),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                    }
-                    Icon(
-                        Icons.Rounded.ChevronRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(24.dp))
 
             Button(
                 onClick = onDismiss,
@@ -829,6 +732,121 @@ private fun FavoritesFilterBottomSheet(
                     text = if (lang == AppLanguage.RUSSIAN) "Готово" else "Done",
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.labelLarge
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FavoritesClearConfirmBottomSheet(
+    count: Int,
+    lang: AppLanguage,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        dragHandle = {
+            Surface(
+                modifier = Modifier.padding(vertical = 12.dp).size(width = 36.dp, height = 4.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+            ) {}
+        },
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
+                modifier = Modifier.size(56.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Rounded.DeleteSweep,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Text(
+                text = Strings.clearFavoritesConfirm(lang),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                text = Strings.clearFavoritesDesc(count, lang),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            Button(
+                onClick = {
+                    onConfirm()
+                    onDismiss()
+                },
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .bouncyPress()
+            ) {
+                Icon(Icons.Rounded.DeleteOutline, contentDescription = null, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    text = Strings.clearBtn(lang),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            FilledTonalButton(
+                onClick = onDismiss,
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.filledTonalButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = MaterialTheme.colorScheme.onSurface
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .bouncyPress()
+            ) {
+                Text(
+                    text = Strings.cancelBtn(lang),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }

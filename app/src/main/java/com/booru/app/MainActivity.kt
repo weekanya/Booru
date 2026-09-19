@@ -187,20 +187,12 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                     ) {
                         navItems.forEachIndexed { index, item ->
                             val isSelected = selectedTab == index
-                            val animatedScale by animateFloatAsState(
-                                targetValue = if (isSelected) 1.02f else 1.0f,
-                                animationSpec = spring(
-                                    dampingRatio = 0.82f,
-                                    stiffness = Spring.StiffnessMediumLow
-                                ),
-                                label = "navItemScale"
-                            )
                             val containerColor by animateColorAsState(
                                 targetValue = if (isSelected)
                                     MaterialTheme.colorScheme.primaryContainer
                                 else
                                     MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0f),
-                                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
                                 label = "navItemBg"
                             )
                             val contentColor by animateColorAsState(
@@ -208,7 +200,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                     MaterialTheme.colorScheme.onPrimaryContainer
                                 else
                                     MaterialTheme.colorScheme.onSurfaceVariant,
-                                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
                                 label = "navItemColor"
                             )
 
@@ -227,26 +219,15 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .padding(horizontal = 4.dp)
-                                        .graphicsLayer {
-                                            scaleX = animatedScale
-                                            scaleY = animatedScale
-                                        },
+                                        .padding(horizontal = 4.dp),
                                     horizontalArrangement = Arrangement.Center,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     val iconView = @Composable {
-                                        AnimatedContent(
+                                        Crossfade(
                                             targetState = isSelected,
-                                            transitionSpec = {
-                                                (fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
-                                                    scaleIn(initialScale = 0.7f, animationSpec = tween(220, easing = FastOutSlowInEasing)))
-                                                    .togetherWith(
-                                                        fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
-                                                            scaleOut(targetScale = 0.7f, animationSpec = tween(180, easing = FastOutLinearInEasing))
-                                                    )
-                                            },
-                                            label = "navIconAnim"
+                                            animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+                                            label = "navIconFade"
                                         ) { sel ->
                                             Icon(
                                                 imageVector = if (sel) item.selectedIcon else item.icon,
