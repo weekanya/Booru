@@ -67,8 +67,7 @@ enum class FavoriteMediaTypeFilter {
 
 enum class FavoriteSortOrder {
     NEWEST,
-    OLDEST,
-    SOURCE
+    OLDEST
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -145,9 +144,6 @@ fun FavoritesScreen(
         when (sortOrder) {
             FavoriteSortOrder.NEWEST -> list.toList()
             FavoriteSortOrder.OLDEST -> list.toList().asReversed()
-            FavoriteSortOrder.SOURCE -> list.sortedWith(
-                compareBy<RemoteMedia> { it.source.lowercase() }.thenByDescending { it.id.toLongOrNull() ?: 0L }
-            ).toList()
         }
     }
 
@@ -185,7 +181,10 @@ fun FavoritesScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Surface(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primaryContainer,
@@ -201,13 +200,15 @@ fun FavoritesScreen(
                     }
                 }
                 Spacer(Modifier.width(12.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f, fill = false)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = Strings.navFavorites(lang),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         if (vm.favoritesList.isNotEmpty()) {
                             Spacer(Modifier.width(8.dp))
@@ -228,12 +229,15 @@ fun FavoritesScreen(
                     Text(
                         text = Strings.savedPostsCount(vm.favoritesList.size, lang),
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
 
             if (vm.favoritesList.isNotEmpty()) {
+                Spacer(Modifier.width(8.dp))
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -241,48 +245,56 @@ fun FavoritesScreen(
                     val activeFilterCount = (if (sortOrder != FavoriteSortOrder.NEWEST) 1 else 0) +
                         (if (mediaTypeFilter != FavoriteMediaTypeFilter.ALL) 1 else 0)
 
-                    FilledTonalButton(
-                        onClick = {
-                            focusManager.clearFocus()
-                            keyboardController?.hide()
-                            showFilterSheet = true
-                        },
-                        shape = CircleShape,
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            contentColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-                        ),
-                        modifier = Modifier
-                            .height(38.dp)
-                            .bouncyPress()
+                    AnimatedVisibility(
+                        visible = !confirmDeleteActive,
+                        enter = fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) +
+                            expandHorizontally(animationSpec = tween(220, easing = FastOutSlowInEasing)),
+                        exit = fadeOut(animationSpec = tween(140, easing = FastOutLinearInEasing)) +
+                            shrinkHorizontally(animationSpec = tween(180, easing = FastOutLinearInEasing))
                     ) {
-                        Icon(
-                            Icons.Rounded.Tune,
-                            contentDescription = null,
-                            modifier = Modifier.size(17.dp),
-                            tint = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = Strings.filtersButton(lang),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        if (activeFilterCount > 0) {
+                        FilledTonalButton(
+                            onClick = {
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                                showFilterSheet = true
+                            },
+                            shape = CircleShape,
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                contentColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+                            ),
+                            modifier = Modifier
+                                .height(38.dp)
+                                .bouncyPress()
+                        ) {
+                            Icon(
+                                Icons.Rounded.Tune,
+                                contentDescription = null,
+                                modifier = Modifier.size(17.dp),
+                                tint = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                             Spacer(Modifier.width(6.dp))
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = "$activeFilterCount",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onPrimary
-                                    )
+                            Text(
+                                text = Strings.filtersButton(lang),
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            if (activeFilterCount > 0) {
+                                Spacer(Modifier.width(6.dp))
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Text(
+                                            text = "$activeFilterCount",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -652,8 +664,7 @@ private fun FavoritesFilterBottomSheet(
             ) {
                 val sortOptions = listOf(
                     Triple(FavoriteSortOrder.NEWEST, Strings.favSortNewest(lang), Icons.Rounded.Schedule),
-                    Triple(FavoriteSortOrder.OLDEST, Strings.favSortOldest(lang), Icons.Rounded.History),
-                    Triple(FavoriteSortOrder.SOURCE, Strings.favSortSource(lang), Icons.Rounded.Public)
+                    Triple(FavoriteSortOrder.OLDEST, Strings.favSortOldest(lang), Icons.Rounded.History)
                 )
                 sortOptions.forEach { (order, label, icon) ->
                     val selected = currentSort == order
