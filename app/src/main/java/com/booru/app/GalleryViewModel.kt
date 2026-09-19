@@ -534,7 +534,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun selectSource(newSource: String) {
-        if (source == newSource) return
+        if (source == newSource) {
+            refresh()
+            return
+        }
         source = newSource
         viewModelScope.launch {
             prefs.setDefaultSource(newSource)
@@ -1047,9 +1050,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun clearRecommendationMemory(onDone: () -> Unit = {}) {
+        needsFeedRefresh = true
+        source = BooruRepository.SOURCE_ALL
+        query = ""
+        recommendationTags = emptyList()
         viewModelScope.launch {
+            prefs.setDefaultSource(BooruRepository.SOURCE_ALL)
             prefs.clearRecommendationData()
-            recommendationTags = emptyList()
             onDone()
         }
     }
