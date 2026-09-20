@@ -478,14 +478,6 @@ private fun UpdateBottomSheet(
                                 )
                             }
                         }
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = Strings.updateAvailableDesc(lang, info.latestVersion),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
                     }
                 }
 
@@ -572,7 +564,7 @@ private fun UpdateBottomSheet(
                         )
                     }
                 }
-            } else if (vm.downloadedApkFile != null) {
+            if (vm.downloadedApkFile != null) {
                 Surface(
                     shape = RoundedCornerShape(18.dp),
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
@@ -583,21 +575,23 @@ private fun UpdateBottomSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
-                            Icons.Rounded.CheckCircle,
+                            Icons.Rounded.DownloadDone,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(Modifier.width(12.dp))
                         Text(
-                            text = if (lang == AppLanguage.RUSSIAN) "Обновление скачано и готово к установке." else "Update is downloaded and ready to install.",
+                            text = if (lang == AppLanguage.RUSSIAN) "Файл обновления загружен и готов к установке." else "Update is downloaded and ready to install.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
-            } else if (info.releaseNotes.isNotBlank()) {
+            }
+
+            if (info.releaseNotes.isNotBlank()) {
                 Surface(
                     shape = RoundedCornerShape(20.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -619,58 +613,65 @@ private fun UpdateBottomSheet(
             Spacer(Modifier.height(18.dp))
 
             if (vm.isDownloadingUpdate) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    LinearProgressIndicator(
-                        progress = { vm.updateDownloadProgress },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(8.dp)
-                            .clip(CircleShape),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                    )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = if (vm.updateDownloadProgressText.isNotBlank()) vm.updateDownloadProgressText else Strings.downloadingUpdate(lang),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        TextButton(
-                            onClick = { vm.cancelUpdateDownload() }
-                        ) {
-                            Text(
-                                text = if (lang == AppLanguage.RUSSIAN) "Отмена" else "Cancel",
-                                color = MaterialTheme.colorScheme.error,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            } else if (vm.downloadedApkFile != null) {
-                Button(
-                    onClick = {
-                        vm.installApk(context, vm.downloadedApkFile!!)
-                    },
+                OutlinedButton(
+                    onClick = { vm.cancelUpdateDownload() },
                     shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp)
                         .bouncyPress()
                 ) {
-                    Icon(Icons.Rounded.CheckCircle, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Icon(
+                        Icons.Rounded.Close,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(18.dp)
+                    )
                     Spacer(Modifier.width(8.dp))
-                    Text(Strings.installUpdate(lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        text = if (lang == AppLanguage.RUSSIAN) "Отмена" else "Cancel",
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            } else if (vm.downloadedApkFile != null) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Button(
+                        onClick = {
+                            vm.installApk(context, vm.downloadedApkFile!!)
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .bouncyPress()
+                    ) {
+                        Icon(Icons.Rounded.SystemUpdate, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(Strings.installUpdate(lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                    }
+                    TextButton(
+                        onClick = {
+                            vm.deleteDownloadedApk()
+                            vm.downloadAndInstallUpdate(context, info)
+                        },
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text(
+                            text = if (lang == AppLanguage.RUSSIAN) "Скачать заново" else "Download again",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
                 }
             } else if (vm.updateDownloadError != null) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

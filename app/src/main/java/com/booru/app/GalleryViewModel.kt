@@ -234,7 +234,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 }
 
                 val release = UpdateChecker.fetchLatestRelease()
-                if (release != null && UpdateChecker.isNewerVersion(release.latestVersion, currentVer)) {
+                if (release == null) {
+                    if (!isAutoCheck) {
+                        manualCheckResult = "ERROR"
+                    }
+                } else if (UpdateChecker.isNewerVersion(release.latestVersion, currentVer)) {
                     if (isAutoCheck) {
                         val ignoredVersion = prefs.ignoredUpdateVersion.first()
                         if (ignoredVersion != release.latestVersion) {
@@ -529,6 +533,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             prefs.setIgnoredUpdateVersion(version)
             dismissUpdate()
         }
+    }
+
+    fun deleteDownloadedApk() {
+        downloadedApkFile?.let { file ->
+            if (file.exists()) file.delete()
+        }
+        downloadedApkFile = null
     }
 
     fun dismissUpdate() {
