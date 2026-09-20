@@ -20,10 +20,9 @@ Modern, private Android client for booru imageboards. Built with Kotlin, Jetpack
 - **Filters**: Rating (Safe, Questionable, Explicit), AI content filter, and sorting (Newest, Score, Random).
 - **Tag Blacklist**: Exact token blacklist matching to hide unwanted content across all feeds.
 
-### Favorites & Cache
+### Favorites
 - **Favorites**: Persistent SQLite/Room storage with dedicated offline media cache.
 - **Type Filtering**: Filter favorites by All, Images, GIFs, and Videos with animated segmented controls.
-- **Smart Caching**: Coil image cache (RAM + LRU disk) and ExoPlayer video cache with isolated cache cleaning in Settings.
 
 ### Privacy & Security
 - **Encrypted Storage**: API keys and credentials secured via Android Keystore (`EncryptedSharedPreferences`).

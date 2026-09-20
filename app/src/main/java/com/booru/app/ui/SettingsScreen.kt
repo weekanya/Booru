@@ -1534,47 +1534,7 @@ fun SettingsScreen(
                 }
             )
 
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
 
-            SettingRowItem(
-                title = Strings.clearCacheTitle(lang),
-                subtitle = "${Strings.clearCacheDesc(lang)} • ${Strings.favoritesStorageDesc(lang, vm.favoritesStorageSizeFormatted)}",
-                icon = Icons.Rounded.CleaningServices,
-                trailing = {
-                    FilledTonalButton(
-                        onClick = {
-                            vm.clearCache {
-                                Toast.makeText(context, Strings.clearCacheSuccess(lang), Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        enabled = !vm.isClearingCache,
-                        shape = RoundedCornerShape(16.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                            contentColor = MaterialTheme.colorScheme.onErrorContainer
-                        ),
-                        modifier = Modifier.bouncyPress()
-                    ) {
-                        if (vm.isClearingCache) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onErrorContainer
-                            )
-                        } else {
-                            Text(
-                                text = "${Strings.clearBtn(lang)} (${vm.cacheSizeFormatted})",
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            )
 
             HorizontalDivider(
                 modifier = Modifier.padding(horizontal = 16.dp),
@@ -1619,27 +1579,37 @@ fun SettingsScreen(
                 subtitle = Strings.checkUpdatesDesc(lang),
                 icon = Icons.Rounded.SystemUpdate,
                 trailing = {
-                    if (vm.isCheckingUpdate) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(22.dp),
-                            strokeWidth = 2.5.dp
-                        )
-                    } else {
-                        FilledTonalButton(
-                            onClick = { vm.checkForUpdates(isAutoCheck = false) },
-                            shape = RoundedCornerShape(16.dp),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                            ),
-                            modifier = Modifier.bouncyPress()
-                        ) {
+                    FilledTonalButton(
+                        onClick = { vm.checkForUpdates(isAutoCheck = false) },
+                        enabled = !vm.isCheckingUpdate,
+                        shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            disabledContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ),
+                        modifier = Modifier
+                            .height(36.dp)
+                            .bouncyPress()
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Text(
                                 text = Strings.checkUpdatesTitle(lang),
                                 style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.graphicsLayer {
+                                    alpha = if (vm.isCheckingUpdate) 0f else 1f
+                                }
                             )
+                            if (vm.isCheckingUpdate) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                            }
                         }
                     }
                 }
