@@ -753,6 +753,7 @@ fun SettingsScreen(
     }
 
     if (showBlacklistDialog) {
+        val initialBlacklistTags = remember { vm.tagBlacklist.toSet() }
         val addTagAction = {
             if (newBlacklistTag.isNotBlank()) {
                 val tagsToAdd = newBlacklistTag
@@ -1081,7 +1082,6 @@ fun SettingsScreen(
                                 .fillMaxWidth()
                                 .heightIn(min = 60.dp, max = 240.dp)
                                 .verticalScroll(rememberScrollState())
-                                .animateContentSize(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow))
                         ) {
                             if (filteredBlacklist.isEmpty()) {
                                 Box(
@@ -1100,14 +1100,13 @@ fun SettingsScreen(
                                 FlowRow(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     verticalArrangement = Arrangement.spacedBy(6.dp),
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .animateContentSize(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow))
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
                                     filteredBlacklist.forEach { tag ->
                                         key(tag) {
                                             BlacklistTagChip(
                                                 tag = tag,
+                                                animateEnter = tag !in initialBlacklistTags,
                                                 onRemove = { vm.removeBlacklistedTag(tag) }
                                             )
                                         }
@@ -2088,10 +2087,11 @@ private fun LanguageSelectionBottomSheet(
 @Composable
 private fun BlacklistTagChip(
     tag: String,
+    animateEnter: Boolean = false,
     onRemove: () -> Unit
 ) {
     val visibleState = remember {
-        MutableTransitionState(false).apply {
+        MutableTransitionState(!animateEnter).apply {
             targetState = true
         }
     }
@@ -2099,21 +2099,15 @@ private fun BlacklistTagChip(
 
     AnimatedVisibility(
         visibleState = visibleState,
-        enter = fadeIn(tween(280, easing = FastOutSlowInEasing)) + scaleIn(
-            initialScale = 0.6f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessLow
-            )
+        enter = fadeIn(tween(200, easing = FastOutSlowInEasing)) + scaleIn(
+            initialScale = 0.85f,
+            animationSpec = tween(200, easing = FastOutSlowInEasing)
         ),
-        exit = fadeOut(tween(180, easing = FastOutLinearInEasing)) + scaleOut(
-            targetScale = 0.5f,
-            animationSpec = tween(180)
+        exit = fadeOut(tween(160, easing = FastOutLinearInEasing)) + scaleOut(
+            targetScale = 0.8f,
+            animationSpec = tween(160)
         ) + shrinkHorizontally(
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessLow
-            )
+            animationSpec = tween(160)
         )
     ) {
         Surface(
@@ -2145,7 +2139,7 @@ private fun BlacklistTagChip(
                             if (visibleState.targetState) {
                                 visibleState.targetState = false
                                 coroutineScope.launch {
-                                    delay(200)
+                                    delay(180)
                                     onRemove()
                                 }
                             }
