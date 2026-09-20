@@ -17,7 +17,7 @@ Modern, private Android client for booru imageboards. Built with Kotlin, Jetpack
 - **Smart Filter Accumulation**: Multi-page pagination when filtering by media types (Images, GIFs, Videos) with tag injection.
 
 ### Search and Blacklist
-- **Tag Search**: Multi-token tag search with server autocomplete and local search history.
+- **Tag Search**: Support for searching multiple tags simultaneously (space-separated), with server autocomplete and local search history.
 - **Filters**: Rating (Safe, Questionable, Explicit), AI content filter, and sorting (Newest, Score, Random).
 - **Tag Blacklist**: Exact token blacklist matching to hide unwanted content across all feeds.
 
