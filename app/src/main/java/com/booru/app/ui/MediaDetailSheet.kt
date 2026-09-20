@@ -550,9 +550,10 @@ fun MediaDetailSheet(
             }
 
             val isRealbooru = currentMedia.source.equals("realbooru", ignoreCase = true) || currentMedia.url.contains("realbooru.com")
-            val hasResolution = currentMedia.width > 0 && currentMedia.height > 0
+            val showScore = !isRealbooru
+            val showResolution = currentMedia.width > 0 && currentMedia.height > 0
 
-            if (!isRealbooru || hasResolution) {
+            if (showScore || showResolution) {
                 Spacer(Modifier.height(14.dp))
 
                 Row(
@@ -561,7 +562,7 @@ fun MediaDetailSheet(
                         .padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    if (!isRealbooru) {
+                    if (showScore) {
                         Surface(
                             shape = RoundedCornerShape(20.dp),
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -603,7 +604,7 @@ fun MediaDetailSheet(
                         }
                     }
 
-                    if (hasResolution) {
+                    if (showResolution) {
                         Surface(
                             shape = RoundedCornerShape(20.dp),
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -647,9 +648,9 @@ fun MediaDetailSheet(
                         }
                     }
                 }
-
-                Spacer(Modifier.height(18.dp))
             }
+
+            Spacer(Modifier.height(14.dp))
 
             val cardBg by animateColorAsState(
                 targetValue = if (isTagsExpanded)
