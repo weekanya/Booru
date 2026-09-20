@@ -93,7 +93,8 @@ fun ExploreScreen(
             val info = gridState.layoutInfo
             val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
             val total = info.totalItemsCount
-            total > 0 && lastVisible >= total - 6 && !vm.loading && !vm.loadingMore
+            val notEnoughItemsToScroll = info.visibleItemsInfo.size == total
+            total > 0 && (lastVisible >= total - 6 || notEnoughItemsToScroll) && !vm.loading && !vm.loadingMore && vm.hasMore
         }
     }
     LaunchedEffect(shouldLoadMore) {

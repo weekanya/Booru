@@ -86,20 +86,10 @@ fun FavoritesScreen(
     var mediaTypeFilter by rememberSaveable { mutableStateOf(FavoriteMediaTypeFilter.ALL) }
     var sortOrder by rememberSaveable { mutableStateOf(FavoriteSortOrder.NEWEST) }
     var showFilterSheet by remember { mutableStateOf(false) }
-    var confirmDeleteActive by remember { mutableStateOf(false) }
-
-    LaunchedEffect(confirmDeleteActive) {
-        if (confirmDeleteActive) {
-            delay(3500)
-            confirmDeleteActive = false
-        }
-    }
-
     LaunchedEffect(gridState.isScrollInProgress) {
         if (gridState.isScrollInProgress) {
             focusManager.clearFocus()
             keyboardController?.hide()
-            confirmDeleteActive = false
         }
     }
 
@@ -171,7 +161,6 @@ fun FavoritesScreen(
             ) {
                 focusManager.clearFocus()
                 keyboardController?.hide()
-                confirmDeleteActive = false
             }
     ) {
         Row(
@@ -245,125 +234,63 @@ fun FavoritesScreen(
                     val activeFilterCount = (if (sortOrder != FavoriteSortOrder.NEWEST) 1 else 0) +
                         (if (mediaTypeFilter != FavoriteMediaTypeFilter.ALL) 1 else 0)
 
-                    AnimatedVisibility(
-                        visible = !confirmDeleteActive,
-                        enter = fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) +
-                            expandHorizontally(animationSpec = tween(220, easing = FastOutSlowInEasing)),
-                        exit = fadeOut(animationSpec = tween(140, easing = FastOutLinearInEasing)) +
-                            shrinkHorizontally(animationSpec = tween(180, easing = FastOutLinearInEasing))
+                    FilledTonalButton(
+                        onClick = {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                            showFilterSheet = true
+                        },
+                        shape = CircleShape,
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+                        ),
+                        modifier = Modifier
+                            .height(38.dp)
+                            .bouncyPress()
                     ) {
-                        FilledTonalButton(
-                            onClick = {
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                                showFilterSheet = true
-                            },
-                            shape = CircleShape,
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                                contentColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
-                            ),
-                            modifier = Modifier
-                                .height(38.dp)
-                                .bouncyPress()
-                        ) {
-                            Icon(
-                                Icons.Rounded.Tune,
-                                contentDescription = null,
-                                modifier = Modifier.size(17.dp),
-                                tint = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        Icon(
+                            Icons.Rounded.Tune,
+                            contentDescription = null,
+                            modifier = Modifier.size(17.dp),
+                            tint = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = Strings.filtersButton(lang),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        if (activeFilterCount > 0) {
                             Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = Strings.filtersButton(lang),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            if (activeFilterCount > 0) {
-                                Spacer(Modifier.width(6.dp))
-                                Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text(
-                                            text = "$activeFilterCount",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onPrimary
-                                        )
-                                    }
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "$activeFilterCount",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
                                 }
                             }
                         }
                     }
 
-                    Surface(
-                        onClick = {
+                    AnimatedConfirmDeleteButton(
+                        onConfirmed = {
                             focusManager.clearFocus()
                             keyboardController?.hide()
-                            if (confirmDeleteActive) {
-                                confirmDeleteActive = false
-                                vm.clearFavorites()
-                            } else {
-                                confirmDeleteActive = true
-                            }
+                            vm.clearFavorites()
                         },
-                        shape = CircleShape,
-                        color = if (confirmDeleteActive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.6f),
-                        contentColor = if (confirmDeleteActive) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.error,
-                        modifier = Modifier
-                            .height(38.dp)
-                            .animateContentSize(
-                                animationSpec = spring(
-                                    dampingRatio = 0.82f,
-                                    stiffness = Spring.StiffnessMediumLow
-                                )
-                            )
-                            .bouncyPress()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .padding(horizontal = if (confirmDeleteActive) 14.dp else 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.DeleteSweep,
-                                contentDescription = Strings.clearFavoritesConfirm(lang),
-                                modifier = Modifier.size(19.dp),
-                                tint = if (confirmDeleteActive) MaterialTheme.colorScheme.onError else MaterialTheme.colorScheme.error
-                            )
-                            AnimatedVisibility(
-                                visible = confirmDeleteActive,
-                                enter = fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) +
-                                    expandHorizontally(
-                                        animationSpec = tween(220, easing = FastOutSlowInEasing),
-                                        expandFrom = Alignment.Start
-                                    ),
-                                exit = fadeOut(animationSpec = tween(140, easing = FastOutLinearInEasing)) +
-                                    shrinkHorizontally(
-                                        animationSpec = tween(180, easing = FastOutLinearInEasing),
-                                        shrinkTowards = Alignment.Start
-                                    )
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        text = if (lang == AppLanguage.RUSSIAN) "Удалить всё?" else "Confirm delete?",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onError,
-                                        maxLines = 1,
-                                        softWrap = false
-                                    )
-                                }
-                            }
-                        }
-                    }
+                        lang = lang,
+                        initialIcon = Icons.Rounded.DeleteSweep,
+                        confirmText = if (lang == AppLanguage.RUSSIAN) "Удалить всё?" else Strings.confirmDeleteAction(lang)
+                    )
                 }
             }
         }

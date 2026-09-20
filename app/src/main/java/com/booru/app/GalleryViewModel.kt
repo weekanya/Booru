@@ -722,18 +722,49 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
                 if (searchGen != currentSearchGeneration) return@launch
 
-                val filtered = list.filterNot { isBlacklisted(it) }
-                    .distinctBy { it.mediaKey }
-                    .filter { item ->
-                        if (selectedContentTypes.isEmpty()) true
-                        else (
-                            (selectedContentTypes.contains(ContentType.PHOTOS) && !item.isVideo && !item.isGif) ||
-                            (selectedContentTypes.contains(ContentType.VIDEOS) && item.isVideo) ||
-                            (selectedContentTypes.contains(ContentType.GIFS) && item.isGif)
-                        )
-                    }
-                results = filtered
-                hasMore = list.size >= BooruRepository.PAGE_SIZE
+                val accumulated = mutableListOf<RemoteMedia>()
+                var lastPageSize = list.size
+                accumulated.addAll(list)
+                var lastFetchedPage = 0
+                val targetCount = if (selectedContentTypes.isNotEmpty()) 24 else BooruRepository.PAGE_SIZE
+                val maxPagesToAccumulate = if (selectedContentTypes.isNotEmpty()) 10 else 1
+
+                fun filterItems(items: List<RemoteMedia>): List<RemoteMedia> {
+                    return items.filterNot { isBlacklisted(it) }
+                        .filter { item ->
+                            if (selectedContentTypes.isEmpty()) true
+                            else (
+                                (selectedContentTypes.contains(ContentType.PHOTOS) && !item.isVideo && !item.isGif) ||
+                                (selectedContentTypes.contains(ContentType.VIDEOS) && item.isVideo) ||
+                                (selectedContentTypes.contains(ContentType.GIFS) && item.isGif)
+                            )
+                        }
+                }
+
+                var currentFiltered = filterItems(accumulated).distinctBy { it.mediaKey }
+
+                while (selectedContentTypes.isNotEmpty() && currentFiltered.size < targetCount && lastPageSize >= BooruRepository.PAGE_SIZE && lastFetchedPage < maxPagesToAccumulate) {
+                    lastFetchedPage++
+                    val nextPageList = repo.search(
+                        source = source,
+                        tags = tags,
+                        safeMode = safeMode,
+                        excludeSafe = excludeSafe,
+                        noAi = noAi,
+                        page = lastFetchedPage,
+                        sortOrder = sortOrder,
+                        credentials = getCredentials(),
+                        customSources = customSources
+                    )
+                    if (searchGen != currentSearchGeneration) return@launch
+                    lastPageSize = nextPageList.size
+                    accumulated.addAll(nextPageList)
+                    currentFiltered = filterItems(accumulated).distinctBy { it.mediaKey }
+                }
+
+                currentPage = lastFetchedPage
+                results = currentFiltered
+                hasMore = lastPageSize >= BooruRepository.PAGE_SIZE
             } catch (authEx: BooruAuthException) {
                 if (searchGen == currentSearchGeneration) {
                     results = emptyList()
@@ -808,18 +839,51 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
                 if (searchGen != currentSearchGeneration) return@launch
 
-                val filtered = list.filterNot { isBlacklisted(it) }
-                    .filter { item ->
-                        if (selectedContentTypes.isEmpty()) true
-                        else (
-                            (selectedContentTypes.contains(ContentType.PHOTOS) && !item.isVideo && !item.isGif) ||
-                            (selectedContentTypes.contains(ContentType.VIDEOS) && item.isVideo) ||
-                            (selectedContentTypes.contains(ContentType.GIFS) && item.isGif)
-                        )
-                    }
-                currentPage = targetPage
-                results = (results + filtered).distinctBy { it.mediaKey }
-                hasMore = list.size >= BooruRepository.PAGE_SIZE
+                var lastPageSize = list.size
+                var lastFetchedPage = targetPage
+                val accumulatedNew = mutableListOf<RemoteMedia>()
+                accumulatedNew.addAll(list)
+
+                fun filterItems(items: List<RemoteMedia>): List<RemoteMedia> {
+                    return items.filterNot { isBlacklisted(it) }
+                        .filter { item ->
+                            if (selectedContentTypes.isEmpty()) true
+                            else (
+                                (selectedContentTypes.contains(ContentType.PHOTOS) && !item.isVideo && !item.isGif) ||
+                                (selectedContentTypes.contains(ContentType.VIDEOS) && item.isVideo) ||
+                                (selectedContentTypes.contains(ContentType.GIFS) && item.isGif)
+                            )
+                        }
+                }
+
+                var currentFiltered = filterItems(accumulatedNew)
+                val targetCount = if (selectedContentTypes.isNotEmpty()) 20 else BooruRepository.PAGE_SIZE
+                var extraPagesFetched = 0
+                val maxExtraPages = if (selectedContentTypes.isNotEmpty()) 7 else 0
+
+                while (selectedContentTypes.isNotEmpty() && currentFiltered.size < targetCount && lastPageSize >= BooruRepository.PAGE_SIZE && extraPagesFetched < maxExtraPages) {
+                    lastFetchedPage++
+                    extraPagesFetched++
+                    val nextPageList = repo.search(
+                        source = source,
+                        tags = query,
+                        safeMode = safeMode,
+                        excludeSafe = excludeSafe,
+                        noAi = noAi,
+                        page = lastFetchedPage,
+                        sortOrder = sortOrder,
+                        credentials = getCredentials(),
+                        customSources = customSources
+                    )
+                    if (searchGen != currentSearchGeneration) return@launch
+                    lastPageSize = nextPageList.size
+                    accumulatedNew.addAll(nextPageList)
+                    currentFiltered = filterItems(accumulatedNew)
+                }
+
+                currentPage = lastFetchedPage
+                results = (results + currentFiltered).distinctBy { it.mediaKey }
+                hasMore = lastPageSize >= BooruRepository.PAGE_SIZE
             } catch (c: CancellationException) {
                 throw c
             } catch (_: Exception) {

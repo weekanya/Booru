@@ -89,7 +89,7 @@ fun SettingsScreen(
     var customApiKey by remember { mutableStateOf("") }
     var customUserId by remember { mutableStateOf("") }
     var newBlacklistTag by remember { mutableStateOf("") }
-    var showClearBlacklistConfirm by remember { mutableStateOf(false) }
+    var showLanguageBottomSheet by remember { mutableStateOf(false) }
     var blacklistFilterQuery by remember { mutableStateOf("") }
     var editingCustomSource by remember { mutableStateOf<CustomBooruSource?>(null) }
 
@@ -1041,22 +1041,13 @@ fun SettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (vm.tagBlacklist.isNotEmpty()) {
-                        TextButton(
-                            onClick = { showClearBlacklistConfirm = true }
-                        ) {
-                            Icon(
-                                Icons.Rounded.DeleteSweep,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = Strings.clearAllBlacklist(lang),
-                                color = MaterialTheme.colorScheme.error,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
+                        AnimatedConfirmDeleteButton(
+                            onConfirmed = { vm.clearBlacklist() },
+                            lang = lang,
+                            initialIcon = Icons.Rounded.DeleteSweep,
+                            initialText = Strings.clearAllBlacklist(lang),
+                            confirmText = if (lang == AppLanguage.RUSSIAN) "Удалить всё?" else Strings.confirmDeleteAction(lang)
+                        )
                     } else {
                         Spacer(Modifier.width(1.dp))
                     }
@@ -1076,58 +1067,6 @@ fun SettingsScreen(
                 }
             }
         }
-    }
-
-    if (showClearBlacklistConfirm) {
-        AlertDialog(
-            onDismissRequest = { showClearBlacklistConfirm = false },
-            shape = RoundedCornerShape(22.dp),
-            icon = {
-                Icon(
-                    Icons.Rounded.DeleteSweep,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(28.dp)
-                )
-            },
-            title = {
-                Text(
-                    text = Strings.clearBlacklistConfirmTitle(lang),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Text(
-                    text = Strings.clearBlacklistConfirmDesc(vm.tagBlacklist.size, lang),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        vm.clearBlacklist()
-                        showClearBlacklistConfirm = false
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(Strings.clearAllBlacklist(lang), fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showClearBlacklistConfirm = false },
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(Strings.cancelBtn(lang))
-                }
-            }
-        )
     }
 
     if (showPaletteDialog) {
@@ -1253,6 +1192,14 @@ fun SettingsScreen(
         }
     }
 
+    if (showLanguageBottomSheet) {
+        LanguageSelectionBottomSheet(
+            currentLanguage = vm.language,
+            onLanguageSelected = { vm.updateLanguage(it) },
+            onDismiss = { showLanguageBottomSheet = false }
+        )
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -1271,49 +1218,12 @@ fun SettingsScreen(
         SectionLabel(Strings.languageSection(lang))
 
         SettingsGroupCard {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Rounded.Translate,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(Modifier.width(16.dp))
-                    Column {
-                        Text(
-                            text = Strings.languageTitle(lang),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = if (lang == AppLanguage.ENGLISH) "English (Default)" else "Русский язык",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(14.dp))
-
-                MD3SegmentedChoiceRow(
-                    options = listOf(AppLanguage.ENGLISH, AppLanguage.RUSSIAN),
-                    selectedOption = vm.language,
-                    onOptionSelected = { vm.updateLanguage(it) },
-                    labelProvider = { l ->
-                        when (l) {
-                            AppLanguage.ENGLISH -> "English"
-                            AppLanguage.RUSSIAN -> "Русский"
-                        }
-                    }
-                )
-            }
+            SettingRowItem(
+                title = Strings.languageTitle(lang),
+                subtitle = "${lang.displayName} (${lang.englishName})",
+                icon = Icons.Rounded.Translate,
+                onClick = { showLanguageBottomSheet = true }
+            )
         }
 
         Spacer(Modifier.height(20.dp))
@@ -1425,18 +1335,16 @@ fun SettingsScreen(
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        IconButton(
-                            onClick = {
+                        AnimatedConfirmDeleteButton(
+                            onConfirmed = {
                                 vm.removeCustomSource(customSource.id)
                                 Toast.makeText(context, Strings.sourceRemovedSuccess(lang), Toast.LENGTH_SHORT).show()
-                            }
-                        ) {
-                            Icon(
-                                Icons.Rounded.DeleteOutline,
-                                contentDescription = "Delete",
-                                tint = MaterialTheme.colorScheme.error
-                            )
-                        }
+                            },
+                            lang = lang,
+                            initialIcon = Icons.Rounded.DeleteOutline,
+                            confirmText = Strings.confirmDeleteAction(lang),
+                            compact = true
+                        )
                     }
                 }
             }
@@ -1969,6 +1877,125 @@ fun <T> MD3SegmentedChoiceRow(
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun LanguageSelectionBottomSheet(
+    currentLanguage: AppLanguage,
+    onLanguageSelected: (AppLanguage) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 24.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 16.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(42.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Rounded.Translate,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.width(14.dp))
+                Column {
+                    Text(
+                        text = Strings.chooseLanguageTitle(currentLanguage),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = Strings.languageTitle(currentLanguage),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                AppLanguage.entries.forEach { langOption ->
+                    val isSelected = langOption == currentLanguage
+
+                    Surface(
+                        onClick = {
+                            onLanguageSelected(langOption)
+                            onDismiss()
+                        },
+                        shape = RoundedCornerShape(18.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                        border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .bouncyPress()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column {
+                                Text(
+                                    text = langOption.displayName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold
+                                )
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    text = langOption.englishName,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            if (isSelected) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

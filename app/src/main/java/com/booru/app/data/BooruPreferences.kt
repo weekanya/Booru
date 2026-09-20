@@ -83,7 +83,7 @@ class BooruPreferences(private val context: Context) {
 
     val language: Flow<AppLanguage> = context.dataStore.data.map { prefs ->
         val code = prefs[KEY_LANGUAGE] ?: AppLanguage.ENGLISH.code
-        if (code == "ru") AppLanguage.RUSSIAN else AppLanguage.ENGLISH
+        AppLanguage.entries.find { it.code == code } ?: AppLanguage.ENGLISH
     }
 
     val defaultSource: Flow<String> = context.dataStore.data.map { prefs ->
