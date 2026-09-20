@@ -32,11 +32,14 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -257,6 +260,16 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    private var updateDownloadJob: Job? = null
+
+    fun cancelUpdateDownload() {
+        updateDownloadJob?.cancel()
+        updateDownloadJob = null
+        isDownloadingUpdate = false
+        updateDownloadProgress = 0f
+        updateDownloadProgressText = "0%"
+    }
+
     fun downloadAndInstallUpdate(context: Context, info: AppUpdateInfo) {
         downloadUpdate(context, info)
     }
@@ -269,127 +282,139 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         updateDownloadProgressText = "0%"
         updateDownloadError = null
 
-        viewModelScope.launch(Dispatchers.IO) {
-            val downloadDir = File(context.cacheDir, "updates").apply { mkdirs() }
-            val targetFile = File(downloadDir, "booru_${info.latestVersion}.apk")
-            if (targetFile.exists()) {
-                targetFile.delete()
-            }
+        val downloadDir = File(context.cacheDir, "updates").apply { mkdirs() }
+        val targetFile = File(downloadDir, "booru_${info.latestVersion}.apk")
+        val tempFile = File(downloadDir, "booru_${info.latestVersion}.apk.tmp")
 
+        updateDownloadJob?.cancel()
+        updateDownloadJob = viewModelScope.launch(Dispatchers.IO) {
             try {
-                val downloadUrl = info.apkDownloadUrl
-                val parsedUri = Uri.parse(downloadUrl)
-                val scheme = parsedUri.scheme ?: ""
-                val host = parsedUri.host?.lowercase() ?: ""
-                if (!scheme.equals("https", ignoreCase = true)) {
-                    throw SecurityException("Insecure download protocol: $scheme")
-                }
-                val isTrustedHost = host == "github.com" || host.endsWith(".github.com") ||
-                        host == "objects.githubusercontent.com" || host.endsWith(".githubusercontent.com")
-                if (!isTrustedHost) {
-                    throw SecurityException("Untrusted download host: $host")
-                }
+                withTimeoutOrNull(180_000L) {
+                    if (targetFile.exists()) {
+                        targetFile.delete()
+                    }
+                    if (tempFile.exists()) {
+                        tempFile.delete()
+                    }
 
-                val client = OkHttpClient.Builder()
-                    .connectTimeout(30, TimeUnit.SECONDS)
-                    .readTimeout(60, TimeUnit.SECONDS)
-                    .followRedirects(true)
-                    .followSslRedirects(true)
-                    .addNetworkInterceptor { chain ->
-                        val reqUrl = chain.request().url
-                        if (!reqUrl.isHttps) {
-                            throw IOException("Insecure HTTP redirect blocked: $reqUrl")
+                    val downloadUrl = info.apkDownloadUrl
+                    val parsedUri = Uri.parse(downloadUrl)
+                    val scheme = parsedUri.scheme ?: ""
+                    val host = parsedUri.host?.lowercase() ?: ""
+                    if (!scheme.equals("https", ignoreCase = true)) {
+                        throw SecurityException("Insecure download protocol: $scheme")
+                    }
+                    val isTrustedHost = host == "github.com" || host.endsWith(".github.com") ||
+                            host == "objects.githubusercontent.com" || host.endsWith(".githubusercontent.com")
+                    if (!isTrustedHost) {
+                        throw SecurityException("Untrusted download host: $host")
+                    }
+
+                    val client = OkHttpClient.Builder()
+                        .connectTimeout(20, TimeUnit.SECONDS)
+                        .readTimeout(30, TimeUnit.SECONDS)
+                        .followRedirects(true)
+                        .followSslRedirects(true)
+                        .addNetworkInterceptor { chain ->
+                            val reqUrl = chain.request().url
+                            if (!reqUrl.isHttps) {
+                                throw IOException("Insecure HTTP redirect blocked: $reqUrl")
+                            }
+                            val redirectHost = reqUrl.host.lowercase()
+                            val allowedRedirect = redirectHost == "github.com" || redirectHost.endsWith(".github.com") ||
+                                    redirectHost == "objects.githubusercontent.com" || redirectHost.endsWith(".githubusercontent.com")
+                            if (!allowedRedirect) {
+                                throw IOException("Redirect to untrusted host blocked: $redirectHost")
+                            }
+                            chain.proceed(chain.request())
                         }
-                        val redirectHost = reqUrl.host.lowercase()
-                        val allowedRedirect = redirectHost == "github.com" || redirectHost.endsWith(".github.com") ||
-                                redirectHost == "objects.githubusercontent.com" || redirectHost.endsWith(".githubusercontent.com")
-                        if (!allowedRedirect) {
-                            throw IOException("Redirect to untrusted host blocked: $redirectHost")
+                        .build()
+
+                    val request = Request.Builder()
+                        .url(downloadUrl)
+                        .header("User-Agent", "BooruApp/${info.latestVersion}")
+                        .build()
+
+                    client.newCall(request).execute().use { response ->
+                        if (!response.isSuccessful) {
+                            throw IOException("HTTP error: ${response.code}")
                         }
-                        chain.proceed(chain.request())
-                    }
-                    .build()
 
-                val request = Request.Builder()
-                    .url(downloadUrl)
-                    .header("User-Agent", "BooruApp/${info.latestVersion}")
-                    .build()
+                        val body = response.body ?: throw IOException("Empty response body")
+                        val contentLength = body.contentLength()
+                        val maxAllowedBytes = 100L * 1024L * 1024L
+                        if (contentLength > maxAllowedBytes) {
+                            throw SecurityException("Update package Content-Length $contentLength exceeds limit of $maxAllowedBytes bytes")
+                        }
 
-                client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        throw IOException("HTTP error: ${response.code}")
-                    }
+                        val inputStream = body.byteStream()
+                        val outputStream = tempFile.outputStream()
 
-                    val body = response.body ?: throw IOException("Empty response body")
-                    val contentLength = body.contentLength()
-                    val maxAllowedBytes = 100L * 1024L * 1024L
-                    if (contentLength > maxAllowedBytes) {
-                        throw SecurityException("Update package Content-Length $contentLength exceeds limit of $maxAllowedBytes bytes")
-                    }
+                        val buffer = ByteArray(8192)
+                        var bytesRead = 0
+                        var totalRead = 0L
+                        var lastUpdateMs = System.currentTimeMillis()
 
-                    val tempFile = File(downloadDir, "booru_${info.latestVersion}.apk.tmp")
-                    if (tempFile.exists()) tempFile.delete()
-
-                    val inputStream = body.byteStream()
-                    val outputStream = tempFile.outputStream()
-
-                    val buffer = ByteArray(8192)
-                    var bytesRead: Int
-                    var totalRead = 0L
-                    var lastUpdateMs = System.currentTimeMillis()
-
-                    outputStream.use { out ->
-                        inputStream.use { input ->
-                            while (input.read(buffer).also { bytesRead = it } != -1) {
-                                totalRead += bytesRead
-                                if (totalRead > maxAllowedBytes) {
-                                    throw SecurityException("Update package exceeds maximum allowed size")
-                                }
-                                out.write(buffer, 0, bytesRead)
-                                val now = System.currentTimeMillis()
-                                if (contentLength > 0 && now - lastUpdateMs > 100) {
-                                    val progress = (totalRead.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f)
-                                    val readMb = String.format(java.util.Locale.US, "%.1f", totalRead / (1024f * 1024f))
-                                    val totalMb = String.format(java.util.Locale.US, "%.1f", contentLength / (1024f * 1024f))
-                                    withContext(Dispatchers.Main) {
-                                        updateDownloadProgress = progress
-                                        updateDownloadProgressText = "${(progress * 100).toInt()}% ($readMb MB / $totalMb MB)"
+                        outputStream.use { out ->
+                            inputStream.use { input ->
+                                while (isActive && input.read(buffer).also { bytesRead = it } != -1) {
+                                    totalRead += bytesRead
+                                    if (totalRead > maxAllowedBytes) {
+                                        throw SecurityException("Update package exceeds maximum allowed size")
                                     }
-                                    lastUpdateMs = now
+                                    out.write(buffer, 0, bytesRead)
+                                    val now = System.currentTimeMillis()
+                                    if (contentLength > 0 && now - lastUpdateMs > 100) {
+                                        val progress = (totalRead.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f)
+                                        val readMb = String.format(java.util.Locale.US, "%.1f", totalRead / (1024f * 1024f))
+                                        val totalMb = String.format(java.util.Locale.US, "%.1f", contentLength / (1024f * 1024f))
+                                        withContext(Dispatchers.Main) {
+                                            updateDownloadProgress = progress
+                                            updateDownloadProgressText = "${(progress * 100).toInt()}% ($readMb MB / $totalMb MB)"
+                                        }
+                                        lastUpdateMs = now
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    if (!tempFile.exists() || tempFile.length() == 0L) {
-                        throw IOException("Downloaded APK file is empty")
-                    }
+                        ensureActive()
 
-                    if (targetFile.exists()) targetFile.delete()
-                    if (!tempFile.renameTo(targetFile)) {
-                        throw IOException("Failed to rename temporary APK to target file")
-                    }
+                        if (!tempFile.exists() || tempFile.length() == 0L) {
+                            throw IOException("Downloaded APK file is empty")
+                        }
 
-                    withContext(Dispatchers.Main) {
-                        updateDownloadProgress = 1f
-                        updateDownloadProgressText = "100%"
-                        downloadedApkFile = targetFile
-                        isDownloadingUpdate = false
-                        installApk(context, targetFile)
+                        if (targetFile.exists()) targetFile.delete()
+                        if (!tempFile.renameTo(targetFile)) {
+                            throw IOException("Failed to rename temporary APK to target file")
+                        }
+
+                        withContext(Dispatchers.Main) {
+                            updateDownloadProgress = 1f
+                            updateDownloadProgressText = "100%"
+                            downloadedApkFile = targetFile
+                            isDownloadingUpdate = false
+                            installApk(context, targetFile)
+                        }
                     }
-                }
+                    true
+                } ?: throw IOException("Download timed out")
             } catch (c: CancellationException) {
-                val tempFile = File(downloadDir, "booru_${info.latestVersion}.apk.tmp")
                 if (tempFile.exists()) tempFile.delete()
                 if (targetFile.exists()) targetFile.delete()
-                throw c
+                withContext(Dispatchers.Main) {
+                    isDownloadingUpdate = false
+                }
             } catch (e: Exception) {
-                val tempFile = File(downloadDir, "booru_${info.latestVersion}.apk.tmp")
                 if (tempFile.exists()) tempFile.delete()
                 if (targetFile.exists()) targetFile.delete()
                 withContext(Dispatchers.Main) {
                     isDownloadingUpdate = false
                     updateDownloadError = e.message ?: "Download failed"
+                }
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isDownloadingUpdate = false
                 }
             }
         }

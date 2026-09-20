@@ -619,21 +619,39 @@ private fun UpdateBottomSheet(
             Spacer(Modifier.height(18.dp))
 
             if (vm.isDownloadingUpdate) {
-                Button(
-                    onClick = {},
-                    enabled = false,
-                    shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
+                    LinearProgressIndicator(
+                        progress = { vm.updateDownloadProgress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(CircleShape),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                     )
-                    Spacer(Modifier.width(8.dp))
-                    Text(Strings.downloadingUpdate(lang))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (vm.updateDownloadProgressText.isNotBlank()) vm.updateDownloadProgressText else Strings.downloadingUpdate(lang),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        TextButton(
+                            onClick = { vm.cancelUpdateDownload() }
+                        ) {
+                            Text(
+                                text = if (lang == AppLanguage.RUSSIAN) "Отмена" else "Cancel",
+                                color = MaterialTheme.colorScheme.error,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             } else if (vm.downloadedApkFile != null) {
                 Button(
