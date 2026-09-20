@@ -88,32 +88,47 @@ fun MarkdownText(
                         thickness = 1.dp
                     )
                 }
-                trimmed.startsWith("### ") -> {
-                    Text(
-                        text = parseInlineMarkdown(trimmed.removePrefix("### ")),
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
-                    )
-                }
-                trimmed.startsWith("## ") -> {
-                    Text(
-                        text = parseInlineMarkdown(trimmed.removePrefix("## ")),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
-                    )
-                }
-                trimmed.startsWith("# ") -> {
-                    Text(
-                        text = parseInlineMarkdown(trimmed.removePrefix("# ")),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                    )
+                trimmed.startsWith("#") -> {
+                    val headerMatch = Regex("^(#{1,6})\\s*(.*?)(?:\\s*#+)?$").matchEntire(trimmed)
+                    if (headerMatch != null && (headerMatch.groupValues[1].length > 1 || trimmed.startsWith("# "))) {
+                        val level = headerMatch.groupValues[1].length
+                        val headerText = headerMatch.groupValues[2].trim()
+                        when (level) {
+                            1 -> {
+                                Text(
+                                    text = parseInlineMarkdown(headerText),
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                                )
+                            }
+                            2 -> {
+                                Text(
+                                    text = parseInlineMarkdown(headerText),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
+                                )
+                            }
+                            else -> {
+                                Text(
+                                    text = parseInlineMarkdown(headerText),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
+                                )
+                            }
+                        }
+                    } else {
+                        Text(
+                            text = parseInlineMarkdown(trimmed),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
                 trimmed.startsWith("- ") || trimmed.startsWith("* ") -> {
                     val indentSpaces = rawLine.takeWhile { it == ' ' }.length
