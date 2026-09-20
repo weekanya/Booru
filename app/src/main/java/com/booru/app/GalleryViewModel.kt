@@ -225,9 +225,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             try {
                 val currentVer = try {
                     val pInfo = getApplication<Application>().packageManager.getPackageInfo(getApplication<Application>().packageName, 0)
-                    pInfo.versionName ?: "5.0"
+                    pInfo.versionName ?: "5.1"
                 } catch (_: Exception) {
-                    "5.0"
+                    "5.1"
                 }
 
                 val release = UpdateChecker.fetchLatestRelease()

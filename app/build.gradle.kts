@@ -16,8 +16,8 @@ android {
         applicationId = "com.booru.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 9
-        versionName = "5.0"
+        versionCode = 10
+        versionName = "5.1"
     }
 
     signingConfigs {
