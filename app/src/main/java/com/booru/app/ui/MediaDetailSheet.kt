@@ -227,15 +227,7 @@ fun MediaDetailSheet(
         modifier = Modifier.statusBarsPadding(),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
         tonalElevation = 4.dp,
-        dragHandle = {
-            Surface(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .size(width = 36.dp, height = 4.dp),
-                shape = CircleShape,
-                color = Color.White
-            ) {}
-        },
+        dragHandle = null,
         sheetState = sheetState,
         shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
     ) {
@@ -245,6 +237,19 @@ fun MediaDetailSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 36.dp)
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Surface(
+                    modifier = Modifier.size(width = 36.dp, height = 4.dp),
+                    shape = CircleShape,
+                    color = Color.White
+                ) {}
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
