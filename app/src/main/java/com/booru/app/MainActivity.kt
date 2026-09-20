@@ -57,6 +57,10 @@ import com.booru.app.ui.bouncyPress
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.booru.app.data.Strings
+import com.booru.app.data.BooruCacheManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import com.booru.app.ui.BooruTheme
 import com.booru.app.ui.ExploreScreen
 import com.booru.app.ui.FavoritesScreen
@@ -73,6 +77,15 @@ class MainActivity : ComponentActivity() {
         }
         super.onCreate(savedInstanceState)
         setContent { BooruApp() }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (isFinishing) {
+            CoroutineScope(Dispatchers.IO).launch {
+                BooruCacheManager.clearBrowsingCache(applicationContext)
+            }
+        }
     }
 }
 

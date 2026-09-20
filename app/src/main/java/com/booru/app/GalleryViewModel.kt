@@ -151,6 +151,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             customSources = initialCustom
             tagBlacklist = initialBlacklist
 
+            BooruCacheManager.clearBrowsingCache(getApplication())
             updateCacheSize()
 
             search(source, "", safeMode)

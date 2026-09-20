@@ -172,7 +172,9 @@ object BooruCacheManager {
 
         try {
             context.cacheDir.listFiles()?.forEach { file ->
-                file.deleteRecursively()
+                if (file.name != "image_cache" && file.name != "booru_video_cache") {
+                    file.deleteRecursively()
+                }
             }
         } catch (_: Exception) {}
 

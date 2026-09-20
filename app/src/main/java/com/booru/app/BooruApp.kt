@@ -13,6 +13,9 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 import com.booru.app.data.BooruCacheManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Protocol
 import okhttp3.Response
@@ -22,6 +25,13 @@ import okio.buffer
 import okio.source
 
 class BooruApplication : Application(), ImageLoaderFactory {
+
+    override fun onCreate() {
+        super.onCreate()
+        CoroutineScope(Dispatchers.IO).launch {
+            BooruCacheManager.clearBrowsingCache(this@BooruApplication)
+        }
+    }
 
     override fun newImageLoader(): ImageLoader {
         val okHttpClient = OkHttpClient.Builder()
