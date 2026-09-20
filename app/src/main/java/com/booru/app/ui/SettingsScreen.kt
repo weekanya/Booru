@@ -1929,7 +1929,6 @@ private fun LanguageSelectionBottomSheet(
                         shape = RoundedCornerShape(18.dp),
                         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                         contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                        border = if (isSelected) BorderStroke(1.5.dp, MaterialTheme.colorScheme.primary) else null,
                         modifier = Modifier
                             .fillMaxWidth()
                             .bouncyPress()

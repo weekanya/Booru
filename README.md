@@ -4,27 +4,32 @@ Modern, private Android client for booru imageboards. Built with Kotlin, Jetpack
 
 ## Features
 
-### Sources & Aggregation
+### Sources and Aggregation
 - **Built-in Providers**: Rule34, Gelbooru, Realbooru, Xbooru, TBIB, Yande.re, Konachan, Safebooru.
 - **Custom Booru**: Add custom instances via Gelbooru (`index.php`), Moebooru (`post.json`), or Danbooru (`posts.json`) engines (HTTPS only).
 - **Smart Recommendations**: Multi-provider aggregated feed with local tag learning and history reset.
 
-### Browsing & Viewing
+### Browsing and Viewing
 - **Immersive Viewer**: Smooth fullscreen viewer with pinch-to-zoom, pan gestures, and swipe-to-dismiss.
 - **Video Player**: Media3 ExoPlayer with seek controls, audio toggle, and background buffering.
-- **Quality Selector**: Configurable media resolution — Original (uncompressed), Sample (balanced), or Data Saver (previews).
+- **Quality Selector**: Configurable media resolution: Original (uncompressed), Sample (balanced), or Data Saver (previews).
 - **Post Details**: Metadata sheet with tags, score, rating, dimensions, and source links.
+- **Smart Filter Accumulation**: Multi-page pagination when filtering by media types (Images, GIFs, Videos) with tag injection.
 
-### Search & Blacklist
+### Search and Blacklist
 - **Tag Search**: Multi-token tag search with server autocomplete and local search history.
 - **Filters**: Rating (Safe, Questionable, Explicit), AI content filter, and sorting (Newest, Score, Random).
 - **Tag Blacklist**: Exact token blacklist matching to hide unwanted content across all feeds.
 
-### Favorites
-- **Favorites**: Persistent SQLite/Room storage with dedicated offline media cache.
+### Favorites and Storage
+- **Favorites**: Persistent SQLite/Room storage with dedicated offline media storage isolated from temporary caches.
 - **Type Filtering**: Filter favorites by All, Images, GIFs, and Videos with animated segmented controls.
+- **Automatic Cache Management**: Temporary browsing cache (images, videos, temporary updates) automatically clears on startup and exit.
 
-### Privacy & Security
+### Localization
+- **Multi-language Support**: English, Russian, Japanese, Chinese, Korean, and Arabic with dedicated selection interface.
+
+### Privacy and Security
 - **Encrypted Storage**: API keys and credentials secured via Android Keystore (`EncryptedSharedPreferences`).
 - **No Analytics / Telemetry**: Completely private, direct client-to-booru connections.
 - **In-App Updater**: GitHub Releases updater with signature verification and markdown release notes.
@@ -34,7 +39,7 @@ Modern, private Android client for booru imageboards. Built with Kotlin, Jetpack
 ### Prerequisites
 - Android Studio or Gradle CLI
 - JDK 21
-- Android SDK (API 26 – 35)
+- Android SDK (API 26 – 36)
 
 ### Commands
 ```bash

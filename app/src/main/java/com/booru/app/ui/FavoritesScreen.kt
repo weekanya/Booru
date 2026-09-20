@@ -514,13 +514,7 @@ private fun FavoritesFilterBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = {
-            Surface(
-                modifier = Modifier.padding(vertical = 12.dp).size(width = 36.dp, height = 4.dp),
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            ) {}
-        },
+        dragHandle = { BottomSheetDefaults.DragHandle() },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
