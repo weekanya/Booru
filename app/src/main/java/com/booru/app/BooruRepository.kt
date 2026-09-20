@@ -154,20 +154,29 @@ class BooruRepository(
     ): List<RemoteMedia> = withContext(Dispatchers.IO) {
         val customMatch = customSources.find { it.key == source || it.id == source }
             ?: customSources.find { it.name.equals(source, ignoreCase = true) }
+        val wantsOnlyVideos = contentTypes.contains(ContentType.VIDEOS) && !contentTypes.contains(ContentType.PHOTOS) && !contentTypes.contains(ContentType.GIFS)
         val targets = when {
             customMatch != null -> listOf(customMatch.key)
-            source == SOURCE_SAFEBOORU -> if (excludeSafe) emptyList() else listOf("safebooru")
-            source == SOURCE_YANDE     -> listOf("yande")
+            source == SOURCE_SAFEBOORU -> if (excludeSafe || wantsOnlyVideos) emptyList() else listOf("safebooru")
+            source == SOURCE_YANDE     -> if (wantsOnlyVideos) emptyList() else listOf("yande")
             source == SOURCE_RULE34    -> listOf("rule34")
             source == SOURCE_GELBOORU  -> listOf("gelbooru")
             source == SOURCE_REALBOORU -> listOf("realbooru")
             source == SOURCE_XBOORU    -> listOf("xbooru")
-            source == SOURCE_TBIB      -> listOf("tbib")
-            source == SOURCE_KONACHAN  -> listOf("konachan")
-            else             -> if (excludeSafe) listOf("rule34", "gelbooru", "realbooru", "xbooru") else listOf("rule34", "gelbooru", "realbooru", "xbooru", "tbib", "yande", "konachan", "safebooru")
+            source == SOURCE_TBIB      -> if (wantsOnlyVideos) emptyList() else listOf("tbib")
+            source == SOURCE_KONACHAN  -> if (wantsOnlyVideos) emptyList() else listOf("konachan")
+            else -> {
+                if (wantsOnlyVideos) {
+                    listOf("rule34", "gelbooru", "realbooru", "xbooru")
+                } else if (excludeSafe) {
+                    listOf("rule34", "gelbooru", "realbooru", "xbooru")
+                } else {
+                    listOf("rule34", "gelbooru", "realbooru", "xbooru", "tbib", "yande", "konachan", "safebooru")
+                }
+            }
         }
 
-        if (targets.isEmpty() && excludeSafe && source == SOURCE_SAFEBOORU) {
+        if (targets.isEmpty()) {
             return@withContext emptyList()
         }
 
@@ -423,7 +432,7 @@ class BooruRepository(
             } else if (wantsVideos && !wantsGifs && !wantsPhotos) {
                 if (!cleaned.contains("video")) {
                     when (key) {
-                        "rule34", "gelbooru", "xbooru", "tbib", "realbooru" -> parts.add("video")
+                        "rule34", "gelbooru", "xbooru", "realbooru" -> parts.add("video")
                         else -> if (custom != null) parts.add("video")
                     }
                 }

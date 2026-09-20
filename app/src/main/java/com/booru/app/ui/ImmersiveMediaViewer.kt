@@ -13,6 +13,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -297,7 +299,7 @@ fun ImmersiveMediaViewer(
                         .fillMaxWidth()
                         .background(
                             Brush.verticalGradient(
-                                colors = listOf(Color.Black.copy(alpha = 0.75f), Color.Transparent)
+                                colors = listOf(Color.Black.copy(alpha = 0.80f), Color.Transparent)
                             )
                         )
                         .statusBarsPadding()
@@ -308,14 +310,21 @@ fun ImmersiveMediaViewer(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        IconButton(
-                            onClick = { dismissWithAnimation() },
-                            colors = IconButtonDefaults.iconButtonColors(
-                                containerColor = Color.Black.copy(alpha = 0.40f),
-                                contentColor = Color.White
-                            )
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.50f),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                            modifier = Modifier.bouncyPress()
                         ) {
-                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                            IconButton(
+                                onClick = { dismissWithAnimation() },
+                                colors = IconButtonDefaults.iconButtonColors(
+                                    containerColor = Color.Transparent,
+                                    contentColor = Color.White
+                                )
+                            ) {
+                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                            }
                         }
 
                         Row(
@@ -325,27 +334,29 @@ fun ImmersiveMediaViewer(
                             val current = mediaList[pagerState.currentPage]
                             Surface(
                                 shape = CircleShape,
-                                color = Color.Black.copy(alpha = 0.40f)
+                                color = Color.Black.copy(alpha = 0.50f),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
                             ) {
                                 Text(
                                     text = "${pagerState.currentPage + 1} / ${mediaList.size}",
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
                                 )
                             }
                             if (current.isVideo) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = Color.Black.copy(alpha = 0.40f)
+                                    color = Color.Black.copy(alpha = 0.50f),
+                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
                                 ) {
                                     Text(
                                         text = current.source.uppercase(),
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp)
                                     )
                                 }
                             }
@@ -354,27 +365,41 @@ fun ImmersiveMediaViewer(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             val current = mediaList[pagerState.currentPage]
                             val isFav = vm.isFavorite(current)
-                            IconButton(
-                                onClick = { vm.toggleFavorite(current) },
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = Color.Black.copy(alpha = 0.40f),
-                                    contentColor = if (isFav) MaterialTheme.colorScheme.primary else Color.White
-                                )
+                            Surface(
+                                shape = CircleShape,
+                                color = Color.Black.copy(alpha = 0.50f),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                                modifier = Modifier.bouncyPress()
                             ) {
-                                Icon(
-                                    if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                    contentDescription = "Favorite"
-                                )
+                                IconButton(
+                                    onClick = { vm.toggleFavorite(current) },
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = Color.Transparent,
+                                        contentColor = if (isFav) MaterialTheme.colorScheme.primary else Color.White
+                                    )
+                                ) {
+                                    Icon(
+                                        if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                        contentDescription = "Favorite"
+                                    )
+                                }
                             }
 
-                            IconButton(
-                                onClick = { onDownload(current) },
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = Color.Black.copy(alpha = 0.40f),
-                                    contentColor = Color.White
-                                )
+                            Surface(
+                                shape = CircleShape,
+                                color = Color.Black.copy(alpha = 0.50f),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                                modifier = Modifier.bouncyPress()
                             ) {
-                                Icon(Icons.Rounded.Download, contentDescription = "Download")
+                                IconButton(
+                                    onClick = { onDownload(current) },
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = Color.Transparent,
+                                        contentColor = Color.White
+                                    )
+                                ) {
+                                    Icon(Icons.Rounded.Download, contentDescription = "Download")
+                                }
                             }
                         }
                     }
@@ -396,7 +421,8 @@ fun ImmersiveMediaViewer(
                                 colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
                             )
                         )
-                        .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 20.dp)
+                        .navigationBarsPadding()
+                        .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 16.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -410,45 +436,53 @@ fun ImmersiveMediaViewer(
                         ) {
                             Surface(
                                 shape = CircleShape,
-                                color = Color.White.copy(alpha = 0.20f)
+                                color = Color.Black.copy(alpha = 0.50f),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
                             ) {
                                 Text(
                                     text = current.source.uppercase(),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
                                     color = Color.White,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                 )
                             }
                             if (current.width > 0 && current.height > 0) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = Color.White.copy(alpha = 0.20f)
+                                    color = Color.Black.copy(alpha = 0.50f),
+                                    border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
                                 ) {
                                     Text(
                                         text = "${current.width} × ${current.height}",
                                         style = MaterialTheme.typography.labelSmall,
                                         fontWeight = FontWeight.Medium,
                                         color = Color.White,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                     )
                                 }
                             }
                         }
 
                         if (isPageZoomed) {
-                            FilledTonalIconButton(
-                                onClick = {
-                                    resetZoomKey++
-                                    isPageZoomed = false
-                                },
+                            Surface(
                                 shape = CircleShape,
-                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = Color.White.copy(alpha = 0.25f),
-                                    contentColor = Color.White
-                                )
+                                color = Color.Black.copy(alpha = 0.50f),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
+                                modifier = Modifier.bouncyPress()
                             ) {
-                                Icon(Icons.Rounded.ZoomOutMap, contentDescription = "Reset Zoom")
+                                IconButton(
+                                    onClick = {
+                                        resetZoomKey++
+                                        isPageZoomed = false
+                                    },
+                                    colors = IconButtonDefaults.iconButtonColors(
+                                        containerColor = Color.Transparent,
+                                        contentColor = Color.White
+                                    )
+                                ) {
+                                    Icon(Icons.Rounded.ZoomOutMap, contentDescription = "Reset Zoom")
+                                }
                             }
                         }
                     }

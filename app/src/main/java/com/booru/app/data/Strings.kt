@@ -1536,4 +1536,13 @@ object Strings {
         AppLanguage.ARABIC -> "تأكيد الحذف؟"
         else -> "Delete?"
     }
+
+    fun sourceNoVideosNotice(source: String, lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "В источнике $source нет видео (только изображения и GIF)"
+        AppLanguage.JAPANESE -> "$source には動画がありません（画像とGIFのみ）"
+        AppLanguage.CHINESE -> "$source 没有视频（仅图片和GIF）"
+        AppLanguage.KOREAN -> "$source 에는 동영상이 없습니다 (이미지 및 GIF만 지원)"
+        AppLanguage.ARABIC -> "المصدر $source لا يحتوي على مقاطع فيديو (صور وGIF فقط)"
+        else -> "Source $source has no videos (images & GIFs only)"
+    }
 }

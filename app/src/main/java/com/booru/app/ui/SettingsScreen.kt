@@ -100,7 +100,15 @@ fun SettingsScreen(
             onDismissRequest = { showRule34Dialog = false },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            dragHandle = { BottomSheetDefaults.DragHandle() },
+            dragHandle = {
+                Surface(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .size(width = 36.dp, height = 4.dp),
+                    shape = CircleShape,
+                    color = Color.White
+                ) {}
+            },
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
             Column(
@@ -238,7 +246,15 @@ fun SettingsScreen(
             onDismissRequest = { showGelbooruDialog = false },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            dragHandle = { BottomSheetDefaults.DragHandle() },
+            dragHandle = {
+                Surface(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .size(width = 36.dp, height = 4.dp),
+                    shape = CircleShape,
+                    color = Color.White
+                ) {}
+            },
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
             Column(
@@ -376,7 +392,15 @@ fun SettingsScreen(
             onDismissRequest = { showQualityDialog = false },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            dragHandle = { BottomSheetDefaults.DragHandle() },
+            dragHandle = {
+                Surface(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .size(width = 36.dp, height = 4.dp),
+                    shape = CircleShape,
+                    color = Color.White
+                ) {}
+            },
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
             Column(
@@ -544,7 +568,15 @@ fun SettingsScreen(
             },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            dragHandle = { BottomSheetDefaults.DragHandle() },
+            dragHandle = {
+                Surface(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .size(width = 36.dp, height = 4.dp),
+                    shape = CircleShape,
+                    color = Color.White
+                ) {}
+            },
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
             Column(
@@ -741,7 +773,15 @@ fun SettingsScreen(
             },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            dragHandle = { BottomSheetDefaults.DragHandle() },
+            dragHandle = {
+                Surface(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .size(width = 36.dp, height = 4.dp),
+                    shape = CircleShape,
+                    color = Color.White
+                ) {}
+            },
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
             Column(
@@ -1098,7 +1138,15 @@ fun SettingsScreen(
             onDismissRequest = { showPaletteDialog = false },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            dragHandle = { BottomSheetDefaults.DragHandle() },
+            dragHandle = {
+                Surface(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .size(width = 36.dp, height = 4.dp),
+                    shape = CircleShape,
+                    color = Color.White
+                ) {}
+            },
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
             Column(
@@ -1868,7 +1916,15 @@ private fun LanguageSelectionBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
+        dragHandle = {
+            Surface(
+                modifier = Modifier
+                    .padding(vertical = 12.dp)
+                    .size(width = 36.dp, height = 4.dp),
+                shape = CircleShape,
+                color = Color.White
+            ) {}
+        },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(

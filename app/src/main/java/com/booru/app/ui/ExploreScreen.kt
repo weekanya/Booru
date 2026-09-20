@@ -36,6 +36,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.SubcomposeAsyncImage
@@ -426,10 +427,13 @@ fun ExploreScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Spacer(Modifier.height(6.dp))
+                            val isImageOnlyBoard = vm.source in listOf("Yande.re", "Konachan", "Safebooru", "TBIB")
+                            val isVideoOnlyFilter = vm.selectedContentTypes.contains(ContentType.VIDEOS) && !vm.selectedContentTypes.contains(ContentType.PHOTOS) && !vm.selectedContentTypes.contains(ContentType.GIFS)
                             Text(
-                                Strings.nothingFoundDesc(lang),
+                                if (isImageOnlyBoard && isVideoOnlyFilter) Strings.sourceNoVideosNotice(vm.source, lang) else Strings.nothingFoundDesc(lang),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
                             )
                             Spacer(Modifier.height(14.dp))
                             FilledTonalButton(
@@ -592,8 +596,12 @@ fun ExploreScreen(
                                 value = localQuery,
                                 onValueChange = {
                                     localQuery = it
-                                    val lastToken = it.substringAfterLast(" ").trim()
-                                    vm.fetchTagSuggestions(lastToken)
+                                    val lastToken = if (it.endsWith(" ")) "" else it.substringAfterLast(" ").trim()
+                                    if (lastToken.isNotEmpty()) {
+                                        vm.fetchTagSuggestions(lastToken)
+                                    } else {
+                                        vm.clearTagSuggestions()
+                                    }
                                 },
                                 modifier = Modifier
                                     .weight(1f)
@@ -633,6 +641,18 @@ fun ExploreScreen(
                                         Icons.Rounded.Close,
                                         contentDescription = "Clear",
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                IconButton(onClick = {
+                                    localQuery = localQuery.trim()
+                                    vm.search(vm.source, localQuery, vm.safeMode)
+                                    searchExpanded = false
+                                    vm.clearTagSuggestions()
+                                }) {
+                                    Icon(
+                                        Icons.Rounded.Search,
+                                        contentDescription = "Search",
+                                        tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
@@ -685,8 +705,6 @@ fun ExploreScreen(
                                                 }
                                                 val fullQuery = (prefix + suggestion.value).trim() + " "
                                                 localQuery = fullQuery
-                                                vm.search(vm.source, fullQuery.trim(), vm.safeMode)
-                                                searchExpanded = false
                                                 vm.clearTagSuggestions()
                                             },
                                             color = Color.Transparent,
@@ -714,6 +732,28 @@ fun ExploreScreen(
                                                         text = if (suggestion.count > 0) "${suggestion.value} (${suggestion.count})" else suggestion.label.ifBlank { suggestion.value },
                                                         style = MaterialTheme.typography.bodyLarge,
                                                         fontWeight = FontWeight.Medium
+                                                    )
+                                                }
+                                                IconButton(
+                                                    onClick = {
+                                                        val prefix = if (localQuery.contains(" ")) {
+                                                            localQuery.substringBeforeLast(" ") + " "
+                                                        } else {
+                                                            ""
+                                                        }
+                                                        val fullQuery = (prefix + suggestion.value).trim()
+                                                        localQuery = fullQuery
+                                                        vm.search(vm.source, fullQuery, vm.safeMode)
+                                                        searchExpanded = false
+                                                        vm.clearTagSuggestions()
+                                                    },
+                                                    modifier = Modifier.size(36.dp)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Rounded.Search,
+                                                        contentDescription = "Search",
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(20.dp)
                                                     )
                                                 }
                                             }
@@ -1093,7 +1133,15 @@ fun SourceSelectionSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
+        dragHandle = {
+            Surface(
+                modifier = Modifier
+                    .padding(vertical = 12.dp)
+                    .size(width = 36.dp, height = 4.dp),
+                shape = CircleShape,
+                color = Color.White
+            ) {}
+        },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
@@ -1315,7 +1363,15 @@ private fun FilterSelectionBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = { BottomSheetDefaults.DragHandle() },
+        dragHandle = {
+            Surface(
+                modifier = Modifier
+                    .padding(vertical = 12.dp)
+                    .size(width = 36.dp, height = 4.dp),
+                shape = CircleShape,
+                color = Color.White
+            ) {}
+        },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(

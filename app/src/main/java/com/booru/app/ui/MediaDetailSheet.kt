@@ -185,29 +185,39 @@ fun MediaDetailSheet(
     fun downloadCurrentMedia(media: RemoteMedia) {
         if (isDownloading) return
         coroutineScope.launch {
-            isDownloading = true
-            Toast.makeText(context, Strings.loadingOriginal(lang), Toast.LENGTH_SHORT).show()
-            val res = MediaActionHandler.downloadMedia(context, media, com.booru.app.data.ImageQuality.ORIGINAL)
-            isDownloading = false
-            res.onSuccess { filename ->
-                Toast.makeText(context, "${Strings.downloadSuccess(lang)}: $filename", Toast.LENGTH_LONG).show()
-            }.onFailure { e ->
+            try {
+                isDownloading = true
+                Toast.makeText(context, Strings.loadingOriginal(lang), Toast.LENGTH_SHORT).show()
+                val res = MediaActionHandler.downloadMedia(context, media, com.booru.app.data.ImageQuality.ORIGINAL)
+                res.onSuccess { filename ->
+                    Toast.makeText(context, "${Strings.downloadSuccess(lang)}: $filename", Toast.LENGTH_LONG).show()
+                }.onFailure { e ->
+                    Toast.makeText(context, "${Strings.downloadFailed(lang)}: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Throwable) {
                 Toast.makeText(context, "${Strings.downloadFailed(lang)}: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                isDownloading = false
             }
         }
     }
 
     fun applyWallpaper(target: Int, media: RemoteMedia) {
         coroutineScope.launch {
-            isSettingWallpaper = true
-            showWallpaperDialog = false
-            Toast.makeText(context, Strings.settingWallpaper(lang), Toast.LENGTH_SHORT).show()
-            val res = MediaActionHandler.applyWallpaper(context, target, media)
-            isSettingWallpaper = false
-            res.onSuccess {
-                Toast.makeText(context, Strings.wallpaperSuccess(lang), Toast.LENGTH_SHORT).show()
-            }.onFailure { e ->
+            try {
+                isSettingWallpaper = true
+                showWallpaperDialog = false
+                Toast.makeText(context, Strings.settingWallpaper(lang), Toast.LENGTH_SHORT).show()
+                val res = MediaActionHandler.applyWallpaper(context, target, media)
+                res.onSuccess {
+                    Toast.makeText(context, Strings.wallpaperSuccess(lang), Toast.LENGTH_SHORT).show()
+                }.onFailure { e ->
+                    Toast.makeText(context, "${Strings.wallpaperFailed(lang)}: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Throwable) {
                 Toast.makeText(context, "${Strings.wallpaperFailed(lang)}: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                isSettingWallpaper = false
             }
         }
     }
@@ -223,7 +233,7 @@ fun MediaDetailSheet(
                     .padding(vertical = 12.dp)
                     .size(width = 36.dp, height = 4.dp),
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
+                color = Color.White
             ) {}
         },
         sheetState = sheetState,
@@ -352,21 +362,6 @@ fun MediaDetailSheet(
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
                         }
-                    }
-
-                    Surface(
-                        onClick = { showTrueFullscreen = true },
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.90f),
-                        shadowElevation = 2.dp,
-                        modifier = Modifier.bouncyPress()
-                    ) {
-                        Icon(
-                            Icons.Rounded.Fullscreen,
-                            contentDescription = Strings.fullscreen(lang),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp).size(18.dp)
-                        )
                     }
                 }
             }
@@ -796,11 +791,30 @@ fun MediaDetailSheet(
     }
 
     if (showWallpaperDialog) {
-        AlertDialog(
+        val wallpaperSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
             onDismissRequest = { showWallpaperDialog = false },
-            shape = RoundedCornerShape(22.dp),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            title = {
+            sheetState = wallpaperSheetState,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            dragHandle = {
+                Surface(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .size(width = 36.dp, height = 4.dp),
+                    shape = CircleShape,
+                    color = Color.White
+                ) {}
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -808,15 +822,22 @@ fun MediaDetailSheet(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.weight(1f, fill = false)
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        Icon(
-                            Icons.Rounded.Wallpaper,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Rounded.Wallpaper,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                         Text(
                             text = Strings.setWallpaperTitle(lang),
                             style = MaterialTheme.typography.titleMedium,
@@ -825,21 +846,20 @@ fun MediaDetailSheet(
                     }
                     IconButton(
                         onClick = { showWallpaperDialog = false },
-                        modifier = Modifier.size(28.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             Icons.Rounded.Close,
                             contentDescription = "Close",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
-            },
-            text = {
+
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     WallpaperOptionItem(
                         icon = Icons.Rounded.Smartphone,
@@ -857,19 +877,37 @@ fun MediaDetailSheet(
                         onClick = { applyWallpaper(3, currentMedia) }
                     )
                 }
-            },
-            confirmButton = {}
-        )
+            }
+        }
     }
 
     if (selectedTagForAction != null) {
         val currentActionTag = selectedTagForAction!!
         val isBlacklisted = vm.tagBlacklist.any { it.equals(currentActionTag, ignoreCase = true) }
-        AlertDialog(
+        val tagSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        ModalBottomSheet(
             onDismissRequest = { selectedTagForAction = null },
-            shape = RoundedCornerShape(22.dp),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            title = {
+            sheetState = tagSheetState,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            dragHandle = {
+                Surface(
+                    modifier = Modifier
+                        .padding(vertical = 12.dp)
+                        .size(width = 36.dp, height = 4.dp),
+                    shape = CircleShape,
+                    color = Color.White
+                ) {}
+            }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -877,7 +915,7 @@ fun MediaDetailSheet(
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         modifier = Modifier.weight(1f, fill = false)
                     ) {
                         Surface(
@@ -886,14 +924,14 @@ fun MediaDetailSheet(
                                 MaterialTheme.colorScheme.errorContainer
                             else
                                 MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(36.dp)
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
                                     imageVector = if (isBlacklisted) Icons.Rounded.Block else Icons.Rounded.Tag,
                                     contentDescription = null,
                                     tint = if (isBlacklisted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
@@ -923,18 +961,17 @@ fun MediaDetailSheet(
                             Icons.Rounded.Close,
                             contentDescription = "Close",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
-            },
-            text = {
+
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHighest,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -947,14 +984,14 @@ fun MediaDetailSheet(
                             }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             Surface(
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.primaryContainer,
-                                modifier = Modifier.size(34.dp)
+                                modifier = Modifier.size(36.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
@@ -975,7 +1012,7 @@ fun MediaDetailSheet(
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = MaterialTheme.colorScheme.surfaceContainerHighest,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -988,14 +1025,14 @@ fun MediaDetailSheet(
                             }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             Surface(
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.secondaryContainer,
-                                modifier = Modifier.size(34.dp)
+                                modifier = Modifier.size(36.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
@@ -1016,7 +1053,7 @@ fun MediaDetailSheet(
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(14.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = if (isBlacklisted)
                             MaterialTheme.colorScheme.surfaceContainerHighest
                         else
@@ -1037,9 +1074,9 @@ fun MediaDetailSheet(
                             }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                             Surface(
                                 shape = CircleShape,
@@ -1047,7 +1084,7 @@ fun MediaDetailSheet(
                                     MaterialTheme.colorScheme.primaryContainer
                                 else
                                     MaterialTheme.colorScheme.errorContainer,
-                                modifier = Modifier.size(34.dp)
+                                modifier = Modifier.size(36.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
@@ -1067,9 +1104,8 @@ fun MediaDetailSheet(
                         }
                     }
                 }
-            },
-            confirmButton = {}
-        )
+            }
+        }
     }
 
     if (showTrueFullscreen) {

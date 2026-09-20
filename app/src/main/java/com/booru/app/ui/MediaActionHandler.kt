@@ -18,6 +18,7 @@ import com.booru.app.RemoteMedia
 import com.booru.app.data.ImageQuality
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -39,11 +40,22 @@ object MediaActionHandler {
         media: RemoteMedia,
         quality: ImageQuality
     ): Result<String> = withContext(Dispatchers.IO) {
+        val outcome = withTimeoutOrNull(60_000L) {
+            executeDownload(context, media, quality)
+        }
+        outcome ?: Result.failure(IOException("Download timed out after 60 seconds"))
+    }
+
+    private fun executeDownload(
+        context: Context,
+        media: RemoteMedia,
+        quality: ImageQuality
+    ): Result<String> {
         var insertedUri: android.net.Uri? = null
         var targetPreQFile: File? = null
         var isSuccess = false
 
-        try {
+        return try {
             val downloadUrl = when (quality) {
                 ImageQuality.ORIGINAL -> media.url.ifBlank { media.sample.ifBlank { media.preview } }
                 ImageQuality.SAMPLE   -> media.sample.ifBlank { media.url.ifBlank { media.preview } }
@@ -51,7 +63,7 @@ object MediaActionHandler {
             }
 
             if (downloadUrl.isBlank()) {
-                return@withContext Result.failure(IOException("Empty media URL"))
+                return Result.failure(IOException("Empty media URL"))
             }
 
             val referer = when {
@@ -74,13 +86,13 @@ object MediaActionHandler {
 
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    return@withContext Result.failure(IOException("HTTP error ${response.code}"))
+                    return Result.failure(IOException("HTTP error ${response.code}"))
                 }
 
-                val body = response.body ?: return@withContext Result.failure(IOException("Empty response body"))
+                val body = response.body ?: return Result.failure(IOException("Empty response body"))
                 val contentLength = body.contentLength()
                 if (contentLength > MAX_DOWNLOAD_BYTES) {
-                    return@withContext Result.failure(IOException("Download Content-Length $contentLength exceeds limit of $MAX_DOWNLOAD_BYTES"))
+                    return Result.failure(IOException("Download Content-Length $contentLength exceeds limit of $MAX_DOWNLOAD_BYTES"))
                 }
                 val cleanUrl = downloadUrl.substringBefore("?")
                 val originalExt = cleanUrl.substringAfterLast(".", "jpg").lowercase()
@@ -212,7 +224,18 @@ object MediaActionHandler {
         target: Int,
         media: RemoteMedia
     ): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
+        val outcome = withTimeoutOrNull(45_000L) {
+            executeApplyWallpaper(context, target, media)
+        }
+        outcome ?: Result.failure(IOException("Setting wallpaper timed out"))
+    }
+
+    private suspend fun executeApplyWallpaper(
+        context: Context,
+        target: Int,
+        media: RemoteMedia
+    ): Result<Unit> {
+        return try {
             val displayMetrics = context.resources.displayMetrics
             val maxDim = maxOf(displayMetrics.widthPixels, displayMetrics.heightPixels).coerceAtLeast(1080)
 
@@ -226,12 +249,12 @@ object MediaActionHandler {
 
             val result = imageLoader.execute(request)
             if (result !is SuccessResult) {
-                return@withContext Result.failure(IOException("Failed to load image for wallpaper"))
+                return Result.failure(IOException("Failed to load image for wallpaper"))
             }
 
             val bitmap: Bitmap = (result.drawable as? BitmapDrawable)?.bitmap
                 ?: runCatching { result.drawable.toBitmap() }.getOrNull()
-                ?: return@withContext Result.failure(IOException("Could not decode bitmap"))
+                ?: return Result.failure(IOException("Could not decode bitmap"))
 
             val wallpaperManager = WallpaperManager.getInstance(context)
             when (target) {
@@ -256,7 +279,7 @@ object MediaActionHandler {
                         wallpaperManager.setBitmap(bitmap)
                     }
                 }
-                else -> return@withContext Result.failure(IllegalArgumentException("Unknown wallpaper target: $target"))
+                else -> return Result.failure(IllegalArgumentException("Unknown wallpaper target: $target"))
             }
 
             Result.success(Unit)
