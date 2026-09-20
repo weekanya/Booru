@@ -11,6 +11,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
@@ -840,9 +841,11 @@ fun SettingsScreen(
                                     targetState = vm.tagBlacklist.size,
                                     transitionSpec = {
                                         if (targetState > initialState) {
-                                            (slideInVertically { -it } + fadeIn()).togetherWith(slideOutVertically { it } + fadeOut())
+                                            (slideInVertically(animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow)) { -it } + fadeIn(tween(280, easing = FastOutSlowInEasing)))
+                                                .togetherWith(slideOutVertically(animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow)) { it } + fadeOut(tween(220, easing = FastOutSlowInEasing)))
                                         } else {
-                                            (slideInVertically { it } + fadeIn()).togetherWith(slideOutVertically { -it } + fadeOut())
+                                            (slideInVertically(animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow)) { it } + fadeIn(tween(280, easing = FastOutSlowInEasing)))
+                                                .togetherWith(slideOutVertically(animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow)) { -it } + fadeOut(tween(220, easing = FastOutSlowInEasing)))
                                         }
                                     },
                                     label = "blacklistCountAnim"
@@ -929,13 +932,13 @@ fun SettingsScreen(
                     val addBtnBg by animateColorAsState(
                         targetValue = if (isAddActive) MaterialTheme.colorScheme.primary
                                       else MaterialTheme.colorScheme.surfaceContainerHighest,
-                        animationSpec = tween(200),
+                        animationSpec = tween(280, easing = FastOutSlowInEasing),
                         label = "addBtnBg"
                     )
                     val addBtnIconTint by animateColorAsState(
                         targetValue = if (isAddActive) MaterialTheme.colorScheme.onPrimary
                                       else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                        animationSpec = tween(200),
+                        animationSpec = tween(280, easing = FastOutSlowInEasing),
                         label = "addBtnTint"
                     )
 
@@ -959,17 +962,12 @@ fun SettingsScreen(
 
                 AnimatedVisibility(
                     visible = vm.tagBlacklist.size > 4,
-                    enter = fadeIn(tween(200)) + expandVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow)),
-                    exit = fadeOut(tween(150)) + shrinkVertically(animationSpec = spring(stiffness = Spring.StiffnessMediumLow))
+                    enter = fadeIn(tween(280, easing = FastOutSlowInEasing)) + expandVertically(animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow)),
+                    exit = fadeOut(tween(220, easing = FastOutSlowInEasing)) + shrinkVertically(animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow))
                 ) {
                     Surface(
                         shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.55f),
-                        border = BorderStroke(
-                            width = 1.dp,
-                            color = if (blacklistFilterQuery.isNotEmpty()) MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                                    else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)
-                        ),
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(44.dp)
@@ -1032,7 +1030,8 @@ fun SettingsScreen(
                 AnimatedContent(
                     targetState = vm.tagBlacklist.isEmpty(),
                     transitionSpec = {
-                        fadeIn(tween(220)).togetherWith(fadeOut(tween(180)))
+                        fadeIn(tween(300, easing = FastOutSlowInEasing))
+                            .togetherWith(fadeOut(tween(220, easing = FastOutSlowInEasing)))
                     },
                     label = "blacklistContentTransition"
                 ) { isEmpty ->
@@ -1082,7 +1081,7 @@ fun SettingsScreen(
                                 .fillMaxWidth()
                                 .heightIn(min = 60.dp, max = 240.dp)
                                 .verticalScroll(rememberScrollState())
-                                .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.82f))
+                                .animateContentSize(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow))
                         ) {
                             if (filteredBlacklist.isEmpty()) {
                                 Box(
@@ -1103,7 +1102,7 @@ fun SettingsScreen(
                                     verticalArrangement = Arrangement.spacedBy(6.dp),
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .animateContentSize(spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = 0.82f))
+                                        .animateContentSize(spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow))
                                 ) {
                                     filteredBlacklist.forEach { tag ->
                                         key(tag) {
@@ -1126,8 +1125,8 @@ fun SettingsScreen(
                 ) {
                     AnimatedVisibility(
                         visible = vm.tagBlacklist.isNotEmpty(),
-                        enter = fadeIn(tween(180)) + expandHorizontally(),
-                        exit = fadeOut(tween(150)) + shrinkHorizontally()
+                        enter = fadeIn(tween(250, easing = FastOutSlowInEasing)) + expandHorizontally(animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow)),
+                        exit = fadeOut(tween(200, easing = FastOutSlowInEasing)) + shrinkHorizontally(animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow))
                     ) {
                         AnimatedConfirmDeleteButton(
                             onConfirmed = {
@@ -2091,13 +2090,31 @@ private fun BlacklistTagChip(
     tag: String,
     onRemove: () -> Unit
 ) {
-    var isRemoving by remember { mutableStateOf(false) }
+    val visibleState = remember {
+        MutableTransitionState(false).apply {
+            targetState = true
+        }
+    }
     val coroutineScope = rememberCoroutineScope()
 
     AnimatedVisibility(
-        visible = !isRemoving,
-        enter = fadeIn(tween(200)) + scaleIn(initialScale = 0.75f, animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMediumLow)),
-        exit = fadeOut(tween(140)) + scaleOut(targetScale = 0.5f, animationSpec = tween(140)) + shrinkHorizontally(animationSpec = tween(140))
+        visibleState = visibleState,
+        enter = fadeIn(tween(280, easing = FastOutSlowInEasing)) + scaleIn(
+            initialScale = 0.6f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        ),
+        exit = fadeOut(tween(180, easing = FastOutLinearInEasing)) + scaleOut(
+            targetScale = 0.5f,
+            animationSpec = tween(180)
+        ) + shrinkHorizontally(
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        )
     ) {
         Surface(
             shape = RoundedCornerShape(12.dp),
@@ -2125,10 +2142,10 @@ private fun BlacklistTagChip(
                     modifier = Modifier
                         .size(20.dp)
                         .clickable {
-                            if (!isRemoving) {
-                                isRemoving = true
+                            if (visibleState.targetState) {
+                                visibleState.targetState = false
                                 coroutineScope.launch {
-                                    delay(150)
+                                    delay(200)
                                     onRemove()
                                 }
                             }
