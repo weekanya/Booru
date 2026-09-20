@@ -1068,7 +1068,8 @@ private fun MediaCard(
                 }
             }
 
-            if (media.score > 0) {
+            val isRealbooru = media.source.equals("realbooru", ignoreCase = true) || media.url.contains("realbooru.com")
+            if (media.score > 0 && !isRealbooru) {
                 Surface(
                     shape = CircleShape,
                     color = Color.Black.copy(alpha = 0.45f),
