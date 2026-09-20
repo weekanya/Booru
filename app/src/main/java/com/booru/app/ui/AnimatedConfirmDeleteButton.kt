@@ -3,6 +3,9 @@ package com.booru.app.ui
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -68,13 +71,13 @@ fun AnimatedConfirmDeleteButton(
 
     val animatedContainerColor by animateColorAsState(
         targetValue = if (isConfirming) MaterialTheme.colorScheme.error else idleContainerColor,
-        animationSpec = tween(durationMillis = 200),
+        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
         label = "confirmDeleteContainer"
     )
 
     val animatedContentColor by animateColorAsState(
         targetValue = if (isConfirming) MaterialTheme.colorScheme.onError else idleContentColor,
-        animationSpec = tween(durationMillis = 200),
+        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
         label = "confirmDeleteContent"
     )
 
@@ -97,9 +100,19 @@ fun AnimatedConfirmDeleteButton(
         AnimatedContent(
             targetState = isConfirming,
             transitionSpec = {
-                (fadeIn(animationSpec = tween(180)) + scaleIn(initialScale = 0.88f, animationSpec = tween(180)))
-                    .togetherWith(fadeOut(animationSpec = tween(120)) + scaleOut(targetScale = 0.88f, animationSpec = tween(120)))
-                    .using(SizeTransform(clip = false))
+                (fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                    scaleIn(initialScale = 0.90f, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)))
+                    .togetherWith(
+                        fadeOut(animationSpec = tween(160, easing = FastOutSlowInEasing)) +
+                            scaleOut(targetScale = 0.90f, animationSpec = tween(160, easing = FastOutSlowInEasing))
+                    ).using(
+                        SizeTransform(clip = false) { _, _ ->
+                            spring(
+                                dampingRatio = Spring.DampingRatioLowBouncy,
+                                stiffness = Spring.StiffnessMediumLow
+                            )
+                        }
+                    )
             },
             contentAlignment = Alignment.Center,
             modifier = Modifier.fillMaxHeight(),

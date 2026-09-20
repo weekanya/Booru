@@ -56,6 +56,7 @@ import com.booru.app.data.sanitizeBooruBaseUrl
 import com.booru.app.R
 import com.booru.app.data.AppLanguage
 import com.booru.app.data.Strings
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1891,6 +1892,7 @@ private fun LanguageSelectionBottomSheet(
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1948,7 +1950,11 @@ private fun LanguageSelectionBottomSheet(
                     Surface(
                         onClick = {
                             onLanguageSelected(langOption)
-                            onDismiss()
+                            scope.launch {
+                                sheetState.hide()
+                            }.invokeOnCompletion {
+                                onDismiss()
+                            }
                         },
                         shape = RoundedCornerShape(18.dp),
                         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,

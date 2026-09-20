@@ -148,6 +148,7 @@ class BooruRepository(
         noAi: Boolean = false,
         page: Int = 0,
         sortOrder: SortOrder = SortOrder.NEWEST,
+        contentTypes: Set<ContentType> = emptySet(),
         credentials: BooruCredentials = BooruCredentials(),
         customSources: List<CustomBooruSource> = emptyList()
     ): List<RemoteMedia> = withContext(Dispatchers.IO) {
@@ -181,7 +182,7 @@ class BooruRepository(
                 async {
                     semaphore.withPermit {
                         try {
-                            val list = requestSourceWithRetry(key, tags.trim(), safeMode, excludeSafe, noAi, page, sortOrder, credentials, customSources)
+                            val list = requestSourceWithRetry(key, tags.trim(), safeMode, excludeSafe, noAi, page, sortOrder, contentTypes, credentials, customSources)
                             Result.success(list)
                         } catch (c: kotlinx.coroutines.CancellationException) {
                             throw c
@@ -394,7 +395,8 @@ class BooruRepository(
         noAi: Boolean,
         key: String,
         sortOrder: SortOrder,
-        customSources: List<CustomBooruSource> = emptyList()
+        customSources: List<CustomBooruSource> = emptyList(),
+        contentTypes: Set<ContentType> = emptySet()
     ): String {
         val parts = mutableListOf<String>()
 
@@ -405,6 +407,51 @@ class BooruRepository(
 
         val custom = customSources.find { it.key == key || it.id == key }
             ?: customSources.find { it.name.equals(key, ignoreCase = true) }
+
+        if (contentTypes.isNotEmpty()) {
+            val wantsPhotos = contentTypes.contains(ContentType.PHOTOS)
+            val wantsVideos = contentTypes.contains(ContentType.VIDEOS)
+            val wantsGifs = contentTypes.contains(ContentType.GIFS)
+
+            if (wantsGifs && !wantsVideos && !wantsPhotos) {
+                if (!cleaned.contains("animated")) {
+                    when (key) {
+                        "rule34", "gelbooru", "safebooru", "xbooru", "tbib", "realbooru" -> parts.add("animated")
+                        else -> if (custom != null) parts.add("animated")
+                    }
+                }
+            } else if (wantsVideos && !wantsGifs && !wantsPhotos) {
+                if (!cleaned.contains("video")) {
+                    when (key) {
+                        "rule34", "gelbooru", "xbooru", "tbib", "realbooru" -> parts.add("video")
+                        else -> if (custom != null) parts.add("video")
+                    }
+                }
+            } else if (wantsPhotos && !wantsVideos && !wantsGifs) {
+                when (key) {
+                    "rule34", "gelbooru", "xbooru", "tbib", "realbooru" -> {
+                        if (!cleaned.contains("-video")) parts.add("-video")
+                        if (!cleaned.contains("-animated")) parts.add("-animated")
+                    }
+                    "safebooru" -> {
+                        if (!cleaned.contains("-animated")) parts.add("-animated")
+                    }
+                    else -> {
+                        if (custom != null) {
+                            if (!cleaned.contains("-video")) parts.add("-video")
+                            if (!cleaned.contains("-animated")) parts.add("-animated")
+                        }
+                    }
+                }
+            } else if (wantsVideos && wantsGifs && !wantsPhotos) {
+                if (!cleaned.contains("animated")) {
+                    when (key) {
+                        "rule34", "gelbooru", "safebooru", "xbooru", "tbib", "realbooru" -> parts.add("animated")
+                        else -> if (custom != null) parts.add("animated")
+                    }
+                }
+            }
+        }
 
         if (safe) {
             if (custom != null) {
@@ -528,6 +575,7 @@ class BooruRepository(
         noAi: Boolean,
         page: Int,
         sortOrder: SortOrder,
+        contentTypes: Set<ContentType> = emptySet(),
         credentials: BooruCredentials,
         customSources: List<CustomBooruSource> = emptyList()
     ): List<RemoteMedia> {
@@ -536,7 +584,7 @@ class BooruRepository(
 
         while (attempt < 3) {
             try {
-                return requestSource(key, userTags, safe, excludeSafe, noAi, page, sortOrder, credentials, customSources)
+                return requestSource(key, userTags, safe, excludeSafe, noAi, page, sortOrder, contentTypes, credentials, customSources)
             } catch (c: kotlinx.coroutines.CancellationException) {
                 throw c
             } catch (auth: BooruAuthException) {
@@ -580,10 +628,11 @@ class BooruRepository(
         noAi: Boolean,
         page: Int,
         sortOrder: SortOrder,
+        contentTypes: Set<ContentType> = emptySet(),
         credentials: BooruCredentials,
         customSources: List<CustomBooruSource> = emptyList()
     ): List<RemoteMedia> {
-        val tagQuery = buildTagQuery(userTags, safe, excludeSafe, noAi, key, sortOrder, customSources)
+        val tagQuery = buildTagQuery(userTags, safe, excludeSafe, noAi, key, sortOrder, customSources, contentTypes)
 
         val custom = customSources.find { it.key == key || it.id == key }
             ?: customSources.find { it.name.equals(key, ignoreCase = true) }
@@ -895,8 +944,9 @@ class BooruRepository(
                 fileUrl = "https:$fileUrl"
             }
 
-            val isVideo = fileUrl.endsWith(".mp4") || fileUrl.endsWith(".webm") || fileUrl.endsWith(".mkv") || fileUrl.endsWith(".mov")
-            val isGif = fileUrl.endsWith(".gif")
+            val cleanFile = fileUrl.substringBefore("?").lowercase()
+            val isVideo = cleanFile.endsWith(".mp4") || cleanFile.endsWith(".webm") || cleanFile.endsWith(".mkv") || cleanFile.endsWith(".mov") || (fileObj?.optString("ext")?.lowercase() in listOf("mp4", "webm", "mkv", "mov"))
+            val isGif = cleanFile.endsWith(".gif") || image.substringBefore("?").lowercase().endsWith(".gif") || (fileObj?.optString("ext")?.lowercase() == "gif")
 
             val previewObj = o.optJSONObject("preview")
             var preview = o.optString("preview_url")

@@ -67,7 +67,12 @@ data class RemoteMedia(
     val isGif: Boolean
         get() {
             val clean = url.substringBefore("?").lowercase()
-            return clean.endsWith(".gif")
+            val cleanPreview = preview.substringBefore("?").lowercase()
+            val cleanSample = sample.substringBefore("?").lowercase()
+            return clean.endsWith(".gif") ||
+                cleanPreview.endsWith(".gif") ||
+                cleanSample.endsWith(".gif") ||
+                (!isVideo && tagList.any { it.equals("gif", ignoreCase = true) || it.equals("animated_gif", ignoreCase = true) })
         }
 
     val postWebUrl: String

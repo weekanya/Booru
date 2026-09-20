@@ -43,6 +43,7 @@ import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
 import com.booru.app.BooruRepository
 import com.booru.app.ContentType
+import kotlinx.coroutines.launch
 import com.booru.app.GalleryViewModel
 import com.booru.app.RemoteMedia
 import com.booru.app.SortOrder
@@ -1086,6 +1087,7 @@ fun SourceSelectionSheet(
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1137,7 +1139,11 @@ fun SourceSelectionSheet(
                 Surface(
                     onClick = {
                         onSelect(src)
-                        onDismiss()
+                        scope.launch {
+                            sheetState.hide()
+                        }.invokeOnCompletion {
+                            onDismiss()
+                        }
                     },
                     shape = RoundedCornerShape(16.dp),
                     color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
@@ -1297,6 +1303,7 @@ private fun FilterSelectionBottomSheet(
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
 
     var tempContentTypes by remember { mutableStateOf(vm.selectedContentTypes) }
     var tempSortOrder by remember { mutableStateOf(vm.sortOrder) }
@@ -1535,7 +1542,11 @@ private fun FilterSelectionBottomSheet(
                         excludeSafe = tempExcludeSafe,
                         noAi = tempNoAi
                     )
-                    onDismiss()
+                    scope.launch {
+                        sheetState.hide()
+                    }.invokeOnCompletion {
+                        onDismiss()
+                    }
                 },
                 shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(

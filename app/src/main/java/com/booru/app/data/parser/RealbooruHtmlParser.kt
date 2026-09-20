@@ -55,7 +55,14 @@ object RealbooruHtmlParser {
             val imgClass = img.className().lowercase()
             val dataType = thumb.attr("data-type").lowercase()
 
-            val isVideo = dataType == "video" ||
+            val isGif = previewUrl.endsWith(".gif", ignoreCase = true) ||
+                    tagTokens.any { t ->
+                        val l = t.lowercase()
+                        l == "gif" || l == "animated_gif"
+                    }
+
+            val isVideo = !isGif && (
+                    dataType == "video" ||
                     thumbClass.contains("video") ||
                     thumbClass.contains("webm") ||
                     linkClass.contains("video") ||
@@ -64,14 +71,20 @@ object RealbooruHtmlParser {
                     previewUrl.endsWith(".mp4", ignoreCase = true) ||
                     tagTokens.any { t ->
                         val l = t.lowercase()
-                        l == "video" || l == "webm" || l == "mp4" || l == "animated"
+                        l == "video" || l == "webm" || l == "mp4"
                     }
+            )
 
             val originalUrl = if (isVideo) {
                 previewUrl
                     .replace("/thumbnails/", "/images/")
                     .replace("/thumbnail_", "/")
                     .replace(Regex("\\.[a-zA-Z0-9]+$"), ".mp4")
+            } else if (isGif) {
+                previewUrl
+                    .replace("/thumbnails/", "/images/")
+                    .replace("/thumbnail_", "/")
+                    .replace(Regex("\\.[a-zA-Z0-9]+$"), ".gif")
             } else {
                 previewUrl
                     .replace("/thumbnails/", "/images/")

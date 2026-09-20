@@ -715,6 +715,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         noAi = noAi,
                         page = 0,
                         sortOrder = sortOrder,
+                        contentTypes = selectedContentTypes,
                         credentials = getCredentials(),
                         customSources = customSources
                     )
@@ -727,7 +728,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 accumulated.addAll(list)
                 var lastFetchedPage = 0
                 val targetCount = if (selectedContentTypes.isNotEmpty()) 24 else BooruRepository.PAGE_SIZE
-                val maxPagesToAccumulate = if (selectedContentTypes.isNotEmpty()) 10 else 1
+                val maxPagesToAccumulate = if (selectedContentTypes.isNotEmpty()) 15 else 1
 
                 fun filterItems(items: List<RemoteMedia>): List<RemoteMedia> {
                     return items.filterNot { isBlacklisted(it) }
@@ -743,7 +744,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
                 var currentFiltered = filterItems(accumulated).distinctBy { it.mediaKey }
 
-                while (selectedContentTypes.isNotEmpty() && currentFiltered.size < targetCount && lastPageSize >= BooruRepository.PAGE_SIZE && lastFetchedPage < maxPagesToAccumulate) {
+                while (selectedContentTypes.isNotEmpty() && currentFiltered.size < targetCount && lastPageSize > 0 && lastFetchedPage < maxPagesToAccumulate) {
                     lastFetchedPage++
                     val nextPageList = repo.search(
                         source = source,
@@ -753,6 +754,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         noAi = noAi,
                         page = lastFetchedPage,
                         sortOrder = sortOrder,
+                        contentTypes = selectedContentTypes,
                         credentials = getCredentials(),
                         customSources = customSources
                     )
@@ -764,7 +766,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
                 currentPage = lastFetchedPage
                 results = currentFiltered
-                hasMore = lastPageSize >= BooruRepository.PAGE_SIZE
+                hasMore = lastPageSize > 0
             } catch (authEx: BooruAuthException) {
                 if (searchGen == currentSearchGeneration) {
                     results = emptyList()
@@ -832,6 +834,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         noAi = noAi,
                         page = targetPage,
                         sortOrder = sortOrder,
+                        contentTypes = selectedContentTypes,
                         credentials = getCredentials(),
                         customSources = customSources
                     )
@@ -859,9 +862,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 var currentFiltered = filterItems(accumulatedNew)
                 val targetCount = if (selectedContentTypes.isNotEmpty()) 20 else BooruRepository.PAGE_SIZE
                 var extraPagesFetched = 0
-                val maxExtraPages = if (selectedContentTypes.isNotEmpty()) 7 else 0
+                val maxExtraPages = if (selectedContentTypes.isNotEmpty()) 10 else 0
 
-                while (selectedContentTypes.isNotEmpty() && currentFiltered.size < targetCount && lastPageSize >= BooruRepository.PAGE_SIZE && extraPagesFetched < maxExtraPages) {
+                while (selectedContentTypes.isNotEmpty() && currentFiltered.size < targetCount && lastPageSize > 0 && extraPagesFetched < maxExtraPages) {
                     lastFetchedPage++
                     extraPagesFetched++
                     val nextPageList = repo.search(
@@ -872,6 +875,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         noAi = noAi,
                         page = lastFetchedPage,
                         sortOrder = sortOrder,
+                        contentTypes = selectedContentTypes,
                         credentials = getCredentials(),
                         customSources = customSources
                     )
@@ -883,7 +887,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
                 currentPage = lastFetchedPage
                 results = (results + currentFiltered).distinctBy { it.mediaKey }
-                hasMore = lastPageSize >= BooruRepository.PAGE_SIZE
+                hasMore = lastPageSize > 0
             } catch (c: CancellationException) {
                 throw c
             } catch (_: Exception) {
