@@ -564,6 +564,7 @@ private fun UpdateBottomSheet(
                         )
                     }
                 }
+            }
             if (vm.downloadedApkFile != null) {
                 Surface(
                     shape = RoundedCornerShape(18.dp),
