@@ -1256,19 +1256,19 @@ fun FilterOptionButton(
 ) {
     val containerColor by animateColorAsState(
         targetValue = if (selected) selectedContainerColor else unselectedContainerColor,
-        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+        animationSpec = spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
         label = "filterBtnBg"
     )
     val contentColor by animateColorAsState(
         targetValue = if (selected) selectedContentColor else unselectedContentColor,
-        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+        animationSpec = spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
         label = "filterBtnContent"
     )
     val scale by animateFloatAsState(
         targetValue = if (selected) 1.02f else 1.0f,
         animationSpec = spring(
-            dampingRatio = 0.82f,
-            stiffness = Spring.StiffnessMediumLow
+            dampingRatio = 0.72f,
+            stiffness = Spring.StiffnessMedium
         ),
         label = "filterBtnScale"
     )
@@ -1301,11 +1301,11 @@ fun FilterOptionButton(
                     AnimatedContent(
                         targetState = selected,
                         transitionSpec = {
-                            (fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
-                                scaleIn(initialScale = 0.6f, animationSpec = tween(220, easing = FastOutSlowInEasing)))
+                            (fadeIn(animationSpec = tween(140, easing = LinearOutSlowInEasing)) +
+                                scaleIn(initialScale = 0.65f, animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMedium)))
                                 .togetherWith(
-                                    fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
-                                        scaleOut(targetScale = 0.6f, animationSpec = tween(180, easing = FastOutLinearInEasing))
+                                    fadeOut(animationSpec = tween(100, easing = FastOutLinearInEasing)) +
+                                        scaleOut(targetScale = 0.65f, animationSpec = tween(100, easing = FastOutLinearInEasing))
                                 )
                         },
                         label = "filterBtnIconAnim"
@@ -1321,14 +1321,14 @@ fun FilterOptionButton(
             } else {
                 AnimatedVisibility(
                     visible = selected,
-                    enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                    enter = fadeIn(animationSpec = tween(140, easing = LinearOutSlowInEasing)) +
                         expandHorizontally(
-                            animationSpec = tween(240, easing = FastOutSlowInEasing),
+                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
                             expandFrom = Alignment.Start
                         ),
-                    exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
+                    exit = fadeOut(animationSpec = tween(100, easing = FastOutLinearInEasing)) +
                         shrinkHorizontally(
-                            animationSpec = tween(200, easing = FastOutLinearInEasing),
+                            animationSpec = spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMedium),
                             shrinkTowards = Alignment.Start
                         )
                 ) {

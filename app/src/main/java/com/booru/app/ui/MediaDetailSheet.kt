@@ -1589,6 +1589,7 @@ fun BooruVideoPlayer(
 ) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(true) }
+    var userPaused by remember(videoUrl) { mutableStateOf(false) }
     var isMuted by remember { mutableStateOf(false) }
     var isReady by remember { mutableStateOf(false) }
     var internalShowControls by remember { mutableStateOf(true) }
@@ -1667,6 +1668,9 @@ fun BooruVideoPlayer(
                         if (playbackState == Player.STATE_READY) {
                             isReady = true
                             if (duration > 0L) durationMs = duration
+                            if (isActive && !userPaused && !isPlaying) {
+                                play()
+                            }
                         }
                     }
                     override fun onRenderedFirstFrame() {
@@ -1705,10 +1709,14 @@ fun BooruVideoPlayer(
         }
     }
 
-    LaunchedEffect(isActive, exoPlayer) {
+    LaunchedEffect(isActive, exoPlayer, userPaused) {
         if (!isActive) {
             exoPlayer.pause()
-        } else if (isPlaying) {
+        } else if (!userPaused) {
+            exoPlayer.playWhenReady = true
+            if (exoPlayer.playbackState == Player.STATE_ENDED) {
+                exoPlayer.seekTo(0L)
+            }
             exoPlayer.play()
         }
     }
@@ -1815,9 +1823,15 @@ fun BooruVideoPlayer(
                 FilledTonalIconButton(
                     onClick = {
                         if (exoPlayer.isPlaying) {
+                            userPaused = true
                             exoPlayer.pause()
                             isPlaying = false
                         } else {
+                            userPaused = false
+                            exoPlayer.playWhenReady = true
+                            if (exoPlayer.playbackState == Player.STATE_ENDED) {
+                                exoPlayer.seekTo(0L)
+                            }
                             exoPlayer.play()
                             isPlaying = true
                         }

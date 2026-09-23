@@ -158,7 +158,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                 ) {
                 Crossfade(
                     targetState = selectedTab,
-                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
+                    animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
                     label = "TabCrossfade",
                     modifier = Modifier.fillMaxSize()
                 ) { tab ->
@@ -207,7 +207,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                     MaterialTheme.colorScheme.primaryContainer
                                 else
                                     MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0f),
-                                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
                                 label = "navItemBg"
                             )
                             val contentColor by animateColorAsState(
@@ -215,7 +215,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                     MaterialTheme.colorScheme.onPrimaryContainer
                                 else
                                     MaterialTheme.colorScheme.onSurfaceVariant,
-                                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+                                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
                                 label = "navItemColor"
                             )
 
@@ -241,7 +241,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                     val iconView = @Composable {
                                         Crossfade(
                                             targetState = isSelected,
-                                            animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+                                            animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
                                             label = "navIconFade"
                                         ) { sel ->
                                             Icon(
@@ -272,12 +272,12 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
 
                                     AnimatedVisibility(
                                         visible = isSelected,
-                                        enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) + expandHorizontally(
-                                            animationSpec = tween(240, easing = FastOutSlowInEasing),
+                                        enter = fadeIn(animationSpec = tween(140, easing = LinearOutSlowInEasing)) + expandHorizontally(
+                                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
                                             expandFrom = Alignment.Start
                                         ),
-                                        exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) + shrinkHorizontally(
-                                            animationSpec = tween(200, easing = FastOutLinearInEasing),
+                                        exit = fadeOut(animationSpec = tween(100, easing = FastOutLinearInEasing)) + shrinkHorizontally(
+                                            animationSpec = spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMedium),
                                             shrinkTowards = Alignment.Start
                                         )
                                     ) {
