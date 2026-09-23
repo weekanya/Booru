@@ -157,7 +157,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             tagBlacklist = initialBlacklist
             recommendationTags = sortedRec.take(15)
 
-            BooruCacheManager.clearBrowsingCache(getApplication())
             updateCacheSize()
 
             search(source, "", safeMode)
@@ -231,9 +230,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             try {
                 val currentVer = try {
                     val pInfo = getApplication<Application>().packageManager.getPackageInfo(getApplication<Application>().packageName, 0)
-                    pInfo.versionName ?: "5.2"
+                    pInfo.versionName ?: "5.3"
                 } catch (_: Exception) {
-                    "5.2"
+                    "5.3"
                 }
 
                 val release = UpdateChecker.fetchLatestRelease()
@@ -562,9 +561,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         return blacklist.any { bl ->
             val clean = bl.trim().lowercase()
             if (clean.isBlank()) return@any false
-            clean in mediaTags ||
-                    clean in mediaTagsStripped ||
-                    (clean.contains(":") && clean.substringAfter(":") in mediaTags)
+            if (clean.contains(":")) {
+                clean in mediaTags
+            } else {
+                clean in mediaTags || clean in mediaTagsStripped
+            }
         }
     }
 
@@ -677,6 +678,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                                 noAi = noAi,
                                 page = 0,
                                 sortOrder = sortOrder,
+                                contentTypes = selectedContentTypes,
                                 credentials = getCredentials(),
                                 customSources = customSources
                             )
@@ -695,6 +697,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                                     noAi = noAi,
                                     page = 0,
                                     sortOrder = sortOrder,
+                                    contentTypes = selectedContentTypes,
                                     credentials = getCredentials(),
                                     customSources = customSources
                                 )
@@ -816,11 +819,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     val tagsToFetch = if (tagsCount <= 3) {
                         recommendationTags
                     } else {
-                        val startIndex = (targetPage * 2) % tagsCount
-                        listOf(
-                            recommendationTags[startIndex],
-                            recommendationTags[(startIndex + 1) % tagsCount]
-                        )
+                        val startIndex = (targetPage * 3) % tagsCount
+                        (0 until minOf(3, tagsCount)).map { offset ->
+                            recommendationTags[(startIndex + offset) % tagsCount]
+                        }
                     }
                     val dGen = async {
                         try {
@@ -832,6 +834,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                                 noAi = noAi,
                                 page = targetPage,
                                 sortOrder = sortOrder,
+                                contentTypes = selectedContentTypes,
                                 credentials = getCredentials(),
                                 customSources = customSources
                             )
@@ -840,7 +843,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         }
                     }
                     val dTags = tagsToFetch.map { recTag ->
-                        val subPage = if (tagsCount <= 3) targetPage else targetPage / 2
+                        val subPage = if (tagsCount <= 3) targetPage else targetPage / 3
                         async {
                             try {
                                 repo.search(
@@ -851,6 +854,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                                     noAi = noAi,
                                     page = subPage,
                                     sortOrder = sortOrder,
+                                    contentTypes = selectedContentTypes,
                                     credentials = getCredentials(),
                                     customSources = customSources
                                 )
@@ -977,10 +981,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             favoriteMutex.withLock {
                 val key = media.mediaKey
-                if (isFavorite(media)) {
+                val wasFav = isFavorite(media)
+                if (wasFav) {
+                    favoriteKeys = favoriteKeys - key
+                    favoritesList = favoritesList.filterNot { it.mediaKey == key }
                     favoriteDao.deleteByKey(key)
                     BooruCacheManager.removeFavoriteMedia(getApplication(), media)
                 } else {
+                    favoriteKeys = favoriteKeys + key
+                    favoritesList = favoritesList + media
                     favoriteDao.insert(FavoriteEntity.fromRemoteMedia(media))
                     BooruCacheManager.saveFavoriteMedia(getApplication(), media)
                 }
@@ -1245,11 +1254,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun removeCustomSource(sourceId: String) {
-        secureStorage.removeCustomCredentials(sourceId)
         val target = customSources.find { it.id == sourceId }
         val updated = customSources.filterNot { it.id == sourceId }
         customSources = updated
-        viewModelScope.launch { prefs.saveCustomSources(updated) }
+        viewModelScope.launch {
+            prefs.saveCustomSources(updated)
+            secureStorage.removeCustomCredentials(sourceId)
+        }
         val isCurrentSourceDeleted = target != null && (
                 source.equals(target.name, ignoreCase = true) ||
                         source.equals(target.id, ignoreCase = true) ||
@@ -1263,7 +1274,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     val availableSources: List<String>
-        get() = BooruRepository.AVAILABLE_SOURCES + customSources.map { it.key }
+        get() = BooruRepository.AVAILABLE_SOURCES + customSources.filter { it.enabled }.map { it.key }
 
     fun resolveMediaUrl(media: RemoteMedia): String = when (imageQuality) {
         ImageQuality.ORIGINAL -> media.url.ifBlank { media.sample.ifBlank { media.preview } }
@@ -1321,9 +1332,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             return when (tagCount) {
                 0 -> 0.0f
                 1 -> 0.30f
-                2 -> 0.40f
-                3 -> 0.50f
-                else -> 0.60f
+                2 -> 0.45f
+                3 -> 0.55f
+                else -> 0.70f
             }
         }
 

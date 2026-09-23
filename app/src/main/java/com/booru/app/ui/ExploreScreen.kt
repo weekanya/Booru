@@ -291,14 +291,22 @@ fun ExploreScreen(
 
             vm.error?.let { rawErr ->
                 val displayMessage = remember(rawErr, vm.isAuthError, vm.authErrorSource, vm.authErrorCode, lang) {
+                    val srcName = vm.authErrorSource?.let { vm.getSourceDisplayName(it) } ?: vm.source
                     when {
                         vm.isAuthError -> {
-                            val srcName = vm.authErrorSource?.let { vm.getSourceDisplayName(it) } ?: vm.source
                             Strings.authErrorDesc(srcName, vm.authErrorCode, lang)
                         }
+                        vm.authErrorCode == 429 -> {
+                            Strings.rateLimitErrorDesc(srcName, null, lang)
+                        }
                         vm.authErrorCode != null -> {
-                            val srcName = vm.authErrorSource?.let { vm.getSourceDisplayName(it) } ?: vm.source
                             Strings.httpErrorDesc(srcName, vm.authErrorCode!!, lang)
+                        }
+                        rawErr.contains("timeout", ignoreCase = true) -> {
+                            Strings.timeoutErrorDesc(srcName, lang)
+                        }
+                        rawErr.contains("Insecure HTTP", ignoreCase = true) -> {
+                            Strings.insecureHttpWarning(srcName, lang)
                         }
                         rawErr.isBlank() || rawErr == "Failed to load data" || rawErr == "Load failed" -> {
                             Strings.failedToLoad(lang)
@@ -868,7 +876,7 @@ fun ExploreScreen(
             SourceSelectionSheet(
                 currentSource = vm.source,
                 sources = vm.availableSources,
-                customSources = vm.customSources,
+                customSources = vm.customSources.filter { it.enabled },
                 lang = lang,
                 onSelect = { selectedSource ->
                     vm.selectSource(selectedSource)
@@ -1355,7 +1363,11 @@ private fun FilterSelectionBottomSheet(
     val scope = rememberCoroutineScope()
 
     var tempContentTypes by remember { mutableStateOf(vm.selectedContentTypes) }
-    var tempSortOrder by remember { mutableStateOf(vm.sortOrder) }
+    val isRealbooru = vm.source.equals("realbooru", ignoreCase = true) || vm.source.equals(BooruRepository.SOURCE_REALBOORU, ignoreCase = true)
+    var tempSortOrder by remember {
+        val initial = if (isRealbooru && vm.sortOrder == SortOrder.SCORE) SortOrder.NEWEST else vm.sortOrder
+        mutableStateOf(initial)
+    }
     var tempSafeMode by remember { mutableStateOf(vm.safeMode) }
     var tempExcludeSafe by remember { mutableStateOf(vm.excludeSafe) }
     var tempNoAi by remember { mutableStateOf(vm.noAi) }
@@ -1478,9 +1490,9 @@ private fun FilterSelectionBottomSheet(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val sortOrders = listOf(
+                val sortOrders = listOfNotNull(
                     Pair(SortOrder.NEWEST, Strings.sortNewest(lang)),
-                    Pair(SortOrder.SCORE, Strings.sortScore(lang)),
+                    if (!isRealbooru) Pair(SortOrder.SCORE, Strings.sortScore(lang)) else null,
                     Pair(SortOrder.RANDOM, Strings.sortRandom(lang))
                 )
 

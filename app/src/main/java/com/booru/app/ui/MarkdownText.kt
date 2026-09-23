@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -18,8 +19,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -34,6 +37,8 @@ fun MarkdownText(
     modifier: Modifier = Modifier
 ) {
     val lines = markdown.lines()
+    val linkColor = MaterialTheme.colorScheme.primary
+
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -95,36 +100,33 @@ fun MarkdownText(
                         val headerText = headerMatch.groupValues[2].trim()
                         when (level) {
                             1 -> {
-                                Text(
-                                    text = parseInlineMarkdown(headerText),
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontWeight = FontWeight.Bold,
+                                MarkdownInlineText(
+                                    annotatedString = parseInlineMarkdown(headerText, linkColor),
+                                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
                                 )
                             }
                             2 -> {
-                                Text(
-                                    text = parseInlineMarkdown(headerText),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
+                                MarkdownInlineText(
+                                    annotatedString = parseInlineMarkdown(headerText, linkColor),
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
                                 )
                             }
                             else -> {
-                                Text(
-                                    text = parseInlineMarkdown(headerText),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold,
+                                MarkdownInlineText(
+                                    annotatedString = parseInlineMarkdown(headerText, linkColor),
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                     color = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.padding(top = 4.dp, bottom = 2.dp)
                                 )
                             }
                         }
                     } else {
-                        Text(
-                            text = parseInlineMarkdown(trimmed),
+                        MarkdownInlineText(
+                            annotatedString = parseInlineMarkdown(trimmed, linkColor),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
@@ -147,26 +149,80 @@ fun MarkdownText(
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(horizontal = 6.dp)
                         )
-                        Text(
-                            text = parseInlineMarkdown(content),
+                        MarkdownInlineText(
+                            annotatedString = parseInlineMarkdown(content, linkColor),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
                 else -> {
-                    Text(
-                        text = parseInlineMarkdown(trimmed),
+                    MarkdownInlineText(
+                        annotatedString = parseInlineMarkdown(trimmed, linkColor),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
         }
+
+        if (inCodeBlock && codeBlockLines.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                    .padding(8.dp)
+            ) {
+                Text(
+                    text = codeBlockLines.joinToString("\n"),
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 11.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            codeBlockLines.clear()
+        }
     }
 }
 
-private fun parseInlineMarkdown(text: String): AnnotatedString {
+@Composable
+private fun MarkdownInlineText(
+    annotatedString: AnnotatedString,
+    style: TextStyle,
+    color: Color = Color.Unspecified,
+    modifier: Modifier = Modifier
+) {
+    val uriHandler = LocalUriHandler.current
+    val hasLinks = annotatedString.getStringAnnotations("URL", 0, annotatedString.length).isNotEmpty()
+
+    if (hasLinks) {
+        ClickableText(
+            text = annotatedString,
+            style = style.copy(color = color),
+            modifier = modifier,
+            onClick = { offset ->
+                annotatedString.getStringAnnotations("URL", offset, offset).firstOrNull()?.let { annotation ->
+                    val url = annotation.item.trim()
+                    if (url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)) {
+                        runCatching { uriHandler.openUri(url) }
+                    }
+                }
+            }
+        )
+    } else {
+        Text(
+            text = annotatedString,
+            style = style,
+            color = color,
+            modifier = modifier
+        )
+    }
+}
+
+private fun parseInlineMarkdown(text: String, linkColor: Color): AnnotatedString {
     return buildAnnotatedString {
         var i = 0
         while (i < text.length) {
@@ -216,11 +272,15 @@ private fun parseInlineMarkdown(text: String): AnnotatedString {
                 val urlEnd = if (urlStart == linkTextEnd + 1) text.indexOf(")", urlStart) else -1
                 if (linkTextEnd != -1 && urlEnd != -1) {
                     val linkTitle = text.substring(i + 1, linkTextEnd)
+                    val rawUrl = text.substring(urlStart + 1, urlEnd).trim()
                     val startIdx = length
                     append(linkTitle)
+                    if (rawUrl.startsWith("http://", ignoreCase = true) || rawUrl.startsWith("https://", ignoreCase = true)) {
+                        addStringAnnotation("URL", rawUrl, startIdx, length)
+                    }
                     addStyle(
                         SpanStyle(
-                            color = Color(0xFF6750A4),
+                            color = linkColor,
                             textDecoration = TextDecoration.Underline
                         ),
                         startIdx,

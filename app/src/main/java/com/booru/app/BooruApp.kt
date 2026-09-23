@@ -204,6 +204,17 @@ object BooruVideoCache {
     @Volatile
     private var simpleCache: androidx.media3.datasource.cache.SimpleCache? = null
     private val lock = Any()
+    private val activePlayers = java.util.concurrent.atomic.AtomicInteger(0)
+
+    fun acquirePlayer() {
+        activePlayers.incrementAndGet()
+    }
+
+    fun releasePlayer() {
+        activePlayers.decrementAndGet()
+    }
+
+    fun hasActivePlayers(): Boolean = activePlayers.get() > 0
 
     fun getCache(context: android.content.Context): androidx.media3.datasource.cache.SimpleCache {
         return simpleCache ?: synchronized(lock) {
@@ -220,6 +231,16 @@ object BooruVideoCache {
 
     fun clearVideoCache(context: android.content.Context) {
         synchronized(lock) {
+            if (activePlayers.get() > 0) {
+                try {
+                    simpleCache?.keys?.toList()?.forEach { key ->
+                        try {
+                            simpleCache?.removeResource(key)
+                        } catch (_: Exception) {}
+                    }
+                } catch (_: Exception) {}
+                return
+            }
             try {
                 simpleCache?.keys?.toList()?.forEach { key ->
                     try {

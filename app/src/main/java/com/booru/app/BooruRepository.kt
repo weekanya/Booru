@@ -68,6 +68,33 @@ class BooruRepository(
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
         .followRedirects(true)
+        .addNetworkInterceptor { chain ->
+            val request = chain.request()
+            val response = chain.proceed(request)
+            if (response.isRedirect) {
+                val location = response.header("Location")
+                if (!location.isNullOrBlank()) {
+                    val targetUrl = request.url.resolve(location)
+                    if (targetUrl != null) {
+                        val hasCredentials = request.url.queryParameter("api_key") != null ||
+                                request.url.queryParameter("user_id") != null ||
+                                request.url.queryParameter("login") != null ||
+                                request.header("Authorization") != null
+                        if (hasCredentials) {
+                            if (!targetUrl.isHttps) {
+                                response.close()
+                                throw IOException("Insecure redirect to non-HTTPS URL blocked")
+                            }
+                            if (!targetUrl.host.equals(request.url.host, ignoreCase = true)) {
+                                response.close()
+                                throw IOException("Cross-host redirect blocked for authenticated request")
+                            }
+                        }
+                    }
+                }
+            }
+            response
+        }
         .build()
 ) {
 
@@ -156,7 +183,7 @@ class BooruRepository(
             ?: customSources.find { it.name.equals(source, ignoreCase = true) }
         val wantsOnlyVideos = contentTypes.contains(ContentType.VIDEOS) && !contentTypes.contains(ContentType.PHOTOS) && !contentTypes.contains(ContentType.GIFS)
         val targets = when {
-            customMatch != null -> listOf(customMatch.key)
+            customMatch != null -> if (!customMatch.enabled) emptyList() else listOf(customMatch.key)
             source == SOURCE_SAFEBOORU -> if (excludeSafe || wantsOnlyVideos) emptyList() else listOf("safebooru")
             source == SOURCE_YANDE     -> if (wantsOnlyVideos) emptyList() else listOf("yande")
             source == SOURCE_RULE34    -> listOf("rule34")
@@ -270,121 +297,221 @@ class BooruRepository(
         return result
     }
 
-    suspend fun getTagSuggestions(source: String, query: String): List<TagSuggestion> = withContext(Dispatchers.IO) {
+    suspend fun getTagSuggestions(
+        source: String,
+        query: String,
+        customSources: List<CustomBooruSource> = emptyList()
+    ): List<TagSuggestion> = withContext(Dispatchers.IO) {
         val q = query.trim().lowercase()
         if (q.length < 2) return@withContext emptyList()
 
-        val endpointKey = when {
-            source.contains("danbooru", ignoreCase = true) -> "danbooru"
-            source.contains("gelbooru", ignoreCase = true) -> "gelbooru"
-            source == SOURCE_YANDE || source.contains("yande", ignoreCase = true) -> "yande"
-            source == SOURCE_SAFEBOORU || source.contains("safe", ignoreCase = true) -> "safebooru"
-            else -> "rule34"
+        val customMatch = customSources.find { it.key == source || it.id == source || it.name.equals(source, ignoreCase = true) }
+        if (customMatch != null && !customMatch.enabled) {
+            return@withContext emptyList()
         }
 
         runCatching {
-            when (endpointKey) {
-                "danbooru" -> {
-                    val url = "https://danbooru.donmai.us/autocomplete.json?search[query]=$q&search[type]=tag_query&limit=10"
-                    val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
-                    client.newCall(req).execute().use { response ->
-                        if (!response.isSuccessful) return@runCatching emptyList()
-                        val body = response.body?.string() ?: return@runCatching emptyList()
-                        val arr = JSONArray(body)
-                        val list = mutableListOf<TagSuggestion>()
-                        for (i in 0 until arr.length()) {
-                            val o = arr.getJSONObject(i)
-                            val value = o.optString("value")
-                            val label = o.optString("label")
-                            val count = o.optInt("post_count", 0)
-                            val type = o.optString("category", "")
-                            if (value.isNotBlank()) list.add(TagSuggestion(value, label.ifBlank { value }, count, type))
-                        }
-                        list
-                    }
-                }
-                "rule34" -> {
-                    val url = "https://api.rule34.xxx/autocomplete.php?q=$q"
-                    val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
-                    client.newCall(req).execute().use { response ->
-                        if (!response.isSuccessful) return@runCatching emptyList()
-                        val body = response.body?.string() ?: return@runCatching emptyList()
-                        val arr = JSONArray(body)
-                        val list = mutableListOf<TagSuggestion>()
-                        for (i in 0 until arr.length()) {
-                            val o = arr.getJSONObject(i)
-                            val value = o.optString("value")
-                            val label = o.optString("label")
-                            val count = o.optString("total").toIntOrNull() ?: 0
-                            val type = o.optString("type", "")
-                            if (value.isNotBlank()) list.add(TagSuggestion(value, label.ifBlank { value }, count, type))
-                        }
-                        list
-                    }
-                }
-                "safebooru" -> {
-                    val url = "https://safebooru.org/autocomplete.php?q=$q"
-                    val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
-                    client.newCall(req).execute().use { response ->
-                        if (!response.isSuccessful) return@runCatching emptyList()
-                        val body = response.body?.string() ?: return@runCatching emptyList()
-                        val arr = JSONArray(body)
-                        val list = mutableListOf<TagSuggestion>()
-                        for (i in 0 until arr.length()) {
-                            val o = arr.getJSONObject(i)
-                            val value = o.optString("value")
-                            val label = o.optString("label")
-                            val count = o.optString("total").toIntOrNull() ?: 0
-                            val type = o.optString("type", "")
-                            if (value.isNotBlank()) list.add(TagSuggestion(value, label.ifBlank { value }, count, type))
-                        }
-                        list
-                    }
-                }
-                "gelbooru" -> {
-                    val url = "https://gelbooru.com/index.php?page=autocomplete2&term=$q"
-                    val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).header("Referer", "https://gelbooru.com/").build()
-                    client.newCall(req).execute().use { response ->
-                        if (!response.isSuccessful) return@runCatching emptyList()
-                        val body = response.body?.string() ?: return@runCatching emptyList()
-                        val arr = JSONArray(body)
-                        val list = mutableListOf<TagSuggestion>()
-                        for (i in 0 until arr.length()) {
-                            val o = arr.getJSONObject(i)
-                            val value = o.optString("value")
-                            val label = o.optString("label")
-                            val count = o.optInt("post_count", 0)
-                            val type = o.optString("category", "")
-                            if (value.isNotBlank()) list.add(TagSuggestion(value, label.ifBlank { value }, count, type))
-                        }
-                        list
-                    }
-                }
-                "yande" -> {
-                    val url = "https://yande.re/tag.json?name=$q*&limit=10"
-                    val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).header("Referer", "https://yande.re/").build()
-                    client.newCall(req).execute().use { response ->
-                        if (!response.isSuccessful) return@runCatching emptyList()
-                        val body = response.body?.string() ?: return@runCatching emptyList()
-                        val arr = JSONArray(body)
-                        val list = mutableListOf<TagSuggestion>()
-                        for (i in 0 until arr.length()) {
-                            val o = arr.getJSONObject(i)
-                            val name = o.optString("name")
-                            val count = o.optInt("count", 0)
-                            val typeInt = o.optInt("type", 0)
-                            val type = when (typeInt) {
-                                1 -> "artist"
-                                3 -> "copyright"
-                                4 -> "character"
-                                else -> "general"
+            if (customMatch != null) {
+                val base = customMatch.cleanBaseUrl
+                when (customMatch.engine) {
+                    BooruEngine.DANBOORU -> {
+                        val url = "$base/autocomplete.json".toHttpUrl().newBuilder().apply {
+                            addQueryParameter("search[query]", q)
+                            addQueryParameter("search[type]", "tag_query")
+                            addQueryParameter("limit", "10")
+                        }.build()
+                        val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
+                        client.newCall(req).execute().use { response ->
+                            if (!response.isSuccessful) return@runCatching emptyList()
+                            val body = response.body?.string() ?: return@runCatching emptyList()
+                            val arr = JSONArray(body)
+                            val list = mutableListOf<TagSuggestion>()
+                            for (i in 0 until arr.length()) {
+                                val o = arr.getJSONObject(i)
+                                val value = o.optString("value")
+                                val label = o.optString("label")
+                                val count = o.optInt("post_count", 0)
+                                val type = o.optString("category", "")
+                                if (value.isNotBlank()) list.add(TagSuggestion(value, label.ifBlank { value }, count, type))
                             }
-                            if (name.isNotBlank()) list.add(TagSuggestion(name, name, count, type))
+                            list
                         }
-                        list
+                    }
+                    BooruEngine.MOEBOORU -> {
+                        val url = "$base/tag.json".toHttpUrl().newBuilder().apply {
+                            addQueryParameter("name", "$q*")
+                            addQueryParameter("limit", "10")
+                        }.build()
+                        val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).header("Referer", "$base/").build()
+                        client.newCall(req).execute().use { response ->
+                            if (!response.isSuccessful) return@runCatching emptyList()
+                            val body = response.body?.string() ?: return@runCatching emptyList()
+                            val arr = JSONArray(body)
+                            val list = mutableListOf<TagSuggestion>()
+                            for (i in 0 until arr.length()) {
+                                val o = arr.getJSONObject(i)
+                                val name = o.optString("name")
+                                val count = o.optInt("count", 0)
+                                val typeInt = o.optInt("type", 0)
+                                val type = when (typeInt) {
+                                    1 -> "artist"
+                                    3 -> "copyright"
+                                    4 -> "character"
+                                    else -> "general"
+                                }
+                                if (name.isNotBlank()) list.add(TagSuggestion(name, name, count, type))
+                            }
+                            list
+                        }
+                    }
+                    BooruEngine.GELBOORU -> {
+                        val url = "$base/index.php".toHttpUrl().newBuilder().apply {
+                            addQueryParameter("page", "autocomplete2")
+                            addQueryParameter("term", q)
+                        }.build()
+                        val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).header("Referer", "$base/").build()
+                        client.newCall(req).execute().use { response ->
+                            if (!response.isSuccessful) return@runCatching emptyList()
+                            val body = response.body?.string() ?: return@runCatching emptyList()
+                            val arr = JSONArray(body)
+                            val list = mutableListOf<TagSuggestion>()
+                            for (i in 0 until arr.length()) {
+                                val o = arr.getJSONObject(i)
+                                val value = o.optString("value")
+                                val label = o.optString("label")
+                                val count = o.optInt("post_count", 0)
+                                val type = o.optString("category", "")
+                                if (value.isNotBlank()) list.add(TagSuggestion(value, label.ifBlank { value }, count, type))
+                            }
+                            list
+                        }
                     }
                 }
-                else -> emptyList()
+            } else {
+                val endpointKey = when {
+                    source.contains("danbooru", ignoreCase = true) -> "danbooru"
+                    source.contains("gelbooru", ignoreCase = true) -> "gelbooru"
+                    source == SOURCE_YANDE || source.contains("yande", ignoreCase = true) -> "yande"
+                    source == SOURCE_SAFEBOORU || source.contains("safe", ignoreCase = true) -> "safebooru"
+                    else -> "rule34"
+                }
+                when (endpointKey) {
+                    "danbooru" -> {
+                        val url = "https://danbooru.donmai.us/autocomplete.json".toHttpUrl().newBuilder().apply {
+                            addQueryParameter("search[query]", q)
+                            addQueryParameter("search[type]", "tag_query")
+                            addQueryParameter("limit", "10")
+                        }.build()
+                        val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
+                        client.newCall(req).execute().use { response ->
+                            if (!response.isSuccessful) return@runCatching emptyList()
+                            val body = response.body?.string() ?: return@runCatching emptyList()
+                            val arr = JSONArray(body)
+                            val list = mutableListOf<TagSuggestion>()
+                            for (i in 0 until arr.length()) {
+                                val o = arr.getJSONObject(i)
+                                val value = o.optString("value")
+                                val label = o.optString("label")
+                                val count = o.optInt("post_count", 0)
+                                val type = o.optString("category", "")
+                                if (value.isNotBlank()) list.add(TagSuggestion(value, label.ifBlank { value }, count, type))
+                            }
+                            list
+                        }
+                    }
+                    "rule34" -> {
+                        val url = "https://api.rule34.xxx/autocomplete.php".toHttpUrl().newBuilder().apply {
+                            addQueryParameter("q", q)
+                        }.build()
+                        val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
+                        client.newCall(req).execute().use { response ->
+                            if (!response.isSuccessful) return@runCatching emptyList()
+                            val body = response.body?.string() ?: return@runCatching emptyList()
+                            val arr = JSONArray(body)
+                            val list = mutableListOf<TagSuggestion>()
+                            for (i in 0 until arr.length()) {
+                                val o = arr.getJSONObject(i)
+                                val value = o.optString("value")
+                                val label = o.optString("label")
+                                val count = o.optString("total").toIntOrNull() ?: 0
+                                val type = o.optString("type", "")
+                                if (value.isNotBlank()) list.add(TagSuggestion(value, label.ifBlank { value }, count, type))
+                            }
+                            list
+                        }
+                    }
+                    "safebooru" -> {
+                        val url = "https://safebooru.org/autocomplete.php".toHttpUrl().newBuilder().apply {
+                            addQueryParameter("q", q)
+                        }.build()
+                        val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
+                        client.newCall(req).execute().use { response ->
+                            if (!response.isSuccessful) return@runCatching emptyList()
+                            val body = response.body?.string() ?: return@runCatching emptyList()
+                            val arr = JSONArray(body)
+                            val list = mutableListOf<TagSuggestion>()
+                            for (i in 0 until arr.length()) {
+                                val o = arr.getJSONObject(i)
+                                val value = o.optString("value")
+                                val label = o.optString("label")
+                                val count = o.optString("total").toIntOrNull() ?: 0
+                                val type = o.optString("type", "")
+                                if (value.isNotBlank()) list.add(TagSuggestion(value, label.ifBlank { value }, count, type))
+                            }
+                            list
+                        }
+                    }
+                    "gelbooru" -> {
+                        val url = "https://gelbooru.com/index.php".toHttpUrl().newBuilder().apply {
+                            addQueryParameter("page", "autocomplete2")
+                            addQueryParameter("term", q)
+                        }.build()
+                        val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).header("Referer", "https://gelbooru.com/").build()
+                        client.newCall(req).execute().use { response ->
+                            if (!response.isSuccessful) return@runCatching emptyList()
+                            val body = response.body?.string() ?: return@runCatching emptyList()
+                            val arr = JSONArray(body)
+                            val list = mutableListOf<TagSuggestion>()
+                            for (i in 0 until arr.length()) {
+                                val o = arr.getJSONObject(i)
+                                val value = o.optString("value")
+                                val label = o.optString("label")
+                                val count = o.optInt("post_count", 0)
+                                val type = o.optString("category", "")
+                                if (value.isNotBlank()) list.add(TagSuggestion(value, label.ifBlank { value }, count, type))
+                            }
+                            list
+                        }
+                    }
+                    "yande" -> {
+                        val url = "https://yande.re/tag.json".toHttpUrl().newBuilder().apply {
+                            addQueryParameter("name", "$q*")
+                            addQueryParameter("limit", "10")
+                        }.build()
+                        val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).header("Referer", "https://yande.re/").build()
+                        client.newCall(req).execute().use { response ->
+                            if (!response.isSuccessful) return@runCatching emptyList()
+                            val body = response.body?.string() ?: return@runCatching emptyList()
+                            val arr = JSONArray(body)
+                            val list = mutableListOf<TagSuggestion>()
+                            for (i in 0 until arr.length()) {
+                                val o = arr.getJSONObject(i)
+                                val name = o.optString("name")
+                                val count = o.optInt("count", 0)
+                                val typeInt = o.optInt("type", 0)
+                                val type = when (typeInt) {
+                                    1 -> "artist"
+                                    3 -> "copyright"
+                                    4 -> "character"
+                                    else -> "general"
+                                }
+                                if (name.isNotBlank()) list.add(TagSuggestion(name, name, count, type))
+                            }
+                            list
+                        }
+                    }
+                    else -> emptyList()
+                }
             }
         }.getOrDefault(emptyList())
     }
@@ -528,7 +655,8 @@ class BooruRepository(
             }
         }
 
-        when (sortOrder) {
+        val effectiveSortOrder = if (key == "realbooru" && sortOrder == SortOrder.SCORE) SortOrder.NEWEST else sortOrder
+        when (effectiveSortOrder) {
             SortOrder.SCORE -> {
                 if (custom != null) {
                     when (custom.engine) {
@@ -538,7 +666,7 @@ class BooruRepository(
                 } else {
                     when (key) {
                         "yande", "konachan" -> parts.add("order:score")
-                        "gelbooru", "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> parts.add("sort:score:desc")
+                        "gelbooru", "rule34", "xbooru", "tbib", "safebooru" -> parts.add("sort:score:desc")
                     }
                 }
             }
@@ -733,7 +861,18 @@ class BooruRepository(
                 .build()
 
             return client.newCall(req).execute().use { response ->
+                val code = response.code
                 val body = response.body?.string() ?: ""
+                if (!response.isSuccessful) {
+                    if (code == 429) {
+                        val retryAfter = parseRetryAfter(response.header("Retry-After"))
+                        throw BooruHttpException(sourceKey = "realbooru", statusCode = code, retryAfterSec = retryAfter, message = "Rate limited by Realbooru")
+                    }
+                    if (code == 401 || code == 403) {
+                        throw BooruAuthException(sourceKey = "realbooru", statusCode = code, message = "Access denied by Realbooru ($code)")
+                    }
+                    throw BooruHttpException(sourceKey = "realbooru", statusCode = code, message = "HTTP $code from Realbooru")
+                }
                 RealbooruHtmlParser.parse(body, noAi)
             }
         }
@@ -930,7 +1069,7 @@ class BooruRepository(
                 }
             }
 
-            if (fileUrl.isBlank() && hash.isNotBlank() && (customBaseUrl.contains("e621") || customBaseUrl.contains("e926"))) {
+            if (fileUrl.isBlank() && !hash.isNullOrBlank() && hash.length >= 4 && (customBaseUrl.contains("e621") || customBaseUrl.contains("e926"))) {
                 val ext = fileObj?.optString("ext") ?: "jpg"
                 fileUrl = "https://static1.e621.net/data/${hash.take(2)}/${hash.substring(2, 4)}/$hash.$ext"
             }
@@ -978,7 +1117,7 @@ class BooruRepository(
                 }
             }
 
-            if (preview.isBlank() && hash.isNotBlank() && (customBaseUrl.contains("e621") || customBaseUrl.contains("e926"))) {
+            if (preview.isBlank() && !hash.isNullOrBlank() && hash.length >= 4 && (customBaseUrl.contains("e621") || customBaseUrl.contains("e926"))) {
                 preview = "https://static1.e621.net/data/preview/${hash.take(2)}/${hash.substring(2, 4)}/$hash.jpg"
             }
 
@@ -1082,6 +1221,10 @@ class BooruRepository(
                 else                -> 0L
             }
 
+            val customMatch = customSources.find { it.key == key || it.id == key }
+                ?: customSources.find { it.name.equals(key, ignoreCase = true) }
+            val resolvedSourceId = customMatch?.id ?: key
+
             val media = RemoteMedia(
                 id = id,
                 url = fileUrl,
@@ -1093,7 +1236,8 @@ class BooruRepository(
                 rating = ratingCode,
                 width = width,
                 height = height,
-                createdAt = createdAt
+                createdAt = createdAt,
+                sourceId = resolvedSourceId
             )
 
             results.add(media)

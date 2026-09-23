@@ -1715,6 +1715,7 @@ fun BooruVideoPlayer(
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(exoPlayer, lifecycleOwner) {
+        com.booru.app.BooruVideoCache.acquirePlayer()
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE || event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
                 if (exoPlayer.isPlaying) {
@@ -1726,6 +1727,7 @@ fun BooruVideoPlayer(
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
             exoPlayer.release()
+            com.booru.app.BooruVideoCache.releasePlayer()
         }
     }
 

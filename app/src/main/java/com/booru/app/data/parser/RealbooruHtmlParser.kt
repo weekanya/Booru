@@ -75,11 +75,15 @@ object RealbooruHtmlParser {
                     }
             )
 
+            val dataExt = thumb.attr("data-ext").trim().lowercase().removePrefix(".")
+            val isWebm = isVideo && (dataExt == "webm" || thumbClass.contains("webm") || linkClass.contains("webm") || imgClass.contains("webm") || tagTokens.any { it.equals("webm", ignoreCase = true) } || previewUrl.endsWith(".webm", ignoreCase = true))
+            val videoExt = if (isWebm) "webm" else "mp4"
+
             val originalUrl = if (isVideo) {
                 previewUrl
                     .replace("/thumbnails/", "/images/")
                     .replace("/thumbnail_", "/")
-                    .replace(Regex("\\.[a-zA-Z0-9]+$"), ".mp4")
+                    .replace(Regex("\\.[a-zA-Z0-9]+$"), ".$videoExt")
             } else if (isGif) {
                 previewUrl
                     .replace("/thumbnails/", "/images/")
@@ -95,7 +99,7 @@ object RealbooruHtmlParser {
                 previewUrl
                     .replace("/thumbnails/", "/images/")
                     .replace("/thumbnail_", "/")
-                    .replace(Regex("\\.[a-zA-Z0-9]+$"), ".jpg")
+                    .replace(Regex("\\.[a-zA-Z0-9]+$"), ".$videoExt")
             } else {
                 previewUrl
                     .replace("/thumbnails/", "/samples/")
@@ -118,7 +122,8 @@ object RealbooruHtmlParser {
                     score = scoreAttr,
                     source = "Realbooru",
                     rating = parsedRating.code,
-                    createdAt = createdAt
+                    createdAt = createdAt,
+                    sourceId = "realbooru"
                 )
             )
         }

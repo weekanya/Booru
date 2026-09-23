@@ -284,17 +284,29 @@ class BooruPreferences(private val context: Context) {
                         val legacyUid = obj.optString("userId", "")
                             .ifBlank { obj.optString("login", "") }
                             .trim()
+                        var canStrip = true
                         if (legacyKey.isNotBlank()) {
-                            secureStorage.setCustomApiKey(parsed.id, legacyKey)
-                            rewritten = true
+                            val writeOk = if (secureStorage.getCustomApiKey(parsed.id) == legacyKey) true else secureStorage.setCustomApiKey(parsed.id, legacyKey)
+                            if (!writeOk || secureStorage.getCustomApiKey(parsed.id) != legacyKey) {
+                                canStrip = false
+                            }
                         }
                         if (legacyUid.isNotBlank()) {
-                            secureStorage.setCustomUserId(parsed.id, legacyUid)
-                            rewritten = true
+                            val writeOk = if (secureStorage.getCustomUserId(parsed.id) == legacyUid) true else secureStorage.setCustomUserId(parsed.id, legacyUid)
+                            if (!writeOk || secureStorage.getCustomUserId(parsed.id) != legacyUid) {
+                                canStrip = false
+                            }
                         }
-                        cleanArr.put(parsed.toJson())
+                        if (canStrip && (legacyKey.isNotBlank() || legacyUid.isNotBlank())) {
+                            rewritten = true
+                            cleanArr.put(parsed.toJson())
+                        } else if (canStrip) {
+                            cleanArr.put(parsed.toJson())
+                        } else {
+                            cleanArr.put(obj)
+                        }
                     }
-                    if (rewritten || cleanArr.toString() != rawCustom) {
+                    if (rewritten) {
                         prefs[KEY_CUSTOM_SOURCES] = cleanArr.toString()
                     }
                 }

@@ -5,8 +5,11 @@ import android.content.SharedPreferences
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import java.util.concurrent.ConcurrentHashMap
 
 class SecureCredentialsStorage(context: Context) {
+
+    private val memoryCache = ConcurrentHashMap<String, String>()
 
     private val prefs: SharedPreferences? = try {
         try {
@@ -42,38 +45,61 @@ class SecureCredentialsStorage(context: Context) {
     val isSecureStorageAvailable: Boolean
         get() = prefs != null
 
-    fun getRule34UserId(): String = prefs?.getString(KEY_R34_USER_ID, "") ?: ""
-    fun setRule34UserId(value: String): Boolean =
-        prefs?.edit()?.putString(KEY_R34_USER_ID, value.trim())?.commit() ?: false
+    private fun getCachedString(key: String): String {
+        return memoryCache.computeIfAbsent(key) {
+            prefs?.getString(key, "") ?: ""
+        }
+    }
 
-    fun getRule34ApiKey(): String = prefs?.getString(KEY_R34_API_KEY, "") ?: ""
-    fun setRule34ApiKey(value: String): Boolean =
-        prefs?.edit()?.putString(KEY_R34_API_KEY, value.trim())?.commit() ?: false
+    private fun putCachedString(key: String, value: String): Boolean {
+        val trimmed = value.trim()
+        val success = prefs?.edit()?.putString(key, trimmed)?.commit() ?: false
+        if (success) {
+            memoryCache[key] = trimmed
+        }
+        return success
+    }
 
-    fun getGelbooruUserId(): String = prefs?.getString(KEY_GEL_USER_ID, "") ?: ""
-    fun setGelbooruUserId(value: String): Boolean =
-        prefs?.edit()?.putString(KEY_GEL_USER_ID, value.trim())?.commit() ?: false
+    private fun removeCachedString(key: String): Boolean {
+        val success = prefs?.edit()?.remove(key)?.commit() ?: false
+        if (success) {
+            memoryCache.remove(key)
+        }
+        return success
+    }
 
-    fun getGelbooruApiKey(): String = prefs?.getString(KEY_GEL_API_KEY, "") ?: ""
-    fun setGelbooruApiKey(value: String): Boolean =
-        prefs?.edit()?.putString(KEY_GEL_API_KEY, value.trim())?.commit() ?: false
+    fun getRule34UserId(): String = getCachedString(KEY_R34_USER_ID)
+    fun setRule34UserId(value: String): Boolean = putCachedString(KEY_R34_USER_ID, value)
 
-    fun getCustomApiKey(sourceId: String): String = prefs?.getString(customApiKey(sourceId), "") ?: ""
-    fun setCustomApiKey(sourceId: String, value: String): Boolean =
-        prefs?.edit()?.putString(customApiKey(sourceId), value.trim())?.commit() ?: false
-    fun removeCustomApiKey(sourceId: String): Boolean =
-        prefs?.edit()?.remove(customApiKey(sourceId))?.commit() ?: false
+    fun getRule34ApiKey(): String = getCachedString(KEY_R34_API_KEY)
+    fun setRule34ApiKey(value: String): Boolean = putCachedString(KEY_R34_API_KEY, value)
 
-    fun getCustomUserId(sourceId: String): String = prefs?.getString(customUserId(sourceId), "") ?: ""
-    fun setCustomUserId(sourceId: String, value: String): Boolean =
-        prefs?.edit()?.putString(customUserId(sourceId), value.trim())?.commit() ?: false
-    fun removeCustomUserId(sourceId: String): Boolean =
-        prefs?.edit()?.remove(customUserId(sourceId))?.commit() ?: false
+    fun getGelbooruUserId(): String = getCachedString(KEY_GEL_USER_ID)
+    fun setGelbooruUserId(value: String): Boolean = putCachedString(KEY_GEL_USER_ID, value)
 
-    fun removeCustomCredentials(sourceId: String): Boolean =
-        prefs?.edit()
-            ?.remove(customApiKey(sourceId))
-            ?.remove(customUserId(sourceId))
+    fun getGelbooruApiKey(): String = getCachedString(KEY_GEL_API_KEY)
+    fun setGelbooruApiKey(value: String): Boolean = putCachedString(KEY_GEL_API_KEY, value)
+
+    fun getCustomApiKey(sourceId: String): String = getCachedString(customApiKey(sourceId))
+    fun setCustomApiKey(sourceId: String, value: String): Boolean = putCachedString(customApiKey(sourceId), value)
+    fun removeCustomApiKey(sourceId: String): Boolean = removeCachedString(customApiKey(sourceId))
+
+    fun getCustomUserId(sourceId: String): String = getCachedString(customUserId(sourceId))
+    fun setCustomUserId(sourceId: String, value: String): Boolean = putCachedString(customUserId(sourceId), value)
+    fun removeCustomUserId(sourceId: String): Boolean = removeCachedString(customUserId(sourceId))
+
+    fun removeCustomCredentials(sourceId: String): Boolean {
+        val k1 = customApiKey(sourceId)
+        val k2 = customUserId(sourceId)
+        val success = prefs?.edit()
+            ?.remove(k1)
+            ?.remove(k2)
             ?.commit() ?: false
+        if (success) {
+            memoryCache.remove(k1)
+            memoryCache.remove(k2)
+        }
+        return success
+    }
 }
 

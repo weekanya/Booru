@@ -47,10 +47,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import com.booru.app.data.AppLanguage
@@ -86,11 +88,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        if (isFinishing) {
-            CoroutineScope(Dispatchers.IO).launch {
-                BooruCacheManager.clearBrowsingCache(applicationContext)
-            }
-        }
     }
 }
 
@@ -140,11 +137,14 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
         }
     }
 
-    BooruTheme(
-        themeMode = vm.themeMode,
-        palette = vm.palette,
-        useDynamicColor = vm.useDynamicColor
-    ) {
+    val layoutDirection = if (lang == AppLanguage.ARABIC) LayoutDirection.Rtl else LayoutDirection.Ltr
+
+    CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
+        BooruTheme(
+            themeMode = vm.themeMode,
+            palette = vm.palette,
+            useDynamicColor = vm.useDynamicColor
+        ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.surface
@@ -390,6 +390,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
             }
         }
     }
+}
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

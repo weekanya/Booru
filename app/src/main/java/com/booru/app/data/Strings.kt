@@ -952,6 +952,42 @@ object Strings {
         else -> "Server returned HTTP $code from $source."
     }
 
+    fun rateLimitErrorDesc(source: String, retryAfter: Int? = null, lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> if (retryAfter != null) "Превышен лимит запросов к $source. Повторите через $retryAfter сек." else "Превышен лимит запросов к $source. Пожалуйста, подождите."
+        AppLanguage.JAPANESE -> if (retryAfter != null) "$source のリクエスト制限に達しました。$retryAfter 秒後に再試行してください。" else "$source のリクエスト制限に達しました。しばらくお待ちください。"
+        AppLanguage.CHINESE -> if (retryAfter != null) "$source 请求过多已被限流，请在 $retryAfter 秒后重试。" else "$source 请求过多已被限流，请稍后重试。"
+        AppLanguage.KOREAN -> if (retryAfter != null) "$source 요청 한도를 초과했습니다. $retryAfter 초 후에 다시 시도하세요." else "$source 요청 한도를 초과했습니다. 잠시 후 다시 시도하세요."
+        AppLanguage.ARABIC -> if (retryAfter != null) "تم تجاوز حد الطلبات لـ $source. أعد المحاولة بعد $retryAfter ثانية." else "تم تجاوز حد الطلبات لـ $source. يرجى الانتظار قليلاً."
+        else -> if (retryAfter != null) "Rate limited by $source. Please retry in $retryAfter seconds." else "Rate limited by $source. Please wait a moment."
+    }
+
+    fun insecureHttpWarning(source: String, lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Небезопасные HTTP-соединения запрещены для '$source'. Используйте HTTPS в Настройках."
+        AppLanguage.JAPANESE -> "'$source' の安全でないHTTP接続は許可されていません。設定でHTTPSを使用してください。"
+        AppLanguage.CHINESE -> "'$source' 不允许不安全的 HTTP 连接。请在设置中更新为 HTTPS。"
+        AppLanguage.KOREAN -> "'$source'에 안전하지 않은 HTTP 연결이 허용되지 않습니다. 설정에서 HTTPS를 사용하세요."
+        AppLanguage.ARABIC -> "غير مسموح باتصالات HTTP غير الآمنة لـ '$source'. يرجى استخدام HTTPS في الإعدادات."
+        else -> "Insecure HTTP connections are not allowed for '$source'. Please use HTTPS in Settings."
+    }
+
+    fun timeoutErrorDesc(source: String, lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Превышено время ожидания ответа от $source. Проверьте соединение."
+        AppLanguage.JAPANESE -> "$source からの応答がタイムアウトしました。接続を確認してください。"
+        AppLanguage.CHINESE -> "连接 $source 超时，请检查网络。"
+        AppLanguage.KOREAN -> "$source 응답 시간이 초과되었습니다. 연결을 확인하세요."
+        AppLanguage.ARABIC -> "انتهت مهلة استجابة $source. يرجى التحقق من اتصال الشبكة."
+        else -> "Connection timed out for $source. Please check your network."
+    }
+
+    fun invalidCredentialsDesc(source: String, lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Неверные учетные данные для $source. Проверьте ключи в Настройках."
+        AppLanguage.JAPANESE -> "$source の認証情報が無効です。設定でキーを確認してください。"
+        AppLanguage.CHINESE -> "$source 凭据无效。请在设置中检查 API Key。"
+        AppLanguage.KOREAN -> "$source 인증 정보가 잘못되었습니다. 설정에서 확인하세요."
+        AppLanguage.ARABIC -> "بيانات اعتماد $source غير صالحة. يرجى التحقق من المفاتيح في الإعدادات."
+        else -> "Invalid credentials for $source. Please check your keys in Settings."
+    }
+
     fun genericErrorTitle(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Ошибка"
         AppLanguage.JAPANESE -> "エラー"

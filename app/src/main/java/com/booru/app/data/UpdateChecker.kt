@@ -108,9 +108,29 @@ object UpdateChecker {
             if (preRelease == null && other.preRelease != null) return 1
             if (preRelease != null && other.preRelease == null) return -1
             if (preRelease != null && other.preRelease != null) {
-                return preRelease.compareTo(other.preRelease)
+                return comparePreRelease(preRelease, other.preRelease)
             }
             return 0
+        }
+
+        private fun comparePreRelease(a: String, b: String): Int {
+            val aParts = a.split(".")
+            val bParts = b.split(".")
+            val len = minOf(aParts.size, bParts.size)
+            for (i in 0 until len) {
+                val aPart = aParts[i]
+                val bPart = bParts[i]
+                if (aPart == bPart) continue
+                val aNum = aPart.toIntOrNull()
+                val bNum = bPart.toIntOrNull()
+                return when {
+                    aNum != null && bNum != null -> aNum.compareTo(bNum)
+                    aNum != null -> -1
+                    bNum != null -> 1
+                    else -> aPart.compareTo(bPart)
+                }
+            }
+            return aParts.size.compareTo(bParts.size)
         }
 
         companion object {

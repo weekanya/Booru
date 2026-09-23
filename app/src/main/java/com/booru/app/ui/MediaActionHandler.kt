@@ -46,6 +46,10 @@ object MediaActionHandler {
         outcome ?: Result.failure(IOException("Download timed out after 60 seconds"))
     }
 
+    private fun sanitizeFilenamePart(value: String): String {
+        return value.replace(Regex("[^a-zA-Z0-9_-]"), "_").take(40).ifBlank { "unknown" }
+    }
+
     private fun executeDownload(
         context: Context,
         media: RemoteMedia,
@@ -118,7 +122,9 @@ object MediaActionHandler {
                 }
 
                 val isVideoMedia = media.isVideo || resolvedExt in listOf("mp4", "webm")
-                val filename = "booru_${media.source.lowercase().trim()}_${media.id}_${System.currentTimeMillis()}.$resolvedExt"
+                val safeSource = sanitizeFilenamePart(media.source.lowercase().trim())
+                val safeId = sanitizeFilenamePart(media.id.trim())
+                val filename = "booru_${safeSource}_${safeId}_${System.currentTimeMillis()}.$resolvedExt"
 
                 val inputStream = body.byteStream()
 

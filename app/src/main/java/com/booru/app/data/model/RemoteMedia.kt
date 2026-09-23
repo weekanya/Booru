@@ -32,10 +32,11 @@ data class RemoteMedia(
     val id: String = "",
     val width: Int = 0,
     val height: Int = 0,
-    val createdAt: Long = 0L
+    val createdAt: Long = 0L,
+    val sourceId: String = ""
 ) {
     val mediaKey: String
-        get() = if (id.isNotBlank()) "${source.lowercase().trim()}_$id" else url
+        get() = if (id.isNotBlank()) "${(sourceId.ifBlank { source }).lowercase().trim()}_$id" else url
 
     val ratingType: Rating
         get() = Rating.fromString(rating)
