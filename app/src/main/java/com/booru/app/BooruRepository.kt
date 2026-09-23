@@ -109,19 +109,6 @@ class BooruRepository(
         val SAFE_RATINGS = setOf("s", "safe", "g", "general")
         val MEDIA_EXTENSIONS = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "avif", "mp4", "webm", "mkv", "mov", "zip")
 
-        val AI_TAG_KEYWORDS = setOf(
-            "ai_generated",
-            "novelai",
-            "stable_diffusion",
-            "midjourney",
-            "dall-e",
-            "synthetic",
-            "created_by_ai",
-            "ai_art",
-            "ai_upscale",
-            "deepfake"
-        )
-
         const val SOURCE_ALL = "All sources"
         const val SOURCE_SAFEBOORU = "Safebooru"
         const val SOURCE_YANDE = "Yande.re"
@@ -149,8 +136,7 @@ class BooruRepository(
         }
 
         fun getSourceDisplayName(key: String, customSources: List<CustomBooruSource> = emptyList()): String {
-            val custom = customSources.find { it.key == key || it.id == key }
-                ?: customSources.find { it.name.equals(key, ignoreCase = true) }
+            val custom = customSources.find { it.id == key || it.key == key }
             if (custom != null) return custom.name
             if (key == SOURCE_ALL || key.equals("all sources", ignoreCase = true)) return "Recommendations"
             return when (key.lowercase()) {
@@ -179,11 +165,10 @@ class BooruRepository(
         credentials: BooruCredentials = BooruCredentials(),
         customSources: List<CustomBooruSource> = emptyList()
     ): List<RemoteMedia> = withContext(Dispatchers.IO) {
-        val customMatch = customSources.find { it.key == source || it.id == source }
-            ?: customSources.find { it.name.equals(source, ignoreCase = true) }
+        val customMatch = customSources.find { it.id == source || it.key == source }
         val wantsOnlyVideos = contentTypes.contains(ContentType.VIDEOS) && !contentTypes.contains(ContentType.PHOTOS) && !contentTypes.contains(ContentType.GIFS)
         val targets = when {
-            customMatch != null -> if (!customMatch.enabled) emptyList() else listOf(customMatch.key)
+            customMatch != null -> if (!customMatch.enabled) emptyList() else listOf(customMatch.id)
             source == SOURCE_SAFEBOORU -> if (excludeSafe || wantsOnlyVideos) emptyList() else listOf("safebooru")
             source == SOURCE_YANDE     -> if (wantsOnlyVideos) emptyList() else listOf("yande")
             source == SOURCE_RULE34    -> listOf("rule34")
@@ -305,7 +290,7 @@ class BooruRepository(
         val q = query.trim().lowercase()
         if (q.length < 2) return@withContext emptyList()
 
-        val customMatch = customSources.find { it.key == source || it.id == source || it.name.equals(source, ignoreCase = true) }
+        val customMatch = customSources.find { it.id == source || it.key == source }
         if (customMatch != null && !customMatch.enabled) {
             return@withContext emptyList()
         }
@@ -541,8 +526,7 @@ class BooruRepository(
             parts.add(cleaned)
         }
 
-        val custom = customSources.find { it.key == key || it.id == key }
-            ?: customSources.find { it.name.equals(key, ignoreCase = true) }
+        val custom = customSources.find { it.id == key || it.key == key }
 
         if (contentTypes.isNotEmpty()) {
             val wantsPhotos = contentTypes.contains(ContentType.PHOTOS)
@@ -757,8 +741,7 @@ class BooruRepository(
     ): List<RemoteMedia> {
         val tagQuery = buildTagQuery(userTags, safe, excludeSafe, noAi, key, sortOrder, customSources, contentTypes)
 
-        val custom = customSources.find { it.key == key || it.id == key }
-            ?: customSources.find { it.name.equals(key, ignoreCase = true) }
+        val custom = customSources.find { it.id == key || it.key == key }
         if (custom != null) {
             val base = custom.cleanBaseUrl
             if (!custom.isHttps) {
@@ -1236,7 +1219,6 @@ class BooruRepository(
         }
 
         val customMatch = customSources.find { it.id == key || it.key == key }
-            ?: customSources.find { it.name.equals(key, ignoreCase = true) }
         val resolvedSourceId = customMatch?.id ?: key
 
         return RemoteMedia(

@@ -719,11 +719,11 @@ fun SettingsScreen(
                             baseUrl = cleanUrl,
                             engine = customEngine
                         )
-                        val wasActiveSource = editingCustomSource != null && (editingCustomSource?.key == vm.source || editingCustomSource?.id == vm.source || editingCustomSource?.name == vm.source)
+                        val wasActiveSource = editingCustomSource != null && (editingCustomSource?.id == vm.source || editingCustomSource?.key == vm.source)
                         val success = vm.addCustomSource(newSource, customApiKey.trim(), customUserId.trim())
                         if (success) {
                             if (wasActiveSource) {
-                                vm.selectSource(newSource.key)
+                                vm.selectSource(newSource.id)
                             }
                             Toast.makeText(
                                 context,

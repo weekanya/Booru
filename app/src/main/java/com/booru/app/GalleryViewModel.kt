@@ -582,7 +582,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun selectSource(newSource: String) {
         val resolved = BooruRepository.AVAILABLE_SOURCES.firstOrNull { it.equals(newSource, ignoreCase = true) }
-            ?: customSources.find { (it.key == newSource || it.id == newSource || it.name.equals(newSource, ignoreCase = true)) && it.enabled }?.key
+            ?: customSources.find { (it.id == newSource || it.key == newSource) && it.enabled }?.id
             ?: newSource
         if (source == resolved) {
             refresh()
@@ -970,7 +970,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun searchTag(tag: String, targetSource: String = source) {
         val cleanTag = tag.trim().removeSuffix(",").removePrefix(",").trim().replace(" ", "_")
         val finalSource = BooruRepository.AVAILABLE_SOURCES.firstOrNull { it.equals(targetSource, ignoreCase = true) }
-            ?: customSources.find { (it.key == targetSource || it.id == targetSource || it.name.equals(targetSource, ignoreCase = true)) && it.enabled }?.key
+            ?: customSources.find { (it.id == targetSource || it.key == targetSource) && it.enabled }?.id
             ?: source
         source = finalSource
         search(finalSource, cleanTag, safeMode)
@@ -1286,8 +1286,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             secureStorage.removeCustomCredentials(sourceId)
         }
         val isCurrentSourceDeleted = target != null && (
-                source.equals(target.name, ignoreCase = true) ||
-                        source.equals(target.id, ignoreCase = true) ||
+                source.equals(target.id, ignoreCase = true) ||
                         source.equals(target.key, ignoreCase = true)
                 )
         if (isCurrentSourceDeleted || availableSources.none { it.equals(source, ignoreCase = true) }) {
@@ -1298,7 +1297,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     val availableSources: List<String>
-        get() = BooruRepository.AVAILABLE_SOURCES + customSources.filter { it.enabled }.map { it.key }
+        get() = BooruRepository.AVAILABLE_SOURCES + customSources.filter { it.enabled }.map { it.id }
 
     fun resolveMediaUrl(media: RemoteMedia): String = when (imageQuality) {
         ImageQuality.ORIGINAL -> media.url.ifBlank { media.sample.ifBlank { media.preview } }

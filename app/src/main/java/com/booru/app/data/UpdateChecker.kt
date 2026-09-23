@@ -28,22 +28,26 @@ object UpdateChecker {
         val nonDebug = candidates.filterNot { it.first.contains("debug", ignoreCase = true) }
         if (nonDebug.isEmpty()) return null
 
-        val exactRelease = nonDebug.find {
+        val exactMatches = nonDebug.filter {
             it.first.equals("app-release.apk", ignoreCase = true) ||
             it.first.equals("booru-release.apk", ignoreCase = true)
         }
-        if (exactRelease != null) return exactRelease.second
+        if (exactMatches.size == 1) return exactMatches.first().second
 
-        val endsWithRelease = nonDebug.find {
+        val endsWithRelease = nonDebug.filter {
             it.first.endsWith("-release.apk", ignoreCase = true) ||
             it.first.endsWith("_release.apk", ignoreCase = true)
         }
-        if (endsWithRelease != null) return endsWithRelease.second
+        if (endsWithRelease.size == 1) return endsWithRelease.first().second
 
-        val containsRelease = nonDebug.find { it.first.contains("release", ignoreCase = true) }
-        if (containsRelease != null) return containsRelease.second
+        val containsRelease = nonDebug.filter { it.first.contains("release", ignoreCase = true) }
+        if (containsRelease.size == 1) return containsRelease.first().second
 
-        return nonDebug.firstOrNull()?.second
+        if (nonDebug.size == 1) {
+            return nonDebug.first().second
+        }
+
+        return null
     }
 
     suspend fun fetchLatestRelease(): AppUpdateInfo? = withContext(Dispatchers.IO) {
