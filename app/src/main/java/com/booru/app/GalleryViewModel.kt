@@ -708,7 +708,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     }
                     val genList = dGen.await()
                     val tagLists = dTags.map { it.await() }
-                    blendRecommendationFeed(genList, tagLists, ratio)
+                    val sanitizedTagLists = if (!selectedContentTypes.contains(ContentType.VIDEOS)) {
+                        tagLists.map { list -> list.filterNot { item -> item.isVideo } }
+                    } else {
+                        tagLists
+                    }
+                    blendRecommendationFeed(genList, sanitizedTagLists, ratio)
                 } else {
                     repo.search(
                         source = source,
@@ -866,7 +871,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     val genList = dGen.await()
                     val tagLists = dTags.map { it.await() }
                     val existingKeys = results.map { it.mediaKey }.toSet()
-                    blendRecommendationFeed(genList, tagLists, ratio, existingKeys)
+                    val sanitizedTagLists = if (!selectedContentTypes.contains(ContentType.VIDEOS)) {
+                        tagLists.map { list -> list.filterNot { item -> item.isVideo } }
+                    } else {
+                        tagLists
+                    }
+                    blendRecommendationFeed(genList, sanitizedTagLists, ratio, existingKeys)
                 } else {
                     repo.search(
                         source = source,
@@ -1332,9 +1342,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             return when (tagCount) {
                 0 -> 0.0f
                 1 -> 0.30f
-                2 -> 0.45f
-                3 -> 0.55f
-                else -> 0.70f
+                2 -> 0.40f
+                3 -> 0.50f
+                else -> 0.60f
             }
         }
 
