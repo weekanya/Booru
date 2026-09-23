@@ -788,7 +788,7 @@ fun MediaDetailSheet(
                                 blacklistedTags = vm.tagBlacklist,
                                 lang = lang,
                                 onTagClick = { tag ->
-                                    vm.searchTag(tag, currentMedia.source)
+                                    vm.searchTag(tag, currentMedia.sourceId.ifBlank { currentMedia.source })
                                     onDismiss()
                                     onNavigateToExplore?.invoke()
                                 },
@@ -990,7 +990,7 @@ fun MediaDetailSheet(
                             .fillMaxWidth()
                             .bouncyPress()
                             .clickable {
-                                vm.searchTag(currentActionTag, currentMedia.source)
+                                vm.searchTag(currentActionTag, currentMedia.sourceId.ifBlank { currentMedia.source })
                                 selectedTagForAction = null
                                 onDismiss()
                                 onNavigateToExplore?.invoke()

@@ -1,6 +1,7 @@
 package com.booru.app.data
 
 import android.content.Context
+import android.util.Log
 import com.booru.app.RemoteMedia
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -15,6 +16,7 @@ import java.util.concurrent.TimeUnit
 object BooruCacheManager {
 
     const val MAX_MEDIA_CACHE_BYTES = 100L * 1024L * 1024L
+    private const val TAG = "BooruCacheManager"
 
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -100,7 +102,8 @@ object BooruCacheManager {
             } catch (c: CancellationException) {
                 if (tempFile.exists()) tempFile.delete()
                 throw c
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to cache media from $url", e)
             } finally {
                 if (tempFile.exists() && !targetFile.exists()) {
                     tempFile.delete()
@@ -109,16 +112,48 @@ object BooruCacheManager {
         }
     }
 
-    suspend fun removeFavoriteMedia(context: Context, media: RemoteMedia) = withContext(Dispatchers.IO) {
+    suspend fun removeFavoriteMedia(
+        context: Context,
+        media: RemoteMedia,
+        remainingFavorites: List<RemoteMedia> = emptyList()
+    ) = withContext(Dispatchers.IO) {
+        val remainingUrls = remainingFavorites.flatMap {
+            listOf(it.preview, it.sample, it.url)
+        }.filter { it.isNotBlank() }.toSet()
+
         val urlsToRemove = listOf(
             media.preview,
             media.sample,
             media.url
-        ).filter { it.isNotBlank() }
+        ).filter { it.isNotBlank() && it !in remainingUrls }
 
         for (url in urlsToRemove) {
             val file = getFavoriteFileForUrl(context, url)
             file?.delete()
+        }
+    }
+
+    suspend fun pruneOrphanedFavoritesMedia(
+        context: Context,
+        activeFavorites: List<RemoteMedia>
+    ) = withContext(Dispatchers.IO) {
+        val validUrls = activeFavorites.flatMap {
+            listOf(it.preview, it.sample, it.url)
+        }.filter { it.isNotBlank() }.toSet()
+        val validHashes = validUrls.map { urlToHash(it) }.toSet()
+
+        val dir = getFavoritesMediaDir(context)
+        val files = dir.listFiles() ?: return@withContext
+        for (file in files) {
+            val name = file.name
+            if (name.endsWith(".tmp")) {
+                file.delete()
+                continue
+            }
+            val hash = name.substringBefore(".")
+            if (hash.isNotBlank() && hash !in validHashes) {
+                file.delete()
+            }
         }
     }
 
@@ -164,11 +199,15 @@ object BooruCacheManager {
         try {
             coil.Coil.imageLoader(context).memoryCache?.clear()
             coil.Coil.imageLoader(context).diskCache?.clear()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to clear Coil image cache", e)
+        }
 
         try {
             com.booru.app.BooruVideoCache.clearVideoCache(context)
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to clear video cache", e)
+        }
 
         try {
             context.cacheDir.listFiles()?.forEach { file ->
@@ -176,12 +215,16 @@ object BooruCacheManager {
                     file.deleteRecursively()
                 }
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to clear internal cacheDir", e)
+        }
 
         try {
             context.externalCacheDir?.listFiles()?.forEach { file ->
                 file.deleteRecursively()
             }
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to clear externalCacheDir", e)
+        }
     }
 }

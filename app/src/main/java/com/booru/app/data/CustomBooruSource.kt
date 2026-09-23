@@ -29,7 +29,7 @@ fun sanitizeBooruBaseUrl(raw: String): String {
 fun isHttpsBooruUrl(raw: String): Boolean {
     val clean = sanitizeBooruBaseUrl(raw)
     val parsed = clean.toHttpUrlOrNull() ?: return false
-    return parsed.isHttps && parsed.host.isNotBlank() && parsed.host.contains(".")
+    return parsed.isHttps && parsed.host.isNotBlank() && parsed.host != "localhost" && parsed.host.contains(".")
 }
 
 fun isBuiltInSourceName(name: String): Boolean {

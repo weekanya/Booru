@@ -712,18 +712,18 @@ fun SettingsScreen(
                             Toast.makeText(context, Strings.invalidHttpsUrlError(lang), Toast.LENGTH_SHORT).show()
                             return@Button
                         }
-                        val targetId = editingCustomSource?.id ?: cleanName.lowercase().replace(" ", "_")
+                        val targetId = editingCustomSource?.id ?: java.util.UUID.randomUUID().toString()
                         val newSource = CustomBooruSource(
                             id = targetId,
                             name = cleanName,
                             baseUrl = cleanUrl,
                             engine = customEngine
                         )
-                        val wasEditingName = editingCustomSource != null && editingCustomSource?.name == vm.source && cleanName != editingCustomSource?.name
+                        val wasActiveSource = editingCustomSource != null && (editingCustomSource?.key == vm.source || editingCustomSource?.id == vm.source || editingCustomSource?.name == vm.source)
                         val success = vm.addCustomSource(newSource, customApiKey.trim(), customUserId.trim())
                         if (success) {
-                            if (wasEditingName) {
-                                vm.selectSource(cleanName)
+                            if (wasActiveSource) {
+                                vm.selectSource(newSource.key)
                             }
                             Toast.makeText(
                                 context,

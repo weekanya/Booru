@@ -1179,7 +1179,7 @@ fun SourceSelectionSheet(
             }
 
             sources.forEach { src ->
-                val isSelected = currentSource == src || (customSources.find { it.key == src || it.id == src }?.let { it.key == currentSource || it.id == currentSource || it.name.equals(currentSource, ignoreCase = true) } ?: false)
+                val isSelected = currentSource == src || (customSources.find { it.key == src || it.id == src }?.let { it.key == currentSource || it.id == currentSource } ?: false)
                 val icon = when (src) {
                     BooruRepository.SOURCE_ALL -> Icons.Rounded.AutoAwesome
                     BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit

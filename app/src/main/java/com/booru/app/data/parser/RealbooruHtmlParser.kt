@@ -77,22 +77,41 @@ object RealbooruHtmlParser {
 
             val dataExt = thumb.attr("data-ext").trim().lowercase().removePrefix(".")
             val isWebm = isVideo && (dataExt == "webm" || thumbClass.contains("webm") || linkClass.contains("webm") || imgClass.contains("webm") || tagTokens.any { it.equals("webm", ignoreCase = true) } || previewUrl.endsWith(".webm", ignoreCase = true))
-            val videoExt = if (isWebm) "webm" else "mp4"
 
-            val originalUrl = if (isVideo) {
-                previewUrl
-                    .replace("/thumbnails/", "/images/")
-                    .replace("/thumbnail_", "/")
-                    .replace(Regex("\\.[a-zA-Z0-9]+$"), ".$videoExt")
-            } else if (isGif) {
-                previewUrl
-                    .replace("/thumbnails/", "/images/")
-                    .replace("/thumbnail_", "/")
-                    .replace(Regex("\\.[a-zA-Z0-9]+$"), ".gif")
+            val directFileAttr = thumb.attr("data-file-url")
+                .ifBlank { thumb.attr("data-original") }
+                .ifBlank { link.attr("data-file-url") }
+                .ifBlank { link.attr("data-original") }
+                .ifBlank { img.attr("data-file-url") }
+                .ifBlank { img.attr("data-original") }
+                .trim()
+
+            val directUrl = when {
+                directFileAttr.startsWith("//") -> "https:$directFileAttr"
+                directFileAttr.startsWith("/") -> "https://realbooru.com$directFileAttr"
+                directFileAttr.startsWith("http://") -> directFileAttr.replace("http://", "https://")
+                directFileAttr.startsWith("https://") -> directFileAttr
+                else -> ""
+            }
+
+            val targetExt = when {
+                isVideo -> if (isWebm) "webm" else "mp4"
+                isGif -> "gif"
+                dataExt in listOf("png", "jpg", "jpeg", "webp") -> dataExt
+                else -> ""
+            }
+
+            val originalUrl = if (directUrl.isNotBlank()) {
+                directUrl
             } else {
-                previewUrl
+                val replacedPath = previewUrl
                     .replace("/thumbnails/", "/images/")
                     .replace("/thumbnail_", "/")
+                if (targetExt.isNotBlank()) {
+                    replacedPath.replace(Regex("\\.[a-zA-Z0-9]+$"), ".$targetExt")
+                } else {
+                    replacedPath
+                }
             }
 
             val sampleUrl = if (isVideo) {

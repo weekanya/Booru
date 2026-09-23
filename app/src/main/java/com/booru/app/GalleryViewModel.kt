@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -145,19 +146,23 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             val initialBlacklist = prefs.tagBlacklist.first()
             val initialRecMap = prefs.recommendationTags.first()
             val sortedRec = initialRecMap.entries.sortedByDescending { it.value }.map { it.key }
-
-            source = initialSource
+            customSources = initialCustom
+            val isCustomValid = initialCustom.any { (it.key == initialSource || it.id == initialSource) && it.enabled }
+            val isBuiltInValid = BooruRepository.AVAILABLE_SOURCES.contains(initialSource)
+            source = if (isBuiltInValid || isCustomValid) initialSource else BooruRepository.SOURCE_ALL
             safeMode = initialSafe
             excludeSafe = initialExcludeSafe
             noAi = initialNoAi
             language = initialLang
             themeMode = initialTheme
             palette = initialPalette
-            customSources = initialCustom
             tagBlacklist = initialBlacklist
             recommendationTags = sortedRec.take(15)
 
             updateCacheSize()
+            runCatching {
+                BooruCacheManager.pruneOrphanedFavoritesMedia(getApplication(), favoritesList)
+            }
 
             search(source, "", safeMode)
 
@@ -256,7 +261,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 }
             } catch (c: CancellationException) {
                 throw c
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w(TAG, "Update check failed: ${e.message}", e)
                 if (!isAutoCheck) {
                     manualCheckResult = "ERROR"
                 }
@@ -575,15 +581,18 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun selectSource(newSource: String) {
-        if (source == newSource) {
+        val resolved = BooruRepository.AVAILABLE_SOURCES.firstOrNull { it.equals(newSource, ignoreCase = true) }
+            ?: customSources.find { (it.key == newSource || it.id == newSource || it.name.equals(newSource, ignoreCase = true)) && it.enabled }?.key
+            ?: newSource
+        if (source == resolved) {
             refresh()
             return
         }
-        source = newSource
+        source = resolved
         viewModelScope.launch {
-            prefs.setDefaultSource(newSource)
+            prefs.setDefaultSource(resolved)
         }
-        search(newSource, query, safeMode)
+        search(resolved, query, safeMode)
     }
 
     var needsFeedRefresh by mutableStateOf(false); private set
@@ -942,7 +951,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 hasMore = lastPageSize > 0
             } catch (c: CancellationException) {
                 throw c
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to load more items: ${e.message}", e)
             } finally {
                 if (searchGen == currentSearchGeneration) {
                     loadingMore = false
@@ -959,7 +969,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun searchTag(tag: String, targetSource: String = source) {
         val cleanTag = tag.trim().removeSuffix(",").removePrefix(",").trim().replace(" ", "_")
-        val finalSource = BooruRepository.AVAILABLE_SOURCES.firstOrNull { it.equals(targetSource, ignoreCase = true) } ?: source
+        val finalSource = BooruRepository.AVAILABLE_SOURCES.firstOrNull { it.equals(targetSource, ignoreCase = true) }
+            ?: customSources.find { (it.key == targetSource || it.id == targetSource || it.name.equals(targetSource, ignoreCase = true)) && it.enabled }?.key
+            ?: source
         source = finalSource
         search(finalSource, cleanTag, safeMode)
     }
@@ -994,9 +1006,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 val wasFav = isFavorite(media)
                 if (wasFav) {
                     favoriteKeys = favoriteKeys - key
-                    favoritesList = favoritesList.filterNot { it.mediaKey == key }
+                    val remaining = favoritesList.filterNot { it.mediaKey == key }
+                    favoritesList = remaining
                     favoriteDao.deleteByKey(key)
-                    BooruCacheManager.removeFavoriteMedia(getApplication(), media)
+                    BooruCacheManager.removeFavoriteMedia(getApplication(), media, remaining)
                 } else {
                     favoriteKeys = favoriteKeys + key
                     favoritesList = favoritesList + media
@@ -1011,9 +1024,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun clearFavorites() {
         viewModelScope.launch {
             favoriteMutex.withLock {
-                val allFavs = favoritesList
                 favoriteDao.clearAll()
-                allFavs.forEach { BooruCacheManager.removeFavoriteMedia(getApplication(), it) }
+                favoritesList = emptyList()
+                favoriteKeys = emptySet()
+                BooruCacheManager.pruneOrphanedFavoritesMedia(getApplication(), emptyList())
                 updateCacheSize()
             }
         }
@@ -1338,6 +1352,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     companion object {
+        private const val TAG = "GalleryViewModel"
+
         fun getRecommendationRatio(tagCount: Int): Float {
             return when (tagCount) {
                 0 -> 0.0f

@@ -223,10 +223,10 @@ class BooruRepository(
                         } catch (c: kotlinx.coroutines.CancellationException) {
                             throw c
                         } catch (auth: BooruAuthException) {
-                            Log.e(TAG, "[$key] Auth Error: ${auth.message}")
+                            Log.e(TAG, "[$key] Auth Error: ${sanitizeErrorMessage(auth.message)}")
                             Result.failure(auth)
                         } catch (e: Exception) {
-                            Log.e(TAG, "[$key] Error: ${e.message}")
+                            Log.e(TAG, "[$key] Error: ${sanitizeErrorMessage(e.message)}")
                             Result.failure(e)
                         }
                     }
@@ -240,7 +240,7 @@ class BooruRepository(
                 if (ex is BooruAuthException && firstAuthEx == null) {
                     firstAuthEx = ex
                 }
-                errors.add(ex.message ?: "Load failed")
+                errors.add(sanitizeErrorMessage(ex.message ?: "Load failed"))
             }
         }
 
@@ -634,23 +634,9 @@ class BooruRepository(
         }
 
         if (noAi) {
-            if (custom != null) {
-                parts.add("-ai_generated")
-                parts.add("-novelai")
-            } else {
-                when (key) {
-                    "gelbooru" -> {
-                        parts.add("-ai_generated")
-                        parts.add("-novelai")
-                    }
-                    "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> {
-                        parts.add("-ai_generated")
-                        parts.add("-novelai")
-                    }
-                    "yande", "konachan" -> {
-                        parts.add("-ai_generated")
-                        parts.add("-novelai")
-                    }
+            for (queryTag in com.booru.app.data.AiFilter.EXCLUDE_QUERY_TAGS) {
+                if (!cleaned.contains(queryTag)) {
+                    parts.add(queryTag)
                 }
             }
         }
@@ -836,11 +822,11 @@ class BooruRepository(
                 if (!response.isSuccessful) {
                     if (code == 429) {
                         val retryAfter = parseRetryAfter(response.header("Retry-After"))
-                        throw BooruHttpException(sourceKey = custom.name, statusCode = code, retryAfterSec = retryAfter, message = "Rate limited by ${custom.name}")
+                        throw BooruHttpException(sourceKey = custom.id, statusCode = code, retryAfterSec = retryAfter, message = "Rate limited by ${custom.name}")
                     }
-                    throw BooruHttpException(sourceKey = custom.name, statusCode = code, message = "HTTP $code from ${custom.name}")
+                    throw BooruHttpException(sourceKey = custom.id, statusCode = code, message = "HTTP $code from ${custom.name}")
                 }
-                parseResponse(custom.name, body, noAi, base, customSources)
+                parseResponse(custom.id, body, noAi, base, customSources)
             }
         }
 
@@ -1006,6 +992,11 @@ class BooruRepository(
         Log.d(TAG, "[$key] GET $sanitized")
     }
 
+    private fun sanitizeErrorMessage(msg: String?): String {
+        if (msg == null) return "Unknown error"
+        return msg.replace(Regex("(?i)(api[-_]?key|user[-_]?id|password|login|token|secret|auth|pass)=[^&\\s]+"), "$1=[REDACTED]")
+    }
+
     internal fun parseResponse(
         key: String,
         body: String,
@@ -1016,10 +1007,25 @@ class BooruRepository(
         val trimmed = body.trim()
         if (trimmed.isEmpty() || trimmed == "[]" || trimmed == "{}") return emptyList()
 
-        val jsonArray = when {
-            trimmed.startsWith("[") -> JSONArray(trimmed)
+        val jsonArray = extractJsonPosts(trimmed)
+        val results = mutableListOf<RemoteMedia>()
+
+        for (i in 0 until jsonArray.length()) {
+            val o = jsonArray.optJSONObject(i) ?: continue
+            val media = parseJsonPost(o, key, customBaseUrl, customSources, noAi)
+            if (media != null) {
+                results.add(media)
+            }
+        }
+
+        return results
+    }
+
+    private fun extractJsonPosts(trimmed: String): JSONArray {
+        return when {
+            trimmed.startsWith("[") -> runCatching { JSONArray(trimmed) }.getOrDefault(JSONArray())
             trimmed.startsWith("{") -> {
-                val obj = JSONObject(trimmed)
+                val obj = runCatching { JSONObject(trimmed) }.getOrNull() ?: return JSONArray()
                 obj.optJSONArray("post")
                     ?: obj.optJSONArray("posts")
                     ?: obj.optJSONArray("images")
@@ -1027,222 +1033,225 @@ class BooruRepository(
             }
             else -> JSONArray()
         }
+    }
 
-        val results = mutableListOf<RemoteMedia>()
+    private fun extractRatingCode(o: JSONObject): String {
+        return when (o.optString("rating").lowercase().trim()) {
+            "s", "safe", "general", "g" -> "safe"
+            "q", "questionable", "sensitive" -> "questionable"
+            "e", "explicit" -> "explicit"
+            else -> "u"
+        }
+    }
 
-        for (i in 0 until jsonArray.length()) {
-            val o = jsonArray.optJSONObject(i) ?: continue
-
-            val ratingCode = when (o.optString("rating").lowercase().trim()) {
-                "s", "safe", "general", "g" -> "safe"
-                "q", "questionable", "sensitive" -> "questionable"
-                "e", "explicit" -> "explicit"
-                else -> "u"
-            }
-
-            val fileObj = o.optJSONObject("file")
-            var fileUrl = o.optString("file_url")
-                .ifBlank { o.optString("fileUrl") }
-                .ifBlank { o.optString("jpeg_url") }
-                .ifBlank { o.optString("high_res_url") }
-                .ifBlank { fileObj?.optString("url") ?: "" }
-
-            val id = o.optString("id", "")
-            val directory = o.optString("directory").takeIf { it != "null" } ?: ""
-            val image = o.optString("image").takeIf { it != "null" } ?: ""
-            val hash = o.optString("hash").takeIf { it != "null" }
-                ?: fileObj?.optString("md5")
-                ?: o.optString("md5")
-            val baseImgName = image.substringBeforeLast(".")
-
-            if (fileUrl.isBlank() && directory.isNotBlank() && image.isNotBlank()) {
-                val host = when (key) {
-                    "safebooru" -> "https://safebooru.org"
-                    "gelbooru"  -> "https://gelbooru.com"
-                    "rule34"    -> "https://api-cdn.rule34.xxx"
-                    "xbooru"    -> if (image.endsWith(".mp4")) "https://mp4.xbooru.com" else "https://img.xbooru.com"
-                    "tbib"      -> "https://tbib.org"
-                    else        -> ""
-                }
-                if (host.isNotBlank()) {
-                    fileUrl = "$host/images/$directory/$image"
-                }
-            }
-
-            if (fileUrl.isBlank() && !hash.isNullOrBlank() && hash.length >= 4 && (customBaseUrl.contains("e621") || customBaseUrl.contains("e926"))) {
-                val ext = fileObj?.optString("ext") ?: "jpg"
-                fileUrl = "https://static1.e621.net/data/${hash.take(2)}/${hash.substring(2, 4)}/$hash.$ext"
-            }
-
-            if (fileUrl.isBlank() ||
-                fileUrl == "null" ||
-                fileUrl.endsWith("/") ||
-                fileUrl.endsWith("//") ||
-                fileUrl.contains("/images//") ||
-                fileUrl.contains("/thumbnails//") ||
-                fileUrl.contains("/samples//")
-            ) {
-                continue
-            }
-
-            if (fileUrl.startsWith("/") && !fileUrl.startsWith("//") && customBaseUrl.isNotBlank()) {
-                fileUrl = "${customBaseUrl.trimEnd('/')}$fileUrl"
-            }
-            if (fileUrl.startsWith("//")) {
-                fileUrl = "https:$fileUrl"
-            }
-
-            val cleanFile = fileUrl.substringBefore("?").lowercase()
-            val isVideo = cleanFile.endsWith(".mp4") || cleanFile.endsWith(".webm") || cleanFile.endsWith(".mkv") || cleanFile.endsWith(".mov") || (fileObj?.optString("ext")?.lowercase() in listOf("mp4", "webm", "mkv", "mov"))
-            val isGif = cleanFile.endsWith(".gif") || image.substringBefore("?").lowercase().endsWith(".gif") || (fileObj?.optString("ext")?.lowercase() == "gif")
-
-            val previewObj = o.optJSONObject("preview")
-            var preview = o.optString("preview_url")
-                .ifBlank { o.optString("previewUrl") }
-                .ifBlank { o.optString("preview_file_url") }
-                .ifBlank { previewObj?.optString("url") ?: "" }
-
-            if (preview.isBlank() && directory.isNotBlank() && image.isNotBlank()) {
-                val host = when (key) {
-                    "safebooru" -> "https://safebooru.org"
-                    "gelbooru"  -> "https://img3.gelbooru.com"
-                    "rule34"    -> "https://api-cdn.rule34.xxx"
-                    "xbooru"    -> "https://xbooru.com"
-                    "tbib"      -> "https://tbib.org"
-                    else        -> ""
-                }
-                if (host.isNotBlank()) {
-                    val querySuffix = if (key == "xbooru" && id.isNotBlank()) "?$id" else ""
-                    preview = "$host/thumbnails/$directory/thumbnail_$baseImgName.jpg$querySuffix"
-                }
-            }
-
-            if (preview.isBlank() && !hash.isNullOrBlank() && hash.length >= 4 && (customBaseUrl.contains("e621") || customBaseUrl.contains("e926"))) {
-                preview = "https://static1.e621.net/data/preview/${hash.take(2)}/${hash.substring(2, 4)}/$hash.jpg"
-            }
-
-            if (preview.startsWith("/") && !preview.startsWith("//") && customBaseUrl.isNotBlank()) {
-                preview = "${customBaseUrl.trimEnd('/')}$preview"
-            }
-            if (preview.startsWith("//")) {
-                preview = "https:$preview"
-            }
-
-            if (key == "xbooru" && id.isNotBlank() && !preview.contains("?")) {
-                preview = "$preview?$id"
-            }
-
-            val sampleObj = o.optJSONObject("sample")
-            var sample = o.optString("sample_url")
-                .ifBlank { o.optString("sampleUrl") }
-                .ifBlank { o.optString("large_file_url") }
-                .ifBlank { sampleObj?.optString("url") ?: "" }
-
-            if (isGif) {
-                sample = fileUrl
-            }
-
-            val hasSample = o.optBoolean("sample", false) || o.optInt("sample", 0) == 1 || (sampleObj?.optBoolean("has", false) == true)
-            if (sample.isBlank() && hasSample && directory.isNotBlank() && image.isNotBlank()) {
-                val host = when (key) {
-                    "safebooru" -> "https://safebooru.org"
-                    "rule34"    -> "https://api-cdn.rule34.xxx"
-                    "gelbooru"  -> "https://img3.gelbooru.com"
-                    "xbooru"    -> "https://xbooru.com"
-                    "tbib"      -> "https://tbib.org"
-                    else        -> ""
-                }
-                if (host.isNotBlank()) {
-                    val querySuffix = if (key == "xbooru" && id.isNotBlank()) "?$id" else ""
-                    sample = "$host/samples/$directory/sample_$baseImgName.jpg$querySuffix"
-                }
-            }
-
-            if (sample.startsWith("/") && !sample.startsWith("//") && customBaseUrl.isNotBlank()) {
-                sample = "${customBaseUrl.trimEnd('/')}$sample"
-            }
-            if (sample.startsWith("//")) {
-                sample = "https:$sample"
-            }
-
-            if (key == "xbooru" && id.isNotBlank() && !sample.contains("?")) {
-                sample = "$sample?$id"
-            }
-
-            if (sample.isBlank() || sample == "null") {
-                sample = fileUrl
-            }
-
-            if (preview.isBlank() || preview == "null" || preview.endsWith("/") || preview.contains("thumbnail_.jpg") || preview.contains("/thumbnails//")) {
-                preview = sample
-            }
-
-            var tags = ""
-            val tagsObj = o.optJSONObject("tags")
-            if (tagsObj != null) {
-                val tagList = mutableListOf<String>()
-                val tagKeys = tagsObj.keys()
-                while (tagKeys.hasNext()) {
-                    val cat = tagKeys.next()
-                    val catArray = tagsObj.optJSONArray(cat)
-                    if (catArray != null) {
-                        for (j in 0 until catArray.length()) {
-                            val t = catArray.optString(j)
-                            if (t.isNotBlank()) tagList.add(t)
-                        }
+    private fun extractTags(o: JSONObject): String {
+        val tagsObj = o.optJSONObject("tags")
+        if (tagsObj != null) {
+            val tagList = mutableListOf<String>()
+            val tagKeys = tagsObj.keys()
+            while (tagKeys.hasNext()) {
+                val cat = tagKeys.next()
+                val catArray = tagsObj.optJSONArray(cat)
+                if (catArray != null) {
+                    for (j in 0 until catArray.length()) {
+                        val t = catArray.optString(j)
+                        if (t.isNotBlank()) tagList.add(t)
                     }
                 }
-                tags = tagList.joinToString(" ")
             }
-            if (tags.isBlank()) {
-                tags = o.optString("tags")
-                    .ifBlank { o.optString("tag_string") }
-                    .ifBlank { o.optString("tag_string_general") }
+            if (tagList.isNotEmpty()) {
+                return tagList.joinToString(" ")
             }
+        }
+        return o.optString("tags")
+            .ifBlank { o.optString("tag_string") }
+            .ifBlank { o.optString("tag_string_general") }
+    }
 
-            if (noAi && com.booru.app.data.AiFilter.isAiGeneratedPost(tags)) {
-                continue
-            }
-
-            val scoreObj = o.optJSONObject("score")
-            val score = scoreObj?.optInt("total", 0) ?: o.optInt("score", 0)
-
-            val width = fileObj?.optInt("width", 0)?.takeIf { it > 0 }
-                ?: o.optInt("width", 0).takeIf { it > 0 }
-                ?: o.optInt("image_width", 0)
-            val height = fileObj?.optInt("height", 0)?.takeIf { it > 0 }
-                ?: o.optInt("height", 0).takeIf { it > 0 }
-                ?: o.optInt("image_height", 0)
-
-            val createdAt: Long = when {
-                o.has("created_at") -> TimestampParser.parseToEpochSeconds(o.opt("created_at"))
-                o.has("change")     -> TimestampParser.parseToEpochSeconds(o.opt("change"))
-                o.has("date")       -> TimestampParser.parseToEpochSeconds(o.opt("date"))
-                else                -> 0L
-            }
-
-            val customMatch = customSources.find { it.key == key || it.id == key }
-                ?: customSources.find { it.name.equals(key, ignoreCase = true) }
-            val resolvedSourceId = customMatch?.id ?: key
-
-            val media = RemoteMedia(
-                id = id,
-                url = fileUrl,
-                preview = preview,
-                sample = sample,
-                tags = tags.trim(),
-                score = score,
-                source = getSourceDisplayName(key, customSources),
-                rating = ratingCode,
-                width = width,
-                height = height,
-                createdAt = createdAt,
-                sourceId = resolvedSourceId
-            )
-
-            results.add(media)
+    private fun parseJsonPost(
+        o: JSONObject,
+        key: String,
+        customBaseUrl: String,
+        customSources: List<CustomBooruSource>,
+        noAi: Boolean
+    ): RemoteMedia? {
+        val tags = extractTags(o).trim()
+        if (noAi && com.booru.app.data.AiFilter.isAiGeneratedPost(tags)) {
+            return null
         }
 
-        return results
+        val ratingCode = extractRatingCode(o)
+        val fileObj = o.optJSONObject("file")
+        var fileUrl = o.optString("file_url")
+            .ifBlank { o.optString("fileUrl") }
+            .ifBlank { o.optString("jpeg_url") }
+            .ifBlank { o.optString("high_res_url") }
+            .ifBlank { fileObj?.optString("url") ?: "" }
+
+        val id = o.optString("id", "")
+        val directory = o.optString("directory").takeIf { it != "null" } ?: ""
+        val image = o.optString("image").takeIf { it != "null" } ?: ""
+        val hash = o.optString("hash").takeIf { it != "null" }
+            ?: fileObj?.optString("md5")
+            ?: o.optString("md5")
+        val baseImgName = image.substringBeforeLast(".")
+
+        if (fileUrl.isBlank() && directory.isNotBlank() && image.isNotBlank()) {
+            val host = when (key) {
+                "safebooru" -> "https://safebooru.org"
+                "gelbooru"  -> "https://gelbooru.com"
+                "rule34"    -> "https://api-cdn.rule34.xxx"
+                "xbooru"    -> if (image.endsWith(".mp4")) "https://mp4.xbooru.com" else "https://img.xbooru.com"
+                "tbib"      -> "https://tbib.org"
+                else        -> ""
+            }
+            if (host.isNotBlank()) {
+                fileUrl = "$host/images/$directory/$image"
+            }
+        }
+
+        if (fileUrl.isBlank() && !hash.isNullOrBlank() && hash.length >= 4 && (customBaseUrl.contains("e621") || customBaseUrl.contains("e926"))) {
+            val ext = fileObj?.optString("ext") ?: "jpg"
+            fileUrl = "https://static1.e621.net/data/${hash.take(2)}/${hash.substring(2, 4)}/$hash.$ext"
+        }
+
+        if (fileUrl.isBlank() ||
+            fileUrl == "null" ||
+            fileUrl.endsWith("/") ||
+            fileUrl.endsWith("//") ||
+            fileUrl.contains("/images//") ||
+            fileUrl.contains("/thumbnails//") ||
+            fileUrl.contains("/samples//")
+        ) {
+            return null
+        }
+
+        if (fileUrl.startsWith("/") && !fileUrl.startsWith("//") && customBaseUrl.isNotBlank()) {
+            fileUrl = "${customBaseUrl.trimEnd('/')}$fileUrl"
+        }
+        if (fileUrl.startsWith("//")) {
+            fileUrl = "https:$fileUrl"
+        }
+
+        val cleanFile = fileUrl.substringBefore("?").lowercase()
+        val isVideo = cleanFile.endsWith(".mp4") || cleanFile.endsWith(".webm") || cleanFile.endsWith(".mkv") || cleanFile.endsWith(".mov") || (fileObj?.optString("ext")?.lowercase() in listOf("mp4", "webm", "mkv", "mov"))
+        val isGif = cleanFile.endsWith(".gif") || image.substringBefore("?").lowercase().endsWith(".gif") || (fileObj?.optString("ext")?.lowercase() == "gif")
+
+        val previewObj = o.optJSONObject("preview")
+        var preview = o.optString("preview_url")
+            .ifBlank { o.optString("previewUrl") }
+            .ifBlank { o.optString("preview_file_url") }
+            .ifBlank { previewObj?.optString("url") ?: "" }
+
+        if (preview.isBlank() && directory.isNotBlank() && image.isNotBlank()) {
+            val host = when (key) {
+                "safebooru" -> "https://safebooru.org"
+                "gelbooru"  -> "https://img3.gelbooru.com"
+                "rule34"    -> "https://api-cdn.rule34.xxx"
+                "xbooru"    -> "https://xbooru.com"
+                "tbib"      -> "https://tbib.org"
+                else        -> ""
+            }
+            if (host.isNotBlank()) {
+                val querySuffix = if (key == "xbooru" && id.isNotBlank()) "?$id" else ""
+                preview = "$host/thumbnails/$directory/thumbnail_$baseImgName.jpg$querySuffix"
+            }
+        }
+
+        if (preview.isBlank() && !hash.isNullOrBlank() && hash.length >= 4 && (customBaseUrl.contains("e621") || customBaseUrl.contains("e926"))) {
+            preview = "https://static1.e621.net/data/preview/${hash.take(2)}/${hash.substring(2, 4)}/$hash.jpg"
+        }
+
+        if (preview.startsWith("/") && !preview.startsWith("//") && customBaseUrl.isNotBlank()) {
+            preview = "${customBaseUrl.trimEnd('/')}$preview"
+        }
+        if (preview.startsWith("//")) {
+            preview = "https:$preview"
+        }
+
+        if (key == "xbooru" && id.isNotBlank() && !preview.contains("?")) {
+            preview = "$preview?$id"
+        }
+
+        val sampleObj = o.optJSONObject("sample")
+        var sample = o.optString("sample_url")
+            .ifBlank { o.optString("sampleUrl") }
+            .ifBlank { o.optString("large_file_url") }
+            .ifBlank { sampleObj?.optString("url") ?: "" }
+
+        if (isGif) {
+            sample = fileUrl
+        }
+
+        val hasSample = o.optBoolean("sample", false) || o.optInt("sample", 0) == 1 || (sampleObj?.optBoolean("has", false) == true)
+        if (sample.isBlank() && hasSample && directory.isNotBlank() && image.isNotBlank()) {
+            val host = when (key) {
+                "safebooru" -> "https://safebooru.org"
+                "rule34"    -> "https://api-cdn.rule34.xxx"
+                "gelbooru"  -> "https://img3.gelbooru.com"
+                "xbooru"    -> "https://xbooru.com"
+                "tbib"      -> "https://tbib.org"
+                else        -> ""
+            }
+            if (host.isNotBlank()) {
+                val querySuffix = if (key == "xbooru" && id.isNotBlank()) "?$id" else ""
+                sample = "$host/samples/$directory/sample_$baseImgName.jpg$querySuffix"
+            }
+        }
+
+        if (sample.startsWith("/") && !sample.startsWith("//") && customBaseUrl.isNotBlank()) {
+            sample = "${customBaseUrl.trimEnd('/')}$sample"
+        }
+        if (sample.startsWith("//")) {
+            sample = "https:$sample"
+        }
+
+        if (key == "xbooru" && id.isNotBlank() && !sample.contains("?")) {
+            sample = "$sample?$id"
+        }
+
+        if (sample.isBlank() || sample == "null") {
+            sample = fileUrl
+        }
+
+        if (preview.isBlank() || preview == "null" || preview.endsWith("/") || preview.contains("thumbnail_.jpg") || preview.contains("/thumbnails//")) {
+            preview = sample
+        }
+
+        val scoreObj = o.optJSONObject("score")
+        val score = scoreObj?.optInt("total", 0) ?: o.optInt("score", 0)
+
+        val width = fileObj?.optInt("width", 0)?.takeIf { it > 0 }
+            ?: o.optInt("width", 0).takeIf { it > 0 }
+            ?: o.optInt("image_width", 0)
+        val height = fileObj?.optInt("height", 0)?.takeIf { it > 0 }
+            ?: o.optInt("height", 0).takeIf { it > 0 }
+            ?: o.optInt("image_height", 0)
+
+        val createdAt: Long = when {
+            o.has("created_at") -> TimestampParser.parseToEpochSeconds(o.opt("created_at"))
+            o.has("change")     -> TimestampParser.parseToEpochSeconds(o.opt("change"))
+            o.has("date")       -> TimestampParser.parseToEpochSeconds(o.opt("date"))
+            else                -> 0L
+        }
+
+        val customMatch = customSources.find { it.id == key || it.key == key }
+            ?: customSources.find { it.name.equals(key, ignoreCase = true) }
+        val resolvedSourceId = customMatch?.id ?: key
+
+        return RemoteMedia(
+            id = id,
+            url = fileUrl,
+            preview = preview,
+            sample = sample,
+            tags = tags,
+            score = score,
+            source = getSourceDisplayName(key, customSources),
+            rating = ratingCode,
+            width = width,
+            height = height,
+            createdAt = createdAt,
+            sourceId = resolvedSourceId
+        )
     }
 }
