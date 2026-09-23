@@ -143,6 +143,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             val initialPalette = prefs.palette.first()
             val initialCustom = prefs.customSources.first()
             val initialBlacklist = prefs.tagBlacklist.first()
+            val initialRecMap = prefs.recommendationTags.first()
+            val sortedRec = initialRecMap.entries.sortedByDescending { it.value }.map { it.key }
 
             source = initialSource
             safeMode = initialSafe
@@ -153,6 +155,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             palette = initialPalette
             customSources = initialCustom
             tagBlacklist = initialBlacklist
+            recommendationTags = sortedRec.take(15)
 
             BooruCacheManager.clearBrowsingCache(getApplication())
             updateCacheSize()
@@ -662,62 +665,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         searchJob = viewModelScope.launch {
             try {
                 val list = if (source == BooruRepository.SOURCE_ALL && tags.isBlank() && recommendationTags.isNotEmpty()) {
-                    if (recommendationTags.size >= 2) {
-                        val d1 = async {
-                            try {
-                                repo.search(
-                                    source = source,
-                                    tags = recommendationTags[0],
-                                    safeMode = safeMode,
-                                    excludeSafe = excludeSafe,
-                                    noAi = noAi,
-                                    page = 0,
-                                    sortOrder = sortOrder,
-                                    credentials = getCredentials(),
-                                    customSources = customSources
-                                )
-                            } catch (_: Exception) {
-                                emptyList()
-                            }
-                        }
-                        val d2 = async {
-                            try {
-                                repo.search(
-                                    source = source,
-                                    tags = recommendationTags[1],
-                                    safeMode = safeMode,
-                                    excludeSafe = excludeSafe,
-                                    noAi = noAi,
-                                    page = 0,
-                                    sortOrder = sortOrder,
-                                    credentials = getCredentials(),
-                                    customSources = customSources
-                                )
-                            } catch (_: Exception) {
-                                emptyList()
-                            }
-                        }
-                        val r1 = d1.await()
-                        val r2 = d2.await()
-                        val combined = (r1 + r2).distinctBy { it.mediaKey }
-                        if (combined.isNotEmpty()) combined else {
+                    val ratio = getRecommendationRatio(recommendationTags.size)
+                    val tagsToFetch = recommendationTags.take(3)
+                    val dGen = async {
+                        try {
                             repo.search(
                                 source = source,
                                 tags = "",
-                                safeMode = safeMode,
-                                excludeSafe = excludeSafe,
-                                noAi = noAi,
-                                page = 0,
-                                sortOrder = sortOrder,
-                                credentials = getCredentials(),
-                                customSources = customSources
-                            )
-                        }
-                    } else {
-                        val r = try {
-                            repo.search(
-                                source = source,
-                                tags = recommendationTags[0],
                                 safeMode = safeMode,
                                 excludeSafe = excludeSafe,
                                 noAi = noAi,
@@ -729,20 +683,29 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         } catch (_: Exception) {
                             emptyList()
                         }
-                        if (r.isNotEmpty()) r else {
-                            repo.search(
-                                source = source,
-                                tags = "",
-                                safeMode = safeMode,
-                                excludeSafe = excludeSafe,
-                                noAi = noAi,
-                                page = 0,
-                                sortOrder = sortOrder,
-                                credentials = getCredentials(),
-                                customSources = customSources
-                            )
+                    }
+                    val dTags = tagsToFetch.map { recTag ->
+                        async {
+                            try {
+                                repo.search(
+                                    source = source,
+                                    tags = recTag,
+                                    safeMode = safeMode,
+                                    excludeSafe = excludeSafe,
+                                    noAi = noAi,
+                                    page = 0,
+                                    sortOrder = sortOrder,
+                                    credentials = getCredentials(),
+                                    customSources = customSources
+                                )
+                            } catch (_: Exception) {
+                                emptyList()
+                            }
                         }
                     }
+                    val genList = dGen.await()
+                    val tagLists = dTags.map { it.await() }
+                    blendRecommendationFeed(genList, tagLists, ratio)
                 } else {
                     repo.search(
                         source = source,
@@ -848,20 +811,58 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             loadingMore = true
             try {
                 val list = if (source == BooruRepository.SOURCE_ALL && query.isBlank() && recommendationTags.isNotEmpty()) {
-                    val tagIndex = (targetPage + 1) % recommendationTags.size
-                    val targetTag = recommendationTags[tagIndex]
-                    val subPage = targetPage / recommendationTags.size
-                    repo.search(
-                        source = source,
-                        tags = targetTag,
-                        safeMode = safeMode,
-                        excludeSafe = excludeSafe,
-                        noAi = noAi,
-                        page = subPage,
-                        sortOrder = sortOrder,
-                        credentials = getCredentials(),
-                        customSources = customSources
-                    )
+                    val ratio = getRecommendationRatio(recommendationTags.size)
+                    val tagsCount = recommendationTags.size
+                    val tagsToFetch = if (tagsCount <= 3) {
+                        recommendationTags
+                    } else {
+                        val startIndex = (targetPage * 2) % tagsCount
+                        listOf(
+                            recommendationTags[startIndex],
+                            recommendationTags[(startIndex + 1) % tagsCount]
+                        )
+                    }
+                    val dGen = async {
+                        try {
+                            repo.search(
+                                source = source,
+                                tags = "",
+                                safeMode = safeMode,
+                                excludeSafe = excludeSafe,
+                                noAi = noAi,
+                                page = targetPage,
+                                sortOrder = sortOrder,
+                                credentials = getCredentials(),
+                                customSources = customSources
+                            )
+                        } catch (_: Exception) {
+                            emptyList()
+                        }
+                    }
+                    val dTags = tagsToFetch.map { recTag ->
+                        val subPage = if (tagsCount <= 3) targetPage else targetPage / 2
+                        async {
+                            try {
+                                repo.search(
+                                    source = source,
+                                    tags = recTag,
+                                    safeMode = safeMode,
+                                    excludeSafe = excludeSafe,
+                                    noAi = noAi,
+                                    page = subPage,
+                                    sortOrder = sortOrder,
+                                    credentials = getCredentials(),
+                                    customSources = customSources
+                                )
+                            } catch (_: Exception) {
+                                emptyList()
+                            }
+                        }
+                    }
+                    val genList = dGen.await()
+                    val tagLists = dTags.map { it.await() }
+                    val existingKeys = results.map { it.mediaKey }.toSet()
+                    blendRecommendationFeed(genList, tagLists, ratio, existingKeys)
                 } else {
                     repo.search(
                         source = source,
@@ -1313,6 +1314,87 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun closeFullscreen() {
         fullscreenState = null
+    }
+
+    companion object {
+        fun getRecommendationRatio(tagCount: Int): Float {
+            return when (tagCount) {
+                0 -> 0.0f
+                1 -> 0.30f
+                2 -> 0.40f
+                3 -> 0.50f
+                else -> 0.60f
+            }
+        }
+
+        fun blendRecommendationFeed(
+            generalPosts: List<RemoteMedia>,
+            tagPosts: List<List<RemoteMedia>>,
+            ratio: Float,
+            existingKeys: Set<String> = emptySet()
+        ): List<RemoteMedia> {
+            val nonNullGeneral = generalPosts.filterNot { it.mediaKey in existingKeys }
+            val nonNullTagPosts = tagPosts.map { list -> list.filterNot { it.mediaKey in existingKeys } }
+
+            if (nonNullGeneral.isEmpty() && nonNullTagPosts.all { it.isEmpty() }) return emptyList()
+            if (nonNullTagPosts.all { it.isEmpty() }) return nonNullGeneral
+
+            val seen = existingKeys.toMutableSet()
+            val recQueue = ArrayDeque<RemoteMedia>()
+            val tagQueues = nonNullTagPosts.map { ArrayDeque(it) }
+
+            while (tagQueues.any { it.isNotEmpty() }) {
+                for (q in tagQueues) {
+                    if (q.isNotEmpty()) {
+                        val item = q.removeFirst()
+                        if (seen.add(item.mediaKey)) {
+                            recQueue.add(item)
+                        }
+                    }
+                }
+            }
+
+            if (nonNullGeneral.isEmpty()) {
+                return recQueue.toList()
+            }
+
+            val genQueue = ArrayDeque<RemoteMedia>()
+            for (item in nonNullGeneral) {
+                if (seen.add(item.mediaKey)) {
+                    genQueue.add(item)
+                }
+            }
+
+            val result = mutableListOf<RemoteMedia>()
+            var recAcc = 0f
+            val clampedRatio = ratio.coerceIn(0.1f, 0.9f)
+
+            while (genQueue.isNotEmpty() || recQueue.isNotEmpty()) {
+                recAcc += clampedRatio
+                val pickRec = if (recAcc >= 1f && recQueue.isNotEmpty()) {
+                    recAcc -= 1f
+                    true
+                } else if (genQueue.isEmpty()) {
+                    true
+                } else {
+                    false
+                }
+
+                val item = if (pickRec && recQueue.isNotEmpty()) {
+                    recQueue.removeFirst()
+                } else if (genQueue.isNotEmpty()) {
+                    genQueue.removeFirst()
+                } else if (recQueue.isNotEmpty()) {
+                    recQueue.removeFirst()
+                } else null
+
+                if (item != null) {
+                    result.add(item)
+                }
+            }
+
+            return result
+        }
     }
 }
 
