@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         applicationId = "com.booru.app"
-        minSdk = 26
+        minSdk = 31
         targetSdk = 37
         versionCode = 12
         versionName = "5.3"
