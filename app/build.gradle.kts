@@ -10,12 +10,12 @@ plugins {
 
 android {
     namespace = "com.booru.app"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.booru.app"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 12
         versionName = "5.3"
     }
