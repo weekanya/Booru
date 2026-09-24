@@ -513,7 +513,7 @@ fun FullscreenZoomableImage(
         )
     }
 
-    val isComic = (media.width > 0 && media.height > 0 && media.height.toFloat() / media.width.toFloat() >= 2.5f) || (detectedRatio >= 2.5f)
+    val isComic = detectedRatio >= 3.0f
 
     LaunchedEffect(isActive) {
         if (!isActive) {

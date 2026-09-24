@@ -1161,7 +1161,7 @@ fun DetailZoomableImage(
         )
     }
 
-    val isTall = (media.width > 0 && media.height > 0 && media.height.toFloat() / media.width.toFloat() > 1.35f) || (detectedRatio > 1.35f)
+    val isComic = detectedRatio >= 3.0f
 
     LaunchedEffect(isActive) {
         if (!isActive) {
@@ -1185,7 +1185,7 @@ fun DetailZoomableImage(
         vm.resolveMediaUrl(media)
     }
 
-    if (isTall) {
+    if (isComic) {
         val scrollState = rememberScrollState()
         Box(
             modifier = Modifier
