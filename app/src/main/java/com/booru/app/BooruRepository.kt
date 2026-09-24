@@ -233,7 +233,7 @@ class BooruRepository(
             if (firstAuthEx != null && (targets.size == 1 || errors.size == targets.size)) {
                 throw firstAuthEx!!
             }
-            if (errors.isNotEmpty()) {
+            if (errors.size == targets.size && errors.isNotEmpty()) {
                 throw BooruException(errors.joinToString("\n"))
             }
         }
@@ -664,7 +664,13 @@ class BooruRepository(
                     } else {
                         when (key) {
                             "yande", "konachan" -> parts.add("order:id_desc")
-                            "gelbooru", "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> parts.add("sort:id:desc")
+                            "gelbooru", "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> {
+                                if ((key == "safebooru" || key == "gelbooru") && parts.size >= 2) {
+                                    Unit
+                                } else {
+                                    parts.add("sort:id:desc")
+                                }
+                            }
                         }
                     }
                 }

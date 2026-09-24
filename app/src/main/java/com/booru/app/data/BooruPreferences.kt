@@ -388,7 +388,7 @@ class BooruPreferences(private val context: Context) {
                     }
                 }
             }
-            val cleanTags = tags.map { it.trim().lowercase() }
+            val cleanTags = tags.map { it.trim().lowercase().trim(',', ';', '.', '(', ')', '"', '\'') }
                 .filter { it.isNotBlank() && it.length > 1 && !it.contains(":") && !it.startsWith("-") }
             for (tag in cleanTags) {
                 val count = (currentMap[tag] ?: 0) + 1
