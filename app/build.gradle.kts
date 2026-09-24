@@ -94,6 +94,12 @@ android {
         checkReleaseBuilds = false
         abortOnError = false
     }
+
+    packaging {
+        dex {
+            useLegacyPackaging = true
+        }
+    }
 }
 
 dependencies {
