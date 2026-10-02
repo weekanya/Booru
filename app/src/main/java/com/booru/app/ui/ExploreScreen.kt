@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
@@ -84,6 +85,7 @@ fun ExploreScreen(
     var localQuery by remember { mutableStateOf(TextFieldValue(vm.query, TextRange(vm.query.length))) }
     var showSourceSheet by remember { mutableStateOf(false) }
     var showFilterSheet by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(vm.query) {
         if (localQuery.text != vm.query) {
@@ -534,6 +536,9 @@ fun ExploreScreen(
                             else -> StaggeredGridCells.Adaptive(minSize = 175.dp)
                         }
 
+                        val pinchScaleAnim = remember { Animatable(1f) }
+                        var pinchPivot by remember { mutableStateOf(TransformOrigin.Center) }
+
                         LazyVerticalStaggeredGrid(
                             columns = gridCells,
                             state = gridState,
@@ -544,32 +549,51 @@ fun ExploreScreen(
                                 .fillMaxSize()
                                 .pointerInput(Unit) {
                                     awaitEachGesture {
-                                        var accumulatedZoom = 1f
+                                        var isPinching = false
+                                        var currentZoom = 1f
                                         do {
                                             val event = awaitPointerEvent()
                                             val downCount = event.changes.count { it.pressed }
                                             if (downCount >= 2) {
+                                                if (!isPinching) {
+                                                    isPinching = true
+                                                    currentZoom = 1f
+                                                }
                                                 val zoom = event.calculateZoom()
-                                                accumulatedZoom *= zoom
-                                                if (accumulatedZoom > 1.35f) {
-                                                    val cur = if (vm.gridColumnsCount == 0) 2 else vm.gridColumnsCount
-                                                    if (cur > 1) {
-                                                        vm.setGridColumns(cur - 1)
-                                                    }
-                                                    accumulatedZoom = 1f
-                                                } else if (accumulatedZoom < 0.75f) {
-                                                    val cur = if (vm.gridColumnsCount == 0) 2 else vm.gridColumnsCount
-                                                    if (cur < 4) {
-                                                        vm.setGridColumns(cur + 1)
-                                                    }
-                                                    accumulatedZoom = 1f
+                                                currentZoom = (currentZoom * zoom).coerceIn(0.65f, 1.55f)
+                                                scope.launch { pinchScaleAnim.snapTo(currentZoom) }
+                                                val centroid = event.calculateCentroid()
+                                                if (size.width > 0 && size.height > 0) {
+                                                    pinchPivot = TransformOrigin(
+                                                        (centroid.x / size.width).coerceIn(0f, 1f),
+                                                        (centroid.y / size.height).coerceIn(0f, 1f)
+                                                    )
                                                 }
                                                 event.changes.forEach { it.consume() }
                                             }
                                         } while (event.changes.any { it.pressed })
+
+                                        if (isPinching) {
+                                            val finalZoom = currentZoom
+                                            val cur = if (vm.gridColumnsCount == 0) 2 else vm.gridColumnsCount
+                                            if (finalZoom > 1.18f && cur > 1) {
+                                                vm.setGridColumns(cur - 1)
+                                            } else if (finalZoom < 0.84f && cur < 4) {
+                                                vm.setGridColumns(cur + 1)
+                                            }
+                                            scope.launch {
+                                                pinchScaleAnim.animateTo(
+                                                    1f,
+                                                    spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                                 .graphicsLayer {
+                                    scaleX = pinchScaleAnim.value
+                                    scaleY = pinchScaleAnim.value
+                                    transformOrigin = pinchPivot
                                     translationY = animatedPullOffset.dp.toPx()
                                 }
                         ) {
@@ -922,19 +946,17 @@ fun ExploreScreen(
                                                         Text(
                                                             text = if (suggestion.count > 0) "${suggestion.value} (${suggestion.count})" else suggestion.label.ifBlank { suggestion.value },
                                                             style = MaterialTheme.typography.bodyLarge,
-                                                            color = if (category != TagCategory.GENERAL) catColor else MaterialTheme.colorScheme.onSurface,
+                                                            color = catColor,
                                                             fontWeight = FontWeight.Medium,
                                                             maxLines = 1,
                                                             overflow = TextOverflow.Ellipsis
                                                         )
-                                                        if (category != TagCategory.GENERAL) {
-                                                            Text(
-                                                                text = category.displayName,
-                                                                style = MaterialTheme.typography.labelSmall,
-                                                                color = catColor,
-                                                                fontWeight = FontWeight.SemiBold
-                                                            )
-                                                        }
+                                                        Text(
+                                                            text = category.displayName,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = catColor.copy(alpha = 0.85f),
+                                                            fontWeight = FontWeight.SemiBold
+                                                        )
                                                     }
                                                 }
                                                 IconButton(

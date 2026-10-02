@@ -409,13 +409,35 @@ class BooruRepository(
                         }
                     }
                     "rule34" -> {
+                        val gelDeferred = async(Dispatchers.IO) {
+                            runCatching {
+                                val gUrl = "https://gelbooru.com/index.php".toHttpUrl().newBuilder().apply {
+                                    addQueryParameter("page", "autocomplete2")
+                                    addQueryParameter("term", q)
+                                }.build()
+                                val gReq = Request.Builder().url(gUrl).header("User-Agent", USER_AGENT).header("Referer", "https://gelbooru.com/").build()
+                                client.newCall(gReq).execute().use { resp ->
+                                    if (!resp.isSuccessful) return@runCatching emptyMap<String, String>()
+                                    val gBody = resp.body?.string() ?: return@runCatching emptyMap<String, String>()
+                                    val gArr = JSONArray(gBody)
+                                    val map = mutableMapOf<String, String>()
+                                    for (j in 0 until gArr.length()) {
+                                        val obj = gArr.getJSONObject(j)
+                                        val v = obj.optString("value").lowercase()
+                                        val cat = obj.optString("category", "")
+                                        if (v.isNotBlank() && cat.isNotBlank()) map[v] = cat
+                                    }
+                                    map
+                                }
+                            }.getOrDefault(emptyMap())
+                        }
                         val url = "https://api.rule34.xxx/autocomplete.php".toHttpUrl().newBuilder().apply {
                             addQueryParameter("q", q)
                         }.build()
                         val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
-                        client.newCall(req).execute().use { response ->
-                            if (!response.isSuccessful) return@runCatching emptyList()
-                            val body = response.body?.string() ?: return@runCatching emptyList()
+                        val r34List = client.newCall(req).execute().use { response ->
+                            if (!response.isSuccessful) return@use emptyList<TagSuggestion>()
+                            val body = response.body?.string() ?: return@use emptyList<TagSuggestion>()
                             val arr = JSONArray(body)
                             val list = mutableListOf<TagSuggestion>()
                             for (i in 0 until arr.length()) {
@@ -428,15 +450,45 @@ class BooruRepository(
                             }
                             list
                         }
+                        val catMap = gelDeferred.await()
+                        r34List.map { s ->
+                            if (s.type.isBlank() && catMap.containsKey(s.value.lowercase())) {
+                                s.copy(type = catMap[s.value.lowercase()] ?: "")
+                            } else {
+                                s
+                            }
+                        }
                     }
                     "safebooru" -> {
+                        val gelDeferred = async(Dispatchers.IO) {
+                            runCatching {
+                                val gUrl = "https://gelbooru.com/index.php".toHttpUrl().newBuilder().apply {
+                                    addQueryParameter("page", "autocomplete2")
+                                    addQueryParameter("term", q)
+                                }.build()
+                                val gReq = Request.Builder().url(gUrl).header("User-Agent", USER_AGENT).header("Referer", "https://gelbooru.com/").build()
+                                client.newCall(gReq).execute().use { resp ->
+                                    if (!resp.isSuccessful) return@runCatching emptyMap<String, String>()
+                                    val gBody = resp.body?.string() ?: return@runCatching emptyMap<String, String>()
+                                    val gArr = JSONArray(gBody)
+                                    val map = mutableMapOf<String, String>()
+                                    for (j in 0 until gArr.length()) {
+                                        val obj = gArr.getJSONObject(j)
+                                        val v = obj.optString("value").lowercase()
+                                        val cat = obj.optString("category", "")
+                                        if (v.isNotBlank() && cat.isNotBlank()) map[v] = cat
+                                    }
+                                    map
+                                }
+                            }.getOrDefault(emptyMap())
+                        }
                         val url = "https://safebooru.org/autocomplete.php".toHttpUrl().newBuilder().apply {
                             addQueryParameter("q", q)
                         }.build()
                         val req = Request.Builder().url(url).header("User-Agent", USER_AGENT).build()
-                        client.newCall(req).execute().use { response ->
-                            if (!response.isSuccessful) return@runCatching emptyList()
-                            val body = response.body?.string() ?: return@runCatching emptyList()
+                        val safeList = client.newCall(req).execute().use { response ->
+                            if (!response.isSuccessful) return@use emptyList<TagSuggestion>()
+                            val body = response.body?.string() ?: return@use emptyList<TagSuggestion>()
                             val arr = JSONArray(body)
                             val list = mutableListOf<TagSuggestion>()
                             for (i in 0 until arr.length()) {
@@ -448,6 +500,14 @@ class BooruRepository(
                                 if (value.isNotBlank()) list.add(TagSuggestion(value, label.ifBlank { value }, count, type))
                             }
                             list
+                        }
+                        val catMap = gelDeferred.await()
+                        safeList.map { s ->
+                            if (s.type.isBlank() && catMap.containsKey(s.value.lowercase())) {
+                                s.copy(type = catMap[s.value.lowercase()] ?: "")
+                            } else {
+                                s
+                            }
                         }
                     }
                     "gelbooru" -> {

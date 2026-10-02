@@ -27,11 +27,13 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -158,6 +160,7 @@ fun MediaDetailSheet(
     var isDownloading by remember { mutableStateOf(false) }
     var isTagsExpanded by remember { mutableStateOf(false) }
     var showTrueFullscreen by remember { mutableStateOf(false) }
+    var showMoreMenu by remember { mutableStateOf(false) }
 
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var isDismissingSheet by remember { mutableStateOf(false) }
@@ -381,6 +384,26 @@ fun MediaDetailSheet(
                         }
                     }
                 }
+
+                Surface(
+                    onClick = { showTrueFullscreen = true },
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.55f),
+                    contentColor = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(12.dp)
+                        .size(38.dp)
+                        .bouncyPress()
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Rounded.Fullscreen,
+                            contentDescription = Strings.fullscreen(lang),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
 
             Spacer(Modifier.height(14.dp))
@@ -395,7 +418,7 @@ fun MediaDetailSheet(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -407,36 +430,36 @@ fun MediaDetailSheet(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
-                        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
                         modifier = Modifier
-                            .height(44.dp)
+                            .height(40.dp)
                             .bouncyPress()
                     ) {
                         if (isDownloading) {
                             CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.5.dp,
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
                                 color = MaterialTheme.colorScheme.onPrimary
                             )
-                            Spacer(Modifier.width(8.dp))
+                            Spacer(Modifier.width(6.dp))
                             Text(
                                 text = Strings.loadingOriginal(lang),
                                 fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.labelLarge
+                                style = MaterialTheme.typography.labelMedium
                             )
                         } else {
-                            Icon(Icons.Rounded.Download, null, Modifier.size(20.dp))
-                            Spacer(Modifier.width(8.dp))
+                            Icon(Icons.Rounded.Download, null, Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
                             Text(
                                 text = Strings.downloadBtn(lang),
                                 fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.labelLarge
+                                style = MaterialTheme.typography.labelMedium
                             )
                         }
                     }
 
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         val isFav = vm.isFavorite(currentMedia)
@@ -451,7 +474,7 @@ fun MediaDetailSheet(
                         FilledTonalIconButton(
                             onClick = { vm.toggleFavorite(currentMedia) },
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(40.dp)
                                 .bouncyPress(),
                             shape = CircleShape,
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
@@ -462,19 +485,19 @@ fun MediaDetailSheet(
                             Icon(
                                 imageVector = if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                                 contentDescription = "Favorite",
-                                modifier = Modifier.size(22.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
 
                         AnimatedVisibility(
                             visible = isFav,
-                            enter = fadeIn(tween(180)) + scaleIn(tween(220)),
-                            exit = fadeOut(tween(140)) + scaleOut(tween(180))
+                            enter = fadeIn(tween(180)) + expandHorizontally(tween(200)),
+                            exit = fadeOut(tween(140)) + shrinkHorizontally(tween(180))
                         ) {
                             FilledTonalIconButton(
                                 onClick = { showFolderDialog = true },
                                 modifier = Modifier
-                                    .size(44.dp)
+                                    .size(40.dp)
                                     .bouncyPress(),
                                 shape = CircleShape,
                                 colors = IconButtonDefaults.filledTonalIconButtonColors(
@@ -485,38 +508,27 @@ fun MediaDetailSheet(
                                 Icon(
                                     imageVector = if (vm.getMediaFolder(currentMedia.id) != null) Icons.Rounded.Folder else Icons.Rounded.FolderOpen,
                                     contentDescription = Strings.addToFolder(lang),
-                                    modifier = Modifier.size(22.dp)
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
 
-                        if (!currentMedia.isVideo) {
-                            FilledTonalIconButton(
-                                onClick = { showWallpaperDialog = true },
-                                enabled = !isSettingWallpaper,
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .bouncyPress(),
-                                shape = CircleShape,
-                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            ) {
-                                if (isSettingWallpaper) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(20.dp),
-                                        strokeWidth = 2.5.dp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                } else {
-                                    Icon(
-                                        Icons.Rounded.Wallpaper,
-                                        contentDescription = Strings.setWallpaperTitle(lang),
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                            }
+                        FilledTonalIconButton(
+                            onClick = { showTrueFullscreen = true },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .bouncyPress(),
+                            shape = CircleShape,
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        ) {
+                            Icon(
+                                Icons.Rounded.Fullscreen,
+                                contentDescription = Strings.fullscreen(lang),
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
 
                         FilledTonalIconButton(
@@ -529,7 +541,7 @@ fun MediaDetailSheet(
                                 context.startActivity(Intent.createChooser(shareIntent, Strings.share(lang)))
                             },
                             modifier = Modifier
-                                .size(44.dp)
+                                .size(40.dp)
                                 .bouncyPress(),
                             shape = CircleShape,
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
@@ -540,51 +552,61 @@ fun MediaDetailSheet(
                             Icon(
                                 Icons.Rounded.Share,
                                 contentDescription = "Share",
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(19.dp)
                             )
                         }
 
-                        FilledTonalIconButton(
-                            onClick = {
-                                val browserUrl = currentMedia.postWebUrl.ifBlank { currentMedia.url.ifBlank { currentMedia.sample } }
-                                runCatching {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(browserUrl)))
-                                }.onFailure {
-                                    Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
+                        Box {
+                            FilledTonalIconButton(
+                                onClick = { showMoreMenu = true },
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .bouncyPress(),
+                                shape = CircleShape,
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            ) {
+                                Icon(
+                                    Icons.Rounded.MoreVert,
+                                    contentDescription = "More",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = showMoreMenu,
+                                onDismissRequest = { showMoreMenu = false }
+                            ) {
+                                if (!currentMedia.isVideo) {
+                                    DropdownMenuItem(
+                                        text = { Text(Strings.setWallpaperTitle(lang)) },
+                                        leadingIcon = {
+                                            Icon(Icons.Rounded.Wallpaper, null, modifier = Modifier.size(20.dp))
+                                        },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            showWallpaperDialog = true
+                                        }
+                                    )
                                 }
-                            },
-                            modifier = Modifier
-                                .size(44.dp)
-                                .bouncyPress(),
-                            shape = CircleShape,
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        ) {
-                            Icon(
-                                Icons.AutoMirrored.Rounded.OpenInNew,
-                                contentDescription = "Open in browser",
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        FilledTonalIconButton(
-                            onClick = { showTrueFullscreen = true },
-                            modifier = Modifier
-                                .size(44.dp)
-                                .bouncyPress(),
-                            shape = CircleShape,
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        ) {
-                            Icon(
-                                Icons.Rounded.Fullscreen,
-                                contentDescription = Strings.fullscreen(lang),
-                                modifier = Modifier.size(22.dp)
-                            )
+                                DropdownMenuItem(
+                                    text = { Text(if (lang == AppLanguage.RUSSIAN) "Открыть в браузере" else "Open in browser") },
+                                    leadingIcon = {
+                                        Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, modifier = Modifier.size(20.dp))
+                                    },
+                                    onClick = {
+                                        showMoreMenu = false
+                                        val browserUrl = currentMedia.postWebUrl.ifBlank { currentMedia.url.ifBlank { currentMedia.sample } }
+                                        runCatching {
+                                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(browserUrl)))
+                                        }.onFailure {
+                                            Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -894,7 +916,13 @@ fun MediaDetailSheet(
                         )
                     }
                     IconButton(
-                        onClick = { showWallpaperDialog = false },
+                        onClick = {
+                            coroutineScope.launch {
+                                wallpaperSheetState.hide()
+                            }.invokeOnCompletion {
+                                showWallpaperDialog = false
+                            }
+                        },
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
@@ -913,17 +941,38 @@ fun MediaDetailSheet(
                     WallpaperOptionItem(
                         icon = Icons.Rounded.Smartphone,
                         title = Strings.wallpaperHomeScreen(lang),
-                        onClick = { applyWallpaper(1, currentMedia) }
+                        onClick = {
+                            coroutineScope.launch {
+                                wallpaperSheetState.hide()
+                            }.invokeOnCompletion {
+                                showWallpaperDialog = false
+                            }
+                            applyWallpaper(1, currentMedia)
+                        }
                     )
                     WallpaperOptionItem(
                         icon = Icons.Rounded.Lock,
                         title = Strings.wallpaperLockScreen(lang),
-                        onClick = { applyWallpaper(2, currentMedia) }
+                        onClick = {
+                            coroutineScope.launch {
+                                wallpaperSheetState.hide()
+                            }.invokeOnCompletion {
+                                showWallpaperDialog = false
+                            }
+                            applyWallpaper(2, currentMedia)
+                        }
                     )
                     WallpaperOptionItem(
                         icon = Icons.Rounded.Wallpaper,
                         title = Strings.wallpaperBoth(lang),
-                        onClick = { applyWallpaper(3, currentMedia) }
+                        onClick = {
+                            coroutineScope.launch {
+                                wallpaperSheetState.hide()
+                            }.invokeOnCompletion {
+                                showWallpaperDialog = false
+                            }
+                            applyWallpaper(3, currentMedia)
+                        }
                     )
                 }
             }
@@ -956,7 +1005,11 @@ fun MediaDetailSheet(
                 Surface(
                     onClick = {
                         vm.setMediaFolder(currentMedia.id, null)
-                        showFolderDialog = false
+                        coroutineScope.launch {
+                            folderSheetState.hide()
+                        }.invokeOnCompletion {
+                            showFolderDialog = false
+                        }
                     },
                     shape = RoundedCornerShape(16.dp),
                     color = if (currentFolder == null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -979,7 +1032,11 @@ fun MediaDetailSheet(
                     Surface(
                         onClick = {
                             vm.setMediaFolder(currentMedia.id, folder)
-                            showFolderDialog = false
+                            coroutineScope.launch {
+                                folderSheetState.hide()
+                            }.invokeOnCompletion {
+                                showFolderDialog = false
+                            }
                         },
                         shape = RoundedCornerShape(16.dp),
                         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -1074,7 +1131,13 @@ fun MediaDetailSheet(
                         }
                     }
                     IconButton(
-                        onClick = { selectedTagForAction = null },
+                        onClick = {
+                            coroutineScope.launch {
+                                tagSheetState.hide()
+                            }.invokeOnCompletion {
+                                selectedTagForAction = null
+                            }
+                        },
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
@@ -1097,10 +1160,14 @@ fun MediaDetailSheet(
                             .fillMaxWidth()
                             .bouncyPress()
                             .clickable {
-                                vm.searchTag(currentActionTag, currentMedia.sourceId.ifBlank { currentMedia.source })
-                                selectedTagForAction = null
-                                onDismiss()
-                                onNavigateToExplore?.invoke()
+                                coroutineScope.launch {
+                                    tagSheetState.hide()
+                                }.invokeOnCompletion {
+                                    selectedTagForAction = null
+                                    vm.searchTag(currentActionTag, currentMedia.sourceId.ifBlank { currentMedia.source })
+                                    onDismiss()
+                                    onNavigateToExplore?.invoke()
+                                }
                             }
                     ) {
                         Row(
@@ -1141,7 +1208,11 @@ fun MediaDetailSheet(
                                 val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                 cm.setPrimaryClip(ClipData.newPlainText("Tag", currentActionTag))
                                 Toast.makeText(context, Strings.tagCopied(lang), Toast.LENGTH_SHORT).show()
-                                selectedTagForAction = null
+                                coroutineScope.launch {
+                                    tagSheetState.hide()
+                                }.invokeOnCompletion {
+                                    selectedTagForAction = null
+                                }
                             }
                     ) {
                         Row(
@@ -1185,12 +1256,21 @@ fun MediaDetailSheet(
                                 if (isBlacklisted) {
                                     vm.removeBlacklistedTag(currentActionTag)
                                     Toast.makeText(context, Strings.tagRemovedFromBlacklist(currentActionTag, lang), Toast.LENGTH_SHORT).show()
+                                    coroutineScope.launch {
+                                        tagSheetState.hide()
+                                    }.invokeOnCompletion {
+                                        selectedTagForAction = null
+                                    }
                                 } else {
                                     vm.addBlacklistedTag(currentActionTag)
                                     Toast.makeText(context, Strings.tagAddedToBlacklist(currentActionTag, lang), Toast.LENGTH_SHORT).show()
-                                    onDismiss()
+                                    coroutineScope.launch {
+                                        tagSheetState.hide()
+                                    }.invokeOnCompletion {
+                                        selectedTagForAction = null
+                                        onDismiss()
+                                    }
                                 }
-                                selectedTagForAction = null
                             }
                     ) {
                         Row(
@@ -2127,34 +2207,6 @@ fun BooruVideoPlayer(
                                 tint = Color.White,
                                 modifier = Modifier.size(18.dp)
                             )
-                        }
-
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            FilledTonalIconButton(
-                                onClick = {
-                                    val act = context as? Activity
-                                    if (act != null) {
-                                        val params = android.app.PictureInPictureParams.Builder()
-                                            .setAspectRatio(android.util.Rational(16, 9))
-                                            .build()
-                                        act.enterPictureInPictureMode(params)
-                                    }
-                                },
-                                shape = CircleShape,
-                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = Color.Black.copy(alpha = 0.5f)
-                                ),
-                                modifier = Modifier
-                                    .size(34.dp)
-                                    .bouncyPress()
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.PictureInPictureAlt,
-                                    contentDescription = "PiP",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
                         }
                     }
                 }

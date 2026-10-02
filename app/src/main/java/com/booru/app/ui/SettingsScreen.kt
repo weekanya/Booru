@@ -76,6 +76,7 @@ fun SettingsScreen(
 ) {
     val context = LocalContext.current
     val lang = vm.language
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         vm.updateCacheSize()
@@ -168,7 +169,9 @@ fun SettingsScreen(
                         }
                     }
                     IconButton(
-                        onClick = { showRule34Dialog = false },
+                        onClick = {
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { showRule34Dialog = false }
+                        },
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
@@ -236,7 +239,7 @@ fun SettingsScreen(
                 Button(
                     onClick = {
                         vm.saveRule34Keys(rule34User, rule34Key)
-                        showRule34Dialog = false
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { showRule34Dialog = false }
                         Toast.makeText(context, Strings.keysSavedToast(lang), Toast.LENGTH_SHORT).show()
                     },
                     shape = RoundedCornerShape(14.dp),
@@ -314,7 +317,9 @@ fun SettingsScreen(
                         }
                     }
                     IconButton(
-                        onClick = { showGelbooruDialog = false },
+                        onClick = {
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { showGelbooruDialog = false }
+                        },
                         modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
@@ -382,7 +387,7 @@ fun SettingsScreen(
                 Button(
                     onClick = {
                         vm.saveGelbooruKeys(gelbooruUser, gelbooruKey)
-                        showGelbooruDialog = false
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { showGelbooruDialog = false }
                         Toast.makeText(context, Strings.keysSavedToast(lang), Toast.LENGTH_SHORT).show()
                     },
                     shape = RoundedCornerShape(14.dp),
@@ -503,6 +508,7 @@ fun SettingsScreen(
                     Surface(
                         onClick = {
                             vm.updateImageQuality(q)
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { showQualityDialog = false }
                         },
                         shape = RoundedCornerShape(18.dp),
                         color = containerColor,
@@ -629,6 +635,22 @@ fun SettingsScreen(
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
+                    IconButton(
+                        onClick = {
+                            scope.launch { sheetState.hide() }.invokeOnCompletion {
+                                showAddCustomSourceDialog = false
+                                editingCustomSource = null
+                            }
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.Close,
+                            contentDescription = "Close",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 }
 
                 OutlinedTextField(
@@ -735,7 +757,7 @@ fun SettingsScreen(
                             customApiKey = ""
                             customUserId = ""
                             editingCustomSource = null
-                            showAddCustomSourceDialog = false
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { showAddCustomSourceDialog = false }
                         }
                     },
                     shape = RoundedCornerShape(20.dp),
@@ -864,8 +886,10 @@ fun SettingsScreen(
                     }
                     IconButton(
                         onClick = {
-                            showBlacklistDialog = false
-                            blacklistFilterQuery = ""
+                            scope.launch { sheetState.hide() }.invokeOnCompletion {
+                                showBlacklistDialog = false
+                                blacklistFilterQuery = ""
+                            }
                         },
                         modifier = Modifier.size(32.dp)
                     ) {
@@ -1145,8 +1169,10 @@ fun SettingsScreen(
 
                     Button(
                         onClick = {
-                            showBlacklistDialog = false
-                            blacklistFilterQuery = ""
+                            scope.launch { sheetState.hide() }.invokeOnCompletion {
+                                showBlacklistDialog = false
+                                blacklistFilterQuery = ""
+                            }
                         },
                         shape = RoundedCornerShape(14.dp),
                         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
@@ -1250,7 +1276,7 @@ fun SettingsScreen(
                     Surface(
                         onClick = {
                             vm.updatePalette(pal)
-                            showPaletteDialog = false
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { showPaletteDialog = false }
                         },
                         shape = RoundedCornerShape(18.dp),
                         color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,

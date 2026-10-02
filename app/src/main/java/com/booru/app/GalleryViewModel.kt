@@ -1136,19 +1136,23 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun toggleFavorite(media: RemoteMedia) {
+        val key = media.mediaKey
+        val wasFav = key in favoriteKeys
+        if (wasFav) {
+            favoriteKeys = favoriteKeys - key
+            val remaining = favoritesList.filterNot { it.mediaKey == key }
+            favoritesList = remaining
+        } else {
+            favoriteKeys = favoriteKeys + key
+            favoritesList = favoritesList + media
+        }
         viewModelScope.launch {
             favoriteMutex.withLock {
-                val key = media.mediaKey
-                val wasFav = isFavorite(media)
                 if (wasFav) {
-                    favoriteKeys = favoriteKeys - key
                     val remaining = favoritesList.filterNot { it.mediaKey == key }
-                    favoritesList = remaining
                     favoriteDao.deleteByKey(key)
                     BooruCacheManager.removeFavoriteMedia(getApplication(), media, remaining)
                 } else {
-                    favoriteKeys = favoriteKeys + key
-                    favoritesList = favoritesList + media
                     favoriteDao.insert(FavoriteEntity.fromRemoteMedia(media))
                     BooruCacheManager.saveFavoriteMedia(getApplication(), media)
                     if (!isIncognito) {

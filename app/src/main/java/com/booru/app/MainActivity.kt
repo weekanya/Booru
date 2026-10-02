@@ -1,7 +1,6 @@
 package com.booru.app
 
 import android.app.Activity
-import android.app.PictureInPictureParams
 import android.content.Intent
 import android.content.res.Configuration
 import android.hardware.biometrics.BiometricManager
@@ -81,7 +80,6 @@ import com.booru.app.ui.SettingsScreen
 class MainActivity : ComponentActivity() {
     private var lastBackgroundTime = 0L
     private val isAppLocked = mutableStateOf(false)
-    private var isPipActive = mutableStateOf(false)
     private var hasUnlockedOnce = false
     private val vm by lazy { ViewModelProvider(this)[GalleryViewModel::class.java] }
 
@@ -100,7 +98,6 @@ class MainActivity : ComponentActivity() {
             BooruApp(
                 vm = vm,
                 isAppLocked = isAppLocked.value,
-                isPipActive = isPipActive.value,
                 onUnlockRequest = { promptBiometric() },
                 onLockNeeded = {
                     if (!hasUnlockedOnce) {
@@ -114,7 +111,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        if (!isPipActive.value && vm.biometricLockEnabled) {
+        if (vm.biometricLockEnabled) {
             val timeoutMs = vm.biometricLockTimeoutMin * 60 * 1000L
             val elapsed = System.currentTimeMillis() - lastBackgroundTime
             if (!hasUnlockedOnce || (lastBackgroundTime != 0L && elapsed >= timeoutMs)) {
@@ -126,29 +123,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onStop() {
         super.onStop()
-        if (!isChangingConfigurations && !isPipActive.value) {
+        if (!isChangingConfigurations) {
             lastBackgroundTime = System.currentTimeMillis()
         }
-    }
-
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val current = vm.fullscreenState?.let { it.list.getOrNull(it.index) }
-            if (current != null && current.isVideo) {
-                runCatching {
-                    val params = PictureInPictureParams.Builder()
-                        .setAspectRatio(android.util.Rational(16, 9))
-                        .build()
-                    enterPictureInPictureMode(params)
-                }
-            }
-        }
-    }
-
-    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
-        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
-        isPipActive.value = isInPictureInPictureMode
     }
 
     private fun promptBiometric() {
@@ -204,7 +181,6 @@ private data class NavItemData(
 fun BooruApp(
     vm: GalleryViewModel = viewModel(),
     isAppLocked: Boolean = false,
-    isPipActive: Boolean = false,
     onUnlockRequest: () -> Unit = {},
     onLockNeeded: () -> Unit = {}
 ) {
@@ -368,10 +344,9 @@ fun BooruApp(
                                 }
                             }
 
-                            if (!isPipActive) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     tonalElevation = 6.dp,
                                     shadowElevation = 8.dp,
                                     modifier = Modifier
@@ -492,7 +467,6 @@ fun BooruApp(
                                     }
                                 }
                             }
-                        }
                     }
 
                     if (isWideScreen) {
@@ -558,6 +532,7 @@ fun BooruApp(
 
         vm.manualCheckResult?.let { result ->
             val checkSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+            val scope = rememberCoroutineScope()
             ModalBottomSheet(
                 onDismissRequest = { vm.clearManualCheckResult() },
                 sheetState = checkSheetState,
@@ -611,7 +586,9 @@ fun BooruApp(
                     )
                     Spacer(Modifier.height(24.dp))
                     Button(
-                        onClick = { vm.clearManualCheckResult() },
+                        onClick = {
+                            scope.launch { checkSheetState.hide() }.invokeOnCompletion { vm.clearManualCheckResult() }
+                        },
                         shape = RoundedCornerShape(20.dp),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -637,6 +614,7 @@ private fun UpdateBottomSheet(
 ) {
     val context = LocalContext.current
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
 
     ModalBottomSheet(
         onDismissRequest = {
@@ -850,7 +828,10 @@ private fun UpdateBottomSheet(
 
             if (vm.isDownloadingUpdate) {
                 OutlinedButton(
-                    onClick = { vm.cancelUpdateDownload() },
+                    onClick = {
+                        vm.cancelUpdateDownload()
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                    },
                     shape = RoundedCornerShape(20.dp),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
                     modifier = Modifier
@@ -928,7 +909,7 @@ private fun UpdateBottomSheet(
                             val targetUrl = info.apkDownloadUrl ?: info.releaseUrl
                             val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
                             context.startActivity(intent)
-                            vm.dismissUpdate()
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { vm.dismissUpdate() }
                         },
                         shape = RoundedCornerShape(20.dp),
                         modifier = Modifier
@@ -970,6 +951,7 @@ private fun UpdateBottomSheet(
                     TextButton(
                         onClick = {
                             vm.ignoreUpdate(info.latestVersion)
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                         },
                         shape = CircleShape,
                         modifier = Modifier.bouncyPress()
@@ -981,7 +963,9 @@ private fun UpdateBottomSheet(
                         )
                     }
                     TextButton(
-                        onClick = onDismiss,
+                        onClick = {
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                        },
                         shape = CircleShape,
                         modifier = Modifier.bouncyPress()
                     ) {

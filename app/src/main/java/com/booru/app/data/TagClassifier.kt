@@ -47,10 +47,10 @@ enum class TagCategory(
     ),
     GENERAL(
         displayName = "General",
-        lightContainer = Color.Unspecified,
-        darkContainer = Color.Unspecified,
-        lightContent = Color.Unspecified,
-        darkContent = Color.Unspecified,
+        lightContainer = Color(0xFFE3F2FD),
+        darkContainer = Color(0xFF152A3D),
+        lightContent = Color(0xFF1976D2),
+        darkContent = Color(0xFF90CAF9),
         icon = Icons.Rounded.Tag
     );
 
@@ -116,9 +116,9 @@ object TagClassifier {
             hint == "3" || hint == "copyright" || hint == "series" || hint == "copy" -> TagCategory.COPYRIGHT
             hint == "5" || hint == "meta" || hint == "metadata" -> TagCategory.META
             hint == "0" || hint == "general" || hint == "tag" -> TagCategory.GENERAL
-            lower.startsWith("artist:") || lower.startsWith("art:") -> TagCategory.ARTIST
+            lower.startsWith("artist:") || lower.startsWith("art:") || lower.endsWith("_(artist)") || lower.endsWith("_(style)") || lower.startsWith("by_") -> TagCategory.ARTIST
             lower.startsWith("character:") || lower.startsWith("char:") -> TagCategory.CHARACTER
-            lower.startsWith("copyright:") || lower.startsWith("series:") || lower.startsWith("copy:") -> TagCategory.COPYRIGHT
+            lower.startsWith("copyright:") || lower.startsWith("series:") || lower.startsWith("copy:") || lower.endsWith("_(series)") || lower.endsWith("_(franchise)") || lower.endsWith("_(game)") || lower.endsWith("_(anime)") -> TagCategory.COPYRIGHT
             lower.startsWith("meta:") || lower.startsWith("metadata:") || lower in KNOWN_META_TAGS -> TagCategory.META
             lower.endsWith("_request") || lower.contains("commentary") || lower.contains("translated") -> TagCategory.META
             lower.endsWith("res") || lower.contains("filesize") -> TagCategory.META

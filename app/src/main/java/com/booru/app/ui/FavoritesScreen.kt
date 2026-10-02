@@ -1,5 +1,6 @@
 package com.booru.app.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -13,7 +14,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -63,6 +66,7 @@ import com.booru.app.data.AppLanguage
 import com.booru.app.data.ImageQuality
 import com.booru.app.data.Strings
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 enum class FavoriteMediaTypeFilter {
     ALL,
@@ -87,6 +91,7 @@ fun FavoritesScreen(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val gridState = rememberLazyStaggeredGridState()
+    val scope = rememberCoroutineScope()
 
     var filterText by rememberSaveable { mutableStateOf("") }
     var mediaTypeFilter by rememberSaveable { mutableStateOf(FavoriteMediaTypeFilter.ALL) }
@@ -468,190 +473,147 @@ fun FavoritesScreen(
         }
 
         if (folderToDelete != null) {
-            val toDelete = folderToDelete!!
-            AlertDialog(
-                onDismissRequest = { folderToDelete = null },
-                title = {
-                    Text(if (lang == AppLanguage.RUSSIAN) "Удалить коллекцию?" else "Delete collection?")
+            DeleteFolderBottomSheet(
+                folderName = folderToDelete!!,
+                lang = lang,
+                onConfirm = {
+                    val toDelete = folderToDelete!!
+                    if (selectedFolder == toDelete) selectedFolder = null
+                    vm.removeCustomFolder(toDelete)
+                    folderToDelete = null
                 },
-                text = {
-                    Text(
-                        if (lang == AppLanguage.RUSSIAN)
-                            "Коллекция «$toDelete» будет удалена. Медиафайлы останутся в общем избранном."
-                        else
-                            "Collection \"$toDelete\" will be removed. Media items will remain in favorites."
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            if (selectedFolder == toDelete) selectedFolder = null
-                            vm.removeCustomFolder(toDelete)
-                            folderToDelete = null
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error,
-                            contentColor = MaterialTheme.colorScheme.onError
-                        ),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Text(if (lang == AppLanguage.RUSSIAN) "Удалить" else "Delete")
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = { folderToDelete = null },
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Text(Strings.cancelBtn(lang))
-                    }
-                },
-                shape = RoundedCornerShape(24.dp)
+                onDismiss = { folderToDelete = null }
             )
         }
 
         if (showCreateFolderDialog) {
-            AlertDialog(
-                onDismissRequest = { showCreateFolderDialog = false },
-                title = { Text(Strings.newFolder(lang)) },
-                text = {
-                    OutlinedTextField(
-                        value = newFolderName,
-                        onValueChange = { newFolderName = it },
-                        placeholder = { Text(Strings.folderNamePlaceholder(lang)) },
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+            CreateFolderBottomSheet(
+                lang = lang,
+                onConfirm = { name ->
+                    vm.addCustomFolder(name)
+                    selectedFolder = name
+                    showCreateFolderDialog = false
                 },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            val trimmed = newFolderName.trim()
-                            if (trimmed.isNotBlank()) {
-                                vm.addCustomFolder(trimmed)
-                                selectedFolder = trimmed
-                            }
-                            showCreateFolderDialog = false
-                        }
-                    ) {
-                        Text(Strings.create(lang))
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showCreateFolderDialog = false }) {
-                        Text(Strings.closeBtn(lang))
-                    }
-                }
+                onDismiss = { showCreateFolderDialog = false }
             )
         }
 
-        if (vm.favoritesList.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(horizontal = 32.dp)
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        modifier = Modifier.size(88.dp)
+        AnimatedContent(
+            targetState = selectedFolder,
+            transitionSpec = {
+                (fadeIn(animationSpec = tween(220, delayMillis = 30)) + scaleIn(initialScale = 0.97f, animationSpec = tween(220)))
+                    .togetherWith(fadeOut(animationSpec = tween(150)))
+            },
+            label = "favoriteFolderContentTransition",
+            modifier = Modifier.fillMaxSize()
+        ) { _ ->
+            if (vm.favoritesList.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(horizontal = 32.dp)
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Rounded.FavoriteBorder,
-                                contentDescription = null,
-                                modifier = Modifier.size(44.dp),
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        Strings.favoritesEmptyTitle(lang),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        Strings.favoritesEmptyDesc(lang),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(Modifier.height(24.dp))
-                    Button(
-                        onClick = onNavigateToExplore,
-                        shape = CircleShape
-                    ) {
-                        Icon(Icons.Rounded.Explore, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(Strings.goToExplore(lang))
-                    }
-                }
-            }
-        } else if (filteredList.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        Strings.nothingFound(lang),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    TextButton(
-                        onClick = {
-                            filterText = ""
-                            mediaTypeFilter = FavoriteMediaTypeFilter.ALL
-                            selectedFolder = null
-                        }
-                    ) {
-                        Text(Strings.clearBtn(lang))
-                    }
-                }
-            }
-        } else {
-            val gridCells = when (vm.gridColumnsCount) {
-                1 -> StaggeredGridCells.Fixed(1)
-                2 -> StaggeredGridCells.Fixed(2)
-                3 -> StaggeredGridCells.Fixed(3)
-                4 -> StaggeredGridCells.Fixed(4)
-                else -> StaggeredGridCells.Adaptive(minSize = 175.dp)
-            }
-            LazyVerticalStaggeredGrid(
-                state = gridState,
-                columns = gridCells,
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 86.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalItemSpacing = 8.dp,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                itemsIndexed(
-                    items = filteredList,
-                    key = { _, m -> "${m.source}_${m.id.ifBlank { m.url }}" }
-                ) { index, media ->
-                    val ratio = remember(media.id, media.width, media.height) {
-                        if (media.width > 0 && media.height > 0) {
-                            (media.width.toFloat() / media.height.toFloat()).coerceIn(0.55f, 1.6f)
-                        } else {
-                            when ((media.id.hashCode() and 0x7FFFFFFF) % 3) {
-                                0 -> 3f / 4f
-                                1 -> 2f / 3f
-                                else -> 1f
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.size(88.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Rounded.FavoriteBorder,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(44.dp),
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
                             }
                         }
-                    }
-                    FavoriteCard(
-                        media = media,
-                        aspectRatio = ratio,
-                        quality = vm.imageQuality,
-                        onRemove = { vm.toggleFavorite(media) },
-                        onClick = {
-                            focusManager.clearFocus()
-                            keyboardController?.hide()
-                            vm.openFullscreen(filteredList, index)
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            Strings.favoritesEmptyTitle(lang),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            Strings.favoritesEmptyDesc(lang),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(24.dp))
+                        Button(
+                            onClick = onNavigateToExplore,
+                            shape = CircleShape
+                        ) {
+                            Icon(Icons.Rounded.Explore, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(Strings.goToExplore(lang))
                         }
-                    )
+                    }
+                }
+            } else if (filteredList.isEmpty()) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            Strings.nothingFound(lang),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        TextButton(
+                            onClick = {
+                                filterText = ""
+                                mediaTypeFilter = FavoriteMediaTypeFilter.ALL
+                                selectedFolder = null
+                            }
+                        ) {
+                            Text(Strings.clearBtn(lang))
+                        }
+                    }
+                }
+            } else {
+                val gridCells = when (vm.gridColumnsCount) {
+                    1 -> StaggeredGridCells.Fixed(1)
+                    2 -> StaggeredGridCells.Fixed(2)
+                    3 -> StaggeredGridCells.Fixed(3)
+                    4 -> StaggeredGridCells.Fixed(4)
+                    else -> StaggeredGridCells.Adaptive(minSize = 175.dp)
+                }
+                LazyVerticalStaggeredGrid(
+                    state = gridState,
+                    columns = gridCells,
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 86.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalItemSpacing = 8.dp,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    itemsIndexed(
+                        items = filteredList,
+                        key = { _, m -> "${m.source}_${m.id.ifBlank { m.url }}" }
+                    ) { index, media ->
+                        val ratio = remember(media.id, media.width, media.height) {
+                            if (media.width > 0 && media.height > 0) {
+                                (media.width.toFloat() / media.height.toFloat()).coerceIn(0.55f, 1.6f)
+                            } else {
+                                when ((media.id.hashCode() and 0x7FFFFFFF) % 3) {
+                                    0 -> 3f / 4f
+                                    1 -> 2f / 3f
+                                    else -> 1f
+                                }
+                            }
+                        }
+                        FavoriteCard(
+                            media = media,
+                            aspectRatio = ratio,
+                            quality = vm.imageQuality,
+                            onRemove = { vm.toggleFavorite(media) },
+                            onClick = {
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                                vm.openFullscreen(filteredList, index)
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -673,6 +635,7 @@ private fun FavoritesFilterBottomSheet(
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -825,7 +788,9 @@ private fun FavoritesFilterBottomSheet(
             Spacer(Modifier.height(24.dp))
 
             Button(
-                onClick = onDismiss,
+                onClick = {
+                    scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                },
                 shape = RoundedCornerShape(20.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -843,6 +808,211 @@ private fun FavoritesFilterBottomSheet(
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.labelLarge
                 )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CreateFolderBottomSheet(
+    lang: AppLanguage,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    var folderName by remember { mutableStateOf("") }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        dragHandle = {
+            Surface(
+                modifier = Modifier
+                    .padding(vertical = 12.dp)
+                    .size(width = 36.dp, height = 4.dp),
+                shape = CircleShape,
+                color = Color.White
+            ) {}
+        },
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 16.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Rounded.CreateNewFolder,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = Strings.newFolder(lang),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            OutlinedTextField(
+                value = folderName,
+                onValueChange = { folderName = it },
+                placeholder = { Text(Strings.folderNamePlaceholder(lang)) },
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(Modifier.height(20.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(Strings.cancelBtn(lang))
+                }
+
+                Button(
+                    onClick = {
+                        val trimmed = folderName.trim()
+                        if (trimmed.isNotBlank()) {
+                            onConfirm(trimmed)
+                        }
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(Strings.create(lang))
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DeleteFolderBottomSheet(
+    folderName: String,
+    lang: AppLanguage,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        dragHandle = {
+            Surface(
+                modifier = Modifier
+                    .padding(vertical = 12.dp)
+                    .size(width = 36.dp, height = 4.dp),
+                shape = CircleShape,
+                color = Color.White
+            ) {}
+        },
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 12.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Rounded.DeleteOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.width(12.dp))
+                Text(
+                    text = if (lang == AppLanguage.RUSSIAN) "Удалить коллекцию?" else "Delete collection?",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            Text(
+                text = if (lang == AppLanguage.RUSSIAN)
+                    "Коллекция «$folderName» будет удалена. Медиафайлы останутся в общем избранном."
+                else
+                    "Collection \"$folderName\" will be removed. Media items will remain in favorites.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(Strings.cancelBtn(lang))
+                }
+
+                Button(
+                    onClick = {
+                        onConfirm()
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(if (lang == AppLanguage.RUSSIAN) "Удалить" else "Delete")
+                }
             }
         }
     }
