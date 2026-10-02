@@ -470,24 +470,12 @@ fun SettingsScreen(
                 }
 
                 val options = listOf(
-                    Triple(
-                        ImageQuality.SAMPLE,
-                        Strings.qualitySample(lang),
-                        if (lang == AppLanguage.RUSSIAN) "Баланс качества и быстрой загрузки фото/видео" else "Balanced quality and fast loading for media"
-                    ),
-                    Triple(
-                        ImageQuality.ORIGINAL,
-                        Strings.qualityOriginal(lang),
-                        if (lang == AppLanguage.RUSSIAN) "Исходное максимальное разрешение без сжатия" else "Full uncompressed resolution and source video"
-                    ),
-                    Triple(
-                        ImageQuality.SAVER,
-                        Strings.qualitySaver(lang),
-                        if (lang == AppLanguage.RUSSIAN) "Экономия трафика и облегченные превью" else "Compressed previews to reduce data usage"
-                    )
+                    Pair(ImageQuality.SAMPLE, Strings.qualitySample(lang)),
+                    Pair(ImageQuality.ORIGINAL, Strings.qualityOriginal(lang)),
+                    Pair(ImageQuality.SAVER, Strings.qualitySaver(lang))
                 )
 
-                options.forEach { (q, title, subtitle) ->
+                options.forEach { (q, title) ->
                     val isSelected = (vm.imageQuality == q)
                     val icon = when (q) {
                         ImageQuality.SAMPLE -> Icons.Rounded.Speed
@@ -500,7 +488,7 @@ fun SettingsScreen(
                             MaterialTheme.colorScheme.primaryContainer
                         else
                             MaterialTheme.colorScheme.surfaceContainerHigh,
-                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
                         label = "qualityBg"
                     )
 
@@ -509,7 +497,7 @@ fun SettingsScreen(
                             MaterialTheme.colorScheme.onPrimaryContainer
                         else
                             MaterialTheme.colorScheme.onSurface,
-                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
                         label = "qualityContent"
                     )
 
@@ -518,7 +506,7 @@ fun SettingsScreen(
                             MaterialTheme.colorScheme.primary
                         else
                             MaterialTheme.colorScheme.onSurfaceVariant,
-                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
                         label = "qualityIcon"
                     )
 
@@ -527,12 +515,12 @@ fun SettingsScreen(
                             vm.updateImageQuality(q)
                             scope.launch { sheetState.hide() }.invokeOnCompletion { showQualityDialog = false }
                         },
-                        shape = RoundedCornerShape(18.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = containerColor,
                         contentColor = contentColor,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 5.dp)
+                            .padding(vertical = 4.dp)
                             .bouncyPress()
                     ) {
                         Row(
@@ -546,42 +534,39 @@ fun SettingsScreen(
                                 modifier = Modifier.size(24.dp)
                             )
                             Spacer(Modifier.width(14.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = title,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
-                                    color = contentColor
-                                )
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    text = subtitle,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (isSelected)
-                                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
-                                    else
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .padding(start = 8.dp)
-                                    .size(24.dp),
-                                contentAlignment = Alignment.Center
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = contentColor,
+                                modifier = Modifier.weight(1f)
+                            )
+                            AnimatedVisibility(
+                                visible = isSelected,
+                                enter = fadeIn(animationSpec = tween(240, easing = LinearOutSlowInEasing)) +
+                                    expandHorizontally(
+                                        animationSpec = spring(
+                                            dampingRatio = 0.78f,
+                                            stiffness = Spring.StiffnessMediumLow
+                                        ),
+                                        expandFrom = Alignment.Start
+                                    ),
+                                exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
+                                    shrinkHorizontally(
+                                        animationSpec = spring(
+                                            dampingRatio = 0.88f,
+                                            stiffness = Spring.StiffnessMediumLow
+                                        ),
+                                        shrinkTowards = Alignment.Start
+                                    )
                             ) {
-                                Crossfade(
-                                    targetState = isSelected,
-                                    animationSpec = tween(durationMillis = 180, easing = FastOutSlowInEasing),
-                                    label = "qualityCheck"
-                                ) { checked ->
-                                    if (checked) {
-                                        Icon(
-                                            Icons.Rounded.CheckCircle,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        Icons.Rounded.CheckCircle,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(22.dp)
+                                    )
                                 }
                             }
                         }
@@ -1375,19 +1360,22 @@ fun SettingsScreen(
                     val isSelected = pagerState.currentPage == index
                     val animBg by animateColorAsState(
                         targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
                         label = "settingsTabBg"
                     )
                     val animFg by animateColorAsState(
                         targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
                         label = "settingsTabFg"
                     )
 
                     Surface(
                         onClick = {
                             scope.launch {
-                                pagerState.animateScrollToPage(index)
+                                pagerState.animateScrollToPage(
+                                    page = index,
+                                    animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                                )
                             }
                         },
                         shape = RoundedCornerShape(12.dp),
@@ -1407,14 +1395,20 @@ fun SettingsScreen(
                         ) {
                             AnimatedVisibility(
                                 visible = isSelected,
-                                enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                                enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
                                     expandHorizontally(
-                                        animationSpec = tween(240, easing = FastOutSlowInEasing),
+                                        animationSpec = spring(
+                                            dampingRatio = 0.78f,
+                                            stiffness = Spring.StiffnessMediumLow
+                                        ),
                                         expandFrom = Alignment.Start
                                     ),
                                 exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
                                     shrinkHorizontally(
-                                        animationSpec = tween(200, easing = FastOutLinearInEasing),
+                                        animationSpec = spring(
+                                            dampingRatio = 0.88f,
+                                            stiffness = Spring.StiffnessMediumLow
+                                        ),
                                         shrinkTowards = Alignment.Start
                                     )
                             ) {
@@ -2059,7 +2053,7 @@ fun <T> MD3SegmentedChoiceRow(
                     MaterialTheme.colorScheme.primary
                 else
                     MaterialTheme.colorScheme.surfaceContainerHighest,
-                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
                 label = "segmentedBg"
             )
 
@@ -2068,7 +2062,7 @@ fun <T> MD3SegmentedChoiceRow(
                     MaterialTheme.colorScheme.onPrimary
                 else
                     MaterialTheme.colorScheme.onSurfaceVariant,
-                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
                 label = "segmentedContent"
             )
 
@@ -2091,14 +2085,20 @@ fun <T> MD3SegmentedChoiceRow(
                 ) {
                     AnimatedVisibility(
                         visible = isSelected,
-                        enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                        enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
                             expandHorizontally(
-                                animationSpec = tween(240, easing = FastOutSlowInEasing),
+                                animationSpec = spring(
+                                    dampingRatio = 0.78f,
+                                    stiffness = Spring.StiffnessMediumLow
+                                ),
                                 expandFrom = Alignment.Start
                             ),
                         exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
                             shrinkHorizontally(
-                                animationSpec = tween(200, easing = FastOutLinearInEasing),
+                                animationSpec = spring(
+                                    dampingRatio = 0.88f,
+                                    stiffness = Spring.StiffnessMediumLow
+                                ),
                                 shrinkTowards = Alignment.Start
                             )
                     ) {

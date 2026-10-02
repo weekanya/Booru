@@ -1535,12 +1535,12 @@ fun FilterOptionButton(
 ) {
     val containerColor by animateColorAsState(
         targetValue = if (selected) selectedContainerColor else unselectedContainerColor,
-        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
         label = "filterBtnBg"
     )
     val contentColor by animateColorAsState(
         targetValue = if (selected) selectedContentColor else unselectedContentColor,
-        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
         label = "filterBtnContent"
     )
 
@@ -1562,14 +1562,20 @@ fun FilterOptionButton(
         ) {
             AnimatedVisibility(
                 visible = selected,
-                enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
                     expandHorizontally(
-                        animationSpec = tween(240, easing = FastOutSlowInEasing),
+                        animationSpec = spring(
+                            dampingRatio = 0.78f,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
                         expandFrom = Alignment.Start
                     ),
                 exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
                     shrinkHorizontally(
-                        animationSpec = tween(200, easing = FastOutLinearInEasing),
+                        animationSpec = spring(
+                            dampingRatio = 0.88f,
+                            stiffness = Spring.StiffnessMediumLow
+                        ),
                         shrinkTowards = Alignment.Start
                     )
             ) {
@@ -1719,18 +1725,21 @@ private fun FilterSelectionBottomSheet(
                         val isSelected = filterPagerState.currentPage == index
                         val bg by animateColorAsState(
                             targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                            animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
                             label = "filterTabBg"
                         )
                         val fg by animateColorAsState(
                             targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
                             label = "filterTabFg"
                         )
                         Surface(
                             onClick = {
                                 scope.launch {
-                                    filterPagerState.animateScrollToPage(index)
+                                    filterPagerState.animateScrollToPage(
+                                        page = index,
+                                        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                                    )
                                 }
                             },
                             shape = RoundedCornerShape(12.dp),
@@ -1750,14 +1759,20 @@ private fun FilterSelectionBottomSheet(
                             ) {
                                 AnimatedVisibility(
                                     visible = isSelected,
-                                    enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                                    enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
                                         expandHorizontally(
-                                            animationSpec = tween(240, easing = FastOutSlowInEasing),
+                                            animationSpec = spring(
+                                                dampingRatio = 0.78f,
+                                                stiffness = Spring.StiffnessMediumLow
+                                            ),
                                             expandFrom = Alignment.Start
                                         ),
                                     exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
                                         shrinkHorizontally(
-                                            animationSpec = tween(200, easing = FastOutLinearInEasing),
+                                            animationSpec = spring(
+                                                dampingRatio = 0.88f,
+                                                stiffness = Spring.StiffnessMediumLow
+                                            ),
                                             shrinkTowards = Alignment.Start
                                         )
                                 ) {
