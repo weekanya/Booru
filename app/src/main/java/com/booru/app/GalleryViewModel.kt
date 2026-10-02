@@ -21,6 +21,7 @@ import com.booru.app.data.BooruCacheManager
 import com.booru.app.data.BooruPreferences
 import com.booru.app.data.CustomBooruSource
 import com.booru.app.data.ImageQuality
+import com.booru.app.data.TagCategory
 import com.booru.app.data.TagClassifier
 import com.booru.app.data.UpdateChecker
 import com.booru.app.data.db.AppDatabase
@@ -111,6 +112,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var customSources by mutableStateOf<List<CustomBooruSource>>(emptyList()); private set
     var selectedContentTypes by mutableStateOf<Set<ContentType>>(emptySet()); private set
     var recommendationTags by mutableStateOf<List<String>>(emptyList()); private set
+    private var recordedRecTagsMap: Map<String, Int> = emptyMap()
     var scrollToTopTrigger by mutableStateOf(0L); private set
     var refreshSeed by mutableStateOf(0); private set
     var isIncognito by mutableStateOf(false); private set
@@ -160,10 +162,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             val initialCustom = prefs.customSources.first()
             val initialBlacklist = prefs.tagBlacklist.first()
             val initialRecMap = prefs.recommendationTags.first()
-            val sortedRec = initialRecMap.entries
-                .filter { TagClassifier.isRecommendationCandidate(it.key) }
-                .sortedByDescending { it.value }
-                .map { it.key }
+            recordedRecTagsMap = initialRecMap
             customSources = initialCustom
             val isCustomValid = initialCustom.any { (it.key == initialSource || it.id == initialSource) && it.enabled }
             val isBuiltInValid = BooruRepository.AVAILABLE_SOURCES.contains(initialSource)
@@ -175,7 +174,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             themeMode = initialTheme
             palette = initialPalette
             tagBlacklist = initialBlacklist
-            recommendationTags = sortedRec.take(40)
+            recalculateRecommendationTags()
             recommendationRatio = prefs.recommendationRatio.first()
             biometricLockEnabled = prefs.biometricLockEnabled.first()
             biometricLockTimeoutMin = prefs.biometricLockTimeoutMin.first()
@@ -221,11 +220,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
         viewModelScope.launch {
             prefs.recommendationTags.collect { map ->
-                val sorted = map.entries
-                    .filter { TagClassifier.isRecommendationCandidate(it.key) }
-                    .sortedByDescending { it.value }
-                    .map { it.key }
-                recommendationTags = sorted.take(40)
+                recordedRecTagsMap = map
+                recalculateRecommendationTags()
             }
         }
         viewModelScope.launch {
@@ -242,6 +238,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 if (results.isNotEmpty()) {
                     results = results.filterNot { isBlacklisted(it, bl) }
                 }
+                recalculateRecommendationTags()
             }
         }
         viewModelScope.launch {
@@ -611,6 +608,45 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private fun updateFavoritesState(list: List<RemoteMedia>) {
         favoritesList = list
         favoriteKeys = list.map { it.mediaKey }.toSet()
+        recalculateRecommendationTags()
+    }
+
+    private fun recalculateRecommendationTags() {
+        val tagWeights = mutableMapOf<String, Float>()
+        for (fav in favoritesList) {
+            val tags = if (fav.tagList.isNotEmpty()) fav.tagList else fav.tags.split(Regex("[\\s,]+"))
+            for (rawTag in tags) {
+                val tag = rawTag.trim().lowercase().trim(',', ';', '.', '(', ')', '"', '\'')
+                if (!TagClassifier.isRecommendationCandidate(tag)) continue
+                if (tagBlacklist.any { it.equals(tag, ignoreCase = true) }) continue
+                val category = TagClassifier.classify(tag).category
+                val multiplier = when (category) {
+                    TagCategory.CHARACTER -> 5.0f
+                    TagCategory.COPYRIGHT -> 4.0f
+                    TagCategory.ARTIST -> 3.5f
+                    TagCategory.GENERAL -> 1.0f
+                    else -> 0.2f
+                }
+                tagWeights[tag] = (tagWeights[tag] ?: 0f) + (3f * multiplier)
+            }
+        }
+        for ((tag, count) in recordedRecTagsMap) {
+            val clean = tag.trim().lowercase().trim(',', ';', '.', '(', ')', '"', '\'')
+            if (!TagClassifier.isRecommendationCandidate(clean)) continue
+            if (tagBlacklist.any { it.equals(clean, ignoreCase = true) }) continue
+            val category = TagClassifier.classify(clean).category
+            val multiplier = when (category) {
+                TagCategory.CHARACTER -> 2.5f
+                TagCategory.COPYRIGHT -> 2.0f
+                TagCategory.ARTIST -> 2.0f
+                else -> 1.0f
+            }
+            tagWeights[clean] = (tagWeights[clean] ?: 0f) + (count.toFloat() * multiplier)
+        }
+        recommendationTags = tagWeights.entries
+            .sortedByDescending { it.value }
+            .take(60)
+            .map { it.key }
     }
 
     fun selectSource(newSource: String) {
@@ -736,13 +772,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
                 val list = if (useRecommendations) {
                     val ratio = recommendationRatio
-                    val tagsToFetch = if (activeRecTags.size <= 2) {
+                    val tagsCount = activeRecTags.size
+                    val tagsToFetch = if (tagsCount <= 4) {
                         activeRecTags
                     } else {
                         val r = java.util.Random(System.currentTimeMillis() + refreshSeed)
-                        activeRecTags.shuffled(r).take(2)
+                        activeRecTags.shuffled(r).take(minOf(4, tagsCount))
                     }
-                    val maxPerTag = 4
+                    val maxPerTag = 6
                     val dGen = async {
                         withTimeoutOrNull(3000L) {
                             try {
@@ -753,7 +790,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                                     excludeSafe = excludeSafe,
                                     noAi = noAi,
                                     page = 0,
-                                    sortOrder = SortOrder.RANDOM,
+                                    sortOrder = if (sortOrder == SortOrder.RANDOM) SortOrder.RANDOM else SortOrder.NEWEST,
                                     contentTypes = selectedContentTypes,
                                     credentials = getCredentials(),
                                     customSources = customSources
@@ -941,15 +978,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 val list = if (useRecommendations) {
                     val ratio = recommendationRatio
                     val tagsCount = activeRecTags.size
-                    val tagsToFetch = if (tagsCount <= 2) {
+                    val tagsToFetch = if (tagsCount <= 4) {
                         activeRecTags
                     } else {
-                        val startIndex = (targetPage * 2) % tagsCount
-                        (0 until minOf(2, tagsCount)).map { offset ->
+                        val startIndex = (targetPage * 3) % tagsCount
+                        (0 until minOf(3, tagsCount)).map { offset ->
                             activeRecTags[(startIndex + offset) % tagsCount]
                         }
                     }
-                    val maxPerTag = 4
+                    val maxPerTag = 6
                     val dGen = async {
                         withTimeoutOrNull(3000L) {
                             try {
@@ -960,7 +997,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                                     excludeSafe = excludeSafe,
                                     noAi = noAi,
                                     page = targetPage,
-                                    sortOrder = SortOrder.RANDOM,
+                                    sortOrder = if (sortOrder == SortOrder.RANDOM) SortOrder.RANDOM else SortOrder.NEWEST,
                                     contentTypes = selectedContentTypes,
                                     credentials = getCredentials(),
                                     customSources = customSources
@@ -1431,10 +1468,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         needsFeedRefresh = true
         source = BooruRepository.SOURCE_ALL
         query = ""
-        recommendationTags = emptyList()
+        recordedRecTagsMap = emptyMap()
         viewModelScope.launch {
             prefs.setDefaultSource(BooruRepository.SOURCE_ALL)
             prefs.clearRecommendationData()
+            recalculateRecommendationTags()
             onDone()
         }
     }

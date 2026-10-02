@@ -32,6 +32,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -67,6 +72,17 @@ import com.booru.app.R
 import com.booru.app.data.AppLanguage
 import com.booru.app.data.Strings
 import kotlinx.coroutines.launch
+
+enum class SettingsCategory(
+    val titleRu: String,
+    val titleEn: String,
+    val icon: ImageVector
+) {
+    APPEARANCE("Внешний вид", "Appearance", Icons.Rounded.Palette),
+    SOURCES("Источники", "Sources", Icons.Rounded.Cloud),
+    CONTENT("Контент", "Content", Icons.Rounded.Tune),
+    SYSTEM("Система", "System", Icons.Rounded.Security)
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -1326,456 +1342,545 @@ fun SettingsScreen(
         )
     }
 
+    val categories = remember { SettingsCategory.entries }
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { categories.size })
+    val tabRowState = rememberLazyListState()
+
+    LaunchedEffect(pagerState.currentPage) {
+        tabRowState.animateScrollToItem(pagerState.currentPage)
+    }
+
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp)
-            .padding(top = 4.dp)
+        modifier = modifier.fillMaxSize()
     ) {
         Text(
             text = Strings.navSettings(lang),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp)
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
         )
 
-        SectionLabel(Strings.languageSection(lang))
-
-        SettingsGroupCard {
-            SettingRowItem(
-                title = Strings.languageTitle(lang),
-                subtitle = "${lang.displayName} (${lang.englishName})",
-                icon = Icons.Rounded.Translate,
-                onClick = { showLanguageBottomSheet = true }
-            )
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        SectionLabel(Strings.authSection(lang))
-
-        SettingsGroupCard {
-            SettingRowItem(
-                title = "Rule34.xxx API",
-                subtitle = if (vm.rule34ApiKey.isNotBlank()) "Configured (User ID: ${vm.rule34UserId})" else Strings.tapToEnterKeys(lang),
-                icon = Icons.Rounded.Key,
-                onClick = { showRule34Dialog = true }
-            )
-
-            SettingsDivider()
-
-            SettingRowItem(
-                title = "Gelbooru API",
-                subtitle = if (vm.gelbooruApiKey.isNotBlank()) "Configured (User ID: ${vm.gelbooruUserId})" else Strings.tapToEnterKeys(lang),
-                icon = Icons.Rounded.VpnKey,
-                onClick = { showGelbooruDialog = true }
-            )
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        SectionLabel(Strings.customSourcesTitle(lang))
-
-        SettingsGroupCard {
-            SettingRowItem(
-                title = Strings.addSourceTitle(lang),
-                subtitle = if (vm.customSources.isEmpty()) Strings.noCustomSources(lang) else "${vm.customSources.size} custom sources",
-                icon = Icons.Rounded.AddCircleOutline,
-                onClick = {
-                    editingCustomSource = null
-                    customName = ""
-                    customUrl = ""
-                    customEngine = BooruEngine.GELBOORU
-                    customApiKey = ""
-                    customUserId = ""
-                    showAddCustomSourceDialog = true
-                }
-            )
-
-            if (vm.customSources.isNotEmpty()) {
-                vm.customSources.forEach { customSource ->
-                    SettingsDivider()
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                editingCustomSource = customSource
-                                customName = customSource.name
-                                customUrl = customSource.baseUrl
-                                customEngine = customSource.engine
-                                customApiKey = vm.getCustomSourceApiKey(customSource.id)
-                                customUserId = vm.getCustomSourceUserId(customSource.id)
-                                showAddCustomSourceDialog = true
-                            }
-                            .padding(horizontal = 20.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    customSource.name,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.primaryContainer
-                                ) {
-                                    Text(
-                                        text = customSource.engine.name,
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                }
-                            }
-                            Spacer(Modifier.height(2.dp))
-                            Text(
-                                customSource.baseUrl,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
+        LazyRow(
+            state = tabRowState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            itemsIndexed(categories) { index, cat ->
+                val isSelected = pagerState.currentPage == index
+                val label = if (lang == AppLanguage.RUSSIAN) cat.titleRu else cat.titleEn
+                FilterChip(
+                    selected = isSelected,
+                    onClick = {
+                        scope.launch {
+                            pagerState.animateScrollToPage(index)
                         }
-                        IconButton(
-                            onClick = {
-                                editingCustomSource = customSource
-                                customName = customSource.name
-                                customUrl = customSource.baseUrl
-                                customEngine = customSource.engine
-                                customApiKey = vm.getCustomSourceApiKey(customSource.id)
-                                customUserId = vm.getCustomSourceUserId(customSource.id)
-                                showAddCustomSourceDialog = true
-                            }
-                        ) {
-                            Icon(
-                                Icons.Rounded.Edit,
-                                contentDescription = "Edit",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        AnimatedConfirmDeleteButton(
-                            onConfirmed = {
-                                vm.removeCustomSource(customSource.id)
-                                Toast.makeText(context, Strings.sourceRemovedSuccess(lang), Toast.LENGTH_SHORT).show()
-                            },
-                            lang = lang,
-                            initialIcon = Icons.Rounded.DeleteOutline,
-                            confirmText = Strings.confirmDeleteAction(lang),
-                            compact = true
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        SectionLabel(Strings.contentSection(lang))
-
-        SettingsGroupCard {
-            SettingRowItem(
-                title = Strings.imageQualityTitle(lang),
-                subtitle = when (vm.imageQuality) {
-                    ImageQuality.ORIGINAL -> Strings.qualityOriginal(lang)
-                    ImageQuality.SAVER    -> Strings.qualitySaver(lang)
-                    ImageQuality.SAMPLE   -> Strings.qualitySample(lang)
-                },
-                icon = Icons.Rounded.HighQuality,
-                onClick = { showQualityDialog = true }
-            )
-
-            SettingsDivider()
-
-            SettingRowItem(
-                title = Strings.tagBlacklistTitle(lang),
-                subtitle = if (vm.tagBlacklist.isEmpty()) Strings.noBlacklistedTags(lang) else "${vm.tagBlacklist.size} tags blocked",
-                icon = Icons.Rounded.Block,
-                onClick = { showBlacklistDialog = true }
-            )
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        SectionLabel(Strings.appearanceSection(lang))
-
-        SettingsGroupCard {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = when (vm.themeMode) {
-                            ThemeMode.DARK -> Icons.Rounded.DarkMode
-                            ThemeMode.LIGHT -> Icons.Rounded.LightMode
-                            ThemeMode.SYSTEM -> Icons.Rounded.BrightnessAuto
-                        },
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(Modifier.width(16.dp))
-                    Column {
+                    },
+                    leadingIcon = {
+                        Icon(cat.icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                    },
+                    label = {
                         Text(
-                            text = Strings.darkThemeTitle(lang),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            text = label,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                         )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = when (vm.themeMode) {
-                                ThemeMode.SYSTEM -> Strings.themeModeSystem(lang)
-                                ThemeMode.DARK -> Strings.themeModeDark(lang)
-                                ThemeMode.LIGHT -> Strings.themeModeLight(lang)
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(14.dp))
-
-                MD3SegmentedChoiceRow(
-                    options = ThemeMode.entries,
-                    selectedOption = vm.themeMode,
-                    onOptionSelected = { vm.updateThemeMode(it) },
-                    labelProvider = { mode ->
-                        when (mode) {
-                            ThemeMode.SYSTEM -> if (lang == AppLanguage.RUSSIAN) "Авто" else "Auto"
-                            ThemeMode.DARK -> if (lang == AppLanguage.RUSSIAN) "Тёмная" else "Dark"
-                            ThemeMode.LIGHT -> if (lang == AppLanguage.RUSSIAN) "Светлая" else "Light"
-                        }
-                    }
+                    },
+                    shape = CircleShape
                 )
             }
-
-            SettingsDivider()
-
-            val isDark = when (vm.themeMode) {
-                ThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
-                ThemeMode.DARK -> true
-                ThemeMode.LIGHT -> false
-            }
-            val monetDynamicPrimary = remember(isDark) {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                    if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).primary
-                    else androidx.compose.material3.dynamicLightColorScheme(context).primary
-                } else {
-                    Color(0xFF6750A4)
-                }
-            }
-            val monetDynamicSecondary = remember(isDark) {
-                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                    if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).tertiary
-                    else androidx.compose.material3.dynamicLightColorScheme(context).tertiary
-                } else {
-                    Color(0xFF7E5260)
-                }
-            }
-            val currentSwatchBrush = remember(vm.palette, monetDynamicPrimary, monetDynamicSecondary) {
-                if (vm.palette == AppPalette.MONET) {
-                    androidx.compose.ui.graphics.Brush.linearGradient(
-                        colors = listOf(monetDynamicPrimary, monetDynamicSecondary)
-                    )
-                } else {
-                    androidx.compose.ui.graphics.SolidColor(vm.palette.primaryColor)
-                }
-            }
-
-            SettingRowItem(
-                title = Strings.colorPaletteTitle(lang),
-                subtitle = vm.palette.title,
-                icon = Icons.Rounded.Palette,
-                onClick = { showPaletteDialog = true },
-                trailing = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(currentSwatchBrush)
-                                .border(1.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
-                        )
-                        Icon(
-                            Icons.Rounded.ChevronRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-            )
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(4.dp))
 
-        SectionLabel(Strings.securitySection(lang))
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+                    .padding(top = 8.dp, bottom = 88.dp)
+            ) {
+                when (categories[page]) {
+                    SettingsCategory.APPEARANCE -> {
+                        SectionLabel(Strings.appearanceSection(lang))
 
-        SettingsGroupCard {
-            SettingSwitchItem(
-                title = Strings.biometricLockTitle(lang),
-                subtitle = Strings.biometricLockSubtitle(lang),
-                icon = Icons.Rounded.Fingerprint,
-                checked = vm.biometricLockEnabled,
-                onCheckedChange = { vm.setBiometricLock(it) }
-            )
+                        SettingsGroupCard {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = when (vm.themeMode) {
+                                            ThemeMode.DARK -> Icons.Rounded.DarkMode
+                                            ThemeMode.LIGHT -> Icons.Rounded.LightMode
+                                            ThemeMode.SYSTEM -> Icons.Rounded.BrightnessAuto
+                                        },
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(Modifier.width(16.dp))
+                                    Column {
+                                        Text(
+                                            text = Strings.darkThemeTitle(lang),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(Modifier.height(2.dp))
+                                        Text(
+                                            text = when (vm.themeMode) {
+                                                ThemeMode.SYSTEM -> Strings.themeModeSystem(lang)
+                                                ThemeMode.DARK -> Strings.themeModeDark(lang)
+                                                ThemeMode.LIGHT -> Strings.themeModeLight(lang)
+                                            },
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
 
-            AnimatedVisibility(visible = vm.biometricLockEnabled) {
-                Column {
-                    SettingsDivider()
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 12.dp)
-                    ) {
-                        val timeoutOptions = listOf(0, 1, 5, 15)
-                        MD3SegmentedChoiceRow(
-                            options = timeoutOptions,
-                            selectedOption = vm.biometricLockTimeoutMin,
-                            onOptionSelected = { vm.setBiometricLockTimeout(it) },
-                            labelProvider = { min ->
-                                if (min == 0) Strings.lockTimeoutImmediately(lang)
-                                else Strings.lockTimeoutMinutes(min, lang)
+                                Spacer(Modifier.height(14.dp))
+
+                                MD3SegmentedChoiceRow(
+                                    options = ThemeMode.entries,
+                                    selectedOption = vm.themeMode,
+                                    onOptionSelected = { vm.updateThemeMode(it) },
+                                    labelProvider = { mode ->
+                                        when (mode) {
+                                            ThemeMode.SYSTEM -> if (lang == AppLanguage.RUSSIAN) "Авто" else "Auto"
+                                            ThemeMode.DARK -> if (lang == AppLanguage.RUSSIAN) "Тёмная" else "Dark"
+                                            ThemeMode.LIGHT -> if (lang == AppLanguage.RUSSIAN) "Светлая" else "Light"
+                                        }
+                                    }
+                                )
                             }
-                        )
-                    }
-                }
-            }
-        }
 
-        Spacer(Modifier.height(20.dp))
+                            SettingsDivider()
 
-        SectionLabel(Strings.dataSection(lang))
-
-        SettingsGroupCard {
-            SettingRowItem(
-                title = Strings.aboutAppTitle(lang),
-                subtitle = Strings.aboutAppDesc(lang),
-                icon = Icons.Rounded.Info,
-                trailing = {
-                    FilledTonalButton(
-                        onClick = {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/weekanya/Booru"))
-                            context.startActivity(intent)
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        ),
-                        modifier = Modifier.bouncyPress()
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_github),
-                            contentDescription = "GitHub",
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = "Source code",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            )
-
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-
-            SettingRowItem(
-                title = Strings.clearRecommendationsTitle(lang),
-                subtitle = Strings.clearRecommendationsDesc(lang),
-                icon = Icons.Rounded.AutoAwesome,
-                trailing = {
-                    FilledTonalButton(
-                        onClick = {
-                            vm.clearRecommendationMemory {
-                                Toast.makeText(context, Strings.clearRecommendationsSuccess(lang), Toast.LENGTH_SHORT).show()
+                            val isDark = when (vm.themeMode) {
+                                ThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
+                                ThemeMode.DARK -> true
+                                ThemeMode.LIGHT -> false
                             }
-                        },
-                        shape = RoundedCornerShape(16.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                            contentColor = MaterialTheme.colorScheme.onErrorContainer
-                        ),
-                        modifier = Modifier.bouncyPress()
-                    ) {
-                        Text(
-                            text = Strings.resetFilters(lang),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            )
+                            val monetDynamicPrimary = remember(isDark) {
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                    if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).primary
+                                    else androidx.compose.material3.dynamicLightColorScheme(context).primary
+                                } else {
+                                    Color(0xFF6750A4)
+                                }
+                            }
+                            val monetDynamicSecondary = remember(isDark) {
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                    if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).tertiary
+                                    else androidx.compose.material3.dynamicLightColorScheme(context).tertiary
+                                } else {
+                                    Color(0xFF7E5260)
+                                }
+                            }
+                            val currentSwatchBrush = remember(vm.palette, monetDynamicPrimary, monetDynamicSecondary) {
+                                if (vm.palette == AppPalette.MONET) {
+                                    androidx.compose.ui.graphics.Brush.linearGradient(
+                                        colors = listOf(monetDynamicPrimary, monetDynamicSecondary)
+                                    )
+                                } else {
+                                    androidx.compose.ui.graphics.SolidColor(vm.palette.primaryColor)
+                                }
+                            }
 
-            HorizontalDivider(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-            )
-
-            SettingRowItem(
-                title = Strings.checkUpdatesTitle(lang),
-                subtitle = Strings.checkUpdatesDesc(lang),
-                icon = Icons.Rounded.SystemUpdate,
-                trailing = {
-                    FilledTonalButton(
-                        onClick = { vm.checkForUpdates(isAutoCheck = false) },
-                        enabled = !vm.isCheckingUpdate,
-                        shape = RoundedCornerShape(16.dp),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                            disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            disabledContentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        ),
-                        modifier = Modifier
-                            .height(36.dp)
-                            .bouncyPress()
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = Strings.checkUpdatesTitle(lang),
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.graphicsLayer {
-                                    alpha = if (vm.isCheckingUpdate) 0f else 1f
+                            SettingRowItem(
+                                title = Strings.colorPaletteTitle(lang),
+                                subtitle = vm.palette.title,
+                                icon = Icons.Rounded.Palette,
+                                onClick = { showPaletteDialog = true },
+                                trailing = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(24.dp)
+                                                .clip(CircleShape)
+                                                .background(currentSwatchBrush)
+                                                .border(1.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                                        )
+                                        Icon(
+                                            Icons.Rounded.ChevronRight,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                            modifier = Modifier.size(22.dp)
+                                        )
+                                    }
                                 }
                             )
-                            if (vm.isCheckingUpdate) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+
+                            SettingsDivider()
+
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.GridView,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(Modifier.width(16.dp))
+                                    Column {
+                                        Text(
+                                            text = Strings.gridColumnsTitle(lang),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Spacer(Modifier.height(2.dp))
+                                        Text(
+                                            text = when (vm.gridColumnsCount) {
+                                                0 -> Strings.gridColumnsAuto(lang)
+                                                else -> "${vm.gridColumnsCount}"
+                                            },
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+
+                                Spacer(Modifier.height(14.dp))
+
+                                MD3SegmentedChoiceRow(
+                                    options = listOf(0, 2, 3, 4),
+                                    selectedOption = vm.gridColumnsCount,
+                                    onOptionSelected = { vm.setGridColumns(it) },
+                                    labelProvider = { cols ->
+                                        if (cols == 0) Strings.gridColumnsAuto(lang) else "$cols"
+                                    }
                                 )
+                            }
+
+                            SettingsDivider()
+
+                            SettingRowItem(
+                                title = Strings.languageTitle(lang),
+                                subtitle = "${lang.displayName} (${lang.englishName})",
+                                icon = Icons.Rounded.Translate,
+                                onClick = { showLanguageBottomSheet = true }
+                            )
+                        }
+                    }
+
+                    SettingsCategory.SOURCES -> {
+                        SectionLabel(Strings.authSection(lang))
+
+                        SettingsGroupCard {
+                            SettingRowItem(
+                                title = "Rule34.xxx API",
+                                subtitle = if (vm.rule34ApiKey.isNotBlank()) "Configured (User ID: ${vm.rule34UserId})" else Strings.tapToEnterKeys(lang),
+                                icon = Icons.Rounded.Key,
+                                onClick = { showRule34Dialog = true }
+                            )
+
+                            SettingsDivider()
+
+                            SettingRowItem(
+                                title = "Gelbooru API",
+                                subtitle = if (vm.gelbooruApiKey.isNotBlank()) "Configured (User ID: ${vm.gelbooruUserId})" else Strings.tapToEnterKeys(lang),
+                                icon = Icons.Rounded.VpnKey,
+                                onClick = { showGelbooruDialog = true }
+                            )
+                        }
+
+                        Spacer(Modifier.height(20.dp))
+
+                        SectionLabel(Strings.customSourcesTitle(lang))
+
+                        SettingsGroupCard {
+                            SettingRowItem(
+                                title = Strings.addSourceTitle(lang),
+                                subtitle = if (vm.customSources.isEmpty()) Strings.noCustomSources(lang) else "${vm.customSources.size} custom sources",
+                                icon = Icons.Rounded.AddCircleOutline,
+                                onClick = {
+                                    editingCustomSource = null
+                                    customName = ""
+                                    customUrl = ""
+                                    customEngine = BooruEngine.GELBOORU
+                                    customApiKey = ""
+                                    customUserId = ""
+                                    showAddCustomSourceDialog = true
+                                }
+                            )
+
+                            if (vm.customSources.isNotEmpty()) {
+                                vm.customSources.forEach { customSource ->
+                                    SettingsDivider()
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                editingCustomSource = customSource
+                                                customName = customSource.name
+                                                customUrl = customSource.baseUrl
+                                                customEngine = customSource.engine
+                                                customApiKey = vm.getCustomSourceApiKey(customSource.id)
+                                                customUserId = vm.getCustomSourceUserId(customSource.id)
+                                                showAddCustomSourceDialog = true
+                                            }
+                                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                                Text(
+                                                    customSource.name,
+                                                    style = MaterialTheme.typography.titleMedium,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Surface(
+                                                    shape = CircleShape,
+                                                    color = MaterialTheme.colorScheme.primaryContainer
+                                                ) {
+                                                    Text(
+                                                        text = customSource.engine.name,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                            }
+                                            Spacer(Modifier.height(2.dp))
+                                            Text(
+                                                customSource.baseUrl,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = {
+                                                editingCustomSource = customSource
+                                                customName = customSource.name
+                                                customUrl = customSource.baseUrl
+                                                customEngine = customSource.engine
+                                                customApiKey = vm.getCustomSourceApiKey(customSource.id)
+                                                customUserId = vm.getCustomSourceUserId(customSource.id)
+                                                showAddCustomSourceDialog = true
+                                            }
+                                        ) {
+                                            Icon(
+                                                Icons.Rounded.Edit,
+                                                contentDescription = "Edit",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        AnimatedConfirmDeleteButton(
+                                            onConfirmed = {
+                                                vm.removeCustomSource(customSource.id)
+                                                Toast.makeText(context, Strings.sourceRemovedSuccess(lang), Toast.LENGTH_SHORT).show()
+                                            },
+                                            lang = lang,
+                                            initialIcon = Icons.Rounded.DeleteOutline,
+                                            confirmText = Strings.confirmDeleteAction(lang),
+                                            compact = true
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
-                }
-            )
-        }
 
-        Spacer(Modifier.height(84.dp))
+                    SettingsCategory.CONTENT -> {
+                        SectionLabel(Strings.contentSection(lang))
+
+                        SettingsGroupCard {
+                            SettingRowItem(
+                                title = Strings.imageQualityTitle(lang),
+                                subtitle = when (vm.imageQuality) {
+                                    ImageQuality.ORIGINAL -> Strings.qualityOriginal(lang)
+                                    ImageQuality.SAVER    -> Strings.qualitySaver(lang)
+                                    ImageQuality.SAMPLE   -> Strings.qualitySample(lang)
+                                },
+                                icon = Icons.Rounded.HighQuality,
+                                onClick = { showQualityDialog = true }
+                            )
+
+                            SettingsDivider()
+
+                            SettingRowItem(
+                                title = Strings.tagBlacklistTitle(lang),
+                                subtitle = if (vm.tagBlacklist.isEmpty()) Strings.noBlacklistedTags(lang) else "${vm.tagBlacklist.size} tags blocked",
+                                icon = Icons.Rounded.Block,
+                                onClick = { showBlacklistDialog = true }
+                            )
+
+                            SettingsDivider()
+
+                            SettingRowItem(
+                                title = Strings.clearRecommendationsTitle(lang),
+                                subtitle = Strings.clearRecommendationsDesc(lang),
+                                icon = Icons.Rounded.AutoAwesome,
+                                trailing = {
+                                    FilledTonalButton(
+                                        onClick = {
+                                            vm.clearRecommendationMemory {
+                                                Toast.makeText(context, Strings.clearRecommendationsSuccess(lang), Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(16.dp),
+                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                                            contentColor = MaterialTheme.colorScheme.onErrorContainer
+                                        ),
+                                        modifier = Modifier.bouncyPress()
+                                    ) {
+                                        Text(
+                                            text = Strings.resetFilters(lang),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            )
+                        }
+                    }
+
+                    SettingsCategory.SYSTEM -> {
+                        SectionLabel(Strings.securitySection(lang))
+
+                        SettingsGroupCard {
+                            SettingSwitchItem(
+                                title = Strings.biometricLockTitle(lang),
+                                subtitle = Strings.biometricLockSubtitle(lang),
+                                icon = Icons.Rounded.Fingerprint,
+                                checked = vm.biometricLockEnabled,
+                                onCheckedChange = { vm.setBiometricLock(it) }
+                            )
+
+                            AnimatedVisibility(visible = vm.biometricLockEnabled) {
+                                Column {
+                                    SettingsDivider()
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                                    ) {
+                                        val timeoutOptions = listOf(0, 1, 5, 15)
+                                        MD3SegmentedChoiceRow(
+                                            options = timeoutOptions,
+                                            selectedOption = vm.biometricLockTimeoutMin,
+                                            onOptionSelected = { vm.setBiometricLockTimeout(it) },
+                                            labelProvider = { min ->
+                                                if (min == 0) Strings.lockTimeoutImmediately(lang)
+                                                else Strings.lockTimeoutMinutes(min, lang)
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(20.dp))
+
+                        SectionLabel(Strings.dataSection(lang))
+
+                        SettingsGroupCard {
+                            SettingRowItem(
+                                title = Strings.aboutAppTitle(lang),
+                                subtitle = Strings.aboutAppDesc(lang),
+                                icon = Icons.Rounded.Info,
+                                trailing = {
+                                    FilledTonalButton(
+                                        onClick = {
+                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/weekanya/Booru"))
+                                            context.startActivity(intent)
+                                        },
+                                        shape = RoundedCornerShape(16.dp),
+                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                                        ),
+                                        modifier = Modifier.bouncyPress()
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.ic_github),
+                                            contentDescription = "GitHub",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = "Source code",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            )
+
+                            SettingsDivider()
+
+                            SettingRowItem(
+                                title = Strings.checkUpdatesTitle(lang),
+                                subtitle = Strings.checkUpdatesDesc(lang),
+                                icon = Icons.Rounded.SystemUpdate,
+                                trailing = {
+                                    FilledTonalButton(
+                                        onClick = { vm.checkForUpdates(isAutoCheck = false) },
+                                        enabled = !vm.isCheckingUpdate,
+                                        shape = RoundedCornerShape(16.dp),
+                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                            disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                            disabledContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                        ),
+                                        modifier = Modifier
+                                            .height(36.dp)
+                                            .bouncyPress()
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Text(
+                                                text = Strings.checkUpdatesTitle(lang),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                fontWeight = FontWeight.Bold,
+                                                modifier = Modifier.graphicsLayer {
+                                                    alpha = if (vm.isCheckingUpdate) 0f else 1f
+                                                }
+                                            )
+                                            if (vm.isCheckingUpdate) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(18.dp),
+                                                    strokeWidth = 2.dp,
+                                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -450,12 +450,12 @@ class BooruPreferences(private val context: Context) {
 
             for (tag in candidates) {
                 val count = (currentMap[tag] ?: 0) + weight
-                currentMap[tag] = count.coerceAtMost(30)
+                currentMap[tag] = count.coerceAtMost(60)
             }
             val sorted = currentMap.entries
                 .filter { it.value >= 1 && !blacklist.contains(it.key) && TagClassifier.isRecommendationCandidate(it.key) }
                 .sortedByDescending { it.value }
-                .take(40)
+                .take(60)
             val newObj = JSONObject()
             for (entry in sorted) {
                 newObj.put(entry.key, entry.value)
@@ -467,7 +467,7 @@ class BooruPreferences(private val context: Context) {
     suspend fun recordFavoriteTags(mediaTags: String) {
         if (mediaTags.isBlank()) return
         val tags = mediaTags.split(Regex("[\\s,]+"))
-        recordSearchTags(tags, weight = 3)
+        recordSearchTags(tags, weight = 6)
     }
 
     suspend fun setRecommendationRatio(ratio: Float) {
