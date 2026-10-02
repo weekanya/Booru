@@ -1290,29 +1290,51 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun setMediaFolder(mediaIdOrKey: String, folder: String?) {
+        val resolvedKey = if (!mediaIdOrKey.contains("_")) {
+            favoritesList.firstOrNull { it.id == mediaIdOrKey }?.mediaKey
+                ?: results.firstOrNull { it.id == mediaIdOrKey }?.mediaKey
+                ?: mediaIdOrKey
+        } else mediaIdOrKey
+        val map = favoriteFolders.toMutableMap()
+        if (folder == null) {
+            map.remove(resolvedKey)
+            map.remove(mediaIdOrKey)
+        } else {
+            map[resolvedKey] = folder
+            if (mediaIdOrKey != resolvedKey) map[mediaIdOrKey] = folder
+        }
+        favoriteFolders = map
         viewModelScope.launch {
-            val resolvedKey = if (!mediaIdOrKey.contains("_")) {
-                favoritesList.firstOrNull { it.id == mediaIdOrKey }?.mediaKey
-                    ?: results.firstOrNull { it.id == mediaIdOrKey }?.mediaKey
-                    ?: mediaIdOrKey
-            } else mediaIdOrKey
             prefs.setMediaFolder(resolvedKey, folder)
         }
     }
 
     fun setMediaFolder(media: RemoteMedia, folder: String?) {
+        val map = favoriteFolders.toMutableMap()
+        if (folder == null) {
+            map.remove(media.mediaKey)
+            map.remove(media.id)
+        } else {
+            map[media.mediaKey] = folder
+            map[media.id] = folder
+        }
+        favoriteFolders = map
         viewModelScope.launch {
             prefs.setMediaFolder(media.mediaKey, folder)
         }
     }
 
     fun addCustomFolder(name: String) {
+        if (name !in customFolders) {
+            customFolders = customFolders + name
+        }
         viewModelScope.launch {
             prefs.addCustomFolder(name)
         }
     }
 
     fun removeCustomFolder(name: String) {
+        customFolders = customFolders - name
         viewModelScope.launch {
             prefs.removeCustomFolder(name)
         }

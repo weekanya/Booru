@@ -25,6 +25,10 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.lazy.staggeredgrid.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -90,19 +94,30 @@ fun FavoritesScreen(
     val lang = vm.language
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    val gridState = rememberLazyStaggeredGridState()
     val scope = rememberCoroutineScope()
 
     var filterText by rememberSaveable { mutableStateOf("") }
     var mediaTypeFilter by rememberSaveable { mutableStateOf(FavoriteMediaTypeFilter.ALL) }
     var sortOrder by rememberSaveable { mutableStateOf(FavoriteSortOrder.NEWEST) }
-    var selectedFolder by rememberSaveable { mutableStateOf<String?>(null) }
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var newFolderName by remember { mutableStateOf("") }
     var folderToDelete by remember { mutableStateOf<String?>(null) }
     var showFilterSheet by remember { mutableStateOf(false) }
-    LaunchedEffect(gridState.isScrollInProgress) {
-        if (gridState.isScrollInProgress) {
+
+    val folders = remember(vm.customFolders) {
+        listOf<String?>(null) + vm.customFolders.toList()
+    }
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { folders.size })
+    val chipRowState = rememberLazyListState()
+
+    LaunchedEffect(pagerState.currentPage) {
+        if (pagerState.currentPage in folders.indices) {
+            chipRowState.animateScrollToItem(pagerState.currentPage)
+        }
+    }
+
+    LaunchedEffect(pagerState.isScrollInProgress) {
+        if (pagerState.isScrollInProgress) {
             focusManager.clearFocus()
             keyboardController?.hide()
         }
@@ -119,11 +134,13 @@ fun FavoritesScreen(
         vm.favoritesList.count { it.isVideo }
     }
 
-    val filteredList = remember(vm.favoritesList, filterText, mediaTypeFilter, sortOrder, selectedFolder, vm.favoriteFolders) {
+    fun getFolderMediaList(folder: String?): List<RemoteMedia> {
         var list = vm.favoritesList.asSequence()
 
-        if (selectedFolder != null) {
-            list = list.filter { vm.getMediaFolder(it.id) == selectedFolder }
+        if (folder != null) {
+            list = list.filter {
+                vm.getMediaFolder(it.mediaKey) == folder || vm.getMediaFolder(it.id) == folder
+            }
         }
 
         when (mediaTypeFilter) {
@@ -150,7 +167,7 @@ fun FavoritesScreen(
             }
         }
 
-        when (sortOrder) {
+        return when (sortOrder) {
             FavoriteSortOrder.NEWEST -> list.toList()
             FavoriteSortOrder.OLDEST -> list.toList().asReversed()
         }
@@ -380,17 +397,22 @@ fun FavoritesScreen(
 
             if (vm.favoritesList.isNotEmpty() || vm.customFolders.isNotEmpty()) {
                 LazyRow(
+                    state = chipRowState,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    item {
-                        val isAllSelected = selectedFolder == null
+                    item(key = "all_chip") {
+                        val isAllSelected = pagerState.currentPage == 0
                         FilterChip(
                             selected = isAllSelected,
-                            onClick = { selectedFolder = null },
+                            onClick = {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(0)
+                                }
+                            },
                             leadingIcon = if (isAllSelected) {
                                 {
                                     Icon(Icons.Rounded.Check, null, modifier = Modifier.size(16.dp))
@@ -400,14 +422,24 @@ fun FavoritesScreen(
                             shape = CircleShape
                         )
                     }
-                    items(vm.customFolders.toList()) { folder ->
+                    itemsIndexed(
+                        items = vm.customFolders.toList(),
+                        key = { _, folder -> folder }
+                    ) { index, folder ->
+                        val pageIndex = index + 1
                         val count = remember(vm.favoritesList, folder, vm.favoriteFolders) {
-                            vm.favoritesList.count { vm.getMediaFolder(it.id) == folder }
+                            vm.favoritesList.count {
+                                vm.getMediaFolder(it.mediaKey) == folder || vm.getMediaFolder(it.id) == folder
+                            }
                         }
-                        val isSelected = selectedFolder == folder
+                        val isSelected = pagerState.currentPage == pageIndex
                         FilterChip(
                             selected = isSelected,
-                            onClick = { selectedFolder = if (selectedFolder == folder) null else folder },
+                            onClick = {
+                                scope.launch {
+                                    pagerState.animateScrollToPage(pageIndex)
+                                }
+                            },
                             leadingIcon = if (isSelected) {
                                 {
                                     Icon(Icons.Rounded.Check, null, modifier = Modifier.size(16.dp))
@@ -425,7 +457,7 @@ fun FavoritesScreen(
                             shape = CircleShape
                         )
                     }
-                    item {
+                    item(key = "add_folder_chip") {
                         AssistChip(
                             onClick = {
                                 newFolderName = ""
@@ -444,6 +476,10 @@ fun FavoritesScreen(
             Spacer(Modifier.height(4.dp))
 
             if (filterText.isNotBlank()) {
+                val currentFolder = folders.getOrNull(pagerState.currentPage)
+                val currentCount = remember(vm.favoritesList, filterText, mediaTypeFilter, sortOrder, currentFolder, vm.favoriteFolders) {
+                    getFolderMediaList(currentFolder).size
+                }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -452,7 +488,7 @@ fun FavoritesScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = Strings.favFoundCount(filteredList.size, lang),
+                        text = Strings.favFoundCount(currentCount, lang),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.SemiBold
@@ -478,7 +514,12 @@ fun FavoritesScreen(
                 lang = lang,
                 onConfirm = {
                     val toDelete = folderToDelete!!
-                    if (selectedFolder == toDelete) selectedFolder = null
+                    val deleteIdx = folders.indexOf(toDelete)
+                    if (pagerState.currentPage == deleteIdx) {
+                        scope.launch { pagerState.animateScrollToPage(0) }
+                    } else if (pagerState.currentPage > deleteIdx) {
+                        scope.launch { pagerState.scrollToPage(pagerState.currentPage - 1) }
+                    }
                     vm.removeCustomFolder(toDelete)
                     folderToDelete = null
                 },
@@ -491,22 +532,33 @@ fun FavoritesScreen(
                 lang = lang,
                 onConfirm = { name ->
                     vm.addCustomFolder(name)
-                    selectedFolder = name
                     showCreateFolderDialog = false
+                    val targetIdx = vm.customFolders.size
+                    scope.launch {
+                        pagerState.animateScrollToPage(targetIdx.coerceIn(0, folders.size))
+                    }
                 },
                 onDismiss = { showCreateFolderDialog = false }
             )
         }
 
-        AnimatedContent(
-            targetState = selectedFolder,
-            transitionSpec = {
-                (fadeIn(animationSpec = tween(220, delayMillis = 30)) + scaleIn(initialScale = 0.97f, animationSpec = tween(220)))
-                    .togetherWith(fadeOut(animationSpec = tween(150)))
-            },
-            label = "favoriteFolderContentTransition",
-            modifier = Modifier.fillMaxSize()
-        ) { _ ->
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize(),
+            key = { page -> folders.getOrNull(page) ?: "all_favorites" }
+        ) { page ->
+            val currentFolder = folders.getOrNull(page)
+            val pageList = remember(vm.favoritesList, filterText, mediaTypeFilter, sortOrder, currentFolder, vm.favoriteFolders) {
+                getFolderMediaList(currentFolder)
+            }
+            val pageGridState = rememberLazyStaggeredGridState()
+            LaunchedEffect(pageGridState.isScrollInProgress) {
+                if (pageGridState.isScrollInProgress) {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }
+            }
+
             if (vm.favoritesList.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(
@@ -551,23 +603,49 @@ fun FavoritesScreen(
                         }
                     }
                 }
-            } else if (filteredList.isEmpty()) {
+            } else if (pageList.isEmpty()) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            Strings.nothingFound(lang),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        TextButton(
-                            onClick = {
-                                filterText = ""
-                                mediaTypeFilter = FavoriteMediaTypeFilter.ALL
-                                selectedFolder = null
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(horizontal = 32.dp)
+                    ) {
+                        if (currentFolder != null && filterText.isBlank() && mediaTypeFilter == FavoriteMediaTypeFilter.ALL) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier.size(72.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Rounded.FolderOpen,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(36.dp),
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                }
                             }
-                        ) {
-                            Text(Strings.clearBtn(lang))
+                            Spacer(Modifier.height(16.dp))
+                            Text(
+                                if (lang == AppLanguage.RUSSIAN) "В этой коллекции пока ничего нет" else "This collection is empty",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                textAlign = TextAlign.Center
+                            )
+                        } else {
+                            Text(
+                                Strings.nothingFound(lang),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            TextButton(
+                                onClick = {
+                                    filterText = ""
+                                    mediaTypeFilter = FavoriteMediaTypeFilter.ALL
+                                }
+                            ) {
+                                Text(Strings.clearBtn(lang))
+                            }
                         }
                     }
                 }
@@ -580,7 +658,7 @@ fun FavoritesScreen(
                     else -> StaggeredGridCells.Adaptive(minSize = 175.dp)
                 }
                 LazyVerticalStaggeredGrid(
-                    state = gridState,
+                    state = pageGridState,
                     columns = gridCells,
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 86.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -588,7 +666,7 @@ fun FavoritesScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     itemsIndexed(
-                        items = filteredList,
+                        items = pageList,
                         key = { _, m -> "${m.source}_${m.id.ifBlank { m.url }}" }
                     ) { index, media ->
                         val ratio = remember(media.id, media.width, media.height) {
@@ -610,7 +688,7 @@ fun FavoritesScreen(
                             onClick = {
                                 focusManager.clearFocus()
                                 keyboardController?.hide()
-                                vm.openFullscreen(filteredList, index)
+                                vm.openFullscreen(pageList, index)
                             }
                         )
                     }
