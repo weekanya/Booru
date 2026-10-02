@@ -107,6 +107,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var customSources by mutableStateOf<List<CustomBooruSource>>(emptyList()); private set
     var selectedContentTypes by mutableStateOf<Set<ContentType>>(emptySet()); private set
     var recommendationTags by mutableStateOf<List<String>>(emptyList()); private set
+    var scrollToTopTrigger by mutableStateOf(0L); private set
+    var refreshSeed by mutableStateOf(0); private set
 
     private var currentPage = 0
     var hasMore by mutableStateOf(true); private set
@@ -159,7 +161,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             themeMode = initialTheme
             palette = initialPalette
             tagBlacklist = initialBlacklist
-            recommendationTags = sortedRec.take(15)
+            recommendationTags = sortedRec.take(40)
 
             updateCacheSize()
             runCatching {
@@ -200,7 +202,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             prefs.recommendationTags.collect { map ->
                 val sorted = map.entries.sortedByDescending { it.value }.map { it.key }
-                recommendationTags = sorted.take(15)
+                recommendationTags = sorted.take(40)
             }
         }
         viewModelScope.launch {
@@ -615,7 +617,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun scrollToTop() {
+        scrollToTopTrigger = System.currentTimeMillis()
+    }
+
     fun refresh() {
+        refreshSeed++
         search(source, query, safeMode, isPullRefresh = true)
     }
 
@@ -670,8 +677,18 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         searchJob = viewModelScope.launch {
             try {
                 val list = if (source == BooruRepository.SOURCE_ALL && tags.isBlank() && recommendationTags.isNotEmpty()) {
-                    val ratio = getRecommendationRatio(recommendationTags.size)
-                    val tagsToFetch = recommendationTags.take(3)
+                    val ratio = 0.5f
+                    val tagsToFetch = if (recommendationTags.size <= 6) {
+                        recommendationTags
+                    } else {
+                        val r = java.util.Random(System.currentTimeMillis() + refreshSeed)
+                        recommendationTags.shuffled(r).take(6)
+                    }
+                    val maxPerTag = when {
+                        tagsToFetch.size == 1 -> 4
+                        tagsToFetch.size <= 3 -> 3
+                        else -> 2
+                    }
                     val dGen = async {
                         try {
                             repo.search(
@@ -680,8 +697,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                                 safeMode = safeMode,
                                 excludeSafe = excludeSafe,
                                 noAi = noAi,
-                                page = 0,
-                                sortOrder = sortOrder,
+                                page = if (isPullRefresh) (refreshSeed % 10) else 0,
+                                sortOrder = SortOrder.RANDOM,
                                 contentTypes = selectedContentTypes,
                                 credentials = getCredentials(),
                                 customSources = customSources
@@ -722,7 +739,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     } else {
                         tagLists
                     }
-                    blendRecommendationFeed(sanitizedGenList, sanitizedTagLists, ratio)
+                    blendRecommendationFeed(sanitizedGenList, sanitizedTagLists, ratio, maxPerTag = maxPerTag)
                 } else {
                     repo.search(
                         source = source,
@@ -792,9 +809,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 currentPage = lastFetchedPage
                 results = currentFiltered
                 hasMore = lastPageSize > 0
+                if (isPullRefresh) {
+                    scrollToTop()
+                }
             } catch (authEx: BooruAuthException) {
                 if (searchGen == currentSearchGeneration) {
-                    results = emptyList()
+                    if (!isPullRefresh) results = emptyList()
                     isAuthError = true
                     authErrorSource = authEx.sourceKey
                     authErrorCode = authEx.statusCode
@@ -802,7 +822,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 }
             } catch (httpEx: BooruHttpException) {
                 if (searchGen == currentSearchGeneration) {
-                    results = emptyList()
+                    if (!isPullRefresh) results = emptyList()
                     isAuthError = httpEx.statusCode == 401 || httpEx.statusCode == 403
                     authErrorSource = httpEx.sourceKey
                     authErrorCode = httpEx.statusCode
@@ -812,7 +832,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 throw c
             } catch (e: Exception) {
                 if (searchGen == currentSearchGeneration) {
-                    results = emptyList()
+                    if (!isPullRefresh) results = emptyList()
                     isAuthError = false
                     authErrorSource = null
                     authErrorCode = null
@@ -828,7 +848,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun loadMore() {
-        if (loading || loadingMore || !hasMore) return
+        if (loading || isRefreshing || loadingMore || !hasMore) return
         val searchGen = currentSearchGeneration
         val targetPage = currentPage + 1
 
@@ -837,15 +857,20 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             loadingMore = true
             try {
                 val list = if (source == BooruRepository.SOURCE_ALL && query.isBlank() && recommendationTags.isNotEmpty()) {
-                    val ratio = getRecommendationRatio(recommendationTags.size)
+                    val ratio = 0.5f
                     val tagsCount = recommendationTags.size
-                    val tagsToFetch = if (tagsCount <= 3) {
+                    val tagsToFetch = if (tagsCount <= 6) {
                         recommendationTags
                     } else {
-                        val startIndex = (targetPage * 3) % tagsCount
-                        (0 until minOf(3, tagsCount)).map { offset ->
+                        val startIndex = (targetPage * 6) % tagsCount
+                        (0 until minOf(6, tagsCount)).map { offset ->
                             recommendationTags[(startIndex + offset) % tagsCount]
                         }
+                    }
+                    val maxPerTag = when {
+                        tagsToFetch.size == 1 -> 4
+                        tagsToFetch.size <= 3 -> 3
+                        else -> 2
                     }
                     val dGen = async {
                         try {
@@ -856,7 +881,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                                 excludeSafe = excludeSafe,
                                 noAi = noAi,
                                 page = targetPage,
-                                sortOrder = sortOrder,
+                                sortOrder = SortOrder.RANDOM,
                                 contentTypes = selectedContentTypes,
                                 credentials = getCredentials(),
                                 customSources = customSources
@@ -866,7 +891,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         }
                     }
                     val dTags = tagsToFetch.map { recTag ->
-                        val subPage = if (tagsCount <= 3) targetPage else targetPage / 3
+                        val subPage = if (tagsCount <= 6) targetPage / 2 else targetPage / 6
                         async {
                             try {
                                 repo.search(
@@ -899,7 +924,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     } else {
                         tagLists
                     }
-                    blendRecommendationFeed(sanitizedGenList, sanitizedTagLists, ratio, existingKeys)
+                    blendRecommendationFeed(sanitizedGenList, sanitizedTagLists, ratio, existingKeys, maxPerTag = maxPerTag)
                 } else {
                     repo.search(
                         source = source,
@@ -1389,10 +1414,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             generalPosts: List<RemoteMedia>,
             tagPosts: List<List<RemoteMedia>>,
             ratio: Float,
-            existingKeys: Set<String> = emptySet()
+            existingKeys: Set<String> = emptySet(),
+            maxPerTag: Int = Int.MAX_VALUE
         ): List<RemoteMedia> {
             val nonNullGeneral = generalPosts.filterNot { it.mediaKey in existingKeys }
-            val nonNullTagPosts = tagPosts.map { list -> list.filterNot { it.mediaKey in existingKeys } }
+            val nonNullTagPosts = tagPosts.map { list ->
+                list.filterNot { it.mediaKey in existingKeys }.take(maxPerTag)
+            }
 
             if (nonNullGeneral.isEmpty() && nonNullTagPosts.all { it.isEmpty() }) return emptyList()
             if (nonNullTagPosts.all { it.isEmpty() }) return nonNullGeneral

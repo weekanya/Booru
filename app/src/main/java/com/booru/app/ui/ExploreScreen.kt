@@ -95,13 +95,23 @@ fun ExploreScreen(
 
     val gridState = rememberLazyStaggeredGridState()
 
+    LaunchedEffect(vm.scrollToTopTrigger) {
+        if (vm.scrollToTopTrigger > 0L) {
+            if (gridState.firstVisibleItemIndex > 0) {
+                gridState.scrollToItem(0)
+            } else {
+                vm.refresh()
+            }
+        }
+    }
+
     val shouldLoadMore by remember {
         derivedStateOf {
             val info = gridState.layoutInfo
             val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
             val total = info.totalItemsCount
             val notEnoughItemsToScroll = info.visibleItemsInfo.size == total
-            total > 0 && (lastVisible >= total - 6 || notEnoughItemsToScroll) && !vm.loading && !vm.loadingMore && vm.hasMore
+            total > 0 && (lastVisible >= total - 6 || notEnoughItemsToScroll) && !vm.loading && !vm.isRefreshing && !vm.loadingMore && vm.hasMore
         }
     }
     LaunchedEffect(shouldLoadMore) {
@@ -371,7 +381,7 @@ fun ExploreScreen(
                     onRefresh = { vm.refresh() },
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    if (vm.loading && vm.results.isEmpty()) {
+                    if ((vm.loading || vm.isRefreshing) && vm.results.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 CircularProgressIndicator(

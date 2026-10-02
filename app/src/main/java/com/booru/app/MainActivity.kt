@@ -229,7 +229,13 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                                     .clip(CircleShape)
                                     .bouncyPress(scaleDown = 0.96f)
                                     .clickable {
-                                        selectedTab = index
+                                        if (selectedTab == index) {
+                                            if (index == 0) {
+                                                vm.scrollToTop()
+                                            }
+                                        } else {
+                                            selectedTab = index
+                                        }
                                     }
                             ) {
                                 Row(
