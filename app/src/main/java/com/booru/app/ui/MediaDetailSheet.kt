@@ -30,6 +30,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -464,22 +466,28 @@ fun MediaDetailSheet(
                             )
                         }
 
-                        FilledTonalIconButton(
-                            onClick = { showFolderDialog = true },
-                            modifier = Modifier
-                                .size(44.dp)
-                                .bouncyPress(),
-                            shape = CircleShape,
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = if (vm.getMediaFolder(currentMedia.id) != null) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                contentColor = if (vm.getMediaFolder(currentMedia.id) != null) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        AnimatedVisibility(
+                            visible = isFav,
+                            enter = fadeIn(tween(180)) + scaleIn(tween(220)),
+                            exit = fadeOut(tween(140)) + scaleOut(tween(180))
                         ) {
-                            Icon(
-                                imageVector = if (vm.getMediaFolder(currentMedia.id) != null) Icons.Rounded.Folder else Icons.Rounded.FolderOpen,
-                                contentDescription = Strings.addToFolder(lang),
-                                modifier = Modifier.size(22.dp)
-                            )
+                            FilledTonalIconButton(
+                                onClick = { showFolderDialog = true },
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .bouncyPress(),
+                                shape = CircleShape,
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = if (vm.getMediaFolder(currentMedia.id) != null) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    contentColor = if (vm.getMediaFolder(currentMedia.id) != null) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = if (vm.getMediaFolder(currentMedia.id) != null) Icons.Rounded.Folder else Icons.Rounded.FolderOpen,
+                                    contentDescription = Strings.addToFolder(lang),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
                         }
 
                         if (!currentMedia.isVideo) {
@@ -1729,10 +1737,6 @@ fun BooruVideoPlayer(
     var isSeeking by remember { mutableStateOf(false) }
     var seekRatio by remember { mutableFloatStateOf(0f) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
-    var gestureHudText by remember { mutableStateOf<String?>(null) }
-    var gestureHudIcon by remember { mutableStateOf<ImageVector?>(null) }
-    var gestureHudProgress by remember { mutableFloatStateOf(0f) }
-    var showGestureHud by remember { mutableStateOf(false) }
 
     fun toggleControls() {
         if (isExternalControls) {
@@ -1912,86 +1916,7 @@ fun BooruVideoPlayer(
                         onTap = { toggleControls() }
                     )
                 }
-                .pointerInput(Unit) {
-                    detectDragGestures(
-                        onDragStart = { },
-                        onDragEnd = { showGestureHud = false },
-                        onDragCancel = { showGestureHud = false },
-                        onDrag = { change, dragAmount ->
-                            change.consume()
-                            if (abs(dragAmount.y) > abs(dragAmount.x)) {
-                                if (change.position.x < size.width / 2) {
-                                    val act = context as? Activity
-                                    val window = act?.window
-                                    if (window != null) {
-                                        val cur = window.attributes.screenBrightness.takeIf { it in 0f..1f } ?: 0.5f
-                                        val next = (cur - (dragAmount.y / 400f)).coerceIn(0.01f, 1f)
-                                        val lp = window.attributes
-                                        lp.screenBrightness = next
-                                        window.attributes = lp
-                                        gestureHudText = "${(next * 100).toInt()}%"
-                                        gestureHudIcon = Icons.Rounded.BrightnessMedium
-                                        gestureHudProgress = next
-                                        showGestureHud = true
-                                    }
-                                } else {
-                                    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
-                                    if (audioManager != null) {
-                                        val max = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
-                                        val cur = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
-                                        val next = (cur - (dragAmount.y / 30f).toInt()).coerceIn(0, max)
-                                        audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, next, 0)
-                                        val frac = next.toFloat() / max.toFloat()
-                                        gestureHudText = "${(frac * 100).toInt()}%"
-                                        gestureHudIcon = if (next == 0) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp
-                                        gestureHudProgress = frac
-                                        showGestureHud = true
-                                    }
-                                }
-                            }
-                        }
-                    )
-                }
         )
-
-        AnimatedVisibility(
-            visible = showGestureHud,
-            enter = fadeIn(tween(100)),
-            exit = fadeOut(tween(200)),
-            modifier = Modifier.align(Alignment.Center)
-        ) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = Color.Black.copy(alpha = 0.75f),
-                contentColor = Color.White
-            ) {
-                Column(
-                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    gestureHudIcon?.let { icon ->
-                        Icon(icon, null, modifier = Modifier.size(36.dp), tint = Color.White)
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = gestureHudText ?: "",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    LinearProgressIndicator(
-                        progress = { gestureHudProgress },
-                        modifier = Modifier
-                            .width(100.dp)
-                            .height(6.dp)
-                            .clip(CircleShape),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = Color.White.copy(alpha = 0.3f)
-                    )
-                }
-            }
-        }
 
         if (!isReady) {
             CircularProgressIndicator(

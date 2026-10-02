@@ -1950,36 +1950,40 @@ fun <T> MD3SegmentedChoiceRow(
                 Row(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 8.dp),
+                        .padding(horizontal = if (options.size >= 4) 4.dp else 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    AnimatedVisibility(
-                        visible = isSelected,
-                        enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
-                            expandHorizontally(
-                                animationSpec = tween(240, easing = FastOutSlowInEasing),
-                                expandFrom = Alignment.Start
-                            ),
-                        exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
-                            shrinkHorizontally(
-                                animationSpec = tween(200, easing = FastOutLinearInEasing),
-                                shrinkTowards = Alignment.Start
-                            )
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Rounded.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
+                    if (options.size <= 3) {
+                        AnimatedVisibility(
+                            visible = isSelected,
+                            enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                                expandHorizontally(
+                                    animationSpec = tween(240, easing = FastOutSlowInEasing),
+                                    expandFrom = Alignment.Start
+                                ),
+                            exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
+                                shrinkHorizontally(
+                                    animationSpec = tween(200, easing = FastOutLinearInEasing),
+                                    shrinkTowards = Alignment.Start
+                                )
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Check,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                            }
                         }
                     }
                     Text(
                         text = labelProvider(option),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                        style = if (options.size >= 4) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }

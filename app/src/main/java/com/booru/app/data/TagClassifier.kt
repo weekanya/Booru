@@ -82,36 +82,47 @@ object TagClassifier {
         "md5_mismatch", "duplicate", "watermark", "sample", "poor_quality"
     )
 
-    val RECOMMENDATION_EXCLUDED_TAGS = setOf(
-        "1girl", "2girls", "3girls", "4girls", "5girls", "6+girls", "multiple_girls",
-        "1boy", "2boys", "3boys", "4boys", "5boys", "6+boys", "multiple_boys",
-        "solo", "highres", "absurdres", "superabsurdres", "huge_filesize",
-        "translated", "partially_translated", "translation_request", "commentary",
+    private val COUNT_PERSON_REGEX = Regex("""^(\d+\+?|multiple|no)[\s_]*(girls?|boys?|females?|males?|others?)$""")
+
+    private val COMMON_GENERAL_DESCRIPTORS = setOf(
+        "solo", "duo", "trio", "group", "female", "male", "hetero", "yuri", "yaoi",
         "looking_at_viewer", "simple_background", "white_background", "transparent_background",
-        "monochrome", "greyscale", "grayscale", "comic", "parody", "watermark",
-        "sample", "bad_id", "tagme", "scan", "poor_quality", "md5_mismatch",
+        "black_background", "monochrome", "greyscale", "grayscale", "comic", "parody",
+        "watermark", "sample", "bad_id", "tagme", "scan", "poor_quality", "md5_mismatch",
         "official_art", "anime", "manga", "game_cg", "animated", "video", "webm", "mp4",
         "sound", "lossless", "ai_generated", "novelai", "stable_diffusion",
-        "safe", "general", "questionable", "explicit", "rating:s", "rating:g", "rating:q", "rating:e",
-        "rating:safe", "rating:general", "rating:questionable", "rating:explicit"
+        "safe", "general", "questionable", "explicit", "uncensored", "censored"
     )
 
     fun isRecommendationCandidate(tag: String): Boolean {
         val lower = tag.trim().lowercase().trim(',', ';', '.', '(', ')', '"', '\'')
         if (lower.length <= 1 || lower.contains(":") || lower.startsWith("-")) return false
-        if (lower in RECOMMENDATION_EXCLUDED_TAGS || lower in KNOWN_META_TAGS) return false
+        if (COUNT_PERSON_REGEX.matches(lower)) return false
+        if (lower in COMMON_GENERAL_DESCRIPTORS) return false
+        if (lower.endsWith("res") || lower.contains("resolution") || lower.contains("filesize")) return false
+        if (lower.endsWith("_request") || lower.contains("commentary") || lower.contains("translated")) return false
+        if (lower in KNOWN_META_TAGS) return false
         return true
     }
 
-    fun classify(tag: String): ClassifiedTag {
+    fun classify(tag: String, typeHint: String = ""): ClassifiedTag {
         val raw = tag.trim()
         val lower = raw.lowercase()
+        val hint = typeHint.trim().lowercase()
 
         val category = when {
+            hint == "1" || hint == "artist" || hint == "art" -> TagCategory.ARTIST
+            hint == "4" || hint == "character" || hint == "char" -> TagCategory.CHARACTER
+            hint == "3" || hint == "copyright" || hint == "series" || hint == "copy" -> TagCategory.COPYRIGHT
+            hint == "5" || hint == "meta" || hint == "metadata" -> TagCategory.META
+            hint == "0" || hint == "general" || hint == "tag" -> TagCategory.GENERAL
             lower.startsWith("artist:") || lower.startsWith("art:") -> TagCategory.ARTIST
             lower.startsWith("character:") || lower.startsWith("char:") -> TagCategory.CHARACTER
             lower.startsWith("copyright:") || lower.startsWith("series:") || lower.startsWith("copy:") -> TagCategory.COPYRIGHT
             lower.startsWith("meta:") || lower.startsWith("metadata:") || lower in KNOWN_META_TAGS -> TagCategory.META
+            lower.endsWith("_request") || lower.contains("commentary") || lower.contains("translated") -> TagCategory.META
+            lower.endsWith("res") || lower.contains("filesize") -> TagCategory.META
+            lower.contains("_(") && lower.endsWith(")") -> TagCategory.CHARACTER
             else -> TagCategory.GENERAL
         }
 

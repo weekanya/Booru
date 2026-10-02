@@ -94,6 +94,7 @@ fun FavoritesScreen(
     var selectedFolder by rememberSaveable { mutableStateOf<String?>(null) }
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var newFolderName by remember { mutableStateOf("") }
+    var folderToDelete by remember { mutableStateOf<String?>(null) }
     var showFilterSheet by remember { mutableStateOf(false) }
     LaunchedEffect(gridState.isScrollInProgress) {
         if (gridState.isScrollInProgress) {
@@ -381,10 +382,16 @@ fun FavoritesScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     item {
+                        val isAllSelected = selectedFolder == null
                         FilterChip(
-                            selected = selectedFolder == null,
+                            selected = isAllSelected,
                             onClick = { selectedFolder = null },
-                            label = { Text("${Strings.allFavoritesFolder(lang)} (${vm.favoritesList.size})") },
+                            leadingIcon = if (isAllSelected) {
+                                {
+                                    Icon(Icons.Rounded.Check, null, modifier = Modifier.size(16.dp))
+                                }
+                            } else null,
+                            label = { Text("${Strings.allFavoritesFolder(lang)} (${vm.favoritesList.size})", modifier = Modifier.animateContentSize()) },
                             shape = CircleShape
                         )
                     }
@@ -392,19 +399,22 @@ fun FavoritesScreen(
                         val count = remember(vm.favoritesList, folder, vm.favoriteFolders) {
                             vm.favoritesList.count { vm.getMediaFolder(it.id) == folder }
                         }
+                        val isSelected = selectedFolder == folder
                         FilterChip(
-                            selected = selectedFolder == folder,
+                            selected = isSelected,
                             onClick = { selectedFolder = if (selectedFolder == folder) null else folder },
-                            label = { Text("$folder ($count)") },
+                            leadingIcon = if (isSelected) {
+                                {
+                                    Icon(Icons.Rounded.Check, null, modifier = Modifier.size(16.dp))
+                                }
+                            } else null,
+                            label = { Text("$folder ($count)", modifier = Modifier.animateContentSize()) },
                             trailingIcon = {
                                 IconButton(
-                                    onClick = {
-                                        if (selectedFolder == folder) selectedFolder = null
-                                        vm.removeCustomFolder(folder)
-                                    },
-                                    modifier = Modifier.size(16.dp)
+                                    onClick = { folderToDelete = folder },
+                                    modifier = Modifier.size(18.dp)
                                 ) {
-                                    Icon(Icons.Rounded.Close, contentDescription = "Delete", modifier = Modifier.size(12.dp))
+                                    Icon(Icons.Rounded.Close, contentDescription = "Delete", modifier = Modifier.size(13.dp))
                                 }
                             },
                             shape = CircleShape
@@ -455,6 +465,49 @@ fun FavoritesScreen(
             } else {
                 Spacer(Modifier.height(6.dp))
             }
+        }
+
+        if (folderToDelete != null) {
+            val toDelete = folderToDelete!!
+            AlertDialog(
+                onDismissRequest = { folderToDelete = null },
+                title = {
+                    Text(if (lang == AppLanguage.RUSSIAN) "Удалить коллекцию?" else "Delete collection?")
+                },
+                text = {
+                    Text(
+                        if (lang == AppLanguage.RUSSIAN)
+                            "Коллекция «$toDelete» будет удалена. Медиафайлы останутся в общем избранном."
+                        else
+                            "Collection \"$toDelete\" will be removed. Media items will remain in favorites."
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (selectedFolder == toDelete) selectedFolder = null
+                            vm.removeCustomFolder(toDelete)
+                            folderToDelete = null
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(if (lang == AppLanguage.RUSSIAN) "Удалить" else "Delete")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { folderToDelete = null },
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text(Strings.cancelBtn(lang))
+                    }
+                },
+                shape = RoundedCornerShape(24.dp)
+            )
         }
 
         if (showCreateFolderDialog) {

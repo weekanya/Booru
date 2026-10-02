@@ -7,7 +7,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -542,20 +543,30 @@ fun ExploreScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .pointerInput(Unit) {
-                                    detectTransformGestures { _, _, zoom, _ ->
-                                        if (zoom > 1.3f) {
-                                            if (vm.gridColumnsCount > 1) {
-                                                vm.setGridColumns(vm.gridColumnsCount - 1)
-                                            } else if (vm.gridColumnsCount == 0) {
-                                                vm.setGridColumns(2)
+                                    awaitEachGesture {
+                                        var accumulatedZoom = 1f
+                                        do {
+                                            val event = awaitPointerEvent()
+                                            val downCount = event.changes.count { it.pressed }
+                                            if (downCount >= 2) {
+                                                val zoom = event.calculateZoom()
+                                                accumulatedZoom *= zoom
+                                                if (accumulatedZoom > 1.35f) {
+                                                    val cur = if (vm.gridColumnsCount == 0) 2 else vm.gridColumnsCount
+                                                    if (cur > 1) {
+                                                        vm.setGridColumns(cur - 1)
+                                                    }
+                                                    accumulatedZoom = 1f
+                                                } else if (accumulatedZoom < 0.75f) {
+                                                    val cur = if (vm.gridColumnsCount == 0) 2 else vm.gridColumnsCount
+                                                    if (cur < 4) {
+                                                        vm.setGridColumns(cur + 1)
+                                                    }
+                                                    accumulatedZoom = 1f
+                                                }
+                                                event.changes.forEach { it.consume() }
                                             }
-                                        } else if (zoom < 0.75f) {
-                                            if (vm.gridColumnsCount in 1..3) {
-                                                vm.setGridColumns(vm.gridColumnsCount + 1)
-                                            } else if (vm.gridColumnsCount == 0) {
-                                                vm.setGridColumns(3)
-                                            }
-                                        }
+                                        } while (event.changes.any { it.pressed })
                                     }
                                 }
                                 .graphicsLayer {
@@ -882,7 +893,7 @@ fun ExploreScreen(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
-                                                val classified = remember(suggestion.value) { TagClassifier.classify(suggestion.value) }
+                                                val classified = remember(suggestion.value, suggestion.type) { TagClassifier.classify(suggestion.value, suggestion.type) }
                                                 val category = classified.category
                                                 val isDark = isSystemInDarkTheme()
                                                 val catColor = category.contentColor(isDark) ?: MaterialTheme.colorScheme.primary
@@ -911,6 +922,7 @@ fun ExploreScreen(
                                                         Text(
                                                             text = if (suggestion.count > 0) "${suggestion.value} (${suggestion.count})" else suggestion.label.ifBlank { suggestion.value },
                                                             style = MaterialTheme.typography.bodyLarge,
+                                                            color = if (category != TagCategory.GENERAL) catColor else MaterialTheme.colorScheme.onSurface,
                                                             fontWeight = FontWeight.Medium,
                                                             maxLines = 1,
                                                             overflow = TextOverflow.Ellipsis

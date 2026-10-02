@@ -1691,7 +1691,7 @@ object Strings {
 
     fun lockTimeoutImmediately(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Сразу"
-        else -> "Immediately"
+        else -> "Instant"
     }
 
     fun lockTimeoutMinutes(min: Int, lang: AppLanguage) = when (lang) {

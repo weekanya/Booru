@@ -120,7 +120,9 @@ class BooruPreferences(private val context: Context) {
                 val keys = obj.keys()
                 while (keys.hasNext()) {
                     val k = keys.next()
-                    map[k] = obj.optInt(k, 0)
+                    if (TagClassifier.isRecommendationCandidate(k)) {
+                        map[k] = obj.optInt(k, 0)
+                    }
                 }
                 map
             }.getOrDefault(emptyMap())
@@ -451,7 +453,7 @@ class BooruPreferences(private val context: Context) {
                 currentMap[tag] = count.coerceAtMost(30)
             }
             val sorted = currentMap.entries
-                .filter { it.value >= 1 && !blacklist.contains(it.key) }
+                .filter { it.value >= 1 && !blacklist.contains(it.key) && TagClassifier.isRecommendationCandidate(it.key) }
                 .sortedByDescending { it.value }
                 .take(40)
             val newObj = JSONObject()

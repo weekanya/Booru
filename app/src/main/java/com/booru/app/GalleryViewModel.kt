@@ -21,6 +21,7 @@ import com.booru.app.data.BooruCacheManager
 import com.booru.app.data.BooruPreferences
 import com.booru.app.data.CustomBooruSource
 import com.booru.app.data.ImageQuality
+import com.booru.app.data.TagClassifier
 import com.booru.app.data.UpdateChecker
 import com.booru.app.data.db.AppDatabase
 import com.booru.app.data.db.FavoriteEntity
@@ -159,7 +160,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             val initialCustom = prefs.customSources.first()
             val initialBlacklist = prefs.tagBlacklist.first()
             val initialRecMap = prefs.recommendationTags.first()
-            val sortedRec = initialRecMap.entries.sortedByDescending { it.value }.map { it.key }
+            val sortedRec = initialRecMap.entries
+                .filter { TagClassifier.isRecommendationCandidate(it.key) }
+                .sortedByDescending { it.value }
+                .map { it.key }
             customSources = initialCustom
             val isCustomValid = initialCustom.any { (it.key == initialSource || it.id == initialSource) && it.enabled }
             val isBuiltInValid = BooruRepository.AVAILABLE_SOURCES.contains(initialSource)
@@ -217,7 +221,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
         viewModelScope.launch {
             prefs.recommendationTags.collect { map ->
-                val sorted = map.entries.sortedByDescending { it.value }.map { it.key }
+                val sorted = map.entries
+                    .filter { TagClassifier.isRecommendationCandidate(it.key) }
+                    .sortedByDescending { it.value }
+                    .map { it.key }
                 recommendationTags = sorted.take(40)
             }
         }
@@ -720,9 +727,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
         searchJob = viewModelScope.launch {
             try {
-                val activeRecTags = recommendationTags.filterNot { tag ->
-                    tagBlacklist.any { it.equals(tag, ignoreCase = true) }
-                }
+                val activeRecTags = recommendationTags
+                    .filter { TagClassifier.isRecommendationCandidate(it) }
+                    .filterNot { tag ->
+                        tagBlacklist.any { it.equals(tag, ignoreCase = true) }
+                    }
                 val useRecommendations = tags.isBlank() && activeRecTags.isNotEmpty() && recommendationRatio > 0.05f
 
                 val list = if (useRecommendations) {
@@ -922,9 +931,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         loadMoreJob = viewModelScope.launch {
             loadingMore = true
             try {
-                val activeRecTags = recommendationTags.filterNot { tag ->
-                    tagBlacklist.any { it.equals(tag, ignoreCase = true) }
-                }
+                val activeRecTags = recommendationTags
+                    .filter { TagClassifier.isRecommendationCandidate(it) }
+                    .filterNot { tag ->
+                        tagBlacklist.any { it.equals(tag, ignoreCase = true) }
+                    }
                 val useRecommendations = query.isBlank() && activeRecTags.isNotEmpty() && recommendationRatio > 0.05f
 
                 val list = if (useRecommendations) {
