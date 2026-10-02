@@ -694,11 +694,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         recommendationTags
                     } else {
                         val r = java.util.Random(System.currentTimeMillis() + refreshSeed)
-                        recommendationTags.shuffled(r).take(if (recommendationTags.size <= 4) 2 else 3)
+                        recommendationTags.shuffled(r).take(2)
                     }
                     val maxPerTag = 3
                     val dGen = async {
-                        withTimeoutOrNull(4000L) {
+                        withTimeoutOrNull(3000L) {
                             try {
                                 repo.search(
                                     source = source,
@@ -719,7 +719,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     }
                     val dTags = tagsToFetch.map { recTag ->
                         async {
-                            withTimeoutOrNull(4000L) {
+                            withTimeoutOrNull(3000L) {
                                 try {
                                     repo.search(
                                         source = source,
@@ -753,7 +753,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     }
                     blendRecommendationFeed(sanitizedGenList, sanitizedTagLists, ratio, maxPerTag = maxPerTag)
                 } else {
-                    withTimeoutOrNull(5000L) {
+                    withTimeoutOrNull(3500L) {
                         repo.search(
                             source = source,
                             tags = tags,
@@ -823,9 +823,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 currentPage = lastFetchedPage
                 results = currentFiltered
                 hasMore = lastPageSize > 0
-                if (isPullRefresh) {
-                    scrollToTop()
-                }
             } catch (authEx: BooruAuthException) {
                 if (searchGen == currentSearchGeneration) {
                     if (!isPullRefresh) results = emptyList()
@@ -885,7 +882,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     }
                     val maxPerTag = 3
                     val dGen = async {
-                        withTimeoutOrNull(4000L) {
+                        withTimeoutOrNull(3000L) {
                             try {
                                 repo.search(
                                     source = source,
@@ -907,7 +904,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     val dTags = tagsToFetch.map { recTag ->
                         val subPage = targetPage / 2
                         async {
-                            withTimeoutOrNull(4000L) {
+                            withTimeoutOrNull(3000L) {
                                 try {
                                     repo.search(
                                         source = source,
@@ -942,7 +939,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     }
                     blendRecommendationFeed(sanitizedGenList, sanitizedTagLists, ratio, existingKeys, maxPerTag = maxPerTag)
                 } else {
-                    withTimeoutOrNull(5000L) {
+                    withTimeoutOrNull(3500L) {
                         repo.search(
                             source = source,
                             tags = query,

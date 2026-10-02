@@ -67,8 +67,8 @@ class BooruHttpException(
 
 class BooruRepository(
     private val client: OkHttpClient = NetworkClient.baseClient.newBuilder()
-        .connectTimeout(6, TimeUnit.SECONDS)
-        .readTimeout(8, TimeUnit.SECONDS)
+        .connectTimeout(5, TimeUnit.SECONDS)
+        .readTimeout(6, TimeUnit.SECONDS)
         .followRedirects(true)
         .addNetworkInterceptor { chain ->
             val request = chain.request()
@@ -205,7 +205,7 @@ class BooruRepository(
                 async {
                     semaphore.withPermit {
                         try {
-                            val list = withTimeoutOrNull(4500L) {
+                            val list = withTimeoutOrNull(3500L) {
                                 requestSourceWithRetry(key, tags.trim(), safeMode, excludeSafe, noAi, page, sortOrder, contentTypes, credentials, customSources)
                             } ?: emptyList()
                             Result.success(list)

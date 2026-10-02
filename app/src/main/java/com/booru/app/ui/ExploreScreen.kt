@@ -105,7 +105,7 @@ fun ExploreScreen(
         if (vm.scrollToTopTrigger > 0L) {
             if (gridState.firstVisibleItemIndex > 0) {
                 gridState.animateScrollToItem(0)
-            } else {
+            } else if (!vm.isRefreshing && !vm.loading) {
                 vm.refresh(isPull = false)
             }
         }
@@ -383,11 +383,6 @@ fun ExploreScreen(
 
             val pullRefreshState = rememberPullToRefreshState()
 
-            SleekTopProgressIndicator(
-                isRefreshing = vm.isRefreshing,
-                pullFraction = pullRefreshState.distanceFraction
-            )
-
             Box(modifier = Modifier.weight(1f)) {
                 PullToRefreshBox(
                     isRefreshing = vm.isRefreshing,
@@ -406,14 +401,11 @@ fun ExploreScreen(
                             val isReady = pullRefreshState.distanceFraction >= 1f
                             Surface(
                                 shape = CircleShape,
-                                color = if (isReady) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                color = if (isReady) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
                                 contentColor = if (isReady) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                tonalElevation = 4.dp,
-                                shadowElevation = 6.dp,
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = if (isReady) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                                ),
+                                tonalElevation = 0.dp,
+                                shadowElevation = 0.dp,
+                                border = null,
                                 modifier = Modifier.height(34.dp)
                             ) {
                                 Row(
@@ -511,6 +503,19 @@ fun ExploreScreen(
                             }
                         }
                     } else {
+                        val targetPullOffset = if (pullRefreshState.distanceFraction > 0f && !vm.isRefreshing) {
+                            (pullRefreshState.distanceFraction * 40f).coerceAtMost(60f)
+                        } else 0f
+                        val animatedPullOffset by animateFloatAsState(
+                            targetValue = targetPullOffset,
+                            animationSpec = if (pullRefreshState.distanceFraction > 0f && !vm.isRefreshing) {
+                                snap()
+                            } else {
+                                spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioNoBouncy)
+                            },
+                            label = "gridPullOffset"
+                        )
+
                         LazyVerticalStaggeredGrid(
                             columns = StaggeredGridCells.Adaptive(minSize = 175.dp),
                             state = gridState,
@@ -520,10 +525,7 @@ fun ExploreScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .graphicsLayer {
-                                    val pullOffset = if (pullRefreshState.distanceFraction > 0f && !vm.isRefreshing) {
-                                        (pullRefreshState.distanceFraction * 54.dp.toPx()).coerceAtMost(86.dp.toPx())
-                                    } else 0f
-                                    translationY = pullOffset
+                                    translationY = animatedPullOffset.dp.toPx()
                                 }
                         ) {
                         itemsIndexed(
@@ -569,6 +571,14 @@ fun ExploreScreen(
                         }
                     }
                 }
+
+                SleekTopProgressIndicator(
+                    isRefreshing = vm.isRefreshing,
+                    pullFraction = pullRefreshState.distanceFraction,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                )
             }
         }
     }
@@ -1709,15 +1719,13 @@ private fun SleekTopProgressIndicator(
     modifier: Modifier = Modifier
 ) {
     val primary = MaterialTheme.colorScheme.primary
-    val secondary = MaterialTheme.colorScheme.secondary
-    val tertiary = MaterialTheme.colorScheme.tertiary
 
     val isVisible = isRefreshing || pullFraction > 0.04f
 
     AnimatedVisibility(
         visible = isVisible,
-        enter = fadeIn(animationSpec = tween(150)) + expandVertically(animationSpec = tween(180)),
-        exit = fadeOut(animationSpec = tween(220)) + shrinkVertically(animationSpec = tween(180)),
+        enter = fadeIn(animationSpec = tween(150)),
+        exit = fadeOut(animationSpec = tween(200)),
         modifier = modifier
     ) {
         val infiniteTransition = rememberInfiniteTransition(label = "indicatorShimmer")
@@ -1734,8 +1742,8 @@ private fun SleekTopProgressIndicator(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 3.dp)
-                .height(4.dp)
+                .padding(horizontal = 16.dp, vertical = 2.dp)
+                .height(3.dp)
                 .drawBehind {
                     val width = size.width
                     val height = size.height
@@ -1743,21 +1751,19 @@ private fun SleekTopProgressIndicator(
 
                     if (isRefreshing) {
                         drawRoundRect(
-                            color = primary.copy(alpha = 0.15f),
+                            color = primary.copy(alpha = 0.12f),
                             cornerRadius = cornerRadius
                         )
 
-                        val sweepWidth = width * 0.45f
+                        val sweepWidth = width * 0.4f
                         val startX = (shimmerPhase * width) - (sweepWidth / 2f)
                         val endX = startX + sweepWidth
 
                         val gradientBrush = Brush.horizontalGradient(
                             colors = listOf(
-                                primary.copy(alpha = 0.15f),
-                                secondary.copy(alpha = 0.85f),
-                                Color.White.copy(alpha = 0.95f),
-                                tertiary.copy(alpha = 0.9f),
-                                primary.copy(alpha = 0.15f)
+                                primary.copy(alpha = 0f),
+                                primary.copy(alpha = 0.85f),
+                                primary.copy(alpha = 0f)
                             ),
                             startX = startX,
                             endX = endX
@@ -1772,26 +1778,13 @@ private fun SleekTopProgressIndicator(
                         val activeWidth = (clamped * width).coerceAtLeast(height)
                         val left = (width - activeWidth) / 2f
 
-                        val isReady = pullFraction >= 1f
-                        val pullBrush = if (isReady) {
-                            Brush.horizontalGradient(
-                                listOf(
-                                    tertiary,
-                                    secondary,
-                                    primary,
-                                    secondary,
-                                    tertiary
-                                )
+                        val pullBrush = Brush.horizontalGradient(
+                            listOf(
+                                primary.copy(alpha = 0.25f),
+                                primary.copy(alpha = 0.85f),
+                                primary.copy(alpha = 0.25f)
                             )
-                        } else {
-                            Brush.horizontalGradient(
-                                listOf(
-                                    primary.copy(alpha = 0.35f),
-                                    primary.copy(alpha = 0.9f),
-                                    primary.copy(alpha = 0.35f)
-                                )
-                            )
-                        }
+                        )
 
                         drawRoundRect(
                             brush = pullBrush,
