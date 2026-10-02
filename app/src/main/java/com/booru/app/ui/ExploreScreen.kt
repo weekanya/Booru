@@ -22,6 +22,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
@@ -1533,96 +1535,45 @@ fun FilterOptionButton(
 ) {
     val containerColor by animateColorAsState(
         targetValue = if (selected) selectedContainerColor else unselectedContainerColor,
-        animationSpec = spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
         label = "filterBtnBg"
     )
     val contentColor by animateColorAsState(
         targetValue = if (selected) selectedContentColor else unselectedContentColor,
-        animationSpec = spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
+        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
         label = "filterBtnContent"
-    )
-    val scale by animateFloatAsState(
-        targetValue = if (selected) 1.02f else 1.0f,
-        animationSpec = spring(
-            dampingRatio = 0.72f,
-            stiffness = Spring.StiffnessMedium
-        ),
-        label = "filterBtnScale"
     )
 
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(14.dp),
         color = containerColor,
         contentColor = contentColor,
         modifier = modifier
             .height(46.dp)
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
             .bouncyPress()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 6.dp),
+                .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
             if (icon != null) {
-                Box(
-                    modifier = Modifier.size(18.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    AnimatedContent(
-                        targetState = selected,
-                        transitionSpec = {
-                            (fadeIn(animationSpec = tween(140, easing = LinearOutSlowInEasing)) +
-                                scaleIn(initialScale = 0.65f, animationSpec = spring(dampingRatio = 0.75f, stiffness = Spring.StiffnessMedium)))
-                                .togetherWith(
-                                    fadeOut(animationSpec = tween(100, easing = FastOutLinearInEasing)) +
-                                        scaleOut(targetScale = 0.65f, animationSpec = tween(100, easing = FastOutLinearInEasing))
-                                )
-                        },
-                        label = "filterBtnIconAnim"
-                    ) { isSel ->
-                        Icon(
-                            imageVector = if (isSel) Icons.Rounded.Check else icon,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-                Spacer(Modifier.width(4.dp))
-            } else {
-                AnimatedVisibility(
-                    visible = selected,
-                    enter = fadeIn(animationSpec = tween(140, easing = LinearOutSlowInEasing)) +
-                        expandHorizontally(
-                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
-                            expandFrom = Alignment.Start
-                        ),
-                    exit = fadeOut(animationSpec = tween(100, easing = FastOutLinearInEasing)) +
-                        shrinkHorizontally(
-                            animationSpec = spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMedium),
-                            shrinkTowards = Alignment.Start
-                        )
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Rounded.Check,
-                            contentDescription = null,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                    }
-                }
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(17.dp),
+                    tint = contentColor
+                )
+                Spacer(Modifier.width(6.dp))
             }
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                color = contentColor,
                 maxLines = 1
             )
         }
@@ -1649,7 +1600,7 @@ private fun FilterSelectionBottomSheet(
     var tempExcludeSafe by remember { mutableStateOf(vm.excludeSafe) }
     var tempNoAi by remember { mutableStateOf(vm.noAi) }
     var tempRecRatio by remember { mutableFloatStateOf(vm.recommendationRatio) }
-    var selectedTab by remember { mutableIntStateOf(0) }
+    val filterPagerState = rememberPagerState(initialPage = 0) { 2 }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1741,19 +1692,23 @@ private fun FilterSelectionBottomSheet(
                         Pair(if (lang == AppLanguage.RUSSIAN) "Сортировка и лента" else "Sorting & Feed", Icons.Rounded.AutoAwesome)
                     )
                     tabs.forEachIndexed { index, (title, icon) ->
-                        val isSelected = selectedTab == index
+                        val isSelected = filterPagerState.currentPage == index
                         val bg by animateColorAsState(
                             targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                            animationSpec = tween(200),
+                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
                             label = "filterTabBg"
                         )
                         val fg by animateColorAsState(
                             targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            animationSpec = tween(200),
+                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
                             label = "filterTabFg"
                         )
                         Surface(
-                            onClick = { selectedTab = index },
+                            onClick = {
+                                scope.launch {
+                                    filterPagerState.animateScrollToPage(index)
+                                }
+                            },
                             shape = RoundedCornerShape(12.dp),
                             color = bg,
                             contentColor = fg,
@@ -1782,18 +1737,19 @@ private fun FilterSelectionBottomSheet(
 
             Spacer(Modifier.height(10.dp))
 
-            Column(
+            HorizontalPager(
+                state = filterPagerState,
                 modifier = Modifier
-                    .weight(1f, fill = false)
-                    .verticalScroll(rememberScrollState())
-            ) {
-                Crossfade(
-                    targetState = selectedTab,
-                    animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
-                    label = "filterTabContent"
-                ) { tab ->
-                    if (tab == 0) {
-                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    .fillMaxWidth()
+                    .height(350.dp)
+            ) { page ->
+                if (page == 0) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
                             Card(
                                 shape = RoundedCornerShape(20.dp),
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
@@ -1947,7 +1903,12 @@ private fun FilterSelectionBottomSheet(
                             }
                         }
                     } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
                             Card(
                                 shape = RoundedCornerShape(20.dp),
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
@@ -2015,17 +1976,10 @@ private fun FilterSelectionBottomSheet(
                                                 Triple(0.5f, Strings.feedBalanced(lang), tempRecRatio in 0.35f..0.65f),
                                                 Triple(1.0f, Strings.feedRecommendedOnly(lang), tempRecRatio >= 0.85f)
                                             ).forEach { (presetVal, label, active) ->
-                                                FilterChip(
+                                                FilterOptionButton(
                                                     selected = active,
                                                     onClick = { tempRecRatio = presetVal },
-                                                    label = {
-                                                        Text(
-                                                            text = label,
-                                                            style = MaterialTheme.typography.labelSmall,
-                                                            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal
-                                                        )
-                                                    },
-                                                    shape = CircleShape,
+                                                    label = label,
                                                     modifier = Modifier.weight(1f)
                                                 )
                                             }
@@ -2044,7 +1998,6 @@ private fun FilterSelectionBottomSheet(
                         }
                     }
                 }
-            }
 
             Spacer(Modifier.height(16.dp))
 

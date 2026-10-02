@@ -63,6 +63,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.booru.app.GalleryViewModel
 import com.booru.app.data.ImageQuality
 import com.booru.app.data.CustomBooruSource
@@ -1344,11 +1345,6 @@ fun SettingsScreen(
 
     val categories = remember { SettingsCategory.entries }
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { categories.size })
-    val tabRowState = rememberLazyListState()
-
-    LaunchedEffect(pagerState.currentPage) {
-        tabRowState.animateScrollToItem(pagerState.currentPage)
-    }
 
     Column(
         modifier = modifier.fillMaxSize()
@@ -1361,39 +1357,75 @@ fun SettingsScreen(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
         )
 
-        LazyRow(
-            state = tabRowState,
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 16.dp, vertical = 6.dp)
         ) {
-            itemsIndexed(categories) { index, cat ->
-                val isSelected = pagerState.currentPage == index
-                val label = if (lang == AppLanguage.RUSSIAN) cat.titleRu else cat.titleEn
-                FilterChip(
-                    selected = isSelected,
-                    onClick = {
-                        scope.launch {
-                            pagerState.animateScrollToPage(index)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                categories.forEachIndexed { index, cat ->
+                    val isSelected = pagerState.currentPage == index
+                    val animBg by animateColorAsState(
+                        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        label = "settingsTabBg"
+                    )
+                    val animFg by animateColorAsState(
+                        targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        label = "settingsTabFg"
+                    )
+
+                    Surface(
+                        onClick = {
+                            scope.launch {
+                                pagerState.animateScrollToPage(index)
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        color = animBg,
+                        contentColor = animFg,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .bouncyPress()
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                cat.icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(19.dp)
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = when (cat) {
+                                    SettingsCategory.APPEARANCE -> if (lang == AppLanguage.RUSSIAN) "Вид" else "Style"
+                                    SettingsCategory.SOURCES -> if (lang == AppLanguage.RUSSIAN) "Источники" else "Sources"
+                                    SettingsCategory.CONTENT -> if (lang == AppLanguage.RUSSIAN) "Контент" else "Content"
+                                    SettingsCategory.SYSTEM -> if (lang == AppLanguage.RUSSIAN) "Система" else "System"
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1,
+                                fontSize = 11.sp
+                            )
                         }
-                    },
-                    leadingIcon = {
-                        Icon(cat.icon, contentDescription = null, modifier = Modifier.size(18.dp))
-                    },
-                    label = {
-                        Text(
-                            text = label,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                        )
-                    },
-                    shape = CircleShape
-                )
+                    }
+                }
             }
         }
-
-        Spacer(Modifier.height(4.dp))
 
         HorizontalPager(
             state = pagerState,
@@ -1523,52 +1555,6 @@ fun SettingsScreen(
                                     }
                                 }
                             )
-
-                            SettingsDivider()
-
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 20.dp, vertical = 16.dp)
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.GridView,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                    Spacer(Modifier.width(16.dp))
-                                    Column {
-                                        Text(
-                                            text = Strings.gridColumnsTitle(lang),
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Spacer(Modifier.height(2.dp))
-                                        Text(
-                                            text = when (vm.gridColumnsCount) {
-                                                0 -> Strings.gridColumnsAuto(lang)
-                                                else -> "${vm.gridColumnsCount}"
-                                            },
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-
-                                Spacer(Modifier.height(14.dp))
-
-                                MD3SegmentedChoiceRow(
-                                    options = listOf(0, 2, 3, 4),
-                                    selectedOption = vm.gridColumnsCount,
-                                    onOptionSelected = { vm.setGridColumns(it) },
-                                    labelProvider = { cols ->
-                                        if (cols == 0) Strings.gridColumnsAuto(lang) else "$cols"
-                                    }
-                                )
-                            }
 
                             SettingsDivider()
 
