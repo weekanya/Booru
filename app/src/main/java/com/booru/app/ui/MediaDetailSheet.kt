@@ -1,5 +1,6 @@
 package com.booru.app.ui
 
+import android.app.Activity
 import android.app.WallpaperManager
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -38,6 +39,7 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroidSize
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -68,7 +70,9 @@ import androidx.compose.ui.layout.ContentScale
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
@@ -146,6 +150,7 @@ fun MediaDetailSheet(
     var isCurrentPageZoomed by remember { mutableStateOf(false) }
     var resetZoomKey by remember { mutableIntStateOf(0) }
     var showWallpaperDialog by remember { mutableStateOf(false) }
+    var showFolderDialog by remember { mutableStateOf(false) }
     var selectedTagForAction by remember { mutableStateOf<String?>(null) }
     var isSettingWallpaper by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
@@ -171,6 +176,7 @@ fun MediaDetailSheet(
             showTrueFullscreen -> showTrueFullscreen = false
             selectedTagForAction != null -> selectedTagForAction = null
             showWallpaperDialog -> showWallpaperDialog = false
+            showFolderDialog -> showFolderDialog = false
             isCurrentPageZoomed -> {
                 resetZoomKey++
                 isCurrentPageZoomed = false
@@ -454,6 +460,24 @@ fun MediaDetailSheet(
                             Icon(
                                 imageVector = if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                                 contentDescription = "Favorite",
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        FilledTonalIconButton(
+                            onClick = { showFolderDialog = true },
+                            modifier = Modifier
+                                .size(44.dp)
+                                .bouncyPress(),
+                            shape = CircleShape,
+                            colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = if (vm.getMediaFolder(currentMedia.id) != null) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                contentColor = if (vm.getMediaFolder(currentMedia.id) != null) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        ) {
+                            Icon(
+                                imageVector = if (vm.getMediaFolder(currentMedia.id) != null) Icons.Rounded.Folder else Icons.Rounded.FolderOpen,
+                                contentDescription = Strings.addToFolder(lang),
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -898,6 +922,77 @@ fun MediaDetailSheet(
         }
     }
 
+    if (showFolderDialog) {
+        val folderSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val currentFolder = vm.getMediaFolder(currentMedia.id)
+        ModalBottomSheet(
+            onDismissRequest = { showFolderDialog = false },
+            sheetState = folderSheetState,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = Strings.addToFolder(lang),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Surface(
+                    onClick = {
+                        vm.setMediaFolder(currentMedia.id, null)
+                        showFolderDialog = false
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (currentFolder == null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Rounded.FolderOff, null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text(Strings.allFavoritesFolder(lang), fontWeight = FontWeight.SemiBold)
+                    }
+                }
+
+                vm.customFolders.forEach { folder ->
+                    val isSelected = currentFolder == folder
+                    Surface(
+                        onClick = {
+                            vm.setMediaFolder(currentMedia.id, folder)
+                            showFolderDialog = false
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Rounded.Folder, null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text(folder, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     if (selectedTagForAction != null) {
         val currentActionTag = selectedTagForAction!!
         val isBlacklisted = vm.tagBlacklist.any { it.equals(currentActionTag, ignoreCase = true) }
@@ -1271,12 +1366,20 @@ fun DetailZoomableImage(
             label = "zoomOffset"
         )
 
+        val haptic = LocalHapticFeedback.current
+        var showHeartBurst by remember { mutableStateOf(false) }
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(Unit) {
                     detectTapGestures(
                         onDoubleTap = { tapOffset ->
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            if (!vm.isFavorite(media)) {
+                                vm.toggleFavorite(media)
+                            }
+                            showHeartBurst = true
                             if (rawScale > 1.05f) {
                                 rawScale = 1f
                                 rawOffset = Offset.Zero
@@ -1426,6 +1529,11 @@ fun DetailZoomableImage(
                     )
                 }
             }
+
+            HeartBurstOverlay(
+                visible = showHeartBurst,
+                onAnimationEnd = { showHeartBurst = false }
+            )
         }
     }
 }
@@ -1621,6 +1729,10 @@ fun BooruVideoPlayer(
     var isSeeking by remember { mutableStateOf(false) }
     var seekRatio by remember { mutableFloatStateOf(0f) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
+    var gestureHudText by remember { mutableStateOf<String?>(null) }
+    var gestureHudIcon by remember { mutableStateOf<ImageVector?>(null) }
+    var gestureHudProgress by remember { mutableFloatStateOf(0f) }
+    var showGestureHud by remember { mutableStateOf(false) }
 
     fun toggleControls() {
         if (isExternalControls) {
@@ -1795,13 +1907,91 @@ fun BooruVideoPlayer(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) {
-                    toggleControls()
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onTap = { toggleControls() }
+                    )
+                }
+                .pointerInput(Unit) {
+                    detectDragGestures(
+                        onDragStart = { },
+                        onDragEnd = { showGestureHud = false },
+                        onDragCancel = { showGestureHud = false },
+                        onDrag = { change, dragAmount ->
+                            change.consume()
+                            if (abs(dragAmount.y) > abs(dragAmount.x)) {
+                                if (change.position.x < size.width / 2) {
+                                    val act = context as? Activity
+                                    val window = act?.window
+                                    if (window != null) {
+                                        val cur = window.attributes.screenBrightness.takeIf { it in 0f..1f } ?: 0.5f
+                                        val next = (cur - (dragAmount.y / 400f)).coerceIn(0.01f, 1f)
+                                        val lp = window.attributes
+                                        lp.screenBrightness = next
+                                        window.attributes = lp
+                                        gestureHudText = "${(next * 100).toInt()}%"
+                                        gestureHudIcon = Icons.Rounded.BrightnessMedium
+                                        gestureHudProgress = next
+                                        showGestureHud = true
+                                    }
+                                } else {
+                                    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as? android.media.AudioManager
+                                    if (audioManager != null) {
+                                        val max = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+                                        val cur = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
+                                        val next = (cur - (dragAmount.y / 30f).toInt()).coerceIn(0, max)
+                                        audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, next, 0)
+                                        val frac = next.toFloat() / max.toFloat()
+                                        gestureHudText = "${(frac * 100).toInt()}%"
+                                        gestureHudIcon = if (next == 0) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp
+                                        gestureHudProgress = frac
+                                        showGestureHud = true
+                                    }
+                                }
+                            }
+                        }
+                    )
                 }
         )
+
+        AnimatedVisibility(
+            visible = showGestureHud,
+            enter = fadeIn(tween(100)),
+            exit = fadeOut(tween(200)),
+            modifier = Modifier.align(Alignment.Center)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(16.dp),
+                color = Color.Black.copy(alpha = 0.75f),
+                contentColor = Color.White
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    gestureHudIcon?.let { icon ->
+                        Icon(icon, null, modifier = Modifier.size(36.dp), tint = Color.White)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = gestureHudText ?: "",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { gestureHudProgress },
+                        modifier = Modifier
+                            .width(100.dp)
+                            .height(6.dp)
+                            .clip(CircleShape),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = Color.White.copy(alpha = 0.3f)
+                    )
+                }
+            }
+        }
 
         if (!isReady) {
             CircularProgressIndicator(
@@ -2012,6 +2202,34 @@ fun BooruVideoPlayer(
                                 tint = Color.White,
                                 modifier = Modifier.size(18.dp)
                             )
+                        }
+
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            FilledTonalIconButton(
+                                onClick = {
+                                    val act = context as? Activity
+                                    if (act != null) {
+                                        val params = android.app.PictureInPictureParams.Builder()
+                                            .setAspectRatio(android.util.Rational(16, 9))
+                                            .build()
+                                        act.enterPictureInPictureMode(params)
+                                    }
+                                },
+                                shape = CircleShape,
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = Color.Black.copy(alpha = 0.5f)
+                                ),
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .bouncyPress()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.PictureInPictureAlt,
+                                    contentDescription = "PiP",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 }

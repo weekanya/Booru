@@ -3,8 +3,12 @@ package com.booru.app.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -21,6 +25,11 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
+import com.booru.app.data.TagCategory
+import com.booru.app.data.TagClassifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -516,14 +525,39 @@ fun ExploreScreen(
                             label = "gridPullOffset"
                         )
 
+                        val gridCells = when (vm.gridColumnsCount) {
+                            1 -> StaggeredGridCells.Fixed(1)
+                            2 -> StaggeredGridCells.Fixed(2)
+                            3 -> StaggeredGridCells.Fixed(3)
+                            4 -> StaggeredGridCells.Fixed(4)
+                            else -> StaggeredGridCells.Adaptive(minSize = 175.dp)
+                        }
+
                         LazyVerticalStaggeredGrid(
-                            columns = StaggeredGridCells.Adaptive(minSize = 175.dp),
+                            columns = gridCells,
                             state = gridState,
                             contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 86.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalItemSpacing = 8.dp,
                             modifier = Modifier
                                 .fillMaxSize()
+                                .pointerInput(Unit) {
+                                    detectTransformGestures { _, _, zoom, _ ->
+                                        if (zoom > 1.3f) {
+                                            if (vm.gridColumnsCount > 1) {
+                                                vm.setGridColumns(vm.gridColumnsCount - 1)
+                                            } else if (vm.gridColumnsCount == 0) {
+                                                vm.setGridColumns(2)
+                                            }
+                                        } else if (zoom < 0.75f) {
+                                            if (vm.gridColumnsCount in 1..3) {
+                                                vm.setGridColumns(vm.gridColumnsCount + 1)
+                                            } else if (vm.gridColumnsCount == 0) {
+                                                vm.setGridColumns(3)
+                                            }
+                                        }
+                                    }
+                                }
                                 .graphicsLayer {
                                     translationY = animatedPullOffset.dp.toPx()
                                 }
@@ -615,6 +649,43 @@ fun ExploreScreen(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (vm.isIncognito) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Rounded.VisibilityOff,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = Strings.incognitoMode(lang),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+                IconButton(
+                    onClick = { vm.toggleIncognito() },
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = if (vm.isIncognito) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                        contentDescription = "Incognito",
+                        tint = if (vm.isIncognito) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
                 if (localQuery.text.isNotBlank()) {
                     IconButton(
                         onClick = {
@@ -715,6 +786,14 @@ fun ExploreScreen(
                                     }
                                 }
                             )
+                            IconButton(onClick = { vm.toggleIncognito() }) {
+                                Icon(
+                                    imageVector = if (vm.isIncognito) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                    contentDescription = "Incognito",
+                                    tint = if (vm.isIncognito) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                             if (localQuery.text.isNotEmpty()) {
                                 IconButton(onClick = {
                                     localQuery = TextFieldValue("")
@@ -803,22 +882,48 @@ fun ExploreScreen(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.SpaceBetween
                                             ) {
+                                                val classified = remember(suggestion.value) { TagClassifier.classify(suggestion.value) }
+                                                val category = classified.category
+                                                val isDark = isSystemInDarkTheme()
+                                                val catColor = category.contentColor(isDark) ?: MaterialTheme.colorScheme.primary
+                                                val catBg = category.containerColor(isDark) ?: MaterialTheme.colorScheme.surfaceContainerHighest
+
                                                 Row(
                                                     verticalAlignment = Alignment.CenterVertically,
                                                     modifier = Modifier.weight(1f)
                                                 ) {
-                                                    Icon(
-                                                        Icons.Rounded.Tag,
-                                                        null,
-                                                        tint = MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                    Spacer(Modifier.width(14.dp))
-                                                    Text(
-                                                        text = if (suggestion.count > 0) "${suggestion.value} (${suggestion.count})" else suggestion.label.ifBlank { suggestion.value },
-                                                        style = MaterialTheme.typography.bodyLarge,
-                                                        fontWeight = FontWeight.Medium
-                                                    )
+                                                    Surface(
+                                                        shape = CircleShape,
+                                                        color = catBg,
+                                                        modifier = Modifier.size(32.dp)
+                                                    ) {
+                                                        Box(contentAlignment = Alignment.Center) {
+                                                            Icon(
+                                                                category.icon,
+                                                                null,
+                                                                tint = catColor,
+                                                                modifier = Modifier.size(16.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                    Spacer(Modifier.width(12.dp))
+                                                    Column(modifier = Modifier.weight(1f, fill = false)) {
+                                                        Text(
+                                                            text = if (suggestion.count > 0) "${suggestion.value} (${suggestion.count})" else suggestion.label.ifBlank { suggestion.value },
+                                                            style = MaterialTheme.typography.bodyLarge,
+                                                            fontWeight = FontWeight.Medium,
+                                                            maxLines = 1,
+                                                            overflow = TextOverflow.Ellipsis
+                                                        )
+                                                        if (category != TagCategory.GENERAL) {
+                                                            Text(
+                                                                text = category.displayName,
+                                                                style = MaterialTheme.typography.labelSmall,
+                                                                color = catColor,
+                                                                fontWeight = FontWeight.SemiBold
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                                 IconButton(
                                                     onClick = {
@@ -975,6 +1080,49 @@ fun ExploreScreen(
 }
 
 @Composable
+fun HeartBurstOverlay(
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+    onAnimationEnd: () -> Unit = {}
+) {
+    if (!visible) return
+    val animScale = remember { Animatable(0.2f) }
+    val animAlpha = remember { Animatable(1f) }
+    LaunchedEffect(visible) {
+        animScale.animateTo(
+            targetValue = 1.35f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessLow
+            )
+        )
+        animAlpha.animateTo(
+            targetValue = 0f,
+            animationSpec = tween(durationMillis = 220)
+        )
+        onAnimationEnd()
+    }
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Favorite,
+            contentDescription = null,
+            tint = Color(0xFFFF1744),
+            modifier = Modifier
+                .size(72.dp)
+                .graphicsLayer {
+                    scaleX = animScale.value
+                    scaleY = animScale.value
+                    alpha = animAlpha.value
+                }
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 private fun MediaCard(
     media: RemoteMedia,
     aspectRatio: Float,
@@ -984,6 +1132,8 @@ private fun MediaCard(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    var showHeartBurst by remember { mutableStateOf(false) }
     var isPressed by remember { mutableStateOf(false) }
     val animatedScale by animateFloatAsState(
         targetValue = if (isPressed) 0.96f else 1f,
@@ -1033,7 +1183,16 @@ private fun MediaCard(
                 scaleX = animatedScale
                 scaleY = animatedScale
             }
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onDoubleClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    if (!isFavorite) {
+                        onFavoriteClick()
+                    }
+                    showHeartBurst = true
+                }
+            )
     ) {
         Box(
             modifier = Modifier
@@ -1200,6 +1359,11 @@ private fun MediaCard(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                 )
             }
+
+            HeartBurstOverlay(
+                visible = showHeartBurst,
+                onAnimationEnd = { showHeartBurst = false }
+            )
         }
     }
 }
@@ -1450,6 +1614,8 @@ private fun FilterSelectionBottomSheet(
     var tempSafeMode by remember { mutableStateOf(vm.safeMode) }
     var tempExcludeSafe by remember { mutableStateOf(vm.excludeSafe) }
     var tempNoAi by remember { mutableStateOf(vm.noAi) }
+    var tempRecRatio by remember { mutableFloatStateOf(vm.recommendationRatio) }
+    var tempGridColumns by remember { mutableIntStateOf(vm.gridColumnsCount) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -1511,6 +1677,8 @@ private fun FilterSelectionBottomSheet(
                         tempSafeMode = false
                         tempExcludeSafe = false
                         tempNoAi = false
+                        tempRecRatio = 0.5f
+                        tempGridColumns = 0
                     },
                     shape = CircleShape
                 ) {
@@ -1673,10 +1841,75 @@ private fun FilterSelectionBottomSheet(
                 }
             }
 
+            if (vm.query.isBlank()) {
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = Strings.feedRecommendedOnly(lang),
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = Strings.feedNewestOnly(lang),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = Strings.feedBalanced(lang),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = Strings.feedRecommendedOnly(lang),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Slider(
+                    value = tempRecRatio,
+                    onValueChange = { tempRecRatio = it },
+                    valueRange = 0f..1f,
+                    steps = 3,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = Strings.gridColumnsTitle(lang),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(0 to Strings.gridColumnsAuto(lang), 2 to "2", 3 to "3", 4 to "4").forEach { (cols, label) ->
+                    val selected = tempGridColumns == cols
+                    FilterOptionButton(
+                        selected = selected,
+                        onClick = { tempGridColumns = cols },
+                        label = label,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
             Spacer(Modifier.height(20.dp))
 
             Button(
                 onClick = {
+                    vm.updateRecommendationRatio(tempRecRatio)
+                    vm.setGridColumns(tempGridColumns)
                     vm.applyAllFilters(
                         contentTypes = tempContentTypes,
                         sortOrder = tempSortOrder,

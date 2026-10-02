@@ -9,6 +9,7 @@ import android.os.Build
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.FileProvider
@@ -111,6 +112,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var recommendationTags by mutableStateOf<List<String>>(emptyList()); private set
     var scrollToTopTrigger by mutableStateOf(0L); private set
     var refreshSeed by mutableStateOf(0); private set
+    var isIncognito by mutableStateOf(false); private set
+    var recommendationRatio by mutableFloatStateOf(0.5f); private set
+    var biometricLockEnabled by mutableStateOf(false); private set
+    var biometricLockTimeoutMin by mutableIntStateOf(0); private set
+    var favoriteFolders by mutableStateOf<Map<String, String>>(emptyMap()); private set
+    var customFolders by mutableStateOf<Set<String>>(emptySet()); private set
+    var gridColumnsCount by mutableIntStateOf(0); private set
 
     private var currentPage = 0
     var hasMore by mutableStateOf(true); private set
@@ -164,6 +172,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             palette = initialPalette
             tagBlacklist = initialBlacklist
             recommendationTags = sortedRec.take(40)
+            recommendationRatio = prefs.recommendationRatio.first()
+            biometricLockEnabled = prefs.biometricLockEnabled.first()
+            biometricLockTimeoutMin = prefs.biometricLockTimeoutMin.first()
+            favoriteFolders = prefs.favoriteFolders.first()
+            customFolders = prefs.customFolders.first()
+            gridColumnsCount = prefs.gridColumnsCount.first()
 
             updateCacheSize()
             runCatching {
@@ -228,6 +242,24 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 val mediaList = entities.map { it.toRemoteMedia() }
                 updateFavoritesState(mediaList)
             }
+        }
+        viewModelScope.launch {
+            prefs.recommendationRatio.collect { recommendationRatio = it }
+        }
+        viewModelScope.launch {
+            prefs.biometricLockEnabled.collect { biometricLockEnabled = it }
+        }
+        viewModelScope.launch {
+            prefs.biometricLockTimeoutMin.collect { biometricLockTimeoutMin = it }
+        }
+        viewModelScope.launch {
+            prefs.favoriteFolders.collect { favoriteFolders = it }
+        }
+        viewModelScope.launch {
+            prefs.customFolders.collect { customFolders = it }
+        }
+        viewModelScope.launch {
+            prefs.gridColumnsCount.collect { gridColumnsCount = it }
         }
         viewModelScope.launch {
             checkForUpdates(isAutoCheck = true)
@@ -670,7 +702,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             tagSuggestions.find { it.value.equals(trimmedTags, ignoreCase = true) }?.count ?: 0
         } else 0
 
-        if (trimmedTags.isNotEmpty()) {
+        if (trimmedTags.isNotEmpty() && !isIncognito) {
             viewModelScope.launch {
                 prefs.saveSearchQuery(trimmedTags)
                 prefs.recordSearchTags(trimmedTags.split(Regex("[\\s,]+")))
@@ -688,15 +720,20 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
         searchJob = viewModelScope.launch {
             try {
-                val list = if (source == BooruRepository.SOURCE_ALL && tags.isBlank() && recommendationTags.isNotEmpty()) {
-                    val ratio = 0.5f
-                    val tagsToFetch = if (recommendationTags.size <= 2) {
-                        recommendationTags
+                val activeRecTags = recommendationTags.filterNot { tag ->
+                    tagBlacklist.any { it.equals(tag, ignoreCase = true) }
+                }
+                val useRecommendations = tags.isBlank() && activeRecTags.isNotEmpty() && recommendationRatio > 0.05f
+
+                val list = if (useRecommendations) {
+                    val ratio = recommendationRatio
+                    val tagsToFetch = if (activeRecTags.size <= 2) {
+                        activeRecTags
                     } else {
                         val r = java.util.Random(System.currentTimeMillis() + refreshSeed)
-                        recommendationTags.shuffled(r).take(2)
+                        activeRecTags.shuffled(r).take(2)
                     }
-                    val maxPerTag = 3
+                    val maxPerTag = 4
                     val dGen = async {
                         withTimeoutOrNull(3000L) {
                             try {
@@ -706,7 +743,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                                     safeMode = safeMode,
                                     excludeSafe = excludeSafe,
                                     noAi = noAi,
-                                    page = if (isPullRefresh) (refreshSeed % 10) else 0,
+                                    page = 0,
                                     sortOrder = SortOrder.RANDOM,
                                     contentTypes = selectedContentTypes,
                                     credentials = getCredentials(),
@@ -751,7 +788,23 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     } else {
                         tagLists
                     }
-                    blendRecommendationFeed(sanitizedGenList, sanitizedTagLists, ratio, maxPerTag = maxPerTag)
+                    val blended = blendRecommendationFeed(sanitizedGenList, sanitizedTagLists, ratio, maxPerTag = maxPerTag)
+                    if (blended.isEmpty()) {
+                        repo.search(
+                            source = source,
+                            tags = "",
+                            safeMode = safeMode,
+                            excludeSafe = excludeSafe,
+                            noAi = noAi,
+                            page = 0,
+                            sortOrder = SortOrder.NEWEST,
+                            contentTypes = selectedContentTypes,
+                            credentials = getCredentials(),
+                            customSources = customSources
+                        )
+                    } else {
+                        blended
+                    }
                 } else {
                     withTimeoutOrNull(3500L) {
                         repo.search(
@@ -869,18 +922,23 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         loadMoreJob = viewModelScope.launch {
             loadingMore = true
             try {
-                val list = if (source == BooruRepository.SOURCE_ALL && query.isBlank() && recommendationTags.isNotEmpty()) {
-                    val ratio = 0.5f
-                    val tagsCount = recommendationTags.size
+                val activeRecTags = recommendationTags.filterNot { tag ->
+                    tagBlacklist.any { it.equals(tag, ignoreCase = true) }
+                }
+                val useRecommendations = query.isBlank() && activeRecTags.isNotEmpty() && recommendationRatio > 0.05f
+
+                val list = if (useRecommendations) {
+                    val ratio = recommendationRatio
+                    val tagsCount = activeRecTags.size
                     val tagsToFetch = if (tagsCount <= 2) {
-                        recommendationTags
+                        activeRecTags
                     } else {
                         val startIndex = (targetPage * 2) % tagsCount
                         (0 until minOf(2, tagsCount)).map { offset ->
-                            recommendationTags[(startIndex + offset) % tagsCount]
+                            activeRecTags[(startIndex + offset) % tagsCount]
                         }
                     }
-                    val maxPerTag = 3
+                    val maxPerTag = 4
                     val dGen = async {
                         withTimeoutOrNull(3000L) {
                             try {
@@ -902,7 +960,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         } ?: emptyList()
                     }
                     val dTags = tagsToFetch.map { recTag ->
-                        val subPage = targetPage / 2
+                        val subPage = targetPage
                         async {
                             withTimeoutOrNull(3000L) {
                                 try {
@@ -937,7 +995,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     } else {
                         tagLists
                     }
-                    blendRecommendationFeed(sanitizedGenList, sanitizedTagLists, ratio, existingKeys, maxPerTag = maxPerTag)
+                    val blended = blendRecommendationFeed(sanitizedGenList, sanitizedTagLists, ratio, existingKeys, maxPerTag = maxPerTag)
+                    if (blended.isEmpty()) {
+                        sanitizedGenList.filterNot { it.mediaKey in existingKeys }
+                    } else {
+                        blended
+                    }
                 } else {
                     withTimeoutOrNull(3500L) {
                         repo.search(
@@ -1077,6 +1140,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     favoritesList = favoritesList + media
                     favoriteDao.insert(FavoriteEntity.fromRemoteMedia(media))
                     BooruCacheManager.saveFavoriteMedia(getApplication(), media)
+                    if (!isIncognito) {
+                        prefs.recordFavoriteTags(media.tags)
+                    }
                 }
                 updateCacheSize()
             }
@@ -1172,7 +1238,81 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 prefs.setExcludeSafe(excludeSafe)
                 prefs.setNoAiFilter(noAi)
             }
-            refresh()
+            search(source, query, safeMode, isPullRefresh = false)
+        }
+    }
+
+    fun toggleIncognito() {
+        isIncognito = !isIncognito
+    }
+
+    fun updateRecommendationRatio(ratio: Float) {
+        recommendationRatio = ratio.coerceIn(0f, 1f)
+        viewModelScope.launch {
+            prefs.setRecommendationRatio(ratio)
+        }
+    }
+
+    fun setBiometricLock(enabled: Boolean, timeoutMin: Int = biometricLockTimeoutMin) {
+        biometricLockEnabled = enabled
+        biometricLockTimeoutMin = timeoutMin
+        viewModelScope.launch {
+            prefs.setBiometricLockEnabled(enabled)
+            prefs.setBiometricLockTimeoutMin(timeoutMin)
+        }
+    }
+
+    fun setBiometricLockTimeout(timeoutMin: Int) {
+        biometricLockTimeoutMin = timeoutMin
+        viewModelScope.launch {
+            prefs.setBiometricLockTimeoutMin(timeoutMin)
+        }
+    }
+
+    fun getMediaFolder(mediaIdOrKey: String): String? {
+        return favoriteFolders[mediaIdOrKey]
+            ?: favoriteFolders.entries.firstOrNull { it.key.endsWith("_$mediaIdOrKey") }?.value
+    }
+
+    fun setMediaFolder(mediaIdOrKey: String, folder: String?) {
+        viewModelScope.launch {
+            val resolvedKey = if (!mediaIdOrKey.contains("_")) {
+                favoritesList.firstOrNull { it.id == mediaIdOrKey }?.mediaKey
+                    ?: results.firstOrNull { it.id == mediaIdOrKey }?.mediaKey
+                    ?: mediaIdOrKey
+            } else mediaIdOrKey
+            prefs.setMediaFolder(resolvedKey, folder)
+        }
+    }
+
+    fun setMediaFolder(media: RemoteMedia, folder: String?) {
+        viewModelScope.launch {
+            prefs.setMediaFolder(media.mediaKey, folder)
+        }
+    }
+
+    fun addCustomFolder(name: String) {
+        viewModelScope.launch {
+            prefs.addCustomFolder(name)
+        }
+    }
+
+    fun removeCustomFolder(name: String) {
+        viewModelScope.launch {
+            prefs.removeCustomFolder(name)
+        }
+    }
+
+    fun setGridColumns(cols: Int) {
+        gridColumnsCount = cols.coerceIn(0, 4)
+        viewModelScope.launch {
+            prefs.setGridColumnsCount(cols)
+        }
+    }
+
+    fun removeSearchHistoryItem(item: String) {
+        viewModelScope.launch {
+            prefs.removeSearchQuery(item)
         }
     }
 

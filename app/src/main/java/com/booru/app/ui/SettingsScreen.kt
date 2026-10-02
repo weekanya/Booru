@@ -1597,6 +1597,42 @@ fun SettingsScreen(
 
         Spacer(Modifier.height(20.dp))
 
+        SectionLabel(Strings.securitySection(lang))
+
+        SettingsGroupCard {
+            SettingSwitchItem(
+                title = Strings.biometricLockTitle(lang),
+                subtitle = Strings.biometricLockSubtitle(lang),
+                icon = Icons.Rounded.Fingerprint,
+                checked = vm.biometricLockEnabled,
+                onCheckedChange = { vm.setBiometricLock(it) }
+            )
+
+            AnimatedVisibility(visible = vm.biometricLockEnabled) {
+                Column {
+                    SettingsDivider()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 12.dp)
+                    ) {
+                        val timeoutOptions = listOf(0, 1, 5, 15)
+                        MD3SegmentedChoiceRow(
+                            options = timeoutOptions,
+                            selectedOption = vm.biometricLockTimeoutMin,
+                            onOptionSelected = { vm.setBiometricLockTimeout(it) },
+                            labelProvider = { min ->
+                                if (min == 0) Strings.lockTimeoutImmediately(lang)
+                                else Strings.lockTimeoutMinutes(min, lang)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(20.dp))
+
         SectionLabel(Strings.dataSection(lang))
 
         SettingsGroupCard {

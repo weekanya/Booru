@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -50,6 +52,12 @@ class BooruPreferences(private val context: Context) {
         val KEY_IMAGE_QUALITY = stringPreferencesKey("image_quality")
         val KEY_CUSTOM_SOURCES = stringPreferencesKey("custom_sources")
         val KEY_RECOMMENDATION_TAGS = stringPreferencesKey("recommendation_tags")
+        val KEY_RECOMMENDATION_RATIO = floatPreferencesKey("recommendation_ratio")
+        val KEY_BIOMETRIC_LOCK_ENABLED = booleanPreferencesKey("biometric_lock_enabled")
+        val KEY_BIOMETRIC_LOCK_TIMEOUT_MIN = intPreferencesKey("biometric_lock_timeout_min")
+        val KEY_FAVORITE_FOLDERS_JSON = stringPreferencesKey("favorite_folders_json")
+        val KEY_CUSTOM_FOLDERS = stringSetPreferencesKey("custom_folders")
+        val KEY_GRID_COLUMNS_COUNT = intPreferencesKey("grid_columns_count")
     }
 
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
@@ -152,6 +160,43 @@ class BooruPreferences(private val context: Context) {
         val jsonStr = prefs[KEY_FAVORITES_JSON] ?: ""
         if (jsonStr.isBlank()) emptyList()
         else deserializeFavorites(jsonStr)
+    }
+
+    val recommendationRatio: Flow<Float> = context.dataStore.data.map { prefs ->
+        prefs[KEY_RECOMMENDATION_RATIO] ?: 0.5f
+    }
+
+    val biometricLockEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_BIOMETRIC_LOCK_ENABLED] ?: false
+    }
+
+    val biometricLockTimeoutMin: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[KEY_BIOMETRIC_LOCK_TIMEOUT_MIN] ?: 0
+    }
+
+    val favoriteFolders: Flow<Map<String, String>> = context.dataStore.data.map { prefs ->
+        val jsonStr = prefs[KEY_FAVORITE_FOLDERS_JSON] ?: ""
+        if (jsonStr.isBlank()) emptyMap()
+        else {
+            runCatching {
+                val obj = JSONObject(jsonStr)
+                val map = mutableMapOf<String, String>()
+                val keys = obj.keys()
+                while (keys.hasNext()) {
+                    val k = keys.next()
+                    map[k] = obj.optString(k, "")
+                }
+                map
+            }.getOrDefault(emptyMap())
+        }
+    }
+
+    val customFolders: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[KEY_CUSTOM_FOLDERS] ?: emptySet()
+    }
+
+    val gridColumnsCount: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[KEY_GRID_COLUMNS_COUNT] ?: 0
     }
 
     suspend fun saveCustomSources(sources: List<CustomBooruSource>) {
@@ -373,9 +418,10 @@ class BooruPreferences(private val context: Context) {
         }
     }
 
-    suspend fun recordSearchTags(tags: List<String>) {
+    suspend fun recordSearchTags(tags: List<String>, weight: Int = 2) {
         if (tags.isEmpty()) return
         context.dataStore.edit { prefs ->
+            val blacklist = prefs[KEY_TAG_BLACKLIST] ?: emptySet()
             val jsonStr = prefs[KEY_RECOMMENDATION_TAGS] ?: ""
             val currentMap = mutableMapOf<String, Int>()
             if (jsonStr.isNotBlank()) {
@@ -388,19 +434,99 @@ class BooruPreferences(private val context: Context) {
                     }
                 }
             }
-            val cleanTags = tags.map { it.trim().lowercase().trim(',', ';', '.', '(', ')', '"', '\'') }
-                .filter { it.isNotBlank() && it.length > 1 && !it.contains(":") && !it.startsWith("-") }
-            for (tag in cleanTags) {
-                val count = (currentMap[tag] ?: 0) + 1
-                currentMap[tag] = count.coerceAtMost(10)
+            val candidates = tags.map { it.trim().lowercase().trim(',', ';', '.', '(', ')', '"', '\'') }
+                .filter { TagClassifier.isRecommendationCandidate(it) && !blacklist.contains(it) }
+
+            if (candidates.isEmpty()) return@edit
+
+            for (k in currentMap.keys.toList()) {
+                val count = currentMap[k] ?: 1
+                if (count > 1 && !candidates.contains(k)) {
+                    currentMap[k] = (count * 0.95f).toInt().coerceAtLeast(1)
+                }
             }
-            val sorted = currentMap.entries.sortedByDescending { it.value }.take(40)
+
+            for (tag in candidates) {
+                val count = (currentMap[tag] ?: 0) + weight
+                currentMap[tag] = count.coerceAtMost(30)
+            }
+            val sorted = currentMap.entries
+                .filter { it.value >= 1 && !blacklist.contains(it.key) }
+                .sortedByDescending { it.value }
+                .take(40)
             val newObj = JSONObject()
             for (entry in sorted) {
                 newObj.put(entry.key, entry.value)
             }
             prefs[KEY_RECOMMENDATION_TAGS] = newObj.toString()
         }
+    }
+
+    suspend fun recordFavoriteTags(mediaTags: String) {
+        if (mediaTags.isBlank()) return
+        val tags = mediaTags.split(Regex("[\\s,]+"))
+        recordSearchTags(tags, weight = 3)
+    }
+
+    suspend fun setRecommendationRatio(ratio: Float) {
+        context.dataStore.edit { it[KEY_RECOMMENDATION_RATIO] = ratio.coerceIn(0f, 1f) }
+    }
+
+    suspend fun setBiometricLockEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_BIOMETRIC_LOCK_ENABLED] = enabled }
+    }
+
+    suspend fun setBiometricLockTimeoutMin(minutes: Int) {
+        context.dataStore.edit { it[KEY_BIOMETRIC_LOCK_TIMEOUT_MIN] = minutes.coerceAtLeast(0) }
+    }
+
+    suspend fun setMediaFolder(mediaKey: String, folderName: String?) {
+        context.dataStore.edit { prefs ->
+            val jsonStr = prefs[KEY_FAVORITE_FOLDERS_JSON] ?: ""
+            val map = mutableMapOf<String, String>()
+            if (jsonStr.isNotBlank()) {
+                runCatching {
+                    val obj = JSONObject(jsonStr)
+                    val keys = obj.keys()
+                    while (keys.hasNext()) {
+                        val k = keys.next()
+                        map[k] = obj.optString(k, "")
+                    }
+                }
+            }
+            val trimmed = folderName?.trim().orEmpty()
+            if (trimmed.isBlank() || trimmed.equals("Все", ignoreCase = true) || trimmed.equals("All", ignoreCase = true)) {
+                map.remove(mediaKey)
+            } else {
+                map[mediaKey] = trimmed
+            }
+            val newObj = JSONObject()
+            map.forEach { (k, v) -> newObj.put(k, v) }
+            prefs[KEY_FAVORITE_FOLDERS_JSON] = newObj.toString()
+        }
+    }
+
+    suspend fun addCustomFolder(folderName: String) {
+        val clean = folderName.trim()
+        if (clean.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val set = prefs[KEY_CUSTOM_FOLDERS]?.toMutableSet() ?: mutableSetOf()
+            set.add(clean)
+            prefs[KEY_CUSTOM_FOLDERS] = set
+        }
+    }
+
+    suspend fun removeCustomFolder(folderName: String) {
+        val clean = folderName.trim()
+        context.dataStore.edit { prefs ->
+            val set = prefs[KEY_CUSTOM_FOLDERS]?.toMutableSet() ?: return@edit
+            set.remove(clean)
+            prefs[KEY_CUSTOM_FOLDERS] = set
+        }
+    }
+
+    suspend fun setGridColumnsCount(cols: Int) {
+        context.dataStore.edit { it[KEY_GRID_COLUMNS_COUNT] = cols.coerceIn(0, 4) }
     }
 
     suspend fun clearRecommendationData() {

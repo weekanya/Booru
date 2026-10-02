@@ -1,11 +1,16 @@
 package com.booru.app
 
+import android.app.Activity
+import android.app.PictureInPictureParams
 import android.content.Intent
+import android.content.res.Configuration
+import android.hardware.biometrics.BiometricManager
+import android.hardware.biometrics.BiometricPrompt
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.CancellationSignal
 import android.view.WindowManager
-import android.app.Activity
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -30,6 +35,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -58,6 +64,7 @@ import androidx.core.view.WindowInsetsCompat
 import com.booru.app.data.AppLanguage
 import com.booru.app.ui.bouncyPress
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.booru.app.data.Strings
 import com.booru.app.data.BooruCacheManager
@@ -72,6 +79,12 @@ import com.booru.app.ui.Motion
 import com.booru.app.ui.SettingsScreen
 
 class MainActivity : ComponentActivity() {
+    private var lastBackgroundTime = 0L
+    private val isAppLocked = mutableStateOf(false)
+    private var isPipActive = mutableStateOf(false)
+    private var hasUnlockedOnce = false
+    private val vm by lazy { ViewModelProvider(this)[GalleryViewModel::class.java] }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         window.setFlags(
@@ -83,7 +96,95 @@ class MainActivity : ComponentActivity() {
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
         super.onCreate(savedInstanceState)
-        setContent { BooruApp() }
+        setContent {
+            BooruApp(
+                vm = vm,
+                isAppLocked = isAppLocked.value,
+                isPipActive = isPipActive.value,
+                onUnlockRequest = { promptBiometric() },
+                onLockNeeded = {
+                    if (!hasUnlockedOnce) {
+                        isAppLocked.value = true
+                        promptBiometric()
+                    }
+                }
+            )
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        if (!isPipActive.value && vm.biometricLockEnabled) {
+            val timeoutMs = vm.biometricLockTimeoutMin * 60 * 1000L
+            val elapsed = System.currentTimeMillis() - lastBackgroundTime
+            if (!hasUnlockedOnce || (lastBackgroundTime != 0L && elapsed >= timeoutMs)) {
+                isAppLocked.value = true
+                promptBiometric()
+            }
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations && !isPipActive.value) {
+            lastBackgroundTime = System.currentTimeMillis()
+        }
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val current = vm.fullscreenState?.let { it.list.getOrNull(it.index) }
+            if (current != null && current.isVideo) {
+                runCatching {
+                    val params = PictureInPictureParams.Builder()
+                        .setAspectRatio(android.util.Rational(16, 9))
+                        .build()
+                    enterPictureInPictureMode(params)
+                }
+            }
+        }
+    }
+
+    override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        isPipActive.value = isInPictureInPictureMode
+    }
+
+    private fun promptBiometric() {
+        if (!vm.biometricLockEnabled) {
+            isAppLocked.value = false
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            try {
+                val prompt = BiometricPrompt.Builder(this)
+                    .setTitle(Strings.biometricLockTitle(vm.language))
+                    .setAllowedAuthenticators(
+                        BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                        BiometricManager.Authenticators.DEVICE_CREDENTIAL
+                    )
+                    .build()
+                val signal = CancellationSignal()
+                prompt.authenticate(
+                    signal,
+                    mainExecutor,
+                    object : BiometricPrompt.AuthenticationCallback() {
+                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult?) {
+                            isAppLocked.value = false
+                            hasUnlockedOnce = true
+                            lastBackgroundTime = System.currentTimeMillis()
+                        }
+                        override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
+                        }
+                    }
+                )
+            } catch (e: Exception) {
+                isAppLocked.value = false
+            }
+        } else {
+            isAppLocked.value = false
+        }
     }
 
     override fun onDestroy() {
@@ -100,9 +201,90 @@ private data class NavItemData(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BooruApp(vm: GalleryViewModel = viewModel()) {
-    var selectedTab by remember { mutableIntStateOf(0) }
+fun BooruApp(
+    vm: GalleryViewModel = viewModel(),
+    isAppLocked: Boolean = false,
+    isPipActive: Boolean = false,
+    onUnlockRequest: () -> Unit = {},
+    onLockNeeded: () -> Unit = {}
+) {
     val lang = vm.language
+
+    LaunchedEffect(vm.biometricLockEnabled) {
+        if (vm.biometricLockEnabled) {
+            onLockNeeded()
+        }
+    }
+
+    if (isAppLocked) {
+        val context = LocalContext.current
+        BackHandler(enabled = true) {
+            (context as? Activity)?.finish()
+        }
+        BooruTheme(
+            themeMode = vm.themeMode,
+            palette = vm.palette,
+            useDynamicColor = vm.useDynamicColor
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.background
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(88.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Rounded.Fingerprint,
+                                contentDescription = null,
+                                modifier = Modifier.size(48.dp),
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(24.dp))
+                    Text(
+                        text = Strings.appLocked(lang),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = Strings.biometricLockSubtitle(lang),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(32.dp))
+                    Button(
+                        onClick = onUnlockRequest,
+                        shape = RoundedCornerShape(20.dp),
+                        modifier = Modifier
+                            .fillMaxWidth(0.6f)
+                            .height(50.dp)
+                            .bouncyPress()
+                    ) {
+                        Icon(Icons.Rounded.LockOpen, null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(Strings.unlockApp(lang), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+        return
+    }
+
+    var selectedTab by remember { mutableIntStateOf(0) }
 
     val navItems = remember(vm.favoritesList.size, lang) {
         listOf(
@@ -115,7 +297,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
     val context = LocalContext.current
     var lastBackPressTime by remember { mutableLongStateOf(0L) }
 
-    BackHandler(enabled = true) {
+    BackHandler(enabled = vm.fullscreenState == null) {
         if (selectedTab != 0) {
             selectedTab = 0
         } else if (vm.query.isNotBlank()) {
@@ -145,180 +327,225 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
             palette = vm.palette,
             useDynamicColor = vm.useDynamicColor
         ) {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.surface
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .displayCutoutPadding()
-                        .statusBarsPadding()
-                ) {
-                Crossfade(
-                    targetState = selectedTab,
-                    animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
-                    label = "TabCrossfade",
-                    modifier = Modifier.fillMaxSize()
-                ) { tab ->
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        color = MaterialTheme.colorScheme.surface
-                    ) {
-                        when (tab) {
-                            0 -> ExploreScreen(
-                                vm = vm,
-                                onNavigateToSettings = { selectedTab = 2 }
-                            )
-                            1 -> FavoritesScreen(
-                                vm = vm,
-                                onNavigateToExplore = { selectedTab = 0 }
-                            )
-                            2 -> SettingsScreen(
-                                vm = vm
-                            )
-                        }
-                    }
-                }
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                    val isWideScreen = maxWidth >= 760.dp
+                    val state = vm.fullscreenState
 
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    tonalElevation = 6.dp,
-                    shadowElevation = 8.dp,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(horizontal = 24.dp, vertical = 14.dp)
-                        .height(64.dp)
-                        .fillMaxWidth()
-                        .widthIn(max = 480.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        navItems.forEachIndexed { index, item ->
-                            val isSelected = selectedTab == index
-                            val containerColor by animateColorAsState(
-                                targetValue = if (isSelected)
-                                    MaterialTheme.colorScheme.primaryContainer
-                                else
-                                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0f),
-                                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
-                                label = "navItemBg"
-                            )
-                            val contentColor by animateColorAsState(
-                                targetValue = if (isSelected)
-                                    MaterialTheme.colorScheme.onPrimaryContainer
-                                else
-                                    MaterialTheme.colorScheme.onSurfaceVariant,
-                                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
-                                label = "navItemColor"
-                            )
-
-                            Surface(
-                                shape = CircleShape,
-                                color = containerColor,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                                    .clip(CircleShape)
-                                    .bouncyPress(scaleDown = 0.96f)
-                                    .clickable {
-                                        if (selectedTab == index) {
-                                            if (index == 0) {
-                                                vm.scrollToTop()
-                                            }
-                                        } else {
-                                            selectedTab = index
-                                        }
-                                    }
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 4.dp),
-                                    horizontalArrangement = Arrangement.Center,
-                                    verticalAlignment = Alignment.CenterVertically
+                    val mainContent = @Composable {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .displayCutoutPadding()
+                                .statusBarsPadding()
+                        ) {
+                            Crossfade(
+                                targetState = selectedTab,
+                                animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
+                                label = "TabCrossfade",
+                                modifier = Modifier.fillMaxSize()
+                            ) { tab ->
+                                Surface(
+                                    modifier = Modifier.fillMaxSize(),
+                                    color = MaterialTheme.colorScheme.surface
                                 ) {
-                                    val iconView = @Composable {
-                                        Crossfade(
-                                            targetState = isSelected,
-                                            animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
-                                            label = "navIconFade"
-                                        ) { sel ->
-                                            Icon(
-                                                imageVector = if (sel) item.selectedIcon else item.icon,
-                                                contentDescription = item.label,
-                                                tint = contentColor,
-                                                modifier = Modifier.size(22.dp)
-                                            )
-                                        }
+                                    when (tab) {
+                                        0 -> ExploreScreen(
+                                            vm = vm,
+                                            onNavigateToSettings = { selectedTab = 2 }
+                                        )
+                                        1 -> FavoritesScreen(
+                                            vm = vm,
+                                            onNavigateToExplore = { selectedTab = 0 }
+                                        )
+                                        2 -> SettingsScreen(
+                                            vm = vm
+                                        )
                                     }
+                                }
+                            }
 
-                                    if (item.badgeCount > 0) {
-                                        BadgedBox(
-                                            badge = {
-                                                Badge(
-                                                    containerColor = MaterialTheme.colorScheme.primary,
-                                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                            if (!isPipActive) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    tonalElevation = 6.dp,
+                                    shadowElevation = 8.dp,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(horizontal = 24.dp, vertical = 14.dp)
+                                        .height(64.dp)
+                                        .fillMaxWidth()
+                                        .widthIn(max = 480.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                                        horizontalArrangement = Arrangement.SpaceEvenly,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        navItems.forEachIndexed { index, item ->
+                                            val isSelected = selectedTab == index
+                                            val containerColor by animateColorAsState(
+                                                targetValue = if (isSelected)
+                                                    MaterialTheme.colorScheme.primaryContainer
+                                                else
+                                                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0f),
+                                                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
+                                                label = "navItemBg"
+                                            )
+                                            val contentColor by animateColorAsState(
+                                                targetValue = if (isSelected)
+                                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                                else
+                                                    MaterialTheme.colorScheme.onSurfaceVariant,
+                                                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
+                                                label = "navItemColor"
+                                            )
+
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = containerColor,
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .fillMaxHeight()
+                                                    .clip(CircleShape)
+                                                    .bouncyPress(scaleDown = 0.96f)
+                                                    .clickable {
+                                                        if (selectedTab == index) {
+                                                            if (index == 0) {
+                                                                vm.scrollToTop()
+                                                            }
+                                                        } else {
+                                                            selectedTab = index
+                                                        }
+                                                    }
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .fillMaxSize()
+                                                        .padding(horizontal = 4.dp),
+                                                    horizontalArrangement = Arrangement.Center,
+                                                    verticalAlignment = Alignment.CenterVertically
                                                 ) {
-                                                    Text("${item.badgeCount}")
+                                                    val iconView = @Composable {
+                                                        Crossfade(
+                                                            targetState = isSelected,
+                                                            animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
+                                                            label = "navIconFade"
+                                                        ) { sel ->
+                                                            Icon(
+                                                                imageVector = if (sel) item.selectedIcon else item.icon,
+                                                                contentDescription = item.label,
+                                                                tint = contentColor,
+                                                                modifier = Modifier.size(22.dp)
+                                                            )
+                                                        }
+                                                    }
+
+                                                    if (item.badgeCount > 0) {
+                                                        BadgedBox(
+                                                            badge = {
+                                                                Badge(
+                                                                    containerColor = MaterialTheme.colorScheme.primary,
+                                                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                                                ) {
+                                                                    Text("${item.badgeCount}")
+                                                                }
+                                                            }
+                                                        ) {
+                                                            iconView()
+                                                        }
+                                                    } else {
+                                                        iconView()
+                                                    }
+
+                                                    AnimatedVisibility(
+                                                        visible = isSelected,
+                                                        enter = fadeIn(animationSpec = tween(140, easing = LinearOutSlowInEasing)) + expandHorizontally(
+                                                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
+                                                            expandFrom = Alignment.Start
+                                                        ),
+                                                        exit = fadeOut(animationSpec = tween(100, easing = FastOutLinearInEasing)) + shrinkHorizontally(
+                                                            animationSpec = spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMedium),
+                                                            shrinkTowards = Alignment.Start
+                                                        )
+                                                    ) {
+                                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                            Spacer(Modifier.width(6.dp))
+                                                            Text(
+                                                                text = item.label,
+                                                                style = MaterialTheme.typography.labelLarge,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = contentColor,
+                                                                maxLines = 1
+                                                            )
+                                                        }
+                                                    }
                                                 }
                                             }
-                                        ) {
-                                            iconView()
-                                        }
-                                    } else {
-                                        iconView()
-                                    }
-
-                                    AnimatedVisibility(
-                                        visible = isSelected,
-                                        enter = fadeIn(animationSpec = tween(140, easing = LinearOutSlowInEasing)) + expandHorizontally(
-                                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
-                                            expandFrom = Alignment.Start
-                                        ),
-                                        exit = fadeOut(animationSpec = tween(100, easing = FastOutLinearInEasing)) + shrinkHorizontally(
-                                            animationSpec = spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMedium),
-                                            shrinkTowards = Alignment.Start
-                                        )
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Spacer(Modifier.width(6.dp))
-                                            Text(
-                                                text = item.label,
-                                                style = MaterialTheme.typography.labelLarge,
-                                                fontWeight = FontWeight.Bold,
-                                                color = contentColor,
-                                                maxLines = 1
-                                            )
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                val state = vm.fullscreenState
-                if (state != null) {
-                    FullscreenMediaViewer(
-                        initialIndex = state.index,
-                        mediaList = if (state.isFromResults) vm.results else state.list,
-                        vm = vm,
-                        onDismiss = { vm.closeFullscreen() },
-                        onLoadMore = if (state.isFromResults) { { vm.loadMore() } } else null,
-                        onNavigateToExplore = { selectedTab = 0 }
-                    )
+                    if (isWideScreen) {
+                        Row(modifier = Modifier.fillMaxSize()) {
+                            Box(
+                                modifier = Modifier
+                                    .weight(if (state != null) 0.42f else 1f)
+                                    .fillMaxHeight()
+                            ) {
+                                mainContent()
+                            }
+                            if (state != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(1.dp)
+                                        .fillMaxHeight()
+                                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .weight(0.58f)
+                                        .fillMaxHeight()
+                                ) {
+                                    key(state.index, state.list.size) {
+                                        FullscreenMediaViewer(
+                                            initialIndex = state.index,
+                                            mediaList = if (state.isFromResults) vm.results else state.list,
+                                            vm = vm,
+                                            onDismiss = { vm.closeFullscreen() },
+                                            onLoadMore = if (state.isFromResults) { { vm.loadMore() } } else null,
+                                            onNavigateToExplore = { selectedTab = 0 }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            mainContent()
+                            if (state != null) {
+                                FullscreenMediaViewer(
+                                    initialIndex = state.index,
+                                    mediaList = if (state.isFromResults) vm.results else state.list,
+                                    vm = vm,
+                                    onDismiss = { vm.closeFullscreen() },
+                                    onLoadMore = if (state.isFromResults) { { vm.loadMore() } } else null,
+                                    onNavigateToExplore = { selectedTab = 0 }
+                                )
+                            }
+                        }
+                    }
                 }
             }
-        }
-    }
 
         vm.updateInfo?.let { info ->
             UpdateBottomSheet(

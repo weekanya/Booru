@@ -82,6 +82,27 @@ object TagClassifier {
         "md5_mismatch", "duplicate", "watermark", "sample", "poor_quality"
     )
 
+    val RECOMMENDATION_EXCLUDED_TAGS = setOf(
+        "1girl", "2girls", "3girls", "4girls", "5girls", "6+girls", "multiple_girls",
+        "1boy", "2boys", "3boys", "4boys", "5boys", "6+boys", "multiple_boys",
+        "solo", "highres", "absurdres", "superabsurdres", "huge_filesize",
+        "translated", "partially_translated", "translation_request", "commentary",
+        "looking_at_viewer", "simple_background", "white_background", "transparent_background",
+        "monochrome", "greyscale", "grayscale", "comic", "parody", "watermark",
+        "sample", "bad_id", "tagme", "scan", "poor_quality", "md5_mismatch",
+        "official_art", "anime", "manga", "game_cg", "animated", "video", "webm", "mp4",
+        "sound", "lossless", "ai_generated", "novelai", "stable_diffusion",
+        "safe", "general", "questionable", "explicit", "rating:s", "rating:g", "rating:q", "rating:e",
+        "rating:safe", "rating:general", "rating:questionable", "rating:explicit"
+    )
+
+    fun isRecommendationCandidate(tag: String): Boolean {
+        val lower = tag.trim().lowercase().trim(',', ';', '.', '(', ')', '"', '\'')
+        if (lower.length <= 1 || lower.contains(":") || lower.startsWith("-")) return false
+        if (lower in RECOMMENDATION_EXCLUDED_TAGS || lower in KNOWN_META_TAGS) return false
+        return true
+    }
+
     fun classify(tag: String): ClassifiedTag {
         val raw = tag.trim()
         val lower = raw.lowercase()

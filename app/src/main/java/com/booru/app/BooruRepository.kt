@@ -628,7 +628,9 @@ class BooruRepository(
             }
         }
 
-        if (noAi) {
+        val isStrictTagLimit = key == "gelbooru" || key == "safebooru"
+
+        if (noAi && !isStrictTagLimit) {
             for (queryTag in com.booru.app.data.AiFilter.EXCLUDE_QUERY_TAGS) {
                 if (!cleaned.contains(queryTag)) {
                     parts.add(queryTag)
@@ -647,7 +649,10 @@ class BooruRepository(
                 } else {
                     when (key) {
                         "yande", "konachan" -> parts.add("order:score")
-                        "gelbooru", "rule34", "xbooru", "tbib", "safebooru" -> parts.add("sort:score:desc")
+                        "rule34", "xbooru", "tbib" -> parts.add("sort:score:desc")
+                        "gelbooru", "safebooru" -> {
+                            if (parts.size < 2) parts.add("sort:score:desc")
+                        }
                     }
                 }
             }
@@ -660,7 +665,11 @@ class BooruRepository(
                 } else {
                     when (key) {
                         "yande", "konachan" -> parts.add("order:random")
-                        "gelbooru", "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> parts.add("sort:random")
+                        "rule34", "xbooru" -> parts.add("sort:random")
+                        "gelbooru" -> {
+                            if (parts.size < 2) parts.add("sort:random")
+                        }
+                        "safebooru", "realbooru", "tbib" -> Unit
                     }
                 }
             }
@@ -675,10 +684,9 @@ class BooruRepository(
                     } else {
                         when (key) {
                             "yande", "konachan" -> parts.add("order:id_desc")
-                            "gelbooru", "rule34", "xbooru", "tbib", "safebooru", "realbooru" -> {
-                                if ((key == "safebooru" || key == "gelbooru") && parts.size >= 2) {
-                                    Unit
-                                } else {
+                            "rule34", "xbooru", "tbib", "realbooru" -> parts.add("sort:id:desc")
+                            "gelbooru", "safebooru" -> {
+                                if (parts.size < 2) {
                                     parts.add("sort:id:desc")
                                 }
                             }

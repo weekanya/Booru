@@ -14,10 +14,14 @@ import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.staggeredgrid.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -39,8 +43,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -85,6 +91,9 @@ fun FavoritesScreen(
     var filterText by rememberSaveable { mutableStateOf("") }
     var mediaTypeFilter by rememberSaveable { mutableStateOf(FavoriteMediaTypeFilter.ALL) }
     var sortOrder by rememberSaveable { mutableStateOf(FavoriteSortOrder.NEWEST) }
+    var selectedFolder by rememberSaveable { mutableStateOf<String?>(null) }
+    var showCreateFolderDialog by remember { mutableStateOf(false) }
+    var newFolderName by remember { mutableStateOf("") }
     var showFilterSheet by remember { mutableStateOf(false) }
     LaunchedEffect(gridState.isScrollInProgress) {
         if (gridState.isScrollInProgress) {
@@ -104,8 +113,12 @@ fun FavoritesScreen(
         vm.favoritesList.count { it.isVideo }
     }
 
-    val filteredList = remember(vm.favoritesList, filterText, mediaTypeFilter, sortOrder) {
+    val filteredList = remember(vm.favoritesList, filterText, mediaTypeFilter, sortOrder, selectedFolder, vm.favoriteFolders) {
         var list = vm.favoritesList.asSequence()
+
+        if (selectedFolder != null) {
+            list = list.filter { vm.getMediaFolder(it.id) == selectedFolder }
+        }
 
         when (mediaTypeFilter) {
             FavoriteMediaTypeFilter.ALL -> {}
@@ -359,6 +372,60 @@ fun FavoritesScreen(
                 }
             }
 
+            if (vm.favoritesList.isNotEmpty() || vm.customFolders.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    item {
+                        FilterChip(
+                            selected = selectedFolder == null,
+                            onClick = { selectedFolder = null },
+                            label = { Text("${Strings.allFavoritesFolder(lang)} (${vm.favoritesList.size})") },
+                            shape = CircleShape
+                        )
+                    }
+                    items(vm.customFolders.toList()) { folder ->
+                        val count = remember(vm.favoritesList, folder, vm.favoriteFolders) {
+                            vm.favoritesList.count { vm.getMediaFolder(it.id) == folder }
+                        }
+                        FilterChip(
+                            selected = selectedFolder == folder,
+                            onClick = { selectedFolder = if (selectedFolder == folder) null else folder },
+                            label = { Text("$folder ($count)") },
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = {
+                                        if (selectedFolder == folder) selectedFolder = null
+                                        vm.removeCustomFolder(folder)
+                                    },
+                                    modifier = Modifier.size(16.dp)
+                                ) {
+                                    Icon(Icons.Rounded.Close, contentDescription = "Delete", modifier = Modifier.size(12.dp))
+                                }
+                            },
+                            shape = CircleShape
+                        )
+                    }
+                    item {
+                        AssistChip(
+                            onClick = {
+                                newFolderName = ""
+                                showCreateFolderDialog = true
+                            },
+                            label = { Text(Strings.newFolder(lang)) },
+                            leadingIcon = {
+                                Icon(Icons.Rounded.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                            },
+                            shape = CircleShape
+                        )
+                    }
+                }
+            }
+
             Spacer(Modifier.height(4.dp))
 
             if (filterText.isNotBlank()) {
@@ -388,6 +455,42 @@ fun FavoritesScreen(
             } else {
                 Spacer(Modifier.height(6.dp))
             }
+        }
+
+        if (showCreateFolderDialog) {
+            AlertDialog(
+                onDismissRequest = { showCreateFolderDialog = false },
+                title = { Text(Strings.newFolder(lang)) },
+                text = {
+                    OutlinedTextField(
+                        value = newFolderName,
+                        onValueChange = { newFolderName = it },
+                        placeholder = { Text(Strings.folderNamePlaceholder(lang)) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val trimmed = newFolderName.trim()
+                            if (trimmed.isNotBlank()) {
+                                vm.addCustomFolder(trimmed)
+                                selectedFolder = trimmed
+                            }
+                            showCreateFolderDialog = false
+                        }
+                    ) {
+                        Text(Strings.create(lang))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCreateFolderDialog = false }) {
+                        Text(Strings.closeBtn(lang))
+                    }
+                }
+            )
         }
 
         if (vm.favoritesList.isEmpty()) {
@@ -447,6 +550,7 @@ fun FavoritesScreen(
                         onClick = {
                             filterText = ""
                             mediaTypeFilter = FavoriteMediaTypeFilter.ALL
+                            selectedFolder = null
                         }
                     ) {
                         Text(Strings.clearBtn(lang))
@@ -454,9 +558,16 @@ fun FavoritesScreen(
                 }
             }
         } else {
+            val gridCells = when (vm.gridColumnsCount) {
+                1 -> StaggeredGridCells.Fixed(1)
+                2 -> StaggeredGridCells.Fixed(2)
+                3 -> StaggeredGridCells.Fixed(3)
+                4 -> StaggeredGridCells.Fixed(4)
+                else -> StaggeredGridCells.Adaptive(minSize = 175.dp)
+            }
             LazyVerticalStaggeredGrid(
                 state = gridState,
-                columns = StaggeredGridCells.Adaptive(minSize = 175.dp),
+                columns = gridCells,
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 86.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalItemSpacing = 8.dp,
@@ -693,6 +804,8 @@ private fun FavoriteCard(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
+    var showHeartBurst by remember { mutableStateOf(false) }
     var isPressed by remember { mutableStateOf(false) }
     val animatedScale by animateFloatAsState(
         targetValue = if (isPressed) 0.96f else 1f,
@@ -742,7 +855,13 @@ private fun FavoriteCard(
                 scaleX = animatedScale
                 scaleY = animatedScale
             }
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                onClick = onClick,
+                onDoubleClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    showHeartBurst = true
+                }
+            )
     ) {
         Box(
             modifier = Modifier
@@ -879,6 +998,11 @@ private fun FavoriteCard(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                 )
             }
+
+            HeartBurstOverlay(
+                visible = showHeartBurst,
+                onAnimationEnd = { showHeartBurst = false }
+            )
         }
     }
 }

@@ -1599,4 +1599,133 @@ object Strings {
         AppLanguage.ARABIC -> "المصدر $source لا يحتوي على مقاطع فيديو (صور وGIF فقط)"
         else -> "Source $source has no videos (images & GIFs only)"
     }
+
+    fun incognitoMode(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Инкогнито"
+        AppLanguage.JAPANESE -> "シークレット"
+        AppLanguage.CHINESE -> "隐身模式"
+        AppLanguage.KOREAN -> "시크릿 모드"
+        AppLanguage.ARABIC -> "وضع التصفح المتخفي"
+        else -> "Incognito"
+    }
+
+    fun incognitoActiveDesc(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "История поиска и рекомендации отключены"
+        else -> "Search history and recommendations are paused"
+    }
+
+    fun recommendationBalance(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Баланс рекомендаций"
+        else -> "Recommendation balance"
+    }
+
+    fun feedNewestOnly(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Новые"
+        else -> "Newest"
+    }
+
+    fun feedBalanced(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "50/50"
+        else -> "50/50"
+    }
+
+    fun feedRecommendedOnly(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Мои теги"
+        else -> "My tags"
+    }
+
+    fun securitySection(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Безопасность"
+        else -> "Security"
+    }
+
+    fun biometricLockTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Биометрическая защита"
+        else -> "Biometric Lock"
+    }
+
+    fun biometricLockSubtitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Блокировка при входе в приложение"
+        else -> "Require authentication when opening app"
+    }
+
+    fun appLocked(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Приложение заблокировано"
+        else -> "App is locked"
+    }
+
+    fun unlockApp(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Разблокировать"
+        else -> "Unlock"
+    }
+
+    fun foldersTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Коллекции"
+        else -> "Collections"
+    }
+
+    fun allFavoritesFolder(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Все"
+        else -> "All"
+    }
+
+    fun newFolder(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Новая коллекция"
+        else -> "New collection"
+    }
+
+    fun folderNamePlaceholder(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Название коллекции"
+        else -> "Collection name"
+    }
+
+    fun addToFolder(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Добавить в коллекцию"
+        else -> "Add to collection"
+    }
+
+    fun create(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Создать"
+        else -> "Create"
+    }
+
+    fun lockTimeoutImmediately(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Сразу"
+        else -> "Immediately"
+    }
+
+    fun lockTimeoutMinutes(min: Int, lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "$min мин."
+        else -> "$min min"
+    }
+
+    fun gridColumnsTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Сетка галереи"
+        else -> "Grid columns"
+    }
+
+    fun gridColumnsAuto(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Авто"
+        else -> "Auto"
+    }
+
+    fun incognitoModeDesc(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Приватный режим включен"
+        else -> "Private mode active"
+    }
+
+    fun brightness(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Яркость"
+        else -> "Brightness"
+    }
+
+    fun volume(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Громкость"
+        else -> "Volume"
+    }
+
+    fun deleteFolderConfirm(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Удалить коллекцию?"
+        else -> "Delete collection?"
+    }
 }
