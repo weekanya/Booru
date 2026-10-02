@@ -1535,18 +1535,18 @@ fun FilterOptionButton(
 ) {
     val containerColor by animateColorAsState(
         targetValue = if (selected) selectedContainerColor else unselectedContainerColor,
-        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
         label = "filterBtnBg"
     )
     val contentColor by animateColorAsState(
         targetValue = if (selected) selectedContentColor else unselectedContentColor,
-        animationSpec = tween(durationMillis = 200, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
         label = "filterBtnContent"
     )
 
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         color = containerColor,
         contentColor = contentColor,
         modifier = modifier
@@ -1556,25 +1556,49 @@ fun FilterOptionButton(
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            if (icon != null) {
+            AnimatedVisibility(
+                visible = selected,
+                enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                    expandHorizontally(
+                        animationSpec = tween(240, easing = FastOutSlowInEasing),
+                        expandFrom = Alignment.Start
+                    ),
+                exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
+                    shrinkHorizontally(
+                        animationSpec = tween(200, easing = FastOutLinearInEasing),
+                        shrinkTowards = Alignment.Start
+                    )
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(17.dp),
+                        tint = contentColor
+                    )
+                    Spacer(Modifier.width(5.dp))
+                }
+            }
+            if (icon != null && !selected) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
                     modifier = Modifier.size(17.dp),
                     tint = contentColor
                 )
-                Spacer(Modifier.width(6.dp))
+                Spacer(Modifier.width(5.dp))
             }
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                 color = contentColor,
-                maxLines = 1
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
     }
@@ -1695,12 +1719,12 @@ private fun FilterSelectionBottomSheet(
                         val isSelected = filterPagerState.currentPage == index
                         val bg by animateColorAsState(
                             targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                            animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
                             label = "filterTabBg"
                         )
                         val fg by animateColorAsState(
                             targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                            animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
                             label = "filterTabFg"
                         )
                         Surface(
@@ -1714,20 +1738,44 @@ private fun FilterSelectionBottomSheet(
                             contentColor = fg,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(40.dp)
+                                .height(44.dp)
                                 .bouncyPress()
                         ) {
                             Row(
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.Center
                             ) {
-                                Icon(icon, null, modifier = Modifier.size(17.dp))
-                                Spacer(Modifier.width(6.dp))
+                                AnimatedVisibility(
+                                    visible = isSelected,
+                                    enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                                        expandHorizontally(
+                                            animationSpec = tween(240, easing = FastOutSlowInEasing),
+                                            expandFrom = Alignment.Start
+                                        ),
+                                    exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
+                                        shrinkHorizontally(
+                                            animationSpec = tween(200, easing = FastOutLinearInEasing),
+                                            shrinkTowards = Alignment.Start
+                                        )
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(17.dp)
+                                        )
+                                        Spacer(Modifier.width(5.dp))
+                                    }
+                                }
                                 Text(
                                     text = title,
                                     style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
                             }
                         }

@@ -1375,12 +1375,12 @@ fun SettingsScreen(
                     val isSelected = pagerState.currentPage == index
                     val animBg by animateColorAsState(
                         targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
                         label = "settingsTabBg"
                     )
                     val animFg by animateColorAsState(
                         targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
                         label = "settingsTabFg"
                     )
 
@@ -1395,20 +1395,38 @@ fun SettingsScreen(
                         contentColor = animFg,
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp)
+                            .height(44.dp)
                             .bouncyPress()
                     ) {
-                        Column(
-                            modifier = Modifier.fillMaxSize(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
                         ) {
-                            Icon(
-                                cat.icon,
-                                contentDescription = null,
-                                modifier = Modifier.size(19.dp)
-                            )
-                            Spacer(Modifier.height(2.dp))
+                            AnimatedVisibility(
+                                visible = isSelected,
+                                enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                                    expandHorizontally(
+                                        animationSpec = tween(240, easing = FastOutSlowInEasing),
+                                        expandFrom = Alignment.Start
+                                    ),
+                                exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
+                                    shrinkHorizontally(
+                                        animationSpec = tween(200, easing = FastOutLinearInEasing),
+                                        shrinkTowards = Alignment.Start
+                                    )
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Check,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(Modifier.width(3.dp))
+                                }
+                            }
                             Text(
                                 text = when (cat) {
                                     SettingsCategory.APPEARANCE -> if (lang == AppLanguage.RUSSIAN) "Вид" else "Style"
@@ -1419,7 +1437,7 @@ fun SettingsScreen(
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 maxLines = 1,
-                                fontSize = 11.sp
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
@@ -2071,28 +2089,26 @@ fun <T> MD3SegmentedChoiceRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    if (options.size <= 3) {
-                        AnimatedVisibility(
-                            visible = isSelected,
-                            enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
-                                expandHorizontally(
-                                    animationSpec = tween(240, easing = FastOutSlowInEasing),
-                                    expandFrom = Alignment.Start
-                                ),
-                            exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
-                                shrinkHorizontally(
-                                    animationSpec = tween(200, easing = FastOutLinearInEasing),
-                                    shrinkTowards = Alignment.Start
-                                )
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(Modifier.width(6.dp))
-                            }
+                    AnimatedVisibility(
+                        visible = isSelected,
+                        enter = fadeIn(animationSpec = tween(220, easing = LinearOutSlowInEasing)) +
+                            expandHorizontally(
+                                animationSpec = tween(240, easing = FastOutSlowInEasing),
+                                expandFrom = Alignment.Start
+                            ),
+                        exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
+                            shrinkHorizontally(
+                                animationSpec = tween(200, easing = FastOutLinearInEasing),
+                                shrinkTowards = Alignment.Start
+                            )
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Rounded.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(if (options.size >= 4) 15.dp else 18.dp)
+                            )
+                            Spacer(Modifier.width(if (options.size >= 4) 3.dp else 6.dp))
                         }
                     }
                     Text(
