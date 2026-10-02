@@ -13,12 +13,14 @@ import java.io.IOException
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
+import com.booru.app.data.network.NetworkClient
+
 object BooruCacheManager {
 
     const val MAX_MEDIA_CACHE_BYTES = 100L * 1024L * 1024L
     private const val TAG = "BooruCacheManager"
 
-    private val httpClient = OkHttpClient.Builder()
+    private val httpClient = NetworkClient.baseClient.newBuilder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()

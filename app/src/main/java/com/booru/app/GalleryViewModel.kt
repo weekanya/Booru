@@ -43,6 +43,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import com.booru.app.data.network.NetworkClient
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -71,6 +72,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     var results by mutableStateOf<List<RemoteMedia>>(emptyList()); private set
     var loading by mutableStateOf(false); private set
+    var isRefreshing by mutableStateOf(false); private set
     var loadingMore by mutableStateOf(false); private set
     var error by mutableStateOf<String?>(null); private set
     var isAuthError by mutableStateOf(false); private set
@@ -322,7 +324,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         throw SecurityException("Untrusted download host: $host")
                     }
 
-                    val client = OkHttpClient.Builder()
+                    val client = NetworkClient.baseClient.newBuilder()
                         .connectTimeout(20, TimeUnit.SECONDS)
                         .readTimeout(30, TimeUnit.SECONDS)
                         .followRedirects(true)
@@ -560,19 +562,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun isBlacklisted(media: RemoteMedia, blacklist: List<String> = tagBlacklist): Boolean {
-        if (blacklist.isEmpty()) return false
-        val mediaTags = media.tagList.map { it.lowercase() }.toSet()
-        val mediaTagsStripped = mediaTags.mapNotNull { if (it.contains(":")) it.substringAfter(":") else null }.toSet()
-
-        return blacklist.any { bl ->
-            val clean = bl.trim().lowercase()
-            if (clean.isBlank()) return@any false
-            if (clean.contains(":")) {
-                clean in mediaTags
-            } else {
-                clean in mediaTags || clean in mediaTagsStripped
-            }
-        }
+        return com.booru.app.data.TagBlacklistMatcher.isBlacklisted(media, blacklist)
     }
 
     private fun updateFavoritesState(list: List<RemoteMedia>) {
@@ -626,13 +616,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun refresh() {
-        search(source, query, safeMode)
+        search(source, query, safeMode, isPullRefresh = true)
     }
 
     fun search(
         source: String = this.source,
         tags: String = this.query,
-        safeMode: Boolean = this.safeMode
+        safeMode: Boolean = this.safeMode,
+        isPullRefresh: Boolean = false
     ) {
         val searchGen = ++currentSearchGeneration
         searchJob?.cancel()
@@ -644,12 +635,16 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         needsFeedRefresh = false
         currentPage = 0
         hasMore = true
-        loading = true
+        if (isPullRefresh) {
+            isRefreshing = true
+        } else {
+            loading = true
+            results = emptyList()
+        }
         error = null
         isAuthError = false
         authErrorSource = null
         authErrorCode = null
-        results = emptyList()
 
         val trimmedTags = tags.trim()
         activeTagCount = if (trimmedTags.isNotEmpty()) {
@@ -765,8 +760,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 }
 
                 var currentFiltered = filterItems(accumulated).distinctBy { it.mediaKey }
+                var consecutiveEmptyFiltered = 0
 
                 while (selectedContentTypes.isNotEmpty() && currentFiltered.size < targetCount && lastPageSize > 0 && lastFetchedPage < maxPagesToAccumulate) {
+                    val prevCount = currentFiltered.size
                     lastFetchedPage++
                     val nextPageList = repo.search(
                         source = source,
@@ -784,6 +781,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     lastPageSize = nextPageList.size
                     accumulated.addAll(nextPageList)
                     currentFiltered = filterItems(accumulated).distinctBy { it.mediaKey }
+                    if (currentFiltered.size == prevCount) {
+                        consecutiveEmptyFiltered++
+                        if (consecutiveEmptyFiltered >= 3) break
+                    } else {
+                        consecutiveEmptyFiltered = 0
+                    }
                 }
 
                 currentPage = lastFetchedPage
@@ -818,6 +821,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             } finally {
                 if (searchGen == currentSearchGeneration) {
                     loading = false
+                    isRefreshing = false
                 }
             }
         }
@@ -934,8 +938,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 val targetCount = if (selectedContentTypes.isNotEmpty()) 20 else BooruRepository.PAGE_SIZE
                 var extraPagesFetched = 0
                 val maxExtraPages = if (selectedContentTypes.isNotEmpty()) 10 else 0
+                var consecutiveEmptyFiltered = 0
 
                 while (selectedContentTypes.isNotEmpty() && currentFiltered.size < targetCount && lastPageSize > 0 && extraPagesFetched < maxExtraPages) {
+                    val prevCount = currentFiltered.size
                     lastFetchedPage++
                     extraPagesFetched++
                     val nextPageList = repo.search(
@@ -954,6 +960,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     lastPageSize = nextPageList.size
                     accumulatedNew.addAll(nextPageList)
                     currentFiltered = filterItems(accumulatedNew)
+                    if (currentFiltered.size == prevCount) {
+                        consecutiveEmptyFiltered++
+                        if (consecutiveEmptyFiltered >= 3) break
+                    } else {
+                        consecutiveEmptyFiltered = 0
+                    }
                 }
 
                 currentPage = lastFetchedPage

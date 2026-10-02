@@ -102,4 +102,3 @@ class SecureCredentialsStorage(context: Context) {
         return success
     }
 }
-

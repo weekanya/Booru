@@ -10,7 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.ClickableText
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -19,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -195,31 +195,12 @@ private fun MarkdownInlineText(
     color: Color = Color.Unspecified,
     modifier: Modifier = Modifier
 ) {
-    val uriHandler = LocalUriHandler.current
-    val hasLinks = annotatedString.getStringAnnotations("URL", 0, annotatedString.length).isNotEmpty()
-
-    if (hasLinks) {
-        ClickableText(
-            text = annotatedString,
-            style = style.copy(color = color),
-            modifier = modifier,
-            onClick = { offset ->
-                annotatedString.getStringAnnotations("URL", offset, offset).firstOrNull()?.let { annotation ->
-                    val url = annotation.item.trim()
-                    if (url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)) {
-                        runCatching { uriHandler.openUri(url) }
-                    }
-                }
-            }
-        )
-    } else {
-        Text(
-            text = annotatedString,
-            style = style,
-            color = color,
-            modifier = modifier
-        )
-    }
+    Text(
+        text = annotatedString,
+        style = style,
+        color = color,
+        modifier = modifier
+    )
 }
 
 private fun parseInlineMarkdown(text: String, linkColor: Color): AnnotatedString {
@@ -276,16 +257,29 @@ private fun parseInlineMarkdown(text: String, linkColor: Color): AnnotatedString
                     val startIdx = length
                     append(linkTitle)
                     if (rawUrl.startsWith("http://", ignoreCase = true) || rawUrl.startsWith("https://", ignoreCase = true)) {
-                        addStringAnnotation("URL", rawUrl, startIdx, length)
+                        addLink(
+                            LinkAnnotation.Url(
+                                url = rawUrl,
+                                styles = TextLinkStyles(
+                                    style = SpanStyle(
+                                        color = linkColor,
+                                        textDecoration = TextDecoration.Underline
+                                    )
+                                )
+                            ),
+                            startIdx,
+                            length
+                        )
+                    } else {
+                        addStyle(
+                            SpanStyle(
+                                color = linkColor,
+                                textDecoration = TextDecoration.Underline
+                            ),
+                            startIdx,
+                            length
+                        )
                     }
-                    addStyle(
-                        SpanStyle(
-                            color = linkColor,
-                            textDecoration = TextDecoration.Underline
-                        ),
-                        startIdx,
-                        length
-                    )
                     i = urlEnd + 1
                     continue
                 }

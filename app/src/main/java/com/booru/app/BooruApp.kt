@@ -24,6 +24,8 @@ import okhttp3.ResponseBody.Companion.asResponseBody
 import okio.buffer
 import okio.source
 
+import com.booru.app.data.network.NetworkClient
+
 class BooruApplication : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
@@ -34,7 +36,7 @@ class BooruApplication : Application(), ImageLoaderFactory {
     }
 
     override fun newImageLoader(): ImageLoader {
-        val okHttpClient = OkHttpClient.Builder()
+        val okHttpClient = NetworkClient.baseClient.newBuilder()
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(25, TimeUnit.SECONDS)
             .addInterceptor { chain ->

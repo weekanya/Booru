@@ -40,7 +40,7 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL(
                     """
                     INSERT OR REPLACE INTO favorites_new (mediaKey, url, id, preview, sample, tags, score, source, rating, width, height, createdAt, savedAt)
-                    SELECT 
+                    SELECT
                         CASE WHEN length(trim(source)) > 0 AND length(trim(id)) > 0 THEN lower(trim(source)) || '_' || trim(id) ELSE url END,
                         url, id, preview, sample, tags, score, source, rating, width, height, createdAt, savedAt
                     FROM favorites

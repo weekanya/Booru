@@ -87,12 +87,16 @@ import com.booru.app.GalleryViewModel
 import com.booru.app.RemoteMedia
 import com.booru.app.data.AppLanguage
 import com.booru.app.data.Strings
+import com.booru.app.data.TagClassifier
+import com.booru.app.data.TagCategory
+import androidx.compose.ui.graphics.luminance
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
+import com.booru.app.data.network.NetworkClient
 import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -1494,51 +1498,69 @@ private fun OptInFlowDetailTags(
             )
         }
     } else {
+        val classifiedTags = remember(tags) {
+            tags.map { TagClassifier.classify(it) }
+        }
+        val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            tags.forEach { tag ->
-            val isBlacklisted = blacklistedTags.any { it.equals(tag, ignoreCase = true) }
-            Surface(
-                shape = CircleShape,
-                color = if (isBlacklisted)
-                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
-                else
-                    MaterialTheme.colorScheme.surfaceContainerHighest,
-                modifier = Modifier
-                    .bouncyPress()
-                    .pointerInput(tag) {
-                        detectTapGestures(
-                            onTap = { onTagClick(tag) },
-                            onLongPress = { onTagLongClick(tag) }
+            classifiedTags.forEach { item ->
+                val isBlacklisted = blacklistedTags.any {
+                    it.equals(item.rawTag, ignoreCase = true) || (it.contains(":") && it.substringAfter(":") == item.rawTag)
+                }
+                val cat = item.category
+                val chipBg = when {
+                    isBlacklisted -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
+                    cat.containerColor(isDark) != null -> cat.containerColor(isDark)!!
+                    else -> MaterialTheme.colorScheme.surfaceContainerHighest
+                }
+                val chipContent = when {
+                    isBlacklisted -> MaterialTheme.colorScheme.error
+                    cat.contentColor(isDark) != null -> cat.contentColor(isDark)!!
+                    else -> MaterialTheme.colorScheme.onSurface
+                }
+                val chipIcon = if (isBlacklisted) Icons.Rounded.Block else cat.icon
+                val iconTint = if (isBlacklisted) MaterialTheme.colorScheme.error else (cat.contentColor(isDark) ?: MaterialTheme.colorScheme.primary)
+
+                Surface(
+                    shape = CircleShape,
+                    color = chipBg,
+                    modifier = Modifier
+                        .bouncyPress()
+                        .pointerInput(item.rawTag) {
+                            detectTapGestures(
+                                onTap = { onTagClick(item.rawTag) },
+                                onLongPress = { onTagLongClick(item.rawTag) }
+                            )
+                        }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = chipIcon,
+                            contentDescription = cat.displayName,
+                            modifier = Modifier.size(13.dp),
+                            tint = iconTint
+                        )
+                        Text(
+                            text = item.displayTag,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (cat != TagCategory.GENERAL) FontWeight.SemiBold else FontWeight.Medium,
+                            color = chipContent,
+                            textDecoration = if (isBlacklisted) TextDecoration.LineThrough else null
                         )
                     }
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isBlacklisted) Icons.Rounded.Block else Icons.Rounded.Tag,
-                        contentDescription = null,
-                        modifier = Modifier.size(13.dp),
-                        tint = if (isBlacklisted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                    )
-                    Text(
-                        text = tag,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Medium,
-                        color = if (isBlacklisted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                        textDecoration = if (isBlacklisted) TextDecoration.LineThrough else null
-                    )
                 }
             }
         }
     }
-}
 }
 
 @Composable
@@ -1622,7 +1644,7 @@ fun BooruVideoPlayer(
         }
 
         val httpDataSourceFactory = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(
-            OkHttpClient.Builder()
+            NetworkClient.baseClient.newBuilder()
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(20, TimeUnit.SECONDS)
                 .followRedirects(true)

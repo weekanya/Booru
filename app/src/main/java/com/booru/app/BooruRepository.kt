@@ -18,6 +18,7 @@ import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import com.booru.app.data.network.NetworkClient
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
@@ -64,7 +65,7 @@ class BooruHttpException(
 ) : BooruException(message)
 
 class BooruRepository(
-    private val client: OkHttpClient = OkHttpClient.Builder()
+    private val client: OkHttpClient = NetworkClient.baseClient.newBuilder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(20, TimeUnit.SECONDS)
         .followRedirects(true)
@@ -544,7 +545,14 @@ class BooruRepository(
                 if (!cleaned.contains("video")) {
                     when (key) {
                         "rule34", "gelbooru", "xbooru", "realbooru" -> parts.add("video")
-                        else -> if (custom != null) parts.add("video")
+                        else -> {
+                            if (custom != null) {
+                                when (custom.engine) {
+                                    BooruEngine.DANBOORU -> parts.add("mp4")
+                                    else -> parts.add("video")
+                                }
+                            }
+                        }
                     }
                 }
             } else if (wantsPhotos && !wantsVideos && !wantsGifs) {

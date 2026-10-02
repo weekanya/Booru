@@ -192,6 +192,7 @@ fun BooruApp(vm: GalleryViewModel = viewModel()) {
                         .padding(horizontal = 24.dp, vertical = 14.dp)
                         .height(64.dp)
                         .fillMaxWidth()
+                        .widthIn(max = 480.dp)
                 ) {
                     Row(
                         modifier = Modifier

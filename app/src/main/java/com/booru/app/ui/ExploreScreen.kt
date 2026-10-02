@@ -20,6 +20,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,12 +65,14 @@ fun ExploreScreen(
 ) {
     val lang = vm.language
     var searchExpanded by remember { mutableStateOf(false) }
-    var localQuery     by remember { mutableStateOf(vm.query) }
+    var localQuery by remember { mutableStateOf(TextFieldValue(vm.query, TextRange(vm.query.length))) }
     var showSourceSheet by remember { mutableStateOf(false) }
     var showFilterSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(vm.query) {
-        localQuery = vm.query
+        if (localQuery.text != vm.query) {
+            localQuery = TextFieldValue(vm.query, TextRange(vm.query.length))
+        }
     }
 
     val focusRequester = remember { FocusRequester() }
@@ -83,7 +88,7 @@ fun ExploreScreen(
             searchExpanded = false
             vm.clearTagSuggestions()
         } else if (vm.query.isNotBlank()) {
-            localQuery = ""
+            localQuery = TextFieldValue("")
             vm.search(vm.source, "", vm.safeMode)
         }
     }
@@ -212,7 +217,6 @@ fun ExploreScreen(
                 }
             }
 
-
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -256,37 +260,6 @@ fun ExploreScreen(
                     }
                 }
 
-                val infiniteTransition = rememberInfiniteTransition(label = "refreshSpin")
-                val spinRotation by infiniteTransition.animateFloat(
-                    initialValue = 0f,
-                    targetValue = 360f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(900, easing = LinearEasing),
-                        repeatMode = RepeatMode.Restart
-                    ),
-                    label = "spinRotation"
-                )
-
-                FilledTonalIconButton(
-                    onClick = { vm.refresh() },
-                    modifier = Modifier
-                        .size(36.dp)
-                        .bouncyPress(),
-                    shape = CircleShape,
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Icon(
-                        Icons.Rounded.Refresh,
-                        contentDescription = Strings.refreshBtn(lang),
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier
-                            .size(18.dp)
-                            .graphicsLayer { rotationZ = if (vm.loading) spinRotation else 0f }
-                    )
-                }
             }
 
             vm.error?.let { rawErr ->
@@ -393,76 +366,86 @@ fun ExploreScreen(
             }
 
             Box(modifier = Modifier.weight(1f)) {
-                if (vm.loading && vm.results.isEmpty()) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(
-                                color = MaterialTheme.colorScheme.primary,
-                                strokeWidth = 3.dp
-                            )
-                            Spacer(Modifier.height(16.dp))
-                            Text(
-                                Strings.loadingText(lang),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                PullToRefreshBox(
+                    isRefreshing = vm.isRefreshing,
+                    onRefresh = { vm.refresh() },
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    if (vm.loading && vm.results.isEmpty()) {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(
+                                    color = MaterialTheme.colorScheme.primary,
+                                    strokeWidth = 3.dp
+                                )
+                                Spacer(Modifier.height(16.dp))
+                                Text(
+                                    Strings.loadingText(lang),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
-                    }
-                } else if (!vm.loading && vm.results.isEmpty() && vm.error == null) {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.padding(horizontal = 32.dp)
+                    } else if (!vm.loading && vm.results.isEmpty() && vm.error == null) {
+                        Box(
+                            Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState()),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                modifier = Modifier.size(80.dp)
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.padding(horizontal = 32.dp)
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        Icons.Rounded.ImageSearch,
-                                        null,
-                                        modifier = Modifier.size(40.dp),
-                                        tint = MaterialTheme.colorScheme.primary
-                                    )
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                    modifier = Modifier.size(80.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Rounded.ImageSearch,
+                                            null,
+                                            modifier = Modifier.size(40.dp),
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                                Spacer(Modifier.height(16.dp))
+                                Text(
+                                    Strings.nothingFound(lang),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                val isImageOnlyBoard = vm.source in listOf("Yande.re", "Konachan", "Safebooru", "TBIB")
+                                val isVideoOnlyFilter = vm.selectedContentTypes.contains(ContentType.VIDEOS) && !vm.selectedContentTypes.contains(ContentType.PHOTOS) && !vm.selectedContentTypes.contains(ContentType.GIFS)
+                                Text(
+                                    if (isImageOnlyBoard && isVideoOnlyFilter) Strings.sourceNoVideosNotice(vm.source, lang) else Strings.nothingFoundDesc(lang),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(Modifier.height(14.dp))
+                                FilledTonalButton(
+                                    onClick = { vm.refresh() },
+                                    shape = CircleShape
+                                ) {
+                                    Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(Strings.refreshBtn(lang))
                                 }
                             }
-                            Spacer(Modifier.height(16.dp))
-                            Text(
-                                Strings.nothingFound(lang),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            val isImageOnlyBoard = vm.source in listOf("Yande.re", "Konachan", "Safebooru", "TBIB")
-                            val isVideoOnlyFilter = vm.selectedContentTypes.contains(ContentType.VIDEOS) && !vm.selectedContentTypes.contains(ContentType.PHOTOS) && !vm.selectedContentTypes.contains(ContentType.GIFS)
-                            Text(
-                                if (isImageOnlyBoard && isVideoOnlyFilter) Strings.sourceNoVideosNotice(vm.source, lang) else Strings.nothingFoundDesc(lang),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(Modifier.height(14.dp))
-                            FilledTonalButton(
-                                onClick = { vm.refresh() },
-                                shape = CircleShape
-                            ) {
-                                Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text(Strings.refreshBtn(lang))
-                            }
                         }
-                    }
-                } else {
-                    LazyVerticalStaggeredGrid(
-                        columns = StaggeredGridCells.Fixed(2),
-                        state = gridState,
-                        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 86.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalItemSpacing = 8.dp,
-                        modifier = Modifier.fillMaxSize()
-                    ) {
+                    } else {
+                        LazyVerticalStaggeredGrid(
+                            columns = StaggeredGridCells.Adaptive(minSize = 175.dp),
+                            state = gridState,
+                            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 86.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalItemSpacing = 8.dp,
+                            modifier = Modifier.fillMaxSize()
+                        ) {
                         itemsIndexed(
                             items = vm.results,
                             key = { _, m -> "${m.source}_${m.id.ifBlank { m.url }}" }
@@ -508,6 +491,7 @@ fun ExploreScreen(
                 }
             }
         }
+    }
 
         Surface(
             onClick = { searchExpanded = true },
@@ -534,17 +518,17 @@ fun ExploreScreen(
                 )
                 Spacer(Modifier.width(14.dp))
                 Text(
-                    text = if (localQuery.isNotBlank()) localQuery else Strings.searchPlaceholder(lang),
+                    text = if (localQuery.text.isNotBlank()) localQuery.text else Strings.searchPlaceholder(lang),
                     style = MaterialTheme.typography.bodyLarge,
-                    color = if (localQuery.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (localQuery.text.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (localQuery.isNotBlank()) {
+                if (localQuery.text.isNotBlank()) {
                     IconButton(
                         onClick = {
-                            localQuery = ""
+                            localQuery = TextFieldValue("")
                             vm.clearTagSuggestions()
                             vm.search(vm.source, "", vm.safeMode)
                         },
@@ -604,7 +588,8 @@ fun ExploreScreen(
                                 value = localQuery,
                                 onValueChange = {
                                     localQuery = it
-                                    val lastToken = if (it.endsWith(" ")) "" else it.substringAfterLast(" ").trim()
+                                    val text = it.text
+                                    val lastToken = if (text.endsWith(" ")) "" else text.substringAfterLast(" ").trim()
                                     if (lastToken.isNotEmpty()) {
                                         vm.fetchTagSuggestions(lastToken)
                                     } else {
@@ -621,14 +606,15 @@ fun ExploreScreen(
                                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                                 keyboardActions = KeyboardActions(onSearch = {
-                                    localQuery = localQuery.trim()
-                                    vm.search(vm.source, localQuery, vm.safeMode)
+                                    val q = localQuery.text.trim()
+                                    localQuery = TextFieldValue(q, TextRange(q.length))
+                                    vm.search(vm.source, q, vm.safeMode)
                                     searchExpanded = false
                                     vm.clearTagSuggestions()
                                 }),
                                 decorationBox = { innerTextField ->
                                     Box(contentAlignment = Alignment.CenterStart) {
-                                        if (localQuery.isEmpty()) {
+                                        if (localQuery.text.isEmpty()) {
                                             Text(
                                                 text = Strings.searchPlaceholder(lang),
                                                 style = MaterialTheme.typography.bodyLarge,
@@ -639,9 +625,9 @@ fun ExploreScreen(
                                     }
                                 }
                             )
-                            if (localQuery.isNotEmpty()) {
+                            if (localQuery.text.isNotEmpty()) {
                                 IconButton(onClick = {
-                                    localQuery = ""
+                                    localQuery = TextFieldValue("")
                                     vm.clearTagSuggestions()
                                     vm.search(vm.source, "", vm.safeMode)
                                 }) {
@@ -652,8 +638,9 @@ fun ExploreScreen(
                                     )
                                 }
                                 IconButton(onClick = {
-                                    localQuery = localQuery.trim()
-                                    vm.search(vm.source, localQuery, vm.safeMode)
+                                    val q = localQuery.text.trim()
+                                    localQuery = TextFieldValue(q, TextRange(q.length))
+                                    vm.search(vm.source, q, vm.safeMode)
                                     searchExpanded = false
                                     vm.clearTagSuggestions()
                                 }) {
@@ -706,13 +693,14 @@ fun ExploreScreen(
                                     vm.tagSuggestions.forEach { suggestion ->
                                         Surface(
                                             onClick = {
-                                                val prefix = if (localQuery.contains(" ")) {
-                                                    localQuery.substringBeforeLast(" ") + " "
+                                                val currentText = localQuery.text
+                                                val prefix = if (currentText.contains(" ")) {
+                                                    currentText.substringBeforeLast(" ") + " "
                                                 } else {
                                                     ""
                                                 }
                                                 val fullQuery = (prefix + suggestion.value).trim() + " "
-                                                localQuery = fullQuery
+                                                localQuery = TextFieldValue(fullQuery, TextRange(fullQuery.length))
                                                 vm.clearTagSuggestions()
                                             },
                                             color = Color.Transparent,
@@ -744,13 +732,14 @@ fun ExploreScreen(
                                                 }
                                                 IconButton(
                                                     onClick = {
-                                                        val prefix = if (localQuery.contains(" ")) {
-                                                            localQuery.substringBeforeLast(" ") + " "
+                                                        val currentText = localQuery.text
+                                                        val prefix = if (currentText.contains(" ")) {
+                                                            currentText.substringBeforeLast(" ") + " "
                                                         } else {
                                                             ""
                                                         }
                                                         val fullQuery = (prefix + suggestion.value).trim()
-                                                        localQuery = fullQuery
+                                                        localQuery = TextFieldValue(fullQuery, TextRange(fullQuery.length))
                                                         vm.search(vm.source, fullQuery, vm.safeMode)
                                                         searchExpanded = false
                                                         vm.clearTagSuggestions()
@@ -815,7 +804,7 @@ fun ExploreScreen(
                                     vm.searchHistory.take(8).forEach { hist ->
                                         Surface(
                                             onClick = {
-                                                localQuery = hist
+                                                localQuery = TextFieldValue(hist, TextRange(hist.length))
                                                 vm.search(vm.source, hist, vm.safeMode)
                                                 searchExpanded = false
                                                 vm.clearTagSuggestions()

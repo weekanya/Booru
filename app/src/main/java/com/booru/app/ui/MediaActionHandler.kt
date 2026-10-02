@@ -25,11 +25,13 @@ import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
+import com.booru.app.data.network.NetworkClient
+
 object MediaActionHandler {
 
     private const val MAX_DOWNLOAD_BYTES = 200L * 1024L * 1024L
 
-    private val httpClient = OkHttpClient.Builder()
+    private val httpClient = NetworkClient.baseClient.newBuilder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
         .followRedirects(true)

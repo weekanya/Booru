@@ -6,6 +6,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
+import com.booru.app.data.network.NetworkClient
 
 data class AppUpdateInfo(
     val latestVersion: String,
@@ -18,7 +19,7 @@ data class AppUpdateInfo(
 object UpdateChecker {
     private const val GITHUB_LATEST_RELEASE_URL = "https://api.github.com/repos/weekanya/Booru/releases/latest"
 
-    private val client = OkHttpClient.Builder()
+    private val client = NetworkClient.baseClient.newBuilder()
         .connectTimeout(10, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.SECONDS)
         .build()
