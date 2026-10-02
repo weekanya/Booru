@@ -73,6 +73,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var results by mutableStateOf<List<RemoteMedia>>(emptyList()); private set
     var loading by mutableStateOf(false); private set
     var isRefreshing by mutableStateOf(false); private set
+    var isPullRefreshing by mutableStateOf(false); private set
+    var isTabRefreshing by mutableStateOf(false); private set
     var loadingMore by mutableStateOf(false); private set
     var error by mutableStateOf<String?>(null); private set
     var isAuthError by mutableStateOf(false); private set
@@ -621,8 +623,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         scrollToTopTrigger = System.currentTimeMillis()
     }
 
-    fun refresh() {
+    fun refresh(isPull: Boolean = false) {
         refreshSeed++
+        if (isPull) {
+            isPullRefreshing = true
+            isTabRefreshing = false
+        } else {
+            isTabRefreshing = true
+            isPullRefreshing = false
+        }
         search(source, query, safeMode, isPullRefresh = true)
     }
 
@@ -646,6 +655,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             isRefreshing = true
         } else {
             loading = true
+            isRefreshing = false
+            isPullRefreshing = false
+            isTabRefreshing = false
             results = emptyList()
         }
         error = null
@@ -678,46 +690,24 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             try {
                 val list = if (source == BooruRepository.SOURCE_ALL && tags.isBlank() && recommendationTags.isNotEmpty()) {
                     val ratio = 0.5f
-                    val tagsToFetch = if (recommendationTags.size <= 6) {
+                    val tagsToFetch = if (recommendationTags.size <= 2) {
                         recommendationTags
                     } else {
                         val r = java.util.Random(System.currentTimeMillis() + refreshSeed)
-                        recommendationTags.shuffled(r).take(6)
+                        recommendationTags.shuffled(r).take(if (recommendationTags.size <= 4) 2 else 3)
                     }
-                    val maxPerTag = when {
-                        tagsToFetch.size == 1 -> 4
-                        tagsToFetch.size <= 3 -> 3
-                        else -> 2
-                    }
+                    val maxPerTag = 3
                     val dGen = async {
-                        try {
-                            repo.search(
-                                source = source,
-                                tags = "",
-                                safeMode = safeMode,
-                                excludeSafe = excludeSafe,
-                                noAi = noAi,
-                                page = if (isPullRefresh) (refreshSeed % 10) else 0,
-                                sortOrder = SortOrder.RANDOM,
-                                contentTypes = selectedContentTypes,
-                                credentials = getCredentials(),
-                                customSources = customSources
-                            )
-                        } catch (_: Exception) {
-                            emptyList()
-                        }
-                    }
-                    val dTags = tagsToFetch.map { recTag ->
-                        async {
+                        withTimeoutOrNull(4000L) {
                             try {
                                 repo.search(
                                     source = source,
-                                    tags = recTag,
+                                    tags = "",
                                     safeMode = safeMode,
                                     excludeSafe = excludeSafe,
                                     noAi = noAi,
-                                    page = 0,
-                                    sortOrder = sortOrder,
+                                    page = if (isPullRefresh) (refreshSeed % 10) else 0,
+                                    sortOrder = SortOrder.RANDOM,
                                     contentTypes = selectedContentTypes,
                                     credentials = getCredentials(),
                                     customSources = customSources
@@ -725,6 +715,28 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                             } catch (_: Exception) {
                                 emptyList()
                             }
+                        } ?: emptyList()
+                    }
+                    val dTags = tagsToFetch.map { recTag ->
+                        async {
+                            withTimeoutOrNull(4000L) {
+                                try {
+                                    repo.search(
+                                        source = source,
+                                        tags = recTag,
+                                        safeMode = safeMode,
+                                        excludeSafe = excludeSafe,
+                                        noAi = noAi,
+                                        page = 0,
+                                        sortOrder = sortOrder,
+                                        contentTypes = selectedContentTypes,
+                                        credentials = getCredentials(),
+                                        customSources = customSources
+                                    )
+                                } catch (_: Exception) {
+                                    emptyList()
+                                }
+                            } ?: emptyList()
                         }
                     }
                     val genList = dGen.await()
@@ -741,18 +753,20 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     }
                     blendRecommendationFeed(sanitizedGenList, sanitizedTagLists, ratio, maxPerTag = maxPerTag)
                 } else {
-                    repo.search(
-                        source = source,
-                        tags = tags,
-                        safeMode = safeMode,
-                        excludeSafe = excludeSafe,
-                        noAi = noAi,
-                        page = 0,
-                        sortOrder = sortOrder,
-                        contentTypes = selectedContentTypes,
-                        credentials = getCredentials(),
-                        customSources = customSources
-                    )
+                    withTimeoutOrNull(5000L) {
+                        repo.search(
+                            source = source,
+                            tags = tags,
+                            safeMode = safeMode,
+                            excludeSafe = excludeSafe,
+                            noAi = noAi,
+                            page = 0,
+                            sortOrder = sortOrder,
+                            contentTypes = selectedContentTypes,
+                            credentials = getCredentials(),
+                            customSources = customSources
+                        )
+                    } ?: emptyList()
                 }
 
                 if (searchGen != currentSearchGeneration) return@launch
@@ -842,6 +856,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 if (searchGen == currentSearchGeneration) {
                     loading = false
                     isRefreshing = false
+                    isPullRefreshing = false
+                    isTabRefreshing = false
                 }
             }
         }
@@ -859,49 +875,26 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 val list = if (source == BooruRepository.SOURCE_ALL && query.isBlank() && recommendationTags.isNotEmpty()) {
                     val ratio = 0.5f
                     val tagsCount = recommendationTags.size
-                    val tagsToFetch = if (tagsCount <= 6) {
+                    val tagsToFetch = if (tagsCount <= 2) {
                         recommendationTags
                     } else {
-                        val startIndex = (targetPage * 6) % tagsCount
-                        (0 until minOf(6, tagsCount)).map { offset ->
+                        val startIndex = (targetPage * 2) % tagsCount
+                        (0 until minOf(2, tagsCount)).map { offset ->
                             recommendationTags[(startIndex + offset) % tagsCount]
                         }
                     }
-                    val maxPerTag = when {
-                        tagsToFetch.size == 1 -> 4
-                        tagsToFetch.size <= 3 -> 3
-                        else -> 2
-                    }
+                    val maxPerTag = 3
                     val dGen = async {
-                        try {
-                            repo.search(
-                                source = source,
-                                tags = "",
-                                safeMode = safeMode,
-                                excludeSafe = excludeSafe,
-                                noAi = noAi,
-                                page = targetPage,
-                                sortOrder = SortOrder.RANDOM,
-                                contentTypes = selectedContentTypes,
-                                credentials = getCredentials(),
-                                customSources = customSources
-                            )
-                        } catch (_: Exception) {
-                            emptyList()
-                        }
-                    }
-                    val dTags = tagsToFetch.map { recTag ->
-                        val subPage = if (tagsCount <= 6) targetPage / 2 else targetPage / 6
-                        async {
+                        withTimeoutOrNull(4000L) {
                             try {
                                 repo.search(
                                     source = source,
-                                    tags = recTag,
+                                    tags = "",
                                     safeMode = safeMode,
                                     excludeSafe = excludeSafe,
                                     noAi = noAi,
-                                    page = subPage,
-                                    sortOrder = sortOrder,
+                                    page = targetPage,
+                                    sortOrder = SortOrder.RANDOM,
                                     contentTypes = selectedContentTypes,
                                     credentials = getCredentials(),
                                     customSources = customSources
@@ -909,6 +902,29 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                             } catch (_: Exception) {
                                 emptyList()
                             }
+                        } ?: emptyList()
+                    }
+                    val dTags = tagsToFetch.map { recTag ->
+                        val subPage = targetPage / 2
+                        async {
+                            withTimeoutOrNull(4000L) {
+                                try {
+                                    repo.search(
+                                        source = source,
+                                        tags = recTag,
+                                        safeMode = safeMode,
+                                        excludeSafe = excludeSafe,
+                                        noAi = noAi,
+                                        page = subPage,
+                                        sortOrder = sortOrder,
+                                        contentTypes = selectedContentTypes,
+                                        credentials = getCredentials(),
+                                        customSources = customSources
+                                    )
+                                } catch (_: Exception) {
+                                    emptyList()
+                                }
+                            } ?: emptyList()
                         }
                     }
                     val genList = dGen.await()
@@ -926,18 +942,20 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     }
                     blendRecommendationFeed(sanitizedGenList, sanitizedTagLists, ratio, existingKeys, maxPerTag = maxPerTag)
                 } else {
-                    repo.search(
-                        source = source,
-                        tags = query,
-                        safeMode = safeMode,
-                        excludeSafe = excludeSafe,
-                        noAi = noAi,
-                        page = targetPage,
-                        sortOrder = sortOrder,
-                        contentTypes = selectedContentTypes,
-                        credentials = getCredentials(),
-                        customSources = customSources
-                    )
+                    withTimeoutOrNull(5000L) {
+                        repo.search(
+                            source = source,
+                            tags = query,
+                            safeMode = safeMode,
+                            excludeSafe = excludeSafe,
+                            noAi = noAi,
+                            page = targetPage,
+                            sortOrder = sortOrder,
+                            contentTypes = selectedContentTypes,
+                            credentials = getCredentials(),
+                            customSources = customSources
+                        )
+                    } ?: emptyList()
                 }
 
                 if (searchGen != currentSearchGeneration) return@launch

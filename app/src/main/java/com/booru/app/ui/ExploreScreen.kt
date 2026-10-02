@@ -21,6 +21,8 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.runtime.*
@@ -98,9 +100,9 @@ fun ExploreScreen(
     LaunchedEffect(vm.scrollToTopTrigger) {
         if (vm.scrollToTopTrigger > 0L) {
             if (gridState.firstVisibleItemIndex > 0) {
-                gridState.scrollToItem(0)
+                gridState.animateScrollToItem(0)
             } else {
-                vm.refresh()
+                vm.refresh(isPull = false)
             }
         }
     }
@@ -375,11 +377,40 @@ fun ExploreScreen(
                 }
             }
 
+            AnimatedVisibility(
+                visible = vm.isTabRefreshing,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                LinearProgressIndicator(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 2.dp)
+                        .height(3.dp)
+                        .clip(CircleShape),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                )
+            }
+
             Box(modifier = Modifier.weight(1f)) {
+                val pullRefreshState = rememberPullToRefreshState()
                 PullToRefreshBox(
-                    isRefreshing = vm.isRefreshing,
-                    onRefresh = { vm.refresh() },
-                    modifier = Modifier.fillMaxSize()
+                    isRefreshing = vm.isPullRefreshing,
+                    onRefresh = { vm.refresh(isPull = true) },
+                    state = pullRefreshState,
+                    modifier = Modifier.fillMaxSize(),
+                    indicator = {
+                        PullToRefreshDefaults.Indicator(
+                            state = pullRefreshState,
+                            isRefreshing = vm.isPullRefreshing,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = 4.dp),
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 ) {
                     if ((vm.loading || vm.isRefreshing) && vm.results.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -438,7 +469,7 @@ fun ExploreScreen(
                                 )
                                 Spacer(Modifier.height(14.dp))
                                 FilledTonalButton(
-                                    onClick = { vm.refresh() },
+                                    onClick = { vm.refresh(isPull = false) },
                                     shape = CircleShape
                                 ) {
                                     Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(16.dp))
@@ -454,7 +485,14 @@ fun ExploreScreen(
                             contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 86.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalItemSpacing = 8.dp,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    val pullOffset = if (pullRefreshState.distanceFraction > 0f) {
+                                        (pullRefreshState.distanceFraction * 56.dp.toPx()).coerceAtMost(90.dp.toPx())
+                                    } else 0f
+                                    translationY = pullOffset
+                                }
                         ) {
                         itemsIndexed(
                             items = vm.results,

@@ -13,6 +13,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Credentials
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -66,8 +67,8 @@ class BooruHttpException(
 
 class BooruRepository(
     private val client: OkHttpClient = NetworkClient.baseClient.newBuilder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(20, TimeUnit.SECONDS)
+        .connectTimeout(6, TimeUnit.SECONDS)
+        .readTimeout(8, TimeUnit.SECONDS)
         .followRedirects(true)
         .addNetworkInterceptor { chain ->
             val request = chain.request()
@@ -103,8 +104,8 @@ class BooruRepository(
         const val TAG = "BooruRepo"
         const val PAGE_SIZE = 40
         const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 BooruClient/1.0"
-        private const val MAX_CONCURRENT_REQUESTS = 4
-        private const val MAX_RETRY_AFTER_SECONDS = 60
+        private const val MAX_CONCURRENT_REQUESTS = 8
+        private const val MAX_RETRY_AFTER_SECONDS = 2
 
         val EXPLICIT_RATINGS = setOf("e", "explicit", "q", "questionable")
         val SAFE_RATINGS = setOf("s", "safe", "g", "general")
@@ -204,7 +205,9 @@ class BooruRepository(
                 async {
                     semaphore.withPermit {
                         try {
-                            val list = requestSourceWithRetry(key, tags.trim(), safeMode, excludeSafe, noAi, page, sortOrder, contentTypes, credentials, customSources)
+                            val list = withTimeoutOrNull(4500L) {
+                                requestSourceWithRetry(key, tags.trim(), safeMode, excludeSafe, noAi, page, sortOrder, contentTypes, credentials, customSources)
+                            } ?: emptyList()
                             Result.success(list)
                         } catch (c: kotlinx.coroutines.CancellationException) {
                             throw c
@@ -703,7 +706,7 @@ class BooruRepository(
         var attempt = 0
         var lastException: Exception? = null
 
-        while (attempt < 3) {
+        while (attempt < 2) {
             try {
                 return requestSource(key, userTags, safe, excludeSafe, noAi, page, sortOrder, contentTypes, credentials, customSources)
             } catch (c: kotlinx.coroutines.CancellationException) {
@@ -719,18 +722,20 @@ class BooruRepository(
                     val waitSec = http.retryAfterSec.coerceIn(1, MAX_RETRY_AFTER_SECONDS)
                     delay(waitSec * 1000L)
                 } else {
-                    val baseDelay = 500L * (1L shl attempt)
-                    val jitter = Random.nextLong(0, 150)
-                    val totalDelay = (baseDelay + jitter).coerceAtMost(5000L)
+                    val baseDelay = 400L * (1L shl attempt)
+                    val jitter = Random.nextLong(0, 100)
+                    val totalDelay = (baseDelay + jitter).coerceAtMost(1500L)
                     delay(totalDelay)
                 }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 lastException = e
-                if (e is SocketTimeoutException || e is IOException) {
-                    val baseDelay = 500L * (1L shl attempt)
-                    val jitter = Random.nextLong(0, 150)
-                    val totalDelay = (baseDelay + jitter).coerceAtMost(5000L)
+                if (e is SocketTimeoutException) {
+                    throw e
+                } else if (e is IOException) {
+                    val baseDelay = 400L * (1L shl attempt)
+                    val jitter = Random.nextLong(0, 100)
+                    val totalDelay = (baseDelay + jitter).coerceAtMost(1500L)
                     delay(totalDelay)
                 } else {
                     throw e
