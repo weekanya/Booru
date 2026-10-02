@@ -1721,10 +1721,11 @@ private fun FilterSelectionBottomSheet(
                         Pair(if (lang == AppLanguage.RUSSIAN) "Контент и рейтинг" else "Content & Rating", Icons.Rounded.Category),
                         Pair(if (lang == AppLanguage.RUSSIAN) "Сортировка и лента" else "Sorting & Feed", Icons.Rounded.AutoAwesome)
                     )
+                    val targetFilterIndex = if (filterPagerState.isScrollInProgress) filterPagerState.targetPage else filterPagerState.currentPage
                     tabs.forEachIndexed { index, (title, icon) ->
-                        val isSelected = filterPagerState.currentPage == index
+                        val isSelected = targetFilterIndex == index
                         val bg by animateColorAsState(
-                            targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                            targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
                             animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
                             label = "filterTabBg"
                         )
@@ -1802,6 +1803,7 @@ private fun FilterSelectionBottomSheet(
 
             HorizontalPager(
                 state = filterPagerState,
+                beyondViewportPageCount = 1,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(350.dp)

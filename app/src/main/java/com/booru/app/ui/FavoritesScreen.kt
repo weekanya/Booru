@@ -416,6 +416,7 @@ fun FavoritesScreen(
             }
 
             if (vm.favoritesList.isNotEmpty() || vm.customFolders.isNotEmpty()) {
+                val targetFolderPage = if (pagerState.isScrollInProgress) pagerState.targetPage else pagerState.currentPage
                 LazyRow(
                     state = chipRowState,
                     modifier = Modifier
@@ -425,13 +426,16 @@ fun FavoritesScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     item(key = "all_folder_tab") {
-                        val isAllSelected = pagerState.currentPage == 0
+                        val isAllSelected = targetFolderPage == 0
                         FolderTabPill(
                             title = Strings.allFavoritesFolder(lang),
                             count = vm.favoritesList.size,
                             isSelected = isAllSelected,
                             onClick = {
                                 scope.launch {
+                                    if (kotlin.math.abs(pagerState.currentPage - 0) > 1) {
+                                        pagerState.scrollToPage(1)
+                                    }
                                     pagerState.animateScrollToPage(0)
                                 }
                             },
@@ -449,13 +453,16 @@ fun FavoritesScreen(
                                 vm.getMediaFolder(it.mediaKey) == folder || vm.getMediaFolder(it.id) == folder
                             }
                         }
-                        val isSelected = pagerState.currentPage == pageIndex
+                        val isSelected = targetFolderPage == pageIndex
                         FolderTabPill(
                             title = folder,
                             count = count,
                             isSelected = isSelected,
                             onClick = {
                                 scope.launch {
+                                    if (kotlin.math.abs(pagerState.currentPage - pageIndex) > 1) {
+                                        pagerState.scrollToPage(if (pageIndex > pagerState.currentPage) pageIndex - 1 else pageIndex + 1)
+                                    }
                                     pagerState.animateScrollToPage(pageIndex)
                                 }
                             },
@@ -588,6 +595,7 @@ fun FavoritesScreen(
 
         HorizontalPager(
             state = pagerState,
+            beyondViewportPageCount = 1,
             modifier = Modifier.fillMaxSize(),
             key = { page -> folders.getOrNull(page) ?: "all_favorites" }
         ) { page ->

@@ -1356,10 +1356,11 @@ fun SettingsScreen(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                val targetCategoryIndex = if (pagerState.isScrollInProgress) pagerState.targetPage else pagerState.currentPage
                 categories.forEachIndexed { index, cat ->
-                    val isSelected = pagerState.currentPage == index
+                    val isSelected = targetCategoryIndex == index
                     val animBg by animateColorAsState(
-                        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
                         animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
                         label = "settingsTabBg"
                     )
@@ -1372,6 +1373,9 @@ fun SettingsScreen(
                     Surface(
                         onClick = {
                             scope.launch {
+                                if (kotlin.math.abs(pagerState.currentPage - index) > 1) {
+                                    pagerState.scrollToPage(if (index > pagerState.currentPage) index - 1 else index + 1)
+                                }
                                 pagerState.animateScrollToPage(
                                     page = index,
                                     animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
@@ -1441,11 +1445,13 @@ fun SettingsScreen(
 
         HorizontalPager(
             state = pagerState,
+            beyondViewportPageCount = categories.size - 1,
             modifier = Modifier.fillMaxSize()
         ) { page ->
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
                     .padding(top = 8.dp, bottom = 88.dp)
