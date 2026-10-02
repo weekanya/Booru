@@ -865,6 +865,24 @@ object Strings {
         else -> "Refresh"
     }
 
+    fun pullToRefresh(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Потяните для обновления"
+        AppLanguage.JAPANESE -> "引っ張って更新"
+        AppLanguage.CHINESE -> "下拉刷新"
+        AppLanguage.KOREAN -> "당겨서 새로고침"
+        AppLanguage.ARABIC -> "اسحب للتحديث"
+        else -> "Pull to refresh"
+    }
+
+    fun releaseToRefresh(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Отпустите для обновления"
+        AppLanguage.JAPANESE -> "離して更新"
+        AppLanguage.CHINESE -> "释放刷新"
+        AppLanguage.KOREAN -> "놓아서 새로고침"
+        AppLanguage.ARABIC -> "أفلت للتحديث"
+        else -> "Release to refresh"
+    }
+
     fun closeBtn(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Закрыть"
         AppLanguage.JAPANESE -> "閉じる"
