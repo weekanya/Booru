@@ -64,7 +64,14 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import coil.request.ImageRequest
@@ -107,12 +114,23 @@ fun FavoritesScreen(
     var newFolderName by remember { mutableStateOf("") }
     var folderToDelete by remember { mutableStateOf<String?>(null) }
     var showFilterSheet by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val folders = remember(vm.customFolders) {
-        listOf<String?>(null) + vm.customFolders.toList()
+        listOf<String?>(null) + vm.customFolders.sortedBy { it.lowercase() }
     }
+    var pendingFolder by remember { mutableStateOf<String?>(null) }
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { folders.size })
     val chipRowState = rememberLazyListState()
+
+    LaunchedEffect(folders, pendingFolder) {
+        val target = pendingFolder ?: return@LaunchedEffect
+        val idx = folders.indexOf(target)
+        if (idx >= 0) {
+            pendingFolder = null
+            pagerState.animateScrollToPage(idx)
+        }
+    }
 
     LaunchedEffect(pagerState.currentPage) {
         if (pagerState.currentPage in folders.indices) {
@@ -143,7 +161,7 @@ fun FavoritesScreen(
 
         if (folder != null) {
             list = list.filter {
-                vm.getMediaFolder(it.mediaKey) == folder || vm.getMediaFolder(it.id) == folder
+                vm.getMediaFolder(it) == folder
             }
         }
 
@@ -163,10 +181,14 @@ fun FavoritesScreen(
         val trimmed = filterText.trim().lowercase()
         if (trimmed.isNotBlank()) {
             val tokens = trimmed.split("\\s+".toRegex()).filter { it.isNotBlank() }
+            val excluded = tokens.filter { it.length > 1 && it.startsWith("-") }.map { it.drop(1) }
+            val included = tokens.filterNot { it.startsWith("-") }
             list = list.filter { media ->
-                tokens.all { token ->
+                included.all { token ->
                     media.tagList.any { it.contains(token, ignoreCase = true) } ||
                         media.source.contains(token, ignoreCase = true)
+                } && excluded.none { token ->
+                    media.tagList.any { it.equals(token, ignoreCase = true) }
                 }
             }
         }
@@ -192,15 +214,15 @@ fun FavoritesScreen(
         )
     }
 
+    Box(modifier = modifier.fillMaxSize()) {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxSize()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) {
-                focusManager.clearFocus()
-                keyboardController?.hide()
+            .pointerInput(Unit) {
+                detectTapGestures(onTap = {
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                })
             }
     ) {
         Surface(
@@ -444,13 +466,13 @@ fun FavoritesScreen(
                     }
 
                     itemsIndexed(
-                        items = vm.customFolders.toList(),
+                        items = folders.drop(1).filterNotNull(),
                         key = { _, folder -> folder }
                     ) { index, folder ->
                         val pageIndex = index + 1
                         val count = remember(vm.favoritesList, folder, vm.favoriteFolders) {
                             vm.favoritesList.count {
-                                vm.getMediaFolder(it.mediaKey) == folder || vm.getMediaFolder(it.id) == folder
+                                vm.getMediaFolder(it) == folder
                             }
                         }
                         val isSelected = targetFolderPage == pageIndex
@@ -581,13 +603,10 @@ fun FavoritesScreen(
         if (showCreateFolderDialog) {
             CreateFolderBottomSheet(
                 lang = lang,
+                existingNames = vm.customFolders,
                 onConfirm = { name ->
                     vm.addCustomFolder(name)
-                    showCreateFolderDialog = false
-                    val targetIdx = vm.customFolders.size
-                    scope.launch {
-                        pagerState.animateScrollToPage(targetIdx.coerceIn(0, folders.size))
-                    }
+                    pendingFolder = name
                 },
                 onDismiss = { showCreateFolderDialog = false }
             )
@@ -760,7 +779,8 @@ fun FavoritesScreen(
                 ) {
                     itemsIndexed(
                         items = pageList,
-                        key = { _, m -> "${m.source}_${m.id.ifBlank { m.url }}" }
+                        key = { _, m -> m.mediaKey },
+                        contentType = { _, m -> if (m.isVideo) 1 else 0 }
                     ) { index, media ->
                         val ratio = remember(media.id, media.width, media.height) {
                             if (media.width > 0 && media.height > 0) {
@@ -774,14 +794,28 @@ fun FavoritesScreen(
                             }
                         }
                         val mediaFolder = remember(media.id, media.mediaKey, vm.favoriteFolders) {
-                            vm.getMediaFolder(media.mediaKey) ?: vm.getMediaFolder(media.id)
+                            vm.getMediaFolder(media)
                         }
                         FavoriteCard(
                             media = media,
                             aspectRatio = ratio,
                             quality = vm.imageQuality,
                             folder = mediaFolder,
-                            onRemove = { vm.toggleFavorite(media) },
+                            onRemove = {
+                                vm.toggleFavorite(media)
+                                scope.launch {
+                                    snackbarHostState.currentSnackbarData?.dismiss()
+                                    val result = snackbarHostState.showSnackbar(
+                                        message = Strings.favoriteRemoved(lang),
+                                        actionLabel = Strings.undoBtn(lang),
+                                        withDismissAction = true,
+                                        duration = SnackbarDuration.Short
+                                    )
+                                    if (result == SnackbarResult.ActionPerformed && !vm.isFavorite(media)) {
+                                        vm.toggleFavorite(media)
+                                    }
+                                }
+                            },
                             onClick = {
                                 focusManager.clearFocus()
                                 keyboardController?.hide()
@@ -792,6 +826,14 @@ fun FavoritesScreen(
                 }
             }
         }
+    }
+    SnackbarHost(
+        hostState = snackbarHostState,
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .navigationBarsPadding()
+            .padding(bottom = 84.dp, start = 12.dp, end = 12.dp)
+    )
     }
 }
 
@@ -940,15 +982,6 @@ private fun FavoritesFilterBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = {
-            Surface(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .size(width = 36.dp, height = 4.dp),
-                shape = CircleShape,
-                color = Color.White
-            ) {}
-        },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
@@ -1155,12 +1188,24 @@ private fun FavoritesFilterBottomSheet(
 @Composable
 private fun CreateFolderBottomSheet(
     lang: AppLanguage,
+    existingNames: Set<String>,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var folderName by remember { mutableStateOf("") }
+    val trimmedName = folderName.trim()
+    val reserved = remember(lang) { setOf("all", "все", Strings.allFavoritesFolder(lang).lowercase()) }
+    val isDuplicate = trimmedName.isNotEmpty() &&
+        (existingNames.any { it.equals(trimmedName, ignoreCase = true) } || trimmedName.lowercase() in reserved)
+    val canCreate = trimmedName.isNotEmpty() && !isDuplicate
+    val submit: () -> Unit = {
+        if (canCreate) {
+            onConfirm(trimmedName)
+            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+        }
+    }
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
@@ -1174,15 +1219,6 @@ private fun CreateFolderBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = {
-            Surface(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .size(width = 36.dp, height = 4.dp),
-                shape = CircleShape,
-                color = Color.White
-            ) {}
-        },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
@@ -1221,19 +1257,16 @@ private fun CreateFolderBottomSheet(
 
             OutlinedTextField(
                 value = folderName,
-                onValueChange = { folderName = it },
+                onValueChange = { folderName = it.take(40) },
                 placeholder = { Text(Strings.folderNamePlaceholder(lang)) },
                 singleLine = true,
+                isError = isDuplicate,
+                supportingText = if (isDuplicate) {
+                    { Text(Strings.folderNameExists(lang)) }
+                } else null,
                 shape = RoundedCornerShape(16.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        val trimmed = folderName.trim()
-                        if (trimmed.isNotBlank()) {
-                            onConfirm(trimmed)
-                        }
-                    }
-                ),
+                keyboardActions = KeyboardActions(onDone = { submit() }),
                 modifier = Modifier
                     .fillMaxWidth()
                     .focusRequester(focusRequester)
@@ -1259,14 +1292,8 @@ private fun CreateFolderBottomSheet(
                 }
 
                 Button(
-                    onClick = {
-                        val trimmed = folderName.trim()
-                        if (trimmed.isNotBlank()) {
-                            onConfirm(trimmed)
-                        }
-                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-                    },
-                    enabled = folderName.trim().isNotBlank(),
+                    onClick = submit,
+                    enabled = canCreate,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier
                         .weight(1f)
@@ -1295,15 +1322,6 @@ private fun DeleteFolderBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = {
-            Surface(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .size(width = 36.dp, height = 4.dp),
-                shape = CircleShape,
-                color = Color.White
-            ) {}
-        },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
@@ -1401,50 +1419,40 @@ private fun FavoriteCard(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
-    val haptic = LocalHapticFeedback.current
     var showHeartBurst by remember { mutableStateOf(false) }
-    var isPressed by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
     val animatedScale by animateFloatAsState(
         targetValue = if (isPressed) 0.96f else 1f,
-        animationSpec = spring(
-            dampingRatio = 0.82f,
-            stiffness = Spring.StiffnessMediumLow
-        ),
+        animationSpec = Motion.spatialFast(),
         label = "favCardScale"
     )
 
-    var loadError by remember(media.id, media.url) { mutableStateOf(false) }
+    var useFallback by remember(media.mediaKey) { mutableStateOf(false) }
+    var isError by remember(media.mediaKey) { mutableStateOf(false) }
+    var retryKey by remember(media.mediaKey) { mutableIntStateOf(0) }
 
-    val imageModel = remember(media.sample, media.preview, media.url, loadError, quality) {
-        val targetUrl = if (loadError) {
-            media.preview.ifBlank { media.url }
-        } else when (quality) {
-            ImageQuality.SAVER -> media.preview.ifBlank { media.sample.ifBlank { media.url } }
-            ImageQuality.ORIGINAL -> media.sample.ifBlank { media.url.ifBlank { media.preview } }
-            ImageQuality.SAMPLE -> media.sample.ifBlank { media.preview.ifBlank { media.url } }
+    val imageModel = remember(media.mediaKey, useFallback, quality, retryKey) {
+        val targetUrl = if (useFallback) {
+            media.preview.ifBlank { media.gridImageUrl(false) }
+        } else {
+            media.gridImageUrl(quality != ImageQuality.SAVER)
         }
         ImageRequest.Builder(context)
             .data(targetUrl)
-            .crossfade(true)
+            .crossfade(180)
             .allowHardware(true)
-            .listener(
-                onError = { _, _ ->
-                    if (!loadError && targetUrl != media.preview && media.preview.isNotBlank()) {
-                        loadError = true
-                    }
-                }
-            )
+            .setParameter("retry", retryKey, memoryCacheKey = null)
             .build()
     }
+    val description = remember(media.mediaKey) {
+        "${media.source}: ${media.tagList.take(4).joinToString(", ")}"
+    }
 
-    ElevatedCard(
-        shape = RoundedCornerShape(22.dp),
-        elevation = CardDefaults.elevatedCardElevation(
-            defaultElevation = 1.dp,
-            pressedElevation = 3.dp
-        ),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
         ),
         modifier = Modifier
             .fillMaxWidth()
@@ -1452,48 +1460,66 @@ private fun FavoriteCard(
                 scaleX = animatedScale
                 scaleY = animatedScale
             }
-            .combinedClickable(
-                onClick = onClick,
-                onDoubleClick = {
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    showHeartBurst = true
+            .clip(RoundedCornerShape(20.dp))
+            .clickable(
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClick = {
+                    if (isError) {
+                        isError = false
+                        retryKey++
+                    } else {
+                        onClick()
+                    }
                 }
             )
+            .semantics { contentDescription = description }
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(aspectRatio)
         ) {
-            SubcomposeAsyncImage(
+            AsyncImage(
                 model = imageModel,
-                contentDescription = media.tags,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            ) {
-                val state = painter.state
-                if (state is AsyncImagePainter.State.Loading) {
-                    Box(
-                        Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                    )
-                } else if (state is AsyncImagePainter.State.Error) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Rounded.BrokenImage,
-                            contentDescription = "Failed to load",
-                            tint = MaterialTheme.colorScheme.outlineVariant,
-                            modifier = Modifier.size(32.dp)
-                        )
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                onState = { state ->
+                    when (state) {
+                        is AsyncImagePainter.State.Error -> {
+                            if (!useFallback && media.preview.isNotBlank() && media.preview != media.gridImageUrl(quality != ImageQuality.SAVER)) {
+                                useFallback = true
+                            } else {
+                                isError = true
+                            }
+                        }
+                        is AsyncImagePainter.State.Success -> isError = false
+                        else -> Unit
                     }
-                } else {
-                    SubcomposeAsyncImageContent()
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+            if (isError) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        Icons.Rounded.BrokenImage,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Icon(
+                        Icons.Rounded.Refresh,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
 

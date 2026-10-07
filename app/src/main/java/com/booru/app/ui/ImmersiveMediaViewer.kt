@@ -257,14 +257,15 @@ fun ImmersiveMediaViewer(
                         if (m != null) "fs_${m.source}_${m.id.ifBlank { m.url }}_$page" else page
                     }
                 ) { page ->
-                    val item = mediaList[page]
+                    val item = mediaList.getOrNull(page) ?: return@HorizontalPager
                     val isCurrent = (pagerState.currentPage == page)
                     if (item.isVideo) {
                         BooruVideoPlayer(
                             videoUrl = vm.resolveVideoUrl(item),
-                            previewUrl = if (vm.imageQuality == com.booru.app.data.ImageQuality.SAVER) item.preview.ifBlank { item.sample } else item.sample.ifBlank { item.preview.ifBlank { item.url } },
+                            previewUrl = item.gridImageUrl(vm.imageQuality != com.booru.app.data.ImageQuality.SAVER),
+                            lang = vm.language,
                             modifier = Modifier.fillMaxSize(),
-                            isActive = isCurrent,
+                            isActive = isCurrent && !isClosing,
                             isExternalControls = true,
                             externalShowControls = showControls,
                             onToggleControls = {
@@ -331,7 +332,7 @@ fun ImmersiveMediaViewer(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            val current = mediaList[pagerState.currentPage]
+                            val current = (mediaList.getOrNull(pagerState.currentPage) ?: mediaList.last())
                             Surface(
                                 shape = CircleShape,
                                 color = Color.Black.copy(alpha = 0.50f),
@@ -363,7 +364,7 @@ fun ImmersiveMediaViewer(
                         }
 
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            val current = mediaList[pagerState.currentPage]
+                            val current = (mediaList.getOrNull(pagerState.currentPage) ?: mediaList.last())
                             val isFav = vm.isFavorite(current)
                             Surface(
                                 shape = CircleShape,
@@ -429,7 +430,7 @@ fun ImmersiveMediaViewer(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val current = mediaList[pagerState.currentPage]
+                        val current = (mediaList.getOrNull(pagerState.currentPage) ?: mediaList.last())
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -505,6 +506,9 @@ fun FullscreenZoomableImage(
     var rawScale by remember { mutableFloatStateOf(1f) }
     var rawOffset by remember { mutableStateOf(Offset.Zero) }
     var detailLoadError by remember(media.id, media.url) { mutableStateOf(false) }
+    val thumbnailKey = remember(media.mediaKey, vm.imageQuality) {
+        media.gridImageUrl(vm.imageQuality != com.booru.app.data.ImageQuality.SAVER)
+    }
     var detectedRatio by remember(media.id, media.url) {
         mutableFloatStateOf(
             if (media.width > 0 && media.height > 0) {
@@ -565,7 +569,8 @@ fun FullscreenZoomableImage(
                 model = ImageRequest.Builder(context)
                     .data(detailTargetUrl)
                     .size(coil.size.Size(1080, 4096))
-                    .crossfade(300)
+                    .placeholderMemoryCacheKey(thumbnailKey)
+                    .crossfade(260)
                     .allowHardware(false)
                     .listener(
                         onSuccess = { _, result ->
@@ -687,7 +692,8 @@ fun FullscreenZoomableImage(
             SubcomposeAsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(detailTargetUrl)
-                    .crossfade(300)
+                    .placeholderMemoryCacheKey(thumbnailKey)
+                    .crossfade(260)
                     .allowHardware(!media.isGif)
                     .listener(
                         onSuccess = { _, result ->
@@ -709,21 +715,26 @@ fun FullscreenZoomableImage(
                 contentDescription = media.tags,
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer(
-                        scaleX = animatedScale,
-                        scaleY = animatedScale,
-                        translationX = animatedOffset.x,
+                    .graphicsLayer {
+                        scaleX = animatedScale
+                        scaleY = animatedScale
+                        translationX = animatedOffset.x
                         translationY = animatedOffset.y
-                    ),
+                    },
                 contentScale = ContentScale.Fit
             ) {
                 val state = painter.state
                 if (state is coil.compose.AsyncImagePainter.State.Loading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(40.dp),
-                        strokeWidth = 3.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    val scope = this
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        scope.SubcomposeAsyncImageContent()
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(36.dp),
+                            strokeWidth = 3.dp,
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = Color.Black.copy(alpha = 0.3f)
+                        )
+                    }
                 } else if (state is coil.compose.AsyncImagePainter.State.Error) {
                     Icon(
                         Icons.Rounded.BrokenImage,

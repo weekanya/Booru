@@ -1,5 +1,9 @@
 package com.booru.app.ui
 
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.toggleable
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -114,6 +118,9 @@ fun SettingsScreen(
 
     var customName by remember { mutableStateOf("") }
     var customUrl by remember { mutableStateOf("") }
+    var customNameError by remember { mutableStateOf<String?>(null) }
+    var customUrlError by remember { mutableStateOf<String?>(null) }
+    var showCustomApiKey by remember { mutableStateOf(false) }
     var customEngine by remember { mutableStateOf(BooruEngine.GELBOORU) }
     var customApiKey by remember { mutableStateOf("") }
     var customUserId by remember { mutableStateOf("") }
@@ -128,15 +135,6 @@ fun SettingsScreen(
             onDismissRequest = { showRule34Dialog = false },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            dragHandle = {
-                Surface(
-                    modifier = Modifier
-                        .padding(vertical = 12.dp)
-                        .size(width = 36.dp, height = 4.dp),
-                    shape = CircleShape,
-                    color = Color.White
-                ) {}
-            },
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
             Column(
@@ -243,7 +241,7 @@ fun SettingsScreen(
                 FilledTonalButton(
                     onClick = {
                         val url = "https://rule34.xxx/index.php?page=account&s=options"
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        context.openUrlSafely(url, lang)
                     },
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -276,15 +274,6 @@ fun SettingsScreen(
             onDismissRequest = { showGelbooruDialog = false },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            dragHandle = {
-                Surface(
-                    modifier = Modifier
-                        .padding(vertical = 12.dp)
-                        .size(width = 36.dp, height = 4.dp),
-                    shape = CircleShape,
-                    color = Color.White
-                ) {}
-            },
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
             Column(
@@ -391,7 +380,7 @@ fun SettingsScreen(
                 FilledTonalButton(
                     onClick = {
                         val url = "https://gelbooru.com/index.php?page=account&s=options"
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        context.openUrlSafely(url, lang)
                     },
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -424,15 +413,6 @@ fun SettingsScreen(
             onDismissRequest = { showQualityDialog = false },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            dragHandle = {
-                Surface(
-                    modifier = Modifier
-                        .padding(vertical = 12.dp)
-                        .size(width = 36.dp, height = 4.dp),
-                    shape = CircleShape,
-                    color = Color.White
-                ) {}
-            },
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
             Column(
@@ -586,15 +566,6 @@ fun SettingsScreen(
             },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            dragHandle = {
-                Surface(
-                    modifier = Modifier
-                        .padding(vertical = 12.dp)
-                        .size(width = 36.dp, height = 4.dp),
-                    shape = CircleShape,
-                    color = Color.White
-                ) {}
-            },
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
             Column(
@@ -657,11 +628,16 @@ fun SettingsScreen(
 
                 OutlinedTextField(
                     value = customName,
-                    onValueChange = { customName = it },
+                    onValueChange = {
+                        customName = it
+                        customNameError = null
+                    },
                     label = { Text(Strings.sourceNameHint(lang)) },
                     leadingIcon = {
                         Icon(Icons.Rounded.Badge, null, tint = MaterialTheme.colorScheme.primary)
                     },
+                    isError = customNameError != null,
+                    supportingText = customNameError?.let { msg -> { Text(msg) } },
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -669,12 +645,18 @@ fun SettingsScreen(
 
                 OutlinedTextField(
                     value = customUrl,
-                    onValueChange = { customUrl = it },
+                    onValueChange = {
+                        customUrl = it
+                        customUrlError = null
+                    },
                     label = { Text(Strings.sourceUrlHint(lang)) },
                     placeholder = { Text("https://example.booru.org") },
                     leadingIcon = {
                         Icon(Icons.Rounded.Link, null, tint = MaterialTheme.colorScheme.primary)
                     },
+                    isError = customUrlError != null,
+                    supportingText = customUrlError?.let { msg -> { Text(msg) } },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri),
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -719,6 +701,15 @@ fun SettingsScreen(
                     leadingIcon = {
                         Icon(Icons.Rounded.Key, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                     },
+                    trailingIcon = {
+                        IconButton(onClick = { showCustomApiKey = !showCustomApiKey }) {
+                            Icon(
+                                if (showCustomApiKey) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                contentDescription = null
+                            )
+                        }
+                    },
+                    visualTransformation = if (showCustomApiKey) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
                     singleLine = true,
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -728,14 +719,13 @@ fun SettingsScreen(
                     onClick = {
                         val cleanName = customName.trim()
                         val cleanUrl = sanitizeBooruBaseUrl(customUrl.trim())
-                        if (cleanName.isBlank()) {
-                            Toast.makeText(context, Strings.emptySourceNameError(lang), Toast.LENGTH_SHORT).show()
-                            return@Button
+                        customNameError = when {
+                            cleanName.isBlank() -> Strings.emptySourceNameError(lang)
+                            com.booru.app.data.isBuiltInSourceName(cleanName) -> Strings.customSourceNameError(lang)
+                            else -> null
                         }
-                        if (!cleanUrl.startsWith("https://", ignoreCase = true)) {
-                            Toast.makeText(context, Strings.invalidHttpsUrlError(lang), Toast.LENGTH_SHORT).show()
-                            return@Button
-                        }
+                        customUrlError = if (!com.booru.app.data.isHttpsBooruUrl(cleanUrl)) Strings.customSourceUrlError(lang) else null
+                        if (customNameError != null || customUrlError != null) return@Button
                         val targetId = editingCustomSource?.id ?: java.util.UUID.randomUUID().toString()
                         val newSource = CustomBooruSource(
                             id = targetId,
@@ -808,15 +798,6 @@ fun SettingsScreen(
             },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            dragHandle = {
-                Surface(
-                    modifier = Modifier
-                        .padding(vertical = 12.dp)
-                        .size(width = 36.dp, height = 4.dp),
-                    shape = CircleShape,
-                    color = Color.White
-                ) {}
-            },
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
             Column(
@@ -1217,15 +1198,6 @@ fun SettingsScreen(
             onDismissRequest = { showPaletteDialog = false },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            dragHandle = {
-                Surface(
-                    modifier = Modifier
-                        .padding(vertical = 12.dp)
-                        .size(width = 36.dp, height = 4.dp),
-                    shape = CircleShape,
-                    color = Color.White
-                ) {}
-            },
             shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
             Column(
@@ -1812,8 +1784,7 @@ fun SettingsScreen(
                                 trailing = {
                                     FilledTonalButton(
                                         onClick = {
-                                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/weekanya/Booru"))
-                                            context.startActivity(intent)
+                                            context.openUrlSafely("https://github.com/weekanya/Booru", lang)
                                         },
                                         shape = RoundedCornerShape(16.dp),
                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
@@ -1981,10 +1952,18 @@ private fun SettingSwitchItem(
     onCheckedChange: (Boolean) -> Unit,
     isDangerous: Boolean = false
 ) {
+    val haptic = LocalHapticFeedback.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onCheckedChange(!checked) }
+            .toggleable(
+                value = checked,
+                role = Role.Switch,
+                onValueChange = {
+                    haptic.performHapticFeedback(if (it) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff)
+                    onCheckedChange(it)
+                }
+            )
             .padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -2018,7 +1997,16 @@ private fun SettingSwitchItem(
 
         Switch(
             checked = checked,
-            onCheckedChange = onCheckedChange,
+            onCheckedChange = null,
+            thumbContent = if (checked) {
+                {
+                    Icon(
+                        Icons.Rounded.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(SwitchDefaults.IconSize)
+                    )
+                }
+            } else null,
             colors = if (isDangerous) {
                 SwitchDefaults.colors(
                     checkedThumbColor = MaterialTheme.colorScheme.onError,
@@ -2144,15 +2132,6 @@ private fun LanguageSelectionBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = {
-            Surface(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .size(width = 36.dp, height = 4.dp),
-                shape = CircleShape,
-                color = Color.White
-            ) {}
-        },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
@@ -2332,5 +2311,14 @@ private fun BlacklistTagChip(
                 }
             }
         }
+    }
+}
+
+private fun android.content.Context.openUrlSafely(url: String, lang: AppLanguage) {
+    val opened = runCatching {
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
+    }.isSuccess
+    if (!opened) {
+        android.widget.Toast.makeText(this, Strings.noBrowserFound(lang), android.widget.Toast.LENGTH_SHORT).show()
     }
 }

@@ -1728,4 +1728,166 @@ object Strings {
         AppLanguage.RUSSIAN -> "Удалить коллекцию?"
         else -> "Delete collection?"
     }
+
+    fun biometricUnavailable(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "На устройстве не настроена блокировка экрана, поэтому блокировка приложения отключена"
+        AppLanguage.JAPANESE -> "この端末に画面ロックが設定されていないため、アプリロックを無効にしました"
+        AppLanguage.CHINESE -> "此设备未设置屏幕锁定，已关闭应用锁"
+        AppLanguage.KOREAN -> "기기에 화면 잠금이 설정되어 있지 않아 앱 잠금이 해제되었습니다"
+        AppLanguage.ARABIC -> "لم يتم إعداد قفل الشاشة على هذا الجهاز، لذا تم إيقاف قفل التطبيق"
+        else -> "Screen lock is not set up on this device, so the app lock was turned off"
+    }
+
+    fun updateReadyToInstall(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Файл обновления загружен и готов к установке."
+        AppLanguage.JAPANESE -> "アップデートのダウンロードが完了し、インストールの準備ができました。"
+        AppLanguage.CHINESE -> "更新已下载，可以安装。"
+        AppLanguage.KOREAN -> "업데이트가 다운로드되어 설치할 준비가 되었습니다."
+        AppLanguage.ARABIC -> "تم تنزيل التحديث وهو جاهز للتثبيت."
+        else -> "Update is downloaded and ready to install."
+    }
+
+    fun downloadAgain(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Скачать заново"
+        AppLanguage.JAPANESE -> "再ダウンロード"
+        AppLanguage.CHINESE -> "重新下载"
+        AppLanguage.KOREAN -> "다시 다운로드"
+        AppLanguage.ARABIC -> "تنزيل مرة أخرى"
+        else -> "Download again"
+    }
+
+    fun noBrowserFound(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Не найдено приложение для открытия ссылки"
+        AppLanguage.JAPANESE -> "このリンクを開けるアプリがありません"
+        AppLanguage.CHINESE -> "没有可打开此链接的应用"
+        AppLanguage.KOREAN -> "이 링크를 열 수 있는 앱이 없습니다"
+        AppLanguage.ARABIC -> "لا يوجد تطبيق لفتح هذا الرابط"
+        else -> "No app found to open this link"
+    }
+
+    fun loadMoreFailed(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Не удалось загрузить ещё"
+        AppLanguage.JAPANESE -> "続きを読み込めませんでした"
+        AppLanguage.CHINESE -> "无法加载更多内容"
+        AppLanguage.KOREAN -> "게시물을 더 불러오지 못했습니다"
+        AppLanguage.ARABIC -> "تعذر تحميل المزيد من المنشورات"
+        else -> "Couldn't load more posts"
+    }
+
+    fun offlineTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Нет подключения"
+        AppLanguage.JAPANESE -> "接続がありません"
+        AppLanguage.CHINESE -> "无网络连接"
+        AppLanguage.KOREAN -> "연결 없음"
+        AppLanguage.ARABIC -> "لا يوجد اتصال"
+        else -> "No connection"
+    }
+
+    fun offlineDesc(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Проверьте подключение к интернету и попробуйте снова."
+        AppLanguage.JAPANESE -> "インターネット接続を確認して、もう一度お試しください。"
+        AppLanguage.CHINESE -> "请检查网络连接后重试。"
+        AppLanguage.KOREAN -> "인터넷 연결을 확인한 후 다시 시도하세요."
+        AppLanguage.ARABIC -> "تحقق من اتصالك بالإنترنت وحاول مرة أخرى."
+        else -> "Check your internet connection and try again."
+    }
+
+    fun searchAsOneTag(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Искать как один тег: %s"
+        AppLanguage.JAPANESE -> "1つのタグとして検索: %s"
+        AppLanguage.CHINESE -> "作为单个标签搜索：%s"
+        AppLanguage.KOREAN -> "하나의 태그로 검색: %s"
+        AppLanguage.ARABIC -> "البحث كوسم واحد: %s"
+        else -> "Search as one tag: %s"
+    }
+
+    fun searchInAllSources(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Искать во всех источниках"
+        AppLanguage.JAPANESE -> "すべてのソースで検索"
+        AppLanguage.CHINESE -> "在所有来源中搜索"
+        AppLanguage.KOREAN -> "모든 소스에서 검색"
+        AppLanguage.ARABIC -> "البحث في كل المصادر"
+        else -> "Search in all sources"
+    }
+
+    fun partialResultsNotice(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Некоторые источники не ответили"
+        AppLanguage.JAPANESE -> "一部のソースが応答しませんでした"
+        AppLanguage.CHINESE -> "部分来源没有响应"
+        AppLanguage.KOREAN -> "일부 소스가 응답하지 않았습니다"
+        AppLanguage.ARABIC -> "بعض المصادر لم تستجب"
+        else -> "Some sources didn't respond"
+    }
+
+    fun favoriteRemoved(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Удалено из избранного"
+        AppLanguage.JAPANESE -> "お気に入りから削除しました"
+        AppLanguage.CHINESE -> "已从收藏中移除"
+        AppLanguage.KOREAN -> "즐겨찾기에서 삭제됨"
+        AppLanguage.ARABIC -> "تمت الإزالة من المفضلة"
+        else -> "Removed from favorites"
+    }
+
+    fun undoBtn(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Отменить"
+        AppLanguage.JAPANESE -> "元に戻す"
+        AppLanguage.CHINESE -> "撤销"
+        AppLanguage.KOREAN -> "실행 취소"
+        AppLanguage.ARABIC -> "تراجع"
+        else -> "Undo"
+    }
+
+    fun playbackError(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Не удалось воспроизвести видео"
+        AppLanguage.JAPANESE -> "この動画を再生できません"
+        AppLanguage.CHINESE -> "无法播放此视频"
+        AppLanguage.KOREAN -> "동영상을 재생할 수 없습니다"
+        AppLanguage.ARABIC -> "تعذر تشغيل هذا الفيديو"
+        else -> "Couldn't play this video"
+    }
+
+    fun imageLoadFailed(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Не удалось загрузить. Нажмите, чтобы повторить"
+        AppLanguage.JAPANESE -> "画像を読み込めません。タップして再試行"
+        AppLanguage.CHINESE -> "图片加载失败，点击重试"
+        AppLanguage.KOREAN -> "이미지를 불러오지 못했습니다. 탭하여 다시 시도"
+        AppLanguage.ARABIC -> "تعذر تحميل الصورة. اضغط لإعادة المحاولة"
+        else -> "Couldn't load image. Tap to retry"
+    }
+
+    fun endOfResults(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Это всё"
+        AppLanguage.JAPANESE -> "最後まで表示しました"
+        AppLanguage.CHINESE -> "已经到底了"
+        AppLanguage.KOREAN -> "마지막입니다"
+        AppLanguage.ARABIC -> "لقد وصلت إلى النهاية"
+        else -> "You've reached the end"
+    }
+
+    fun folderNameExists(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Коллекция с таким названием уже есть"
+        AppLanguage.JAPANESE -> "同じ名前のコレクションがあります"
+        AppLanguage.CHINESE -> "已存在同名收藏夹"
+        AppLanguage.KOREAN -> "같은 이름의 컬렉션이 이미 있습니다"
+        AppLanguage.ARABIC -> "توجد مجموعة بهذا الاسم بالفعل"
+        else -> "A collection with this name already exists"
+    }
+
+    fun customSourceNameError(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Введите название, не совпадающее со встроенным источником"
+        AppLanguage.JAPANESE -> "組み込みソースと重複しない名前を入力してください"
+        AppLanguage.CHINESE -> "请输入不与内置来源重名的名称"
+        AppLanguage.KOREAN -> "기본 소스와 겹치지 않는 이름을 입력하세요"
+        AppLanguage.ARABIC -> "أدخل اسمًا لا يستخدمه مصدر مدمج"
+        else -> "Enter a name that isn't used by a built-in source"
+    }
+
+    fun customSourceUrlError(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Введите корректный HTTPS-адрес"
+        AppLanguage.JAPANESE -> "有効な HTTPS アドレスを入力してください"
+        AppLanguage.CHINESE -> "请输入有效的 HTTPS 地址"
+        AppLanguage.KOREAN -> "올바른 HTTPS 주소를 입력하세요"
+        AppLanguage.ARABIC -> "أدخل عنوان HTTPS صالحًا"
+        else -> "Enter a valid HTTPS address"
+    }
 }

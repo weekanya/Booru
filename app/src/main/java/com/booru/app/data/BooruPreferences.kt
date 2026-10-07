@@ -2,7 +2,9 @@ package com.booru.app.data
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -14,12 +16,20 @@ import com.booru.app.RemoteMedia
 import com.booru.app.ui.AppPalette
 import com.booru.app.ui.ThemeMode
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
+import java.io.IOException
 import org.json.JSONArray
 import org.json.JSONObject
 import com.booru.app.data.security.SecureCredentialsStorage
 
-val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "booru_settings")
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(
+    name = "booru_settings",
+    corruptionHandler = ReplaceFileCorruptionHandler { emptyPreferences() }
+)
 
 enum class ImageQuality(val code: String) {
     ORIGINAL("original"),
@@ -28,6 +38,13 @@ enum class ImageQuality(val code: String) {
 }
 
 class BooruPreferences(private val context: Context) {
+
+    private val safeData: Flow<Preferences> = context.dataStore.data.catch { e ->
+        if (e is IOException) emit(emptyPreferences()) else throw e
+    }
+
+    private fun <T> read(transform: suspend (Preferences) -> T): Flow<T> =
+        safeData.map(transform).distinctUntilChanged().flowOn(Dispatchers.Default)
 
     companion object {
         val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
@@ -60,7 +77,7 @@ class BooruPreferences(private val context: Context) {
         val KEY_GRID_COLUMNS_COUNT = intPreferencesKey("grid_columns_count")
     }
 
-    val themeMode: Flow<ThemeMode> = context.dataStore.data.map { prefs ->
+    val themeMode: Flow<ThemeMode> = read { prefs ->
         when (prefs[KEY_THEME_MODE]) {
             "dark" -> ThemeMode.DARK
             "light" -> ThemeMode.LIGHT
@@ -68,37 +85,37 @@ class BooruPreferences(private val context: Context) {
         }
     }
 
-    val palette: Flow<AppPalette> = context.dataStore.data.map { prefs ->
+    val palette: Flow<AppPalette> = read { prefs ->
         val code = prefs[KEY_COLOR_PALETTE] ?: "monet"
         AppPalette.entries.find { it.code == code } ?: AppPalette.MONET
     }
 
-    val dynamicColor: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val dynamicColor: Flow<Boolean> = read { prefs ->
         prefs[KEY_DYNAMIC_COLOR] ?: true
     }
 
-    val safeMode: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val safeMode: Flow<Boolean> = read { prefs ->
         prefs[KEY_SAFE_MODE] ?: false
     }
 
-    val excludeSafe: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val excludeSafe: Flow<Boolean> = read { prefs ->
         prefs[KEY_EXCLUDE_SAFE] ?: false
     }
 
-    val noAiFilter: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val noAiFilter: Flow<Boolean> = read { prefs ->
         prefs[KEY_NO_AI] ?: false
     }
 
-    val language: Flow<AppLanguage> = context.dataStore.data.map { prefs ->
+    val language: Flow<AppLanguage> = read { prefs ->
         val code = prefs[KEY_LANGUAGE] ?: AppLanguage.ENGLISH.code
         AppLanguage.entries.find { it.code == code } ?: AppLanguage.ENGLISH
     }
 
-    val defaultSource: Flow<String> = context.dataStore.data.map { prefs ->
+    val defaultSource: Flow<String> = read { prefs ->
         prefs[KEY_DEFAULT_SOURCE] ?: "All sources"
     }
 
-    val searchHistory: Flow<List<String>> = context.dataStore.data.map { prefs ->
+    val searchHistory: Flow<List<String>> = read { prefs ->
         val jsonStr = prefs[KEY_SEARCH_HISTORY_JSON]
         if (!jsonStr.isNullOrBlank()) {
             runCatching {
@@ -110,7 +127,7 @@ class BooruPreferences(private val context: Context) {
         }
     }
 
-    val recommendationTags: Flow<Map<String, Int>> = context.dataStore.data.map { prefs ->
+    val recommendationTags: Flow<Map<String, Int>> = read { prefs ->
         val jsonStr = prefs[KEY_RECOMMENDATION_TAGS] ?: ""
         if (jsonStr.isBlank()) emptyMap()
         else {
@@ -129,15 +146,15 @@ class BooruPreferences(private val context: Context) {
         }
     }
 
-    val tagBlacklist: Flow<List<String>> = context.dataStore.data.map { prefs ->
+    val tagBlacklist: Flow<List<String>> = read { prefs ->
         prefs[KEY_TAG_BLACKLIST]?.toList() ?: emptyList()
     }
 
-    val ignoredUpdateVersion: Flow<String?> = context.dataStore.data.map { prefs ->
+    val ignoredUpdateVersion: Flow<String?> = read { prefs ->
         prefs[KEY_IGNORED_UPDATE_VERSION]
     }
 
-    val imageQuality: Flow<ImageQuality> = context.dataStore.data.map { prefs ->
+    val imageQuality: Flow<ImageQuality> = read { prefs ->
         when (prefs[KEY_IMAGE_QUALITY]) {
             "original" -> ImageQuality.ORIGINAL
             "saver"    -> ImageQuality.SAVER
@@ -145,7 +162,7 @@ class BooruPreferences(private val context: Context) {
         }
     }
 
-    val customSources: Flow<List<CustomBooruSource>> = context.dataStore.data.map { prefs ->
+    val customSources: Flow<List<CustomBooruSource>> = read { prefs ->
         val jsonStr = prefs[KEY_CUSTOM_SOURCES] ?: ""
         if (jsonStr.isBlank()) emptyList()
         else {
@@ -158,25 +175,25 @@ class BooruPreferences(private val context: Context) {
         }
     }
 
-    val favorites: Flow<List<RemoteMedia>> = context.dataStore.data.map { prefs ->
+    val favorites: Flow<List<RemoteMedia>> = read { prefs ->
         val jsonStr = prefs[KEY_FAVORITES_JSON] ?: ""
         if (jsonStr.isBlank()) emptyList()
         else deserializeFavorites(jsonStr)
     }
 
-    val recommendationRatio: Flow<Float> = context.dataStore.data.map { prefs ->
+    val recommendationRatio: Flow<Float> = read { prefs ->
         prefs[KEY_RECOMMENDATION_RATIO] ?: 0.5f
     }
 
-    val biometricLockEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+    val biometricLockEnabled: Flow<Boolean> = read { prefs ->
         prefs[KEY_BIOMETRIC_LOCK_ENABLED] ?: false
     }
 
-    val biometricLockTimeoutMin: Flow<Int> = context.dataStore.data.map { prefs ->
+    val biometricLockTimeoutMin: Flow<Int> = read { prefs ->
         prefs[KEY_BIOMETRIC_LOCK_TIMEOUT_MIN] ?: 0
     }
 
-    val favoriteFolders: Flow<Map<String, String>> = context.dataStore.data.map { prefs ->
+    val favoriteFolders: Flow<Map<String, String>> = read { prefs ->
         val jsonStr = prefs[KEY_FAVORITE_FOLDERS_JSON] ?: ""
         if (jsonStr.isBlank()) emptyMap()
         else {
@@ -193,11 +210,11 @@ class BooruPreferences(private val context: Context) {
         }
     }
 
-    val customFolders: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+    val customFolders: Flow<Set<String>> = read { prefs ->
         prefs[KEY_CUSTOM_FOLDERS] ?: emptySet()
     }
 
-    val gridColumnsCount: Flow<Int> = context.dataStore.data.map { prefs ->
+    val gridColumnsCount: Flow<Int> = read { prefs ->
         prefs[KEY_GRID_COLUMNS_COUNT] ?: 0
     }
 

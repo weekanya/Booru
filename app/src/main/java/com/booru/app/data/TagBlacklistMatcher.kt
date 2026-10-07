@@ -13,25 +13,19 @@ object TagBlacklistMatcher {
             return p == t
         }
 
-        if (p.startsWith("*") && p.endsWith("*") && p.length > 2) {
-            val sub = p.substring(1, p.length - 1)
-            return t.contains(sub)
+        val inner = p.trim('*')
+        if (inner.isEmpty()) return false
+
+        if (!inner.contains("*")) {
+            return when {
+                p.startsWith("*") && p.endsWith("*") -> t.contains(inner)
+                p.startsWith("*") -> t.endsWith(inner)
+                else -> t.startsWith(inner)
+            }
         }
 
-        if (p.startsWith("*") && !p.substring(1).contains("*")) {
-            val suffix = p.substring(1)
-            return t.endsWith(suffix)
-        }
-
-        if (p.endsWith("*") && !p.substring(0, p.length - 1).contains("*")) {
-            val prefix = p.substring(0, p.length - 1)
-            return t.startsWith(prefix)
-        }
-
-        val regexPattern = "^" + Regex.escape(p).replace("\\*", ".*") + "$"
-        return runCatching {
-            Regex(regexPattern, RegexOption.IGNORE_CASE).matches(t)
-        }.getOrDefault(false)
+        val regexPattern = p.split('*').joinToString(".*", prefix = "^", postfix = "$") { Regex.escape(it) }
+        return runCatching { Regex(regexPattern).matches(t) }.getOrDefault(false)
     }
 
     fun isBlacklisted(media: RemoteMedia, blacklist: Collection<String>): Boolean {

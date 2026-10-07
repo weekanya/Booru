@@ -61,9 +61,20 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.SubcomposeAsyncImage
-import coil.compose.SubcomposeAsyncImageContent
+import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
+import coil.imageLoader
+import coil.request.CachePolicy
 import coil.request.ImageRequest
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import com.booru.app.BooruRepository
 import com.booru.app.ContentType
 import kotlinx.coroutines.launch
@@ -106,6 +117,7 @@ fun ExploreScreen(
     BackHandler(enabled = searchExpanded || vm.query.isNotBlank()) {
         if (searchExpanded) {
             searchExpanded = false
+            localQuery = TextFieldValue(vm.query, TextRange(vm.query.length))
             vm.clearTagSuggestions()
         } else if (vm.query.isNotBlank()) {
             localQuery = TextFieldValue("")
@@ -114,28 +126,67 @@ fun ExploreScreen(
     }
 
     val gridState = rememberLazyStaggeredGridState()
+    var handledScrollTrigger by rememberSaveable { mutableLongStateOf(vm.scrollToTopTrigger) }
+    var handledResultsEpoch by rememberSaveable { mutableIntStateOf(vm.resultsEpoch) }
 
     LaunchedEffect(vm.scrollToTopTrigger) {
-        if (vm.scrollToTopTrigger > 0L) {
-            if (gridState.firstVisibleItemIndex > 0) {
-                gridState.animateScrollToItem(0)
-            } else if (!vm.isRefreshing && !vm.loading) {
-                vm.refresh(isPull = false)
-            }
+        if (vm.scrollToTopTrigger == handledScrollTrigger) return@LaunchedEffect
+        handledScrollTrigger = vm.scrollToTopTrigger
+        if (gridState.firstVisibleItemIndex > 0) {
+            if (gridState.firstVisibleItemIndex > 30) gridState.scrollToItem(12)
+            gridState.animateScrollToItem(0)
+        } else if (!vm.isRefreshing && !vm.loading) {
+            vm.refresh(isPull = false)
         }
+    }
+
+    LaunchedEffect(vm.resultsEpoch) {
+        if (vm.resultsEpoch == handledResultsEpoch) return@LaunchedEffect
+        handledResultsEpoch = vm.resultsEpoch
+        gridState.scrollToItem(0)
     }
 
     val shouldLoadMore by remember {
         derivedStateOf {
             val info = gridState.layoutInfo
-            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+            val visible = info.visibleItemsInfo
+            val lastVisible = visible.lastOrNull()?.index ?: 0
             val total = info.totalItemsCount
-            val notEnoughItemsToScroll = info.visibleItemsInfo.size == total
-            total > 0 && (lastVisible >= total - 6 || notEnoughItemsToScroll) && !vm.loading && !vm.isRefreshing && !vm.loadingMore && vm.hasMore
+            val lanes = visible.map { it.lane }.distinct().size.coerceAtLeast(1)
+            val notEnoughItemsToScroll = visible.size == total
+            total > 0 && (lastVisible >= total - maxOf(12, lanes * 6) || notEnoughItemsToScroll) &&
+                !vm.loading && !vm.isRefreshing && !vm.loadingMore && !vm.loadMoreError && vm.hasMore
         }
     }
     LaunchedEffect(shouldLoadMore) {
         if (shouldLoadMore) vm.loadMore()
+    }
+
+    val context = LocalContext.current
+    LaunchedEffect(gridState, vm.imageQuality) {
+        val preferLarge = vm.imageQuality != ImageQuality.SAVER
+        val prefetched = HashSet<String>()
+        snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1 }
+            .distinctUntilChanged()
+            .collect { last ->
+                if (last < 0) return@collect
+                val upcoming = vm.results.subList(
+                    (last + 1).coerceAtMost(vm.results.size),
+                    (last + 1 + PREFETCH_AHEAD).coerceAtMost(vm.results.size)
+                )
+                val loader = context.imageLoader
+                for (media in upcoming) {
+                    val url = media.gridImageUrl(preferLarge)
+                    if (url.isBlank() || !prefetched.add(url)) continue
+                    loader.enqueue(
+                        ImageRequest.Builder(context)
+                            .data(url)
+                            .memoryCachePolicy(CachePolicy.DISABLED)
+                            .build()
+                    )
+                }
+                if (prefetched.size > 600) prefetched.clear()
+            }
     }
 
     Box(
@@ -293,9 +344,10 @@ fun ExploreScreen(
             }
 
             vm.error?.let { rawErr ->
-                val displayMessage = remember(rawErr, vm.isAuthError, vm.authErrorSource, vm.authErrorCode, lang) {
-                    val srcName = vm.authErrorSource?.let { vm.getSourceDisplayName(it) } ?: vm.source
+                val displayMessage = remember(rawErr, vm.isAuthError, vm.authErrorSource, vm.authErrorCode, vm.isNetworkError, lang) {
+                    val srcName = vm.authErrorSource?.let { vm.getSourceDisplayName(it) } ?: vm.getSourceDisplayName(vm.source)
                     when {
+                        vm.isNetworkError -> Strings.offlineDesc(lang)
                         vm.isAuthError -> {
                             Strings.authErrorDesc(srcName, vm.authErrorCode, lang)
                         }
@@ -333,7 +385,11 @@ fun ExploreScreen(
                     Column(Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = if (vm.isAuthError) Icons.Rounded.Key else Icons.Rounded.Warning,
+                                imageVector = when {
+                                    vm.isAuthError -> Icons.Rounded.Key
+                                    vm.isNetworkError -> Icons.Rounded.WifiOff
+                                    else -> Icons.Rounded.Warning
+                                },
                                 contentDescription = null,
                                 tint = if (vm.isAuthError)
                                     MaterialTheme.colorScheme.onTertiaryContainer
@@ -343,7 +399,11 @@ fun ExploreScreen(
                             )
                             Spacer(Modifier.width(12.dp))
                             Text(
-                                text = if (vm.isAuthError) Strings.authErrorTitle(lang) else Strings.genericErrorTitle(lang),
+                                text = when {
+                                    vm.isAuthError -> Strings.authErrorTitle(lang)
+                                    vm.isNetworkError -> Strings.offlineTitle(lang)
+                                    else -> Strings.genericErrorTitle(lang)
+                                },
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = if (vm.isAuthError)
@@ -396,6 +456,19 @@ fun ExploreScreen(
             }
 
             val pullRefreshState = rememberPullToRefreshState()
+            val pullOffset = remember { Animatable(0f) }
+            LaunchedEffect(pullRefreshState) {
+                snapshotFlow {
+                    if (vm.isRefreshing || pullRefreshState.isAnimating) 0f
+                    else (pullRefreshState.distanceFraction * 40f).coerceIn(0f, 60f)
+                }.collectLatest { target ->
+                    if (target == 0f) {
+                        pullOffset.animateTo(0f, spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioNoBouncy))
+                    } else {
+                        pullOffset.snapTo(target)
+                    }
+                }
+            }
 
             Box(modifier = Modifier.weight(1f)) {
                 PullToRefreshBox(
@@ -405,17 +478,22 @@ fun ExploreScreen(
                     modifier = Modifier.fillMaxSize(),
                     indicator = {
                         androidx.compose.animation.AnimatedVisibility(
-                            visible = pullRefreshState.distanceFraction > 0.12f && !vm.isRefreshing,
-                            enter = fadeIn(tween(140)) + scaleIn(tween(140), initialScale = 0.85f),
-                            exit = fadeOut(tween(140)) + scaleOut(tween(140), targetScale = 0.85f),
+                            visible = pullRefreshState.distanceFraction > 0.12f && !vm.isRefreshing && !pullRefreshState.isAnimating,
+                            enter = fadeIn(tween(140)) + scaleIn(Motion.spatialFast(), initialScale = 0.85f),
+                            exit = fadeOut(tween(120)) + scaleOut(tween(120), targetScale = 0.85f),
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
                                 .padding(top = 8.dp)
                         ) {
                             val isReady = pullRefreshState.distanceFraction >= 1f
+                            val pillColor by animateColorAsState(
+                                if (isReady) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                Motion.effectsDefault(),
+                                label = "pullPillColor"
+                            )
                             Surface(
                                 shape = CircleShape,
-                                color = if (isReady) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                color = pillColor,
                                 contentColor = if (isReady) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                                 tonalElevation = 0.dp,
                                 shadowElevation = 0.dp,
@@ -427,44 +505,34 @@ fun ExploreScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.Center
                                 ) {
-                                    val rotation by animateFloatAsState(
-                                        targetValue = if (isReady) 180f else (pullRefreshState.distanceFraction * 140f),
-                                        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-                                        label = "pullArrowRot"
-                                    )
                                     Icon(
                                         imageVector = if (isReady) Icons.Rounded.Check else Icons.Rounded.ArrowDownward,
                                         contentDescription = null,
                                         modifier = Modifier
                                             .size(16.dp)
-                                            .graphicsLayer { rotationZ = if (isReady) 0f else rotation }
+                                            .graphicsLayer {
+                                                rotationZ = if (isReady) 0f else pullRefreshState.distanceFraction.coerceIn(0f, 1f) * 140f
+                                            }
                                     )
                                     Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        text = if (isReady) Strings.releaseToRefresh(lang) else Strings.pullToRefresh(lang),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
+                                    AnimatedContent(
+                                        targetState = isReady,
+                                        transitionSpec = { fadeIn(tween(120)) togetherWith fadeOut(tween(90)) },
+                                        label = "pullLabel"
+                                    ) { ready ->
+                                        Text(
+                                            text = if (ready) Strings.releaseToRefresh(lang) else Strings.pullToRefresh(lang),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
                                 }
                             }
                         }
                     }
                 ) {
                     if (vm.loading && vm.results.isEmpty()) {
-                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                CircularProgressIndicator(
-                                    color = MaterialTheme.colorScheme.primary,
-                                    strokeWidth = 3.dp
-                                )
-                                Spacer(Modifier.height(16.dp))
-                                Text(
-                                    Strings.loadingText(lang),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                        SkeletonGrid(columnsSetting = vm.gridColumnsCount)
                     } else if (!vm.loading && vm.results.isEmpty() && vm.error == null) {
                         Box(
                             Modifier
@@ -506,6 +574,8 @@ fun ExploreScreen(
                                     textAlign = TextAlign.Center
                                 )
                                 Spacer(Modifier.height(14.dp))
+                                EmptyResultActions(vm = vm, lang = lang)
+                                Spacer(Modifier.height(8.dp))
                                 FilledTonalButton(
                                     onClick = { vm.refresh(isPull = false) },
                                     shape = CircleShape
@@ -517,19 +587,6 @@ fun ExploreScreen(
                             }
                         }
                     } else {
-                        val targetPullOffset = if (pullRefreshState.distanceFraction > 0f && !vm.isRefreshing) {
-                            (pullRefreshState.distanceFraction * 40f).coerceAtMost(60f)
-                        } else 0f
-                        val animatedPullOffset by animateFloatAsState(
-                            targetValue = targetPullOffset,
-                            animationSpec = if (pullRefreshState.distanceFraction > 0f && !vm.isRefreshing) {
-                                snap()
-                            } else {
-                                spring(stiffness = Spring.StiffnessMediumLow, dampingRatio = Spring.DampingRatioNoBouncy)
-                            },
-                            label = "gridPullOffset"
-                        )
-
                         val gridCells = when (vm.gridColumnsCount) {
                             1 -> StaggeredGridCells.Fixed(1)
                             2 -> StaggeredGridCells.Fixed(2)
@@ -596,12 +653,13 @@ fun ExploreScreen(
                                     scaleX = pinchScaleAnim.value
                                     scaleY = pinchScaleAnim.value
                                     transformOrigin = pinchPivot
-                                    translationY = animatedPullOffset.dp.toPx()
+                                    translationY = pullOffset.value.dp.toPx()
                                 }
                         ) {
                         itemsIndexed(
                             items = vm.results,
-                            key = { _, m -> "${m.source}_${m.id.ifBlank { m.url }}" }
+                            key = { _, m -> m.mediaKey },
+                            contentType = { _, m -> if (m.isVideo) 1 else 0 }
                         ) { index, media ->
                             val ratio = remember(media.id, media.width, media.height) {
                                 if (media.width > 0 && media.height > 0) {
@@ -621,31 +679,30 @@ fun ExploreScreen(
                                 isFavorite = vm.isFavorite(media),
                                 quality = vm.imageQuality,
                                 onFavoriteClick = { vm.toggleFavorite(media) },
-                                onClick = { vm.openFullscreen(vm.results, index) }
+                                onClick = { vm.openFullscreen(vm.results, index) },
+                                modifier = Modifier.animateItem(
+                                    fadeInSpec = tween(220, easing = Motion.EmphasizedDecelerate),
+                                    placementSpec = Motion.spatialDefault(),
+                                    fadeOutSpec = null
+                                )
                             )
                         }
 
-                        if (vm.loadingMore) {
-                            item(span = StaggeredGridItemSpan.FullLine) {
-                                Box(
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(20.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(28.dp),
-                                        strokeWidth = 3.dp
-                                    )
-                                }
-                            }
+                        item(span = StaggeredGridItemSpan.FullLine, key = "feed_footer", contentType = 2) {
+                            FeedFooter(
+                                loadingMore = vm.loadingMore,
+                                loadMoreError = vm.loadMoreError,
+                                reachedEnd = !vm.hasMore && vm.results.isNotEmpty(),
+                                lang = lang,
+                                onRetry = { vm.retryLoadMore() }
+                            )
                         }
                     }
                 }
 
                 SleekTopProgressIndicator(
                     isRefreshing = vm.isRefreshing,
-                    pullFraction = pullRefreshState.distanceFraction,
+                    pullFraction = { if (pullRefreshState.isAnimating) 0f else pullRefreshState.distanceFraction },
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .fillMaxWidth()
@@ -679,9 +736,9 @@ fun ExploreScreen(
                 )
                 Spacer(Modifier.width(14.dp))
                 Text(
-                    text = if (localQuery.text.isNotBlank()) localQuery.text else Strings.searchPlaceholder(lang),
+                    text = if (vm.query.isNotBlank()) vm.query else Strings.searchPlaceholder(lang),
                     style = MaterialTheme.typography.bodyLarge,
-                    color = if (localQuery.text.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (vm.query.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -723,7 +780,7 @@ fun ExploreScreen(
                         modifier = Modifier.size(20.dp)
                     )
                 }
-                if (localQuery.text.isNotBlank()) {
+                if (vm.query.isNotBlank()) {
                     IconButton(
                         onClick = {
                             localQuery = TextFieldValue("")
@@ -734,7 +791,7 @@ fun ExploreScreen(
                     ) {
                         Icon(
                             Icons.Rounded.Close,
-                            contentDescription = "Clear",
+                            contentDescription = Strings.closeBtn(lang),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(18.dp)
                         )
@@ -743,10 +800,37 @@ fun ExploreScreen(
             }
         }
 
+        fun submitSearch(raw: String) {
+            val q = raw.trim().replace(Regex("\\s+"), " ")
+            localQuery = TextFieldValue(q, TextRange(q.length))
+            vm.search(vm.source, q, vm.safeMode)
+            searchExpanded = false
+            vm.clearTagSuggestions()
+        }
+
+        fun applySuggestion(value: String, submit: Boolean) {
+            val text = localQuery.text
+            val range = tokenRangeAt(text, localQuery.selection.start)
+            val token = text.substring(range.first, range.last)
+            val operator = token.takeWhile { it == '-' || it == '~' || it == '+' }
+            val before = text.substring(0, range.first)
+            val after = text.substring(range.last).trimStart()
+            val replaced = before + operator + value
+            val full = if (after.isEmpty()) "$replaced " else "$replaced $after"
+            if (submit) {
+                submitSearch(full)
+            } else {
+                localQuery = TextFieldValue(full, TextRange(replaced.length + 1))
+                vm.clearTagSuggestions()
+            }
+        }
+
         AnimatedVisibility(
             visible = searchExpanded,
-            enter = fadeIn(animationSpec = tween(durationMillis = 200, easing = LinearOutSlowInEasing)),
-            exit = fadeOut(animationSpec = tween(durationMillis = 180, easing = FastOutLinearInEasing)),
+            enter = fadeIn(tween(200, easing = Motion.EmphasizedDecelerate)) +
+                slideInVertically(tween(260, easing = Motion.EmphasizedDecelerate)) { -it / 16 },
+            exit = fadeOut(tween(160, easing = Motion.EmphasizedAccelerate)) +
+                slideOutVertically(tween(160, easing = Motion.EmphasizedAccelerate)) { -it / 24 },
             modifier = Modifier.fillMaxSize()
         ) {
             Surface(
@@ -774,24 +858,29 @@ fun ExploreScreen(
                         ) {
                             IconButton(onClick = {
                                 searchExpanded = false
+                                localQuery = TextFieldValue(vm.query, TextRange(vm.query.length))
                                 vm.clearTagSuggestions()
                             }) {
                                 Icon(
                                     Icons.AutoMirrored.Rounded.ArrowBack,
-                                    contentDescription = "Back",
+                                    contentDescription = Strings.closeBtn(lang),
                                     tint = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                             BasicTextField(
                                 value = localQuery,
                                 onValueChange = {
+                                    val previous = localQuery
                                     localQuery = it
-                                    val text = it.text
-                                    val lastToken = if (text.endsWith(" ")) "" else text.substringAfterLast(" ").trim()
-                                    if (lastToken.isNotEmpty()) {
-                                        vm.fetchTagSuggestions(lastToken)
-                                    } else {
-                                        vm.clearTagSuggestions()
+                                    if (it.text != previous.text || it.selection != previous.selection) {
+                                        val range = tokenRangeAt(it.text, it.selection.start)
+                                        val token = it.text.substring(range.first, range.last)
+                                        val core = token.trimStart('-', '~', '+')
+                                        if (core.length >= 2 && !core.contains(':')) {
+                                            vm.fetchTagSuggestions(core)
+                                        } else {
+                                            vm.clearTagSuggestions()
+                                        }
                                     }
                                 },
                                 modifier = Modifier
@@ -803,13 +892,7 @@ fun ExploreScreen(
                                 ),
                                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                                keyboardActions = KeyboardActions(onSearch = {
-                                    val q = localQuery.text.trim()
-                                    localQuery = TextFieldValue(q, TextRange(q.length))
-                                    vm.search(vm.source, q, vm.safeMode)
-                                    searchExpanded = false
-                                    vm.clearTagSuggestions()
-                                }),
+                                keyboardActions = KeyboardActions(onSearch = { submitSearch(localQuery.text) }),
                                 decorationBox = { innerTextField ->
                                     Box(contentAlignment = Alignment.CenterStart) {
                                         if (localQuery.text.isEmpty()) {
@@ -835,21 +918,14 @@ fun ExploreScreen(
                                 IconButton(onClick = {
                                     localQuery = TextFieldValue("")
                                     vm.clearTagSuggestions()
-                                    vm.search(vm.source, "", vm.safeMode)
                                 }) {
                                     Icon(
                                         Icons.Rounded.Close,
-                                        contentDescription = "Clear",
+                                        contentDescription = Strings.closeBtn(lang),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
-                                IconButton(onClick = {
-                                    val q = localQuery.text.trim()
-                                    localQuery = TextFieldValue(q, TextRange(q.length))
-                                    vm.search(vm.source, q, vm.safeMode)
-                                    searchExpanded = false
-                                    vm.clearTagSuggestions()
-                                }) {
+                                IconButton(onClick = { submitSearch(localQuery.text) }) {
                                     Icon(
                                         Icons.Rounded.Search,
                                         contentDescription = "Search",
@@ -858,6 +934,22 @@ fun ExploreScreen(
                                 }
                             }
                         }
+                    }
+
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = vm.suggestionsLoading,
+                        enter = fadeIn(tween(120)),
+                        exit = fadeOut(tween(160))
+                    ) {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 40.dp)
+                                .height(3.dp)
+                                .clip(CircleShape),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                        )
                     }
 
                     Column(
@@ -898,17 +990,7 @@ fun ExploreScreen(
 
                                     vm.tagSuggestions.forEach { suggestion ->
                                         Surface(
-                                            onClick = {
-                                                val currentText = localQuery.text
-                                                val prefix = if (currentText.contains(" ")) {
-                                                    currentText.substringBeforeLast(" ") + " "
-                                                } else {
-                                                    ""
-                                                }
-                                                val fullQuery = (prefix + suggestion.value).trim() + " "
-                                                localQuery = TextFieldValue(fullQuery, TextRange(fullQuery.length))
-                                                vm.clearTagSuggestions()
-                                            },
+                                            onClick = { applySuggestion(suggestion.value, submit = false) },
                                             color = Color.Transparent,
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
@@ -921,7 +1003,7 @@ fun ExploreScreen(
                                             ) {
                                                 val classified = remember(suggestion.value, suggestion.type) { TagClassifier.classify(suggestion.value, suggestion.type) }
                                                 val category = classified.category
-                                                val isDark = isSystemInDarkTheme()
+                                                val isDark = LocalIsDarkTheme.current
                                                 val catColor = category.contentColor(isDark) ?: MaterialTheme.colorScheme.primary
                                                 val catBg = category.containerColor(isDark) ?: MaterialTheme.colorScheme.surfaceContainerHighest
 
@@ -946,7 +1028,7 @@ fun ExploreScreen(
                                                     Spacer(Modifier.width(12.dp))
                                                     Column(modifier = Modifier.weight(1f, fill = false)) {
                                                         Text(
-                                                            text = if (suggestion.count > 0) "${suggestion.value} (${suggestion.count})" else suggestion.label.ifBlank { suggestion.value },
+                                                            text = suggestion.value,
                                                             style = MaterialTheme.typography.bodyLarge,
                                                             color = catColor,
                                                             fontWeight = FontWeight.Medium,
@@ -954,28 +1036,16 @@ fun ExploreScreen(
                                                             overflow = TextOverflow.Ellipsis
                                                         )
                                                         Text(
-                                                            text = category.displayName,
+                                                            text = if (suggestion.count > 0) "${category.displayName} · ${formatCompactCount(suggestion.count)}" else category.displayName,
                                                             style = MaterialTheme.typography.labelSmall,
-                                                            color = catColor.copy(alpha = 0.85f),
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                             fontWeight = FontWeight.SemiBold
                                                         )
                                                     }
                                                 }
                                                 IconButton(
-                                                    onClick = {
-                                                        val currentText = localQuery.text
-                                                        val prefix = if (currentText.contains(" ")) {
-                                                            currentText.substringBeforeLast(" ") + " "
-                                                        } else {
-                                                            ""
-                                                        }
-                                                        val fullQuery = (prefix + suggestion.value).trim()
-                                                        localQuery = TextFieldValue(fullQuery, TextRange(fullQuery.length))
-                                                        vm.search(vm.source, fullQuery, vm.safeMode)
-                                                        searchExpanded = false
-                                                        vm.clearTagSuggestions()
-                                                    },
-                                                    modifier = Modifier.size(36.dp)
+                                                    onClick = { applySuggestion(suggestion.value, submit = true) },
+                                                    modifier = Modifier.size(40.dp)
                                                 ) {
                                                     Icon(
                                                         Icons.Rounded.Search,
@@ -992,7 +1062,12 @@ fun ExploreScreen(
                             Spacer(Modifier.height(16.dp))
                         }
 
-                        if (vm.searchHistory.isNotEmpty()) {
+                        val historyFilter = localQuery.text.trim().lowercase()
+                        val visibleHistory = remember(vm.searchHistory, historyFilter) {
+                            if (historyFilter.isEmpty()) vm.searchHistory
+                            else vm.searchHistory.filter { it.lowercase().contains(historyFilter) && !it.equals(historyFilter, ignoreCase = true) }
+                        }
+                        if (visibleHistory.isNotEmpty()) {
                             Card(
                                 shape = RoundedCornerShape(24.dp),
                                 colors = CardDefaults.cardColors(
@@ -1032,14 +1107,9 @@ fun ExploreScreen(
                                         }
                                     }
 
-                                    vm.searchHistory.take(8).forEach { hist ->
+                                    visibleHistory.take(8).forEach { hist ->
                                         Surface(
-                                            onClick = {
-                                                localQuery = TextFieldValue(hist, TextRange(hist.length))
-                                                vm.search(vm.source, hist, vm.safeMode)
-                                                searchExpanded = false
-                                                vm.clearTagSuggestions()
-                                            },
+                                            onClick = { submitSearch(hist) },
                                             color = Color.Transparent,
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
@@ -1064,17 +1134,34 @@ fun ExploreScreen(
                                                     Text(
                                                         hist,
                                                         style = MaterialTheme.typography.bodyMedium,
-                                                        fontWeight = FontWeight.Medium
+                                                        fontWeight = FontWeight.Medium,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                        modifier = Modifier.weight(1f, fill = false)
+                                                    )
+                                                }
+                                                IconButton(
+                                                    onClick = {
+                                                        val text = hist + " "
+                                                        localQuery = TextFieldValue(text, TextRange(text.length))
+                                                    },
+                                                    modifier = Modifier.size(40.dp)
+                                                ) {
+                                                    Icon(
+                                                        Icons.Rounded.NorthWest,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.size(18.dp)
                                                     )
                                                 }
 
                                                 IconButton(
                                                     onClick = { vm.removeFromHistory(hist) },
-                                                    modifier = Modifier.size(32.dp)
+                                                    modifier = Modifier.size(40.dp)
                                                 ) {
                                                     Icon(
                                                         Icons.Rounded.Close,
-                                                        contentDescription = "Delete",
+                                                        contentDescription = Strings.closeBtn(lang),
                                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         modifier = Modifier.size(18.dp)
                                                     )
@@ -1145,7 +1232,7 @@ fun HeartBurstOverlay(
         Icon(
             imageVector = Icons.Rounded.Favorite,
             contentDescription = null,
-            tint = Color(0xFFFF1744),
+            tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier
                 .size(72.dp)
                 .graphicsLayer {
@@ -1165,62 +1252,65 @@ private fun MediaCard(
     isFavorite: Boolean,
     quality: ImageQuality,
     onFavoriteClick: () -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     var showHeartBurst by remember { mutableStateOf(false) }
-    var isPressed by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
     val animatedScale by animateFloatAsState(
         targetValue = if (isPressed) 0.96f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessMedium
-        ),
+        animationSpec = Motion.spatialFast(),
         label = "mediaCardScale"
     )
 
-    var loadError by remember(media.id, media.url) { mutableStateOf(false) }
+    var useFallback by remember(media.mediaKey) { mutableStateOf(false) }
+    var isError by remember(media.mediaKey) { mutableStateOf(false) }
+    var retryKey by remember(media.mediaKey) { mutableIntStateOf(0) }
 
-    val imageModel = remember(media.sample, media.preview, media.url, loadError, quality) {
-        val targetUrl = if (loadError) {
-            media.preview.ifBlank { media.url }
-        } else when (quality) {
-            ImageQuality.SAVER -> media.preview.ifBlank { media.sample.ifBlank { media.url } }
-            ImageQuality.ORIGINAL -> media.sample.ifBlank { media.url.ifBlank { media.preview } }
-            ImageQuality.SAMPLE -> media.sample.ifBlank { media.preview.ifBlank { media.url } }
+    val imageModel = remember(media.mediaKey, useFallback, quality, retryKey) {
+        val targetUrl = if (useFallback) {
+            media.preview.ifBlank { media.gridImageUrl(false) }
+        } else {
+            media.gridImageUrl(quality != ImageQuality.SAVER)
         }
         ImageRequest.Builder(context)
             .data(targetUrl)
-            .crossfade(true)
+            .crossfade(180)
             .allowHardware(true)
-            .listener(
-                onError = { _, _ ->
-                    if (!loadError && targetUrl != media.preview && media.preview.isNotBlank()) {
-                        loadError = true
-                    }
-                }
-            )
+            .setParameter("retry", retryKey, memoryCacheKey = null)
             .build()
     }
+    val description = remember(media.mediaKey) {
+        "${media.source}: ${media.tagList.take(4).joinToString(", ")}"
+    }
 
-    ElevatedCard(
-        shape = RoundedCornerShape(22.dp),
-        elevation = CardDefaults.elevatedCardElevation(
-            defaultElevation = 1.dp,
-            pressedElevation = 3.dp
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
         ),
-        colors = CardDefaults.elevatedCardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        ),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .graphicsLayer {
                 scaleX = animatedScale
                 scaleY = animatedScale
             }
+            .clip(RoundedCornerShape(20.dp))
             .combinedClickable(
-                onClick = onClick,
+                interactionSource = interactionSource,
+                indication = LocalIndication.current,
+                onClickLabel = null,
+                onClick = {
+                    if (isError) {
+                        isError = false
+                        retryKey++
+                    } else {
+                        onClick()
+                    }
+                },
                 onDoubleClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                     if (!isFavorite) {
@@ -1229,154 +1319,171 @@ private fun MediaCard(
                     showHeartBurst = true
                 }
             )
+            .semantics { contentDescription = description }
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(aspectRatio)
         ) {
-            SubcomposeAsyncImage(
+            AsyncImage(
                 model = imageModel,
-                contentDescription = media.tags,
+                contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            ) {
-                val state = painter.state
-                if (state is coil.compose.AsyncImagePainter.State.Loading) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
-                    )
-                } else if (state is coil.compose.AsyncImagePainter.State.Error) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Rounded.BrokenImage,
-                            contentDescription = "Failed to load",
-                            tint = MaterialTheme.colorScheme.outlineVariant,
-                            modifier = Modifier.size(32.dp)
-                        )
+                onState = { state ->
+                    when (state) {
+                        is AsyncImagePainter.State.Error -> {
+                            if (!useFallback && media.preview.isNotBlank() && media.preview != media.gridImageUrl(quality != ImageQuality.SAVER)) {
+                                useFallback = true
+                            } else {
+                                isError = true
+                            }
+                        }
+                        is AsyncImagePainter.State.Success -> isError = false
+                        else -> Unit
                     }
-                } else {
-                    SubcomposeAsyncImageContent()
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            if (isError) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        Icons.Rounded.BrokenImage,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Icon(
+                        Icons.Rounded.Refresh,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
                 }
             }
 
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(64.dp)
+                    .height(56.dp)
                     .align(Alignment.BottomCenter)
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.65f))
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.55f))
                         )
                     )
             )
 
-            if (media.isVideo) {
+            if (media.isVideo || media.isGif) {
                 Surface(
                     shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.65f),
+                    color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.78f),
+                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(8.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(3.dp)
-                    ) {
-                        Icon(
-                            Icons.Rounded.PlayArrow,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            text = "VIDEO",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            } else if (media.isGif) {
-                Surface(
-                    shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.65f),
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(8.dp)
-                ) {
-                    Box(
-                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 3.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    if (media.isVideo) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.PlayArrow,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Text(
+                                text = "VIDEO",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    } else {
                         Icon(
                             Icons.Rounded.Gif,
                             contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier
+                                .padding(horizontal = 5.dp, vertical = 1.dp)
+                                .size(24.dp)
                         )
                     }
                 }
             }
 
+            val favScale = remember { Animatable(1f) }
+            var lastFavorite by remember(media.mediaKey) { mutableStateOf(isFavorite) }
+            LaunchedEffect(isFavorite) {
+                if (isFavorite != lastFavorite) {
+                    lastFavorite = isFavorite
+                    if (isFavorite) {
+                        favScale.snapTo(0.7f)
+                        favScale.animateTo(1f, Motion.spatialFast())
+                    }
+                }
+            }
+            val favContainer by animateColorAsState(
+                if (isFavorite) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.85f),
+                Motion.effectsDefault(),
+                label = "favContainer"
+            )
             Surface(
-                onClick = onFavoriteClick,
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
+                    onFavoriteClick()
+                },
                 shape = CircleShape,
-                color = if (isFavorite)
-                    MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.95f)
-                else
-                    MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.8f),
+                color = favContainer,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(8.dp)
+                    .padding(6.dp)
                     .size(36.dp)
+                    .graphicsLayer {
+                        scaleX = favScale.value
+                        scaleY = favScale.value
+                    }
+                    .semantics { stateDescription = if (isFavorite) "favorite" else "" }
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = if (isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                        contentDescription = "Favorite",
-                        tint = if (isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        contentDescription = null,
+                        tint = if (isFavorite) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(18.dp)
                     )
                 }
             }
 
-            val isRealbooru = media.source.equals("realbooru", ignoreCase = true) || media.url.contains("realbooru.com")
+            val isRealbooru = media.sourceId.equals("realbooru", ignoreCase = true) || media.url.contains("realbooru.com")
             if (media.score > 0 && !isRealbooru) {
-                Surface(
-                    shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.45f),
+                Row(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(8.dp)
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            Icons.Rounded.Star,
-                            null,
-                            tint = Color(0xFFFFD700),
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Text(
-                            text = "${media.score}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
+                    Icon(
+                        Icons.Rounded.Star,
+                        null,
+                        tint = Color.White,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Text(
+                        text = formatCompactCount(media.score),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
 
@@ -1392,6 +1499,7 @@ private fun MediaCard(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                     fontWeight = FontWeight.Medium,
+                    maxLines = 1,
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                 )
             }
@@ -1402,6 +1510,173 @@ private fun MediaCard(
             )
         }
     }
+}
+
+@Composable
+private fun SkeletonGrid(columnsSetting: Int) {
+    val transition = rememberInfiniteTransition(label = "skeleton")
+    val pulse by transition.animateFloat(
+        initialValue = 0.45f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(900, easing = Motion.StandardEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "skeletonPulse"
+    )
+    val cells = when (columnsSetting) {
+        in 1..4 -> StaggeredGridCells.Fixed(columnsSetting)
+        else -> StaggeredGridCells.Adaptive(minSize = 175.dp)
+    }
+    val ratios = remember { listOf(0.75f, 1f, 0.66f, 0.8f, 1.2f, 0.7f, 0.9f, 0.62f, 1f, 0.78f, 0.7f, 1.1f) }
+    val color = MaterialTheme.colorScheme.surfaceContainerHighest
+    LazyVerticalStaggeredGrid(
+        columns = cells,
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 86.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalItemSpacing = 8.dp,
+        userScrollEnabled = false,
+        modifier = Modifier
+            .fillMaxSize()
+            .semantics { contentDescription = "loading" }
+    ) {
+        items(ratios.size) { index ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(ratios[index])
+                    .graphicsLayer { alpha = pulse }
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(color)
+            )
+        }
+    }
+}
+
+@Composable
+private fun FeedFooter(
+    loadingMore: Boolean,
+    loadMoreError: Boolean,
+    reachedEnd: Boolean,
+    lang: AppLanguage,
+    onRetry: () -> Unit
+) {
+    AnimatedContent(
+        targetState = when {
+            loadMoreError -> 2
+            loadingMore -> 1
+            reachedEnd -> 3
+            else -> 0
+        },
+        transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) },
+        contentAlignment = Alignment.Center,
+        label = "feedFooter",
+        modifier = Modifier.fillMaxWidth()
+    ) { state ->
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 72.dp)
+                .padding(vertical = 16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            when (state) {
+                1 -> CircularProgressIndicator(
+                    modifier = Modifier.size(28.dp),
+                    strokeWidth = 3.dp
+                )
+                2 -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = Strings.loadMoreFailed(lang),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    FilledTonalButton(onClick = onRetry, shape = CircleShape) {
+                        Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(Strings.retryBtn(lang))
+                    }
+                }
+                3 -> Text(
+                    text = Strings.endOfResults(lang),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                else -> Spacer(Modifier.height(1.dp))
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun EmptyResultActions(vm: GalleryViewModel, lang: AppLanguage) {
+    val query = vm.query.trim()
+    val plainTokens = remember(query) {
+        query.split(Regex("\\s+")).filter { it.isNotBlank() }
+    }
+    val canJoin = plainTokens.size in 2..4 && plainTokens.none { it.contains(':') || it.startsWith("-") || it.startsWith("~") || it.contains('*') }
+    val hasFilters = vm.safeMode || vm.excludeSafe || vm.noAi || vm.selectedContentTypes.isNotEmpty()
+    val canWiden = vm.source != BooruRepository.SOURCE_ALL && query.isNotEmpty()
+    if (!canJoin && !hasFilters && !canWiden) return
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        if (canJoin) {
+            val joined = plainTokens.joinToString("_")
+            SuggestionChip(
+                onClick = { vm.search(vm.source, joined, vm.safeMode) },
+                label = { Text(Strings.searchAsOneTag(lang).format(joined), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                icon = { Icon(Icons.Rounded.JoinInner, null, modifier = Modifier.size(SuggestionChipDefaults.IconSize)) },
+                shape = CircleShape
+            )
+        }
+        if (canWiden) {
+            SuggestionChip(
+                onClick = { vm.selectSource(BooruRepository.SOURCE_ALL) },
+                label = { Text(Strings.searchInAllSources(lang)) },
+                icon = { Icon(Icons.Rounded.AutoAwesome, null, modifier = Modifier.size(SuggestionChipDefaults.IconSize)) },
+                shape = CircleShape
+            )
+        }
+        if (hasFilters) {
+            SuggestionChip(
+                onClick = {
+                    vm.applyAllFilters(
+                        contentTypes = emptySet(),
+                        sortOrder = vm.sortOrder,
+                        safeMode = false,
+                        excludeSafe = false,
+                        noAi = false
+                    )
+                },
+                label = { Text(Strings.resetFilters(lang)) },
+                icon = { Icon(Icons.Rounded.FilterAltOff, null, modifier = Modifier.size(SuggestionChipDefaults.IconSize)) },
+                shape = CircleShape
+            )
+        }
+    }
+}
+
+private const val PREFETCH_AHEAD = 14
+
+internal fun tokenRangeAt(text: String, cursor: Int): IntRange {
+    val c = cursor.coerceIn(0, text.length)
+    var start = c
+    while (start > 0 && !text[start - 1].isWhitespace()) start--
+    var end = c
+    while (end < text.length && !text[end].isWhitespace()) end++
+    return start..end
+}
+
+internal fun formatCompactCount(value: Int): String = when {
+    value >= 1_000_000 -> String.format(java.util.Locale.US, "%.1fM", value / 1_000_000f).replace(".0M", "M")
+    value >= 10_000 -> "${value / 1000}k"
+    value >= 1_000 -> String.format(java.util.Locale.US, "%.1fk", value / 1000f).replace(".0k", "k")
+    else -> value.toString()
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1421,15 +1696,6 @@ fun SourceSelectionSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = {
-            Surface(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .size(width = 36.dp, height = 4.dp),
-                shape = CircleShape,
-                color = Color.White
-            ) {}
-        },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
@@ -1636,15 +1902,6 @@ private fun FilterSelectionBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = {
-            Surface(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .size(width = 36.dp, height = 4.dp),
-                shape = CircleShape,
-                color = Color.White
-            ) {}
-        },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
@@ -2068,7 +2325,11 @@ private fun FilterSelectionBottomSheet(
 
             Button(
                 onClick = {
+                    val ratioChanged = kotlin.math.abs(tempRecRatio - vm.recommendationRatio) > 0.01f
+                    val filtersChanged = tempContentTypes != vm.selectedContentTypes || tempSortOrder != vm.sortOrder ||
+                        tempSafeMode != vm.safeMode || tempExcludeSafe != vm.excludeSafe || tempNoAi != vm.noAi
                     vm.updateRecommendationRatio(tempRecRatio)
+                    if (ratioChanged && !filtersChanged && vm.query.isBlank()) vm.refresh(isPull = false)
                     vm.applyAllFilters(
                         contentTypes = tempContentTypes,
                         sortOrder = tempSortOrder,
@@ -2107,21 +2368,21 @@ private fun FilterSelectionBottomSheet(
 @Composable
 private fun SleekTopProgressIndicator(
     isRefreshing: Boolean,
-    pullFraction: Float,
+    pullFraction: () -> Float,
     modifier: Modifier = Modifier
 ) {
     val primary = MaterialTheme.colorScheme.primary
-
-    val isVisible = isRefreshing || pullFraction > 0.04f
+    val refreshingState by rememberUpdatedState(isRefreshing)
+    val isVisible by remember { derivedStateOf { refreshingState || pullFraction() > 0.04f } }
 
     AnimatedVisibility(
         visible = isVisible,
         enter = fadeIn(animationSpec = tween(150)),
-        exit = fadeOut(animationSpec = tween(200)),
+        exit = fadeOut(animationSpec = tween(220)),
         modifier = modifier
     ) {
         val infiniteTransition = rememberInfiniteTransition(label = "indicatorShimmer")
-        val shimmerPhase by infiniteTransition.animateFloat(
+        val shimmerPhase = infiniteTransition.animateFloat(
             initialValue = -0.4f,
             targetValue = 1.4f,
             animationSpec = infiniteRepeatable(
@@ -2141,45 +2402,37 @@ private fun SleekTopProgressIndicator(
                     val height = size.height
                     val cornerRadius = CornerRadius(height / 2f, height / 2f)
 
-                    if (isRefreshing) {
+                    if (refreshingState) {
                         drawRoundRect(
                             color = primary.copy(alpha = 0.12f),
                             cornerRadius = cornerRadius
                         )
-
                         val sweepWidth = width * 0.4f
-                        val startX = (shimmerPhase * width) - (sweepWidth / 2f)
-                        val endX = startX + sweepWidth
-
-                        val gradientBrush = Brush.horizontalGradient(
-                            colors = listOf(
-                                primary.copy(alpha = 0f),
-                                primary.copy(alpha = 0.85f),
-                                primary.copy(alpha = 0f)
-                            ),
-                            startX = startX,
-                            endX = endX
-                        )
-
+                        val startX = (shimmerPhase.value * width) - (sweepWidth / 2f)
                         drawRoundRect(
-                            brush = gradientBrush,
+                            brush = Brush.horizontalGradient(
+                                colors = listOf(
+                                    primary.copy(alpha = 0f),
+                                    primary.copy(alpha = 0.85f),
+                                    primary.copy(alpha = 0f)
+                                ),
+                                startX = startX,
+                                endX = startX + sweepWidth
+                            ),
                             cornerRadius = cornerRadius
                         )
                     } else {
-                        val clamped = pullFraction.coerceIn(0f, 1f)
+                        val clamped = pullFraction().coerceIn(0f, 1f)
                         val activeWidth = (clamped * width).coerceAtLeast(height)
                         val left = (width - activeWidth) / 2f
-
-                        val pullBrush = Brush.horizontalGradient(
-                            listOf(
-                                primary.copy(alpha = 0.25f),
-                                primary.copy(alpha = 0.85f),
-                                primary.copy(alpha = 0.25f)
-                            )
-                        )
-
                         drawRoundRect(
-                            brush = pullBrush,
+                            brush = Brush.horizontalGradient(
+                                listOf(
+                                    primary.copy(alpha = 0.25f),
+                                    primary.copy(alpha = 0.85f),
+                                    primary.copy(alpha = 0.25f)
+                                )
+                            ),
                             topLeft = Offset(left, 0f),
                             size = Size(activeWidth, height),
                             cornerRadius = cornerRadius

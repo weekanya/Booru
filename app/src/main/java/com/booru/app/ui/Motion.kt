@@ -27,6 +27,14 @@ object Motion {
     val EmphasizedDecelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1.0f)
     val EmphasizedAccelerate = CubicBezierEasing(0.3f, 0.0f, 0.8f, 0.15f)
     val StandardEasing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
+    const val FADE_THROUGH_OUT_MS = 90
+    const val FADE_THROUGH_IN_MS = 210
+
+    fun <T> spatialDefault() = spring<T>(dampingRatio = 0.8f, stiffness = 380f)
+    fun <T> spatialFast() = spring<T>(dampingRatio = 0.6f, stiffness = 800f)
+    fun <T> spatialSlow() = spring<T>(dampingRatio = 0.8f, stiffness = 200f)
+    fun <T> effectsDefault() = spring<T>(dampingRatio = 1f, stiffness = 1600f)
+    fun <T> effectsFast() = spring<T>(dampingRatio = 1f, stiffness = 3800f)
 
     fun <T> softSpring() = spring<T>(
         dampingRatio = 0.82f,

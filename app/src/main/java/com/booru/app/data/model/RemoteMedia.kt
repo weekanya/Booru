@@ -77,7 +77,7 @@ data class RemoteMedia(
         }
 
     val postWebUrl: String
-        get() = when (source.lowercase()) {
+        get() = when (sourceId.ifBlank { source }.lowercase().removeSuffix(".re").removeSuffix(".net")) {
             "realbooru" -> if (id.isNotBlank()) "https://realbooru.com/index.php?page=post&s=view&id=$id" else url
             "rule34" -> if (id.isNotBlank()) "https://rule34.xxx/index.php?page=post&s=view&id=$id" else url
             "gelbooru" -> if (id.isNotBlank()) "https://gelbooru.com/index.php?page=post&s=view&id=$id" else url
@@ -88,4 +88,15 @@ data class RemoteMedia(
             "konachan" -> if (id.isNotBlank()) "https://konachan.net/post/show/$id" else url
             else -> url
         }
+
+    fun gridImageUrl(preferLarge: Boolean): String {
+        val candidates = if (preferLarge) listOf(sample, preview, url) else listOf(preview, sample, url)
+        return candidates.firstOrNull { it.isNotBlank() && !isVideoFileUrl(it) }
+            ?: preview.ifBlank { sample.ifBlank { url } }
+    }
+}
+
+private fun isVideoFileUrl(value: String): Boolean {
+    val clean = value.substringBefore("?").lowercase()
+    return clean.endsWith(".mp4") || clean.endsWith(".webm") || clean.endsWith(".mkv") || clean.endsWith(".mov")
 }

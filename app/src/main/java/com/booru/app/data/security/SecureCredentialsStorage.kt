@@ -11,18 +11,21 @@ class SecureCredentialsStorage(context: Context) {
 
     private val memoryCache = ConcurrentHashMap<String, String>()
 
-    private val prefs: SharedPreferences? = try {
-        try {
-            context.deleteSharedPreferences("booru_fallback_credentials")
-        } catch (_: Exception) {}
+    private val prefs: SharedPreferences? = createEncryptedPrefs(context)
+        ?: run {
+            Log.w("SecureCredentials", "Encrypted storage is unreadable, recreating it")
+            runCatching { context.deleteSharedPreferences(SECURE_PREFS_NAME) }
+            createEncryptedPrefs(context)
+        }
 
+    private fun createEncryptedPrefs(context: Context): SharedPreferences? = try {
         val masterKey = MasterKey.Builder(context)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
 
         EncryptedSharedPreferences.create(
             context,
-            "booru_secure_credentials",
+            SECURE_PREFS_NAME,
             masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
@@ -32,7 +35,14 @@ class SecureCredentialsStorage(context: Context) {
         null
     }
 
+    init {
+        if (prefs != null) {
+            runCatching { context.deleteSharedPreferences("booru_fallback_credentials") }
+        }
+    }
+
     companion object {
+        private const val SECURE_PREFS_NAME = "booru_secure_credentials"
         private const val KEY_R34_USER_ID = "sec_r34_uid"
         private const val KEY_R34_API_KEY = "sec_r34_key"
         private const val KEY_GEL_USER_ID = "sec_gel_uid"

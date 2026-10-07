@@ -36,6 +36,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
@@ -130,6 +133,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private var loadMoreJob: Job? = null
     private var suggestionJob: Job? = null
     private var currentSearchGeneration = 0L
+    private var loadMoreToken = 0L
+    private var emptyLoadMoreStreak = 0
+    var loadMoreError by mutableStateOf(false); private set
+    var isNetworkError by mutableStateOf(false); private set
+    var resultsEpoch by mutableIntStateOf(0); private set
     private val favoriteMutex = Mutex()
 
     init {
@@ -163,6 +171,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             val initialBlacklist = prefs.tagBlacklist.first()
             val initialRecMap = prefs.recommendationTags.first()
             recordedRecTagsMap = initialRecMap
+            val initialFavorites = runCatching {
+                withContext(Dispatchers.IO) { favoriteDao.getAllFavoritesList().map { it.toRemoteMedia() } }
+            }.getOrNull()
+            if (initialFavorites != null) {
+                favoritesList = initialFavorites
+                favoriteKeys = initialFavorites.mapTo(HashSet()) { it.mediaKey }
+            }
             customSources = initialCustom
             val isCustomValid = initialCustom.any { (it.key == initialSource || it.id == initialSource) && it.enabled }
             val isBuiltInValid = BooruRepository.AVAILABLE_SOURCES.contains(initialSource)
@@ -174,22 +189,29 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             themeMode = initialTheme
             palette = initialPalette
             tagBlacklist = initialBlacklist
-            recalculateRecommendationTags()
+            recommendationTags = withContext(Dispatchers.Default) {
+                computeRecommendationTags(favoritesList, tagBlacklist, recordedRecTagsMap)
+            }
             recommendationRatio = prefs.recommendationRatio.first()
             biometricLockEnabled = prefs.biometricLockEnabled.first()
             biometricLockTimeoutMin = prefs.biometricLockTimeoutMin.first()
             favoriteFolders = prefs.favoriteFolders.first()
             customFolders = prefs.customFolders.first()
             gridColumnsCount = prefs.gridColumnsCount.first()
-
-            updateCacheSize()
-            runCatching {
-                BooruCacheManager.pruneOrphanedFavoritesMedia(getApplication(), favoritesList)
-            }
+            imageQuality = prefs.imageQuality.first()
 
             search(source, "", safeMode)
 
             startLongLivedObservers()
+
+            if (initialFavorites != null) {
+                launch(Dispatchers.IO) {
+                    runCatching { BooruCacheManager.pruneOrphanedFavoritesMedia(getApplication(), initialFavorites) }
+                    updateCacheSize()
+                }
+            } else {
+                updateCacheSize()
+            }
         }
     }
 
@@ -229,14 +251,22 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
         viewModelScope.launch {
             prefs.customSources.collect { sources ->
-                customSources = sources
+                if (sources != customSources) {
+                    customSources = sources
+                    cachedCredentials = null
+                }
             }
         }
         viewModelScope.launch {
             prefs.tagBlacklist.collect { bl ->
+                if (bl == tagBlacklist) return@collect
                 tagBlacklist = bl
                 if (results.isNotEmpty()) {
-                    results = results.filterNot { isBlacklisted(it, bl) }
+                    val current = results
+                    val filtered = withContext(Dispatchers.Default) {
+                        current.filterNot { com.booru.app.data.TagBlacklistMatcher.isBlacklisted(it, bl) }
+                    }
+                    if (results === current) results = filtered
                 }
                 recalculateRecommendationTags()
             }
@@ -329,7 +359,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun downloadUpdate(context: Context, info: AppUpdateInfo) {
-        if (isDownloadingUpdate || info.apkDownloadUrl.isNullOrBlank()) return
+        if (isDownloadingUpdate) return
+        if (info.apkDownloadUrl.isNullOrBlank()) {
+            updateDownloadError = "No APK file found in this release"
+            return
+        }
+        val context: Context = context.applicationContext
 
         isDownloadingUpdate = true
         updateDownloadProgress = 0f
@@ -475,6 +510,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun installApk(context: Context, file: File) {
+        val context: Context = context.applicationContext
         try {
             if (!verifyApkSignature(context, file)) {
                 if (file.exists()) file.delete()
@@ -506,8 +542,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     PackageManager.PackageInfoFlags.of(PackageManager.GET_SIGNING_CERTIFICATES.toLong())
                 )
             } else {
-                @Suppress("DEPRECATION")
-                pm.getPackageArchiveInfo(apkFile.absolutePath, PackageManager.GET_SIGNATURES)
+                pm.getPackageArchiveInfo(apkFile.absolutePath, PackageManager.GET_SIGNING_CERTIFICATES)
             } ?: return false
 
             if (archiveInfo.packageName != context.packageName) {
@@ -521,7 +556,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 )
             } else {
                 @Suppress("DEPRECATION")
-                pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNATURES)
+                pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
             }
 
             val currentVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -606,19 +641,39 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun updateFavoritesState(list: List<RemoteMedia>) {
+        if (list == favoritesList) return
         favoritesList = list
-        favoriteKeys = list.map { it.mediaKey }.toSet()
+        favoriteKeys = list.mapTo(HashSet()) { it.mediaKey }
         recalculateRecommendationTags()
     }
 
+    private var recommendationJob: Job? = null
+
     private fun recalculateRecommendationTags() {
+        val favorites = favoritesList
+        val blacklist = tagBlacklist
+        val recorded = recordedRecTagsMap
+        recommendationJob?.cancel()
+        recommendationJob = viewModelScope.launch {
+            recommendationTags = withContext(Dispatchers.Default) {
+                computeRecommendationTags(favorites, blacklist, recorded)
+            }
+        }
+    }
+
+    private fun computeRecommendationTags(
+        favorites: List<RemoteMedia>,
+        blacklist: List<String>,
+        recorded: Map<String, Int>
+    ): List<String> {
+        val blocked = blacklist.mapTo(HashSet()) { it.lowercase() }
         val tagWeights = mutableMapOf<String, Float>()
-        for (fav in favoritesList) {
+        for (fav in favorites) {
             val tags = if (fav.tagList.isNotEmpty()) fav.tagList else fav.tags.split(Regex("[\\s,]+"))
             for (rawTag in tags) {
                 val tag = rawTag.trim().lowercase().trim(',', ';', '.', '(', ')', '"', '\'')
                 if (!TagClassifier.isRecommendationCandidate(tag)) continue
-                if (tagBlacklist.any { it.equals(tag, ignoreCase = true) }) continue
+                if (tag in blocked) continue
                 val category = TagClassifier.classify(tag).category
                 val multiplier = when (category) {
                     TagCategory.CHARACTER -> 5.0f
@@ -630,10 +685,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 tagWeights[tag] = (tagWeights[tag] ?: 0f) + (3f * multiplier)
             }
         }
-        for ((tag, count) in recordedRecTagsMap) {
+        for ((tag, count) in recorded) {
             val clean = tag.trim().lowercase().trim(',', ';', '.', '(', ')', '"', '\'')
             if (!TagClassifier.isRecommendationCandidate(clean)) continue
-            if (tagBlacklist.any { it.equals(clean, ignoreCase = true) }) continue
+            if (clean in blocked) continue
             val category = TagClassifier.classify(clean).category
             val multiplier = when (category) {
                 TagCategory.CHARACTER -> 2.5f
@@ -643,7 +698,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             }
             tagWeights[clean] = (tagWeights[clean] ?: 0f) + (count.toFloat() * multiplier)
         }
-        recommendationTags = tagWeights.entries
+        return tagWeights.entries
             .sortedByDescending { it.value }
             .take(60)
             .map { it.key }
@@ -666,7 +721,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     var needsFeedRefresh by mutableStateOf(false); private set
 
+    private var cachedCredentials: BooruCredentials? = null
+
     fun getCredentials(): BooruCredentials {
+        cachedCredentials?.let { return it }
         val customCreds = mutableMapOf<String, Pair<String, String>>()
         if (secureStorage.isSecureStorageAvailable) {
             for (cs in customSources) {
@@ -684,7 +742,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             gelbooruUserId = gelbooruUserId,
             gelbooruApiKey = gelbooruApiKey,
             customCredentials = customCreds
-        )
+        ).also { cachedCredentials = it }
     }
 
     fun refreshFeedIfNeeded() {
@@ -710,6 +768,155 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         search(source, query, safeMode, isPullRefresh = true)
     }
 
+    private data class FeedParams(
+        val source: String,
+        val tags: String,
+        val safeMode: Boolean,
+        val excludeSafe: Boolean,
+        val noAi: Boolean,
+        val sortOrder: SortOrder,
+        val contentTypes: Set<ContentType>,
+        val blacklist: List<String>,
+        val credentials: BooruCredentials,
+        val customSources: List<CustomBooruSource>
+    )
+
+    private data class FeedBatch(
+        val items: List<RemoteMedia>,
+        val lastPage: Int,
+        val hasMore: Boolean
+    )
+
+    private fun snapshotParams(source: String, tags: String, safeMode: Boolean) = FeedParams(
+        source = source,
+        tags = tags,
+        safeMode = safeMode,
+        excludeSafe = excludeSafe,
+        noAi = noAi,
+        sortOrder = sortOrder,
+        contentTypes = selectedContentTypes,
+        blacklist = tagBlacklist,
+        credentials = getCredentials(),
+        customSources = customSources
+    )
+
+    private fun activeRecommendationTags(): List<String> {
+        val blocked = tagBlacklist.map { it.lowercase() }.toHashSet()
+        return recommendationTags.filter { TagClassifier.isRecommendationCandidate(it) && it.lowercase() !in blocked }
+    }
+
+    private suspend fun FeedParams.page(tags: String, page: Int, sort: SortOrder = sortOrder, limit: Int = BooruRepository.PAGE_SIZE, excludeSources: Set<String> = emptySet()): SearchPage =
+        repo.searchPage(
+            source = source,
+            tags = tags,
+            safeMode = safeMode,
+            excludeSafe = excludeSafe,
+            noAi = noAi,
+            page = page,
+            sortOrder = sort,
+            contentTypes = contentTypes,
+            credentials = credentials,
+            customSources = customSources,
+            limit = limit,
+            excludeSources = excludeSources
+        )
+
+    private fun FeedParams.accepts(item: RemoteMedia): Boolean {
+        if (com.booru.app.data.TagBlacklistMatcher.isBlacklisted(item, blacklist)) return false
+        if (contentTypes.isEmpty()) return true
+        return (contentTypes.contains(ContentType.PHOTOS) && !item.isVideo && !item.isGif) ||
+            (contentTypes.contains(ContentType.VIDEOS) && item.isVideo) ||
+            (contentTypes.contains(ContentType.GIFS) && item.isGif)
+    }
+
+    private suspend fun FeedParams.recommendationPage(page: Int, recTags: List<String>, existingKeys: Set<String>): Pair<List<RemoteMedia>, Boolean> = coroutineScope {
+        val general = async {
+            runCatching { page(tags = "", page = page, sort = if (sortOrder == SortOrder.RANDOM) SortOrder.RANDOM else SortOrder.NEWEST) }
+        }
+        val tagged = recTags.map { recTag ->
+            async {
+                runCatching {
+                    page(tags = recTag, page = page, limit = REC_TAG_PAGE_LIMIT, excludeSources = REC_TAG_EXCLUDED_SOURCES)
+                }
+            }
+        }
+        val generalResult = general.await()
+        val taggedResults = tagged.awaitAll()
+        if (generalResult.isFailure && taggedResults.none { it.isSuccess }) {
+            throw generalResult.exceptionOrNull() ?: BooruException("Failed to load data")
+        }
+        val hideVideos = !contentTypes.contains(ContentType.VIDEOS)
+        val genList = generalResult.getOrNull()?.items.orEmpty().let { list -> if (hideVideos) list.filterNot { it.isVideo } else list }
+        val tagLists = taggedResults.map { r -> r.getOrNull()?.items.orEmpty().let { list -> if (hideVideos) list.filterNot { it.isVideo } else list } }
+        val blended = withContext(Dispatchers.Default) {
+            blendRecommendationFeed(genList, tagLists, recommendationRatio, existingKeys, maxPerTag = REC_MAX_PER_TAG)
+        }
+        val hasMore = (generalResult.getOrNull()?.rawCount ?: 0) > 0 || taggedResults.any { (it.getOrNull()?.rawCount ?: 0) > 0 }
+        blended to hasMore
+    }
+
+    private suspend fun FeedParams.fetchFeed(startPage: Int, existingKeys: Set<String>, recTags: List<String>?): FeedBatch {
+        val (firstItems, firstHasMore) = if (recTags != null) {
+            recommendationPage(startPage, recTags, existingKeys)
+        } else {
+            val result = page(tags = tags, page = startPage)
+            result.items to (result.rawCount > 0)
+        }
+
+        val seen = existingKeys.toHashSet()
+        val collected = mutableListOf<RemoteMedia>()
+        suspend fun absorb(items: List<RemoteMedia>): Int {
+            val accepted = withContext(Dispatchers.Default) { items.filter { accepts(it) } }
+            var added = 0
+            for (item in accepted) {
+                if (seen.add(item.mediaKey)) {
+                    collected.add(item)
+                    added++
+                }
+            }
+            return added
+        }
+        absorb(firstItems)
+
+        var lastPage = startPage
+        var hasMore = firstHasMore
+        val target = if (contentTypes.isNotEmpty()) FILTERED_TARGET_COUNT else 1
+        val maxExtraPages = if (contentTypes.isNotEmpty()) 10 else 3
+        var extraPages = 0
+        var dryPages = 0
+        while (hasMore && collected.size < target && extraPages < maxExtraPages && dryPages < 3) {
+            lastPage++
+            extraPages++
+            val next = page(tags = tags, page = lastPage)
+            hasMore = next.rawCount > 0
+            if (absorb(next.items) == 0) dryPages++ else dryPages = 0
+        }
+        return FeedBatch(collected, lastPage, hasMore)
+    }
+
+    private fun applyFailure(e: Throwable, keepResults: Boolean) {
+        if (!keepResults) results = emptyList()
+        isNetworkError = e is BooruNetworkException || e is IOException
+        when (e) {
+            is BooruAuthException -> {
+                isAuthError = true
+                authErrorSource = e.sourceKey
+                authErrorCode = e.statusCode
+            }
+            is BooruHttpException -> {
+                isAuthError = e.statusCode == 401 || e.statusCode == 403
+                authErrorSource = e.sourceKey
+                authErrorCode = e.statusCode
+            }
+            else -> {
+                isAuthError = false
+                authErrorSource = null
+                authErrorCode = null
+            }
+        }
+        error = e.message ?: "Failed to load data"
+    }
+
     fun search(
         source: String = this.source,
         tags: String = this.query,
@@ -719,6 +926,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val searchGen = ++currentSearchGeneration
         searchJob?.cancel()
         loadMoreJob?.cancel()
+        loadMoreToken++
+        loadingMore = false
+        loadMoreError = false
+        emptyLoadMoreStreak = 0
 
         this.source = source
         this.query = tags
@@ -726,6 +937,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         needsFeedRefresh = false
         currentPage = 0
         hasMore = true
+        val keepResults = isPullRefresh && results.isNotEmpty()
         if (isPullRefresh) {
             isRefreshing = true
         } else {
@@ -736,6 +948,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             results = emptyList()
         }
         error = null
+        isNetworkError = false
         isAuthError = false
         authErrorSource = null
         authErrorCode = null
@@ -750,204 +963,40 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 prefs.saveSearchQuery(trimmedTags)
                 prefs.recordSearchTags(trimmedTags.split(Regex("[\\s,]+")))
             }
-            if (activeTagCount == 0 && !trimmedTags.contains(" ")) {
-                viewModelScope.launch {
-                    val s = repo.getTagSuggestions(source, trimmedTags)
-                    val m = s.find { it.value.equals(trimmedTags, ignoreCase = true) }
-                    if (m != null && m.count > 0) {
-                        activeTagCount = m.count
-                    }
+        }
+        if (trimmedTags.isNotEmpty() && activeTagCount == 0 && !trimmedTags.contains(" ")) {
+            val lookupSources = customSources
+            viewModelScope.launch {
+                val match = runCatching { repo.getTagSuggestions(source, trimmedTags, lookupSources) }
+                    .getOrDefault(emptyList())
+                    .find { it.value.equals(trimmedTags, ignoreCase = true) }
+                if (match != null && match.count > 0 && searchGen == currentSearchGeneration) {
+                    activeTagCount = match.count
                 }
             }
         }
 
+        val params = snapshotParams(source, tags, safeMode)
+        val recTags = if (trimmedTags.isEmpty() && recommendationRatio > 0.05f) {
+            val active = activeRecommendationTags()
+            if (active.size <= REC_TAGS_PER_PAGE) active else active.shuffled(java.util.Random(System.nanoTime() + refreshSeed)).take(REC_TAGS_PER_PAGE)
+        } else emptyList()
+
         searchJob = viewModelScope.launch {
             try {
-                val activeRecTags = recommendationTags
-                    .filter { TagClassifier.isRecommendationCandidate(it) }
-                    .filterNot { tag ->
-                        tagBlacklist.any { it.equals(tag, ignoreCase = true) }
-                    }
-                val useRecommendations = tags.isBlank() && activeRecTags.isNotEmpty() && recommendationRatio > 0.05f
-
-                val list = if (useRecommendations) {
-                    val ratio = recommendationRatio
-                    val tagsCount = activeRecTags.size
-                    val tagsToFetch = if (tagsCount <= 4) {
-                        activeRecTags
-                    } else {
-                        val r = java.util.Random(System.currentTimeMillis() + refreshSeed)
-                        activeRecTags.shuffled(r).take(minOf(4, tagsCount))
-                    }
-                    val maxPerTag = 6
-                    val dGen = async {
-                        withTimeoutOrNull(3000L) {
-                            try {
-                                repo.search(
-                                    source = source,
-                                    tags = "",
-                                    safeMode = safeMode,
-                                    excludeSafe = excludeSafe,
-                                    noAi = noAi,
-                                    page = 0,
-                                    sortOrder = if (sortOrder == SortOrder.RANDOM) SortOrder.RANDOM else SortOrder.NEWEST,
-                                    contentTypes = selectedContentTypes,
-                                    credentials = getCredentials(),
-                                    customSources = customSources
-                                )
-                            } catch (_: Exception) {
-                                emptyList()
-                            }
-                        } ?: emptyList()
-                    }
-                    val dTags = tagsToFetch.map { recTag ->
-                        async {
-                            withTimeoutOrNull(3000L) {
-                                try {
-                                    repo.search(
-                                        source = source,
-                                        tags = recTag,
-                                        safeMode = safeMode,
-                                        excludeSafe = excludeSafe,
-                                        noAi = noAi,
-                                        page = 0,
-                                        sortOrder = sortOrder,
-                                        contentTypes = selectedContentTypes,
-                                        credentials = getCredentials(),
-                                        customSources = customSources
-                                    )
-                                } catch (_: Exception) {
-                                    emptyList()
-                                }
-                            } ?: emptyList()
-                        }
-                    }
-                    val genList = dGen.await()
-                    val tagLists = dTags.map { it.await() }
-                    val sanitizedGenList = if (!selectedContentTypes.contains(ContentType.VIDEOS)) {
-                        genList.filterNot { item -> item.isVideo }
-                    } else {
-                        genList
-                    }
-                    val sanitizedTagLists = if (!selectedContentTypes.contains(ContentType.VIDEOS)) {
-                        tagLists.map { list -> list.filterNot { item -> item.isVideo } }
-                    } else {
-                        tagLists
-                    }
-                    val blended = blendRecommendationFeed(sanitizedGenList, sanitizedTagLists, ratio, maxPerTag = maxPerTag)
-                    if (blended.isEmpty()) {
-                        repo.search(
-                            source = source,
-                            tags = "",
-                            safeMode = safeMode,
-                            excludeSafe = excludeSafe,
-                            noAi = noAi,
-                            page = 0,
-                            sortOrder = SortOrder.NEWEST,
-                            contentTypes = selectedContentTypes,
-                            credentials = getCredentials(),
-                            customSources = customSources
-                        )
-                    } else {
-                        blended
-                    }
-                } else {
-                    withTimeoutOrNull(3500L) {
-                        repo.search(
-                            source = source,
-                            tags = tags,
-                            safeMode = safeMode,
-                            excludeSafe = excludeSafe,
-                            noAi = noAi,
-                            page = 0,
-                            sortOrder = sortOrder,
-                            contentTypes = selectedContentTypes,
-                            credentials = getCredentials(),
-                            customSources = customSources
-                        )
-                    } ?: emptyList()
+                var batch = params.fetchFeed(0, emptySet(), recTags.ifEmpty { null })
+                if (batch.items.isEmpty() && recTags.isNotEmpty()) {
+                    batch = params.fetchFeed(0, emptySet(), null)
                 }
-
                 if (searchGen != currentSearchGeneration) return@launch
-
-                val accumulated = mutableListOf<RemoteMedia>()
-                var lastPageSize = list.size
-                accumulated.addAll(list)
-                var lastFetchedPage = 0
-                val targetCount = if (selectedContentTypes.isNotEmpty()) 24 else BooruRepository.PAGE_SIZE
-                val maxPagesToAccumulate = if (selectedContentTypes.isNotEmpty()) 15 else 1
-
-                fun filterItems(items: List<RemoteMedia>): List<RemoteMedia> {
-                    return items.filterNot { isBlacklisted(it) }
-                        .filter { item ->
-                            if (selectedContentTypes.isEmpty()) true
-                            else (
-                                (selectedContentTypes.contains(ContentType.PHOTOS) && !item.isVideo && !item.isGif) ||
-                                (selectedContentTypes.contains(ContentType.VIDEOS) && item.isVideo) ||
-                                (selectedContentTypes.contains(ContentType.GIFS) && item.isGif)
-                            )
-                        }
-                }
-
-                var currentFiltered = filterItems(accumulated).distinctBy { it.mediaKey }
-                var consecutiveEmptyFiltered = 0
-
-                while (selectedContentTypes.isNotEmpty() && currentFiltered.size < targetCount && lastPageSize > 0 && lastFetchedPage < maxPagesToAccumulate) {
-                    val prevCount = currentFiltered.size
-                    lastFetchedPage++
-                    val nextPageList = repo.search(
-                        source = source,
-                        tags = tags,
-                        safeMode = safeMode,
-                        excludeSafe = excludeSafe,
-                        noAi = noAi,
-                        page = lastFetchedPage,
-                        sortOrder = sortOrder,
-                        contentTypes = selectedContentTypes,
-                        credentials = getCredentials(),
-                        customSources = customSources
-                    )
-                    if (searchGen != currentSearchGeneration) return@launch
-                    lastPageSize = nextPageList.size
-                    accumulated.addAll(nextPageList)
-                    currentFiltered = filterItems(accumulated).distinctBy { it.mediaKey }
-                    if (currentFiltered.size == prevCount) {
-                        consecutiveEmptyFiltered++
-                        if (consecutiveEmptyFiltered >= 3) break
-                    } else {
-                        consecutiveEmptyFiltered = 0
-                    }
-                }
-
-                currentPage = lastFetchedPage
-                results = currentFiltered
-                hasMore = lastPageSize > 0
-            } catch (authEx: BooruAuthException) {
-                if (searchGen == currentSearchGeneration) {
-                    if (!isPullRefresh) results = emptyList()
-                    isAuthError = true
-                    authErrorSource = authEx.sourceKey
-                    authErrorCode = authEx.statusCode
-                    error = authEx.message
-                }
-            } catch (httpEx: BooruHttpException) {
-                if (searchGen == currentSearchGeneration) {
-                    if (!isPullRefresh) results = emptyList()
-                    isAuthError = httpEx.statusCode == 401 || httpEx.statusCode == 403
-                    authErrorSource = httpEx.sourceKey
-                    authErrorCode = httpEx.statusCode
-                    error = httpEx.message
-                }
+                currentPage = batch.lastPage
+                results = batch.items
+                hasMore = batch.hasMore
+                resultsEpoch++
             } catch (c: CancellationException) {
                 throw c
             } catch (e: Exception) {
-                if (searchGen == currentSearchGeneration) {
-                    if (!isPullRefresh) results = emptyList()
-                    isAuthError = false
-                    authErrorSource = null
-                    authErrorCode = null
-                    error = e.message ?: "Failed to load data"
-                }
+                if (searchGen == currentSearchGeneration) applyFailure(e, keepResults)
             } finally {
                 if (searchGen == currentSearchGeneration) {
                     loading = false
@@ -960,178 +1009,51 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun loadMore() {
-        if (loading || isRefreshing || loadingMore || !hasMore) return
+        if (loading || isRefreshing || loadingMore || !hasMore || loadMoreError) return
         val searchGen = currentSearchGeneration
+        val token = ++loadMoreToken
         val targetPage = currentPage + 1
+        val params = snapshotParams(source, query, safeMode)
+        val recTags = if (query.isBlank() && recommendationRatio > 0.05f) {
+            val active = activeRecommendationTags()
+            if (active.size <= REC_TAGS_PER_PAGE) {
+                active
+            } else {
+                val startIndex = (targetPage * 3) % active.size
+                (0 until 3).map { offset -> active[(startIndex + offset) % active.size] }
+            }
+        } else emptyList()
+        val existingKeys = results.mapTo(HashSet()) { it.mediaKey }
 
         loadMoreJob?.cancel()
+        loadingMore = true
         loadMoreJob = viewModelScope.launch {
-            loadingMore = true
             try {
-                val activeRecTags = recommendationTags
-                    .filter { TagClassifier.isRecommendationCandidate(it) }
-                    .filterNot { tag ->
-                        tagBlacklist.any { it.equals(tag, ignoreCase = true) }
-                    }
-                val useRecommendations = query.isBlank() && activeRecTags.isNotEmpty() && recommendationRatio > 0.05f
-
-                val list = if (useRecommendations) {
-                    val ratio = recommendationRatio
-                    val tagsCount = activeRecTags.size
-                    val tagsToFetch = if (tagsCount <= 4) {
-                        activeRecTags
-                    } else {
-                        val startIndex = (targetPage * 3) % tagsCount
-                        (0 until minOf(3, tagsCount)).map { offset ->
-                            activeRecTags[(startIndex + offset) % tagsCount]
-                        }
-                    }
-                    val maxPerTag = 6
-                    val dGen = async {
-                        withTimeoutOrNull(3000L) {
-                            try {
-                                repo.search(
-                                    source = source,
-                                    tags = "",
-                                    safeMode = safeMode,
-                                    excludeSafe = excludeSafe,
-                                    noAi = noAi,
-                                    page = targetPage,
-                                    sortOrder = if (sortOrder == SortOrder.RANDOM) SortOrder.RANDOM else SortOrder.NEWEST,
-                                    contentTypes = selectedContentTypes,
-                                    credentials = getCredentials(),
-                                    customSources = customSources
-                                )
-                            } catch (_: Exception) {
-                                emptyList()
-                            }
-                        } ?: emptyList()
-                    }
-                    val dTags = tagsToFetch.map { recTag ->
-                        val subPage = targetPage
-                        async {
-                            withTimeoutOrNull(3000L) {
-                                try {
-                                    repo.search(
-                                        source = source,
-                                        tags = recTag,
-                                        safeMode = safeMode,
-                                        excludeSafe = excludeSafe,
-                                        noAi = noAi,
-                                        page = subPage,
-                                        sortOrder = sortOrder,
-                                        contentTypes = selectedContentTypes,
-                                        credentials = getCredentials(),
-                                        customSources = customSources
-                                    )
-                                } catch (_: Exception) {
-                                    emptyList()
-                                }
-                            } ?: emptyList()
-                        }
-                    }
-                    val genList = dGen.await()
-                    val tagLists = dTags.map { it.await() }
-                    val existingKeys = results.map { it.mediaKey }.toSet()
-                    val sanitizedGenList = if (!selectedContentTypes.contains(ContentType.VIDEOS)) {
-                        genList.filterNot { item -> item.isVideo }
-                    } else {
-                        genList
-                    }
-                    val sanitizedTagLists = if (!selectedContentTypes.contains(ContentType.VIDEOS)) {
-                        tagLists.map { list -> list.filterNot { item -> item.isVideo } }
-                    } else {
-                        tagLists
-                    }
-                    val blended = blendRecommendationFeed(sanitizedGenList, sanitizedTagLists, ratio, existingKeys, maxPerTag = maxPerTag)
-                    if (blended.isEmpty()) {
-                        sanitizedGenList.filterNot { it.mediaKey in existingKeys }
-                    } else {
-                        blended
-                    }
-                } else {
-                    withTimeoutOrNull(3500L) {
-                        repo.search(
-                            source = source,
-                            tags = query,
-                            safeMode = safeMode,
-                            excludeSafe = excludeSafe,
-                            noAi = noAi,
-                            page = targetPage,
-                            sortOrder = sortOrder,
-                            contentTypes = selectedContentTypes,
-                            credentials = getCredentials(),
-                            customSources = customSources
-                        )
-                    } ?: emptyList()
-                }
-
+                val batch = params.fetchFeed(targetPage, existingKeys, recTags.ifEmpty { null })
                 if (searchGen != currentSearchGeneration) return@launch
-
-                var lastPageSize = list.size
-                var lastFetchedPage = targetPage
-                val accumulatedNew = mutableListOf<RemoteMedia>()
-                accumulatedNew.addAll(list)
-
-                fun filterItems(items: List<RemoteMedia>): List<RemoteMedia> {
-                    return items.filterNot { isBlacklisted(it) }
-                        .filter { item ->
-                            if (selectedContentTypes.isEmpty()) true
-                            else (
-                                (selectedContentTypes.contains(ContentType.PHOTOS) && !item.isVideo && !item.isGif) ||
-                                (selectedContentTypes.contains(ContentType.VIDEOS) && item.isVideo) ||
-                                (selectedContentTypes.contains(ContentType.GIFS) && item.isGif)
-                            )
-                        }
+                currentPage = batch.lastPage
+                if (batch.items.isNotEmpty()) {
+                    emptyLoadMoreStreak = 0
+                    results = (results + batch.items).distinctBy { it.mediaKey }
+                    hasMore = batch.hasMore
+                } else {
+                    emptyLoadMoreStreak++
+                    hasMore = batch.hasMore && emptyLoadMoreStreak < 3
                 }
-
-                var currentFiltered = filterItems(accumulatedNew)
-                val targetCount = if (selectedContentTypes.isNotEmpty()) 20 else BooruRepository.PAGE_SIZE
-                var extraPagesFetched = 0
-                val maxExtraPages = if (selectedContentTypes.isNotEmpty()) 10 else 0
-                var consecutiveEmptyFiltered = 0
-
-                while (selectedContentTypes.isNotEmpty() && currentFiltered.size < targetCount && lastPageSize > 0 && extraPagesFetched < maxExtraPages) {
-                    val prevCount = currentFiltered.size
-                    lastFetchedPage++
-                    extraPagesFetched++
-                    val nextPageList = repo.search(
-                        source = source,
-                        tags = query,
-                        safeMode = safeMode,
-                        excludeSafe = excludeSafe,
-                        noAi = noAi,
-                        page = lastFetchedPage,
-                        sortOrder = sortOrder,
-                        contentTypes = selectedContentTypes,
-                        credentials = getCredentials(),
-                        customSources = customSources
-                    )
-                    if (searchGen != currentSearchGeneration) return@launch
-                    lastPageSize = nextPageList.size
-                    accumulatedNew.addAll(nextPageList)
-                    currentFiltered = filterItems(accumulatedNew)
-                    if (currentFiltered.size == prevCount) {
-                        consecutiveEmptyFiltered++
-                        if (consecutiveEmptyFiltered >= 3) break
-                    } else {
-                        consecutiveEmptyFiltered = 0
-                    }
-                }
-
-                currentPage = lastFetchedPage
-                results = (results + currentFiltered).distinctBy { it.mediaKey }
-                hasMore = lastPageSize > 0
             } catch (c: CancellationException) {
                 throw c
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to load more items: ${e.message}", e)
+                if (searchGen == currentSearchGeneration) loadMoreError = true
             } finally {
-                if (searchGen == currentSearchGeneration) {
-                    loadingMore = false
-                }
+                if (token == loadMoreToken) loadingMore = false
             }
         }
+    }
+
+    fun retryLoadMore() {
+        loadMoreError = false
+        loadMore()
     }
 
     fun applySort(order: SortOrder) {
@@ -1149,59 +1071,96 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         search(finalSource, cleanTag, safeMode)
     }
 
+    var suggestionsLoading by mutableStateOf(false); private set
+    private val suggestionCache = object : LinkedHashMap<String, List<TagSuggestion>>(32, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<TagSuggestion>>?): Boolean = size > 48
+    }
+
     fun fetchTagSuggestions(input: String) {
         suggestionJob?.cancel()
-        if (input.trim().length < 2) {
+        val token = input.trim().trimStart('-', '~', '+').trimEnd('*').lowercase()
+        if (token.length < 2) {
             tagSuggestions = emptyList()
+            suggestionsLoading = false
             return
         }
-
+        val cacheKey = "$source|$token"
+        suggestionCache[cacheKey]?.let {
+            tagSuggestions = it
+            suggestionsLoading = false
+            return
+        }
+        val lookupSource = source
+        val lookupCustom = customSources
         suggestionJob = viewModelScope.launch {
+            delay(SUGGESTION_DEBOUNCE_MS)
+            suggestionsLoading = true
             try {
-                val suggestions = repo.getTagSuggestions(source, input)
+                val suggestions = repo.getTagSuggestions(lookupSource, token, lookupCustom)
+                if (suggestions.isNotEmpty()) suggestionCache[cacheKey] = suggestions
                 tagSuggestions = suggestions
             } catch (c: CancellationException) {
                 throw c
             } catch (_: Exception) {
                 tagSuggestions = emptyList()
+            } finally {
+                suggestionsLoading = false
             }
         }
     }
 
     fun clearTagSuggestions() {
+        suggestionJob?.cancel()
+        suggestionsLoading = false
         tagSuggestions = emptyList()
     }
+
+    private val favoriteMediaJobs = HashMap<String, Job>()
 
     fun toggleFavorite(media: RemoteMedia) {
         val key = media.mediaKey
         val wasFav = key in favoriteKeys
         if (wasFav) {
             favoriteKeys = favoriteKeys - key
-            val remaining = favoritesList.filterNot { it.mediaKey == key }
-            favoritesList = remaining
+            favoritesList = favoritesList.filterNot { it.mediaKey == key }
         } else {
             favoriteKeys = favoriteKeys + key
-            favoritesList = favoritesList + media
+            favoritesList = listOf(media) + favoritesList
         }
+        val recordTags = !wasFav && !isIncognito
         viewModelScope.launch {
             favoriteMutex.withLock {
                 if (wasFav) {
-                    val remaining = favoritesList.filterNot { it.mediaKey == key }
                     favoriteDao.deleteByKey(key)
-                    BooruCacheManager.removeFavoriteMedia(getApplication(), media, remaining)
                 } else {
                     favoriteDao.insert(FavoriteEntity.fromRemoteMedia(media))
+                }
+            }
+            if (recordTags) prefs.recordFavoriteTags(media.tags)
+        }
+        favoriteMediaJobs.remove(key)?.cancel()
+        val job = viewModelScope.launch {
+            try {
+                if (wasFav) {
+                    BooruCacheManager.removeFavoriteMedia(getApplication(), media, favoritesList)
+                } else {
                     BooruCacheManager.saveFavoriteMedia(getApplication(), media)
-                    if (!isIncognito) {
-                        prefs.recordFavoriteTags(media.tags)
-                    }
                 }
                 updateCacheSize()
+            } catch (c: CancellationException) {
+                throw c
+            } catch (e: Exception) {
+                Log.w(TAG, "Favorite media sync failed: ${e.message}")
+            } finally {
+                if (favoriteMediaJobs[key] === coroutineContext[Job]) favoriteMediaJobs.remove(key)
             }
         }
+        favoriteMediaJobs[key] = job
     }
 
     fun clearFavorites() {
+        favoriteMediaJobs.values.forEach { it.cancel() }
+        favoriteMediaJobs.clear()
         viewModelScope.launch {
             favoriteMutex.withLock {
                 favoriteDao.clearAll()
@@ -1305,6 +1264,22 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    var hasUnlockedSession = false; private set
+    var lastBackgroundAt = 0L; private set
+
+    fun markSessionUnlocked(now: Long) {
+        hasUnlockedSession = true
+        lastBackgroundAt = now
+    }
+
+    fun markSessionLocked() {
+        hasUnlockedSession = false
+    }
+
+    fun markBackgrounded(now: Long) {
+        lastBackgroundAt = now
+    }
+
     fun setBiometricLock(enabled: Boolean, timeoutMin: Int = biometricLockTimeoutMin) {
         biometricLockEnabled = enabled
         biometricLockTimeoutMin = timeoutMin
@@ -1321,47 +1296,23 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun getMediaFolder(mediaIdOrKey: String): String? {
-        return favoriteFolders[mediaIdOrKey]
-            ?: favoriteFolders.entries.firstOrNull { it.key.endsWith("_$mediaIdOrKey") }?.value
-    }
-
-    fun setMediaFolder(mediaIdOrKey: String, folder: String?) {
-        val resolvedKey = if (!mediaIdOrKey.contains("_")) {
-            favoritesList.firstOrNull { it.id == mediaIdOrKey }?.mediaKey
-                ?: results.firstOrNull { it.id == mediaIdOrKey }?.mediaKey
-                ?: mediaIdOrKey
-        } else mediaIdOrKey
-        val map = favoriteFolders.toMutableMap()
-        if (folder == null) {
-            map.remove(resolvedKey)
-            map.remove(mediaIdOrKey)
-        } else {
-            map[resolvedKey] = folder
-            if (mediaIdOrKey != resolvedKey) map[mediaIdOrKey] = folder
-        }
-        favoriteFolders = map
-        viewModelScope.launch {
-            prefs.setMediaFolder(resolvedKey, folder)
-        }
-    }
+    fun getMediaFolder(media: RemoteMedia): String? =
+        favoriteFolders[media.mediaKey] ?: media.id.takeIf { it.isNotBlank() }?.let { favoriteFolders[it] }
 
     fun setMediaFolder(media: RemoteMedia, folder: String?) {
         val map = favoriteFolders.toMutableMap()
-        if (folder == null) {
-            map.remove(media.mediaKey)
-            map.remove(media.id)
-        } else {
-            map[media.mediaKey] = folder
-            map[media.id] = folder
-        }
+        val legacyKey = media.id.takeIf { it.isNotBlank() && map.containsKey(it) }
+        if (legacyKey != null) map.remove(legacyKey)
+        if (folder == null) map.remove(media.mediaKey) else map[media.mediaKey] = folder
         favoriteFolders = map
         viewModelScope.launch {
+            if (legacyKey != null) prefs.setMediaFolder(legacyKey, null)
             prefs.setMediaFolder(media.mediaKey, folder)
         }
     }
 
     fun addCustomFolder(name: String) {
+        if (name.isBlank() || customFolders.any { it.equals(name, ignoreCase = true) }) return
         if (name !in customFolders) {
             customFolders = customFolders + name
         }
@@ -1372,8 +1323,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun removeCustomFolder(name: String) {
         customFolders = customFolders - name
+        val orphaned = favoriteFolders.filterValues { it == name }.keys
+        if (orphaned.isNotEmpty()) favoriteFolders = favoriteFolders - orphaned
         viewModelScope.launch {
             prefs.removeCustomFolder(name)
+            orphaned.forEach { prefs.setMediaFolder(it, null) }
         }
     }
 
@@ -1425,6 +1379,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         secureStorage.setRule34ApiKey(apiKey)
         rule34UserId = userId.trim()
         rule34ApiKey = apiKey.trim()
+        cachedCredentials = null
         needsFeedRefresh = true
         if (source == BooruRepository.SOURCE_RULE34 || source == BooruRepository.SOURCE_ALL || isAuthError) {
             search(source, query, safeMode)
@@ -1436,6 +1391,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         secureStorage.setGelbooruApiKey(apiKey)
         gelbooruUserId = userId.trim()
         gelbooruApiKey = apiKey.trim()
+        cachedCredentials = null
         needsFeedRefresh = true
         if (source == BooruRepository.SOURCE_GELBOORU || source == BooruRepository.SOURCE_ALL || isAuthError) {
             search(source, query, safeMode)
@@ -1478,14 +1434,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun addBlacklistedTag(tag: String) {
-        needsFeedRefresh = true
         val clean = tag.trim().lowercase()
-        if (clean.isNotBlank() && results.isNotEmpty()) {
+        if (clean.isBlank()) return
+        if (results.isNotEmpty()) {
             results = results.filterNot { isBlacklisted(it, tagBlacklist + clean) }
         }
+        if (results.size < BooruRepository.PAGE_SIZE / 2) needsFeedRefresh = true
         viewModelScope.launch {
-            prefs.addTagToBlacklist(tag)
-            refresh()
+            prefs.addTagToBlacklist(clean)
         }
     }
 
@@ -1493,7 +1449,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         needsFeedRefresh = true
         viewModelScope.launch {
             prefs.removeTagFromBlacklist(tag)
-            refresh()
         }
     }
 
@@ -1501,7 +1456,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         needsFeedRefresh = true
         viewModelScope.launch {
             prefs.clearTagBlacklist()
-            refresh()
         }
     }
 
@@ -1550,6 +1504,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
         val updated = customSources.filterNot { it.id == safeSource.id } + safeSource
         customSources = updated
+        cachedCredentials = null
         viewModelScope.launch { prefs.saveCustomSources(updated) }
         return true
     }
@@ -1558,6 +1513,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val target = customSources.find { it.id == sourceId }
         val updated = customSources.filterNot { it.id == sourceId }
         customSources = updated
+        cachedCredentials = null
         viewModelScope.launch {
             prefs.saveCustomSources(updated)
             secureStorage.removeCustomCredentials(sourceId)
@@ -1612,14 +1568,75 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     var fullscreenState by mutableStateOf<FullscreenState?>(null)
         private set
+    private var fullscreenOpenCounter = 0L
 
     fun openFullscreen(list: List<RemoteMedia>, index: Int) {
         if (list.isNotEmpty()) {
             fullscreenState = FullscreenState(
                 list = list,
                 index = index.coerceIn(0, list.size - 1),
-                isFromResults = (list === results)
+                isFromResults = (list === results),
+                openId = ++fullscreenOpenCounter
             )
+        }
+    }
+
+    var activeDownloads by mutableStateOf<Set<String>>(emptySet()); private set
+    var isSettingWallpaper by mutableStateOf(false); private set
+
+    private fun toast(message: String, long: Boolean = false) {
+        android.widget.Toast.makeText(
+            getApplication(),
+            message,
+            if (long) android.widget.Toast.LENGTH_LONG else android.widget.Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    fun downloadMedia(media: RemoteMedia) {
+        val key = media.mediaKey
+        if (key in activeDownloads) return
+        activeDownloads = activeDownloads + key
+        val lang = language
+        toast(com.booru.app.data.Strings.loadingOriginal(lang))
+        viewModelScope.launch {
+            try {
+                com.booru.app.ui.MediaActionHandler.downloadMedia(getApplication(), media, ImageQuality.ORIGINAL)
+                    .onSuccess { filename -> toast("${com.booru.app.data.Strings.downloadSuccess(lang)}: $filename", long = true) }
+                    .onFailure { e -> toast("${com.booru.app.data.Strings.downloadFailed(lang)}: ${e.message}", long = true) }
+            } catch (c: CancellationException) {
+                throw c
+            } catch (e: Exception) {
+                toast("${com.booru.app.data.Strings.downloadFailed(lang)}: ${e.message}", long = true)
+            } finally {
+                activeDownloads = activeDownloads - key
+            }
+        }
+    }
+
+    fun applyWallpaper(target: Int, media: RemoteMedia) {
+        if (isSettingWallpaper) return
+        isSettingWallpaper = true
+        val lang = language
+        toast(com.booru.app.data.Strings.settingWallpaper(lang))
+        viewModelScope.launch {
+            try {
+                com.booru.app.ui.MediaActionHandler.applyWallpaper(getApplication(), target, media)
+                    .onSuccess { toast(com.booru.app.data.Strings.wallpaperSuccess(lang)) }
+                    .onFailure { e -> toast("${com.booru.app.data.Strings.wallpaperFailed(lang)}: ${e.message}") }
+            } catch (c: CancellationException) {
+                throw c
+            } catch (e: Exception) {
+                toast("${com.booru.app.data.Strings.wallpaperFailed(lang)}: ${e.message}")
+            } finally {
+                isSettingWallpaper = false
+            }
+        }
+    }
+
+    fun updateFullscreenIndex(index: Int) {
+        val state = fullscreenState ?: return
+        if (state.index != index && index >= 0) {
+            fullscreenState = state.copy(index = index)
         }
     }
 
@@ -1629,6 +1646,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     companion object {
         private const val TAG = "GalleryViewModel"
+        private const val SUGGESTION_DEBOUNCE_MS = 220L
+        private const val REC_TAGS_PER_PAGE = 4
+        private const val REC_MAX_PER_TAG = 6
+        private const val REC_TAG_PAGE_LIMIT = 15
+        private const val FILTERED_TARGET_COUNT = 24
+        private val REC_TAG_EXCLUDED_SOURCES = setOf("realbooru")
 
         fun getRecommendationRatio(tagCount: Int): Float {
             return when (tagCount) {
@@ -1717,5 +1740,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 data class FullscreenState(
     val list: List<RemoteMedia>,
     val index: Int,
-    val isFromResults: Boolean = false
+    val isFromResults: Boolean = false,
+    val openId: Long = 0L
 )

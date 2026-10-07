@@ -27,3 +27,6 @@ captures/
 */src/androidTest/
 
 
+.agents/
+.claude/
+skills-lock.json

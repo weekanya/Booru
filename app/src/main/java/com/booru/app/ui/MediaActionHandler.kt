@@ -253,6 +253,7 @@ object MediaActionHandler {
                 .size(maxDim, maxDim)
                 .scale(Scale.FIT)
                 .allowHardware(false)
+                .memoryCachePolicy(coil.request.CachePolicy.DISABLED)
                 .build()
 
             val result = imageLoader.execute(request)

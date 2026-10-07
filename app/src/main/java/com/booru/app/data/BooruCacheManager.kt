@@ -19,20 +19,31 @@ object BooruCacheManager {
 
     const val MAX_MEDIA_CACHE_BYTES = 100L * 1024L * 1024L
     private const val TAG = "BooruCacheManager"
+    private val HEX = "0123456789abcdef".toCharArray()
 
     private val httpClient = NetworkClient.baseClient.newBuilder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
+    @Volatile
+    private var favoritesDir: File? = null
+
     fun getFavoritesMediaDir(context: Context): File {
-        return File(context.filesDir, "favorites_media").apply { mkdirs() }
+        favoritesDir?.let { if (it.exists()) return it }
+        return File(context.filesDir, "favorites_media").apply { mkdirs() }.also { favoritesDir = it }
     }
 
     private fun urlToHash(url: String): String {
         val md = MessageDigest.getInstance("SHA-256")
         val bytes = md.digest(url.toByteArray(Charsets.UTF_8))
-        return bytes.joinToString("") { "%02x".format(it) }
+        val out = CharArray(bytes.size * 2)
+        for (i in bytes.indices) {
+            val v = bytes[i].toInt() and 0xFF
+            out[i * 2] = HEX[v ushr 4]
+            out[i * 2 + 1] = HEX[v and 0x0F]
+        }
+        return String(out)
     }
 
     fun getFavoriteFileForUrl(context: Context, url: String): File? {
@@ -194,6 +205,44 @@ object BooruCacheManager {
             bytes < 1024 * 1024 * 1024 -> String.format(java.util.Locale.US, "%.1f MB", bytes.toDouble() / (1024 * 1024))
             else -> String.format(java.util.Locale.US, "%.2f GB", bytes.toDouble() / (1024 * 1024 * 1024))
         }
+    }
+
+    private const val TRASH_PREFIX = "cache_trash_"
+    private val KEPT_ON_LAUNCH = setOf("updates")
+
+    fun moveBrowsingCacheToTrash(context: Context): List<File> {
+        val moved = mutableListOf<File>()
+        val stamp = System.nanoTime()
+        try {
+            context.cacheDir.listFiles()?.forEachIndexed { index, file ->
+                if (file.name.startsWith(TRASH_PREFIX)) {
+                    moved.add(file)
+                } else if (file.name !in KEPT_ON_LAUNCH) {
+                    val target = File(context.cacheDir, "$TRASH_PREFIX${stamp}_${index}_${file.name}")
+                    if (file.renameTo(target)) moved.add(target) else moved.add(file)
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to move cache to trash", e)
+        }
+        return moved
+    }
+
+    fun deleteTrash(context: Context, entries: List<File>) {
+        for (entry in entries) {
+            try {
+                if (entry.isDirectory && entry.name.endsWith("booru_video_cache")) {
+                    com.booru.app.BooruVideoCache.deleteCacheDirectory(context, entry)
+                } else {
+                    entry.deleteRecursively()
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to delete cache entry ${entry.name}", e)
+            }
+        }
+        try {
+            context.externalCacheDir?.listFiles()?.forEach { it.deleteRecursively() }
+        } catch (_: Exception) {}
     }
 
     @OptIn(coil.annotation.ExperimentalCoilApi::class)

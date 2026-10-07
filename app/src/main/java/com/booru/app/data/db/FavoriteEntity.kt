@@ -33,7 +33,8 @@ data class FavoriteEntity(
             rating = rating,
             width = width,
             height = height,
-            createdAt = createdAt
+            createdAt = createdAt,
+            sourceId = if (id.isNotBlank() && mediaKey.endsWith("_$id")) mediaKey.removeSuffix("_$id") else ""
         )
     }
 

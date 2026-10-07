@@ -30,8 +30,9 @@ class BooruApplication : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        val trash = BooruCacheManager.moveBrowsingCacheToTrash(this)
         CoroutineScope(Dispatchers.IO).launch {
-            BooruCacheManager.clearBrowsingCache(this@BooruApplication)
+            BooruCacheManager.deleteTrash(this@BooruApplication, trash)
         }
     }
 
@@ -257,9 +258,19 @@ object BooruVideoCache {
             try {
                 val videoDir = java.io.File(context.applicationContext.cacheDir, "booru_video_cache")
                 if (videoDir.exists()) {
-                    videoDir.deleteRecursively()
+                    deleteCacheDirectory(context, videoDir)
                 }
             } catch (_: Exception) {}
         }
+    }
+
+    fun deleteCacheDirectory(context: android.content.Context, dir: java.io.File) {
+        try {
+            androidx.media3.datasource.cache.SimpleCache.delete(
+                dir,
+                androidx.media3.database.StandaloneDatabaseProvider(context.applicationContext)
+            )
+        } catch (_: Exception) {}
+        if (dir.exists()) dir.deleteRecursively()
     }
 }

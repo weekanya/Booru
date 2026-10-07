@@ -65,9 +65,9 @@ object UpdateChecker {
                 val json = JSONObject(bodyStr)
 
                 val tagName = json.optString("tag_name", "").trim()
-                val name = json.optString("name", "Booru $tagName")
-                val body = json.optString("body", "")
-                val htmlUrl = json.optString("html_url", "https://github.com/weekanya/Booru/releases")
+                val name = json.optString("name").takeUnless { json.isNull("name") || it.isBlank() } ?: "Booru $tagName"
+                val body = json.optString("body").takeUnless { json.isNull("body") } ?: ""
+                val htmlUrl = json.optString("html_url").takeUnless { json.isNull("html_url") || it.isBlank() } ?: "https://github.com/weekanya/Booru/releases"
 
                 var apkDownloadUrl: String? = null
                 val assets = json.optJSONArray("assets")

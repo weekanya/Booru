@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.CancellationSignal
+import android.os.SystemClock
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -52,6 +53,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -78,9 +85,8 @@ import com.booru.app.ui.Motion
 import com.booru.app.ui.SettingsScreen
 
 class MainActivity : ComponentActivity() {
-    private var lastBackgroundTime = 0L
     private val isAppLocked = mutableStateOf(false)
-    private var hasUnlockedOnce = false
+    private var activeSignal: CancellationSignal? = null
     private val vm by lazy { ViewModelProvider(this)[GalleryViewModel::class.java] }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -94,13 +100,14 @@ class MainActivity : ComponentActivity() {
                 WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         }
         super.onCreate(savedInstanceState)
+        isAppLocked.value = vm.biometricLockEnabled && !vm.hasUnlockedSession
         setContent {
             BooruApp(
                 vm = vm,
                 isAppLocked = isAppLocked.value,
                 onUnlockRequest = { promptBiometric() },
                 onLockNeeded = {
-                    if (!hasUnlockedOnce) {
+                    if (!vm.hasUnlockedSession) {
                         isAppLocked.value = true
                         promptBiometric()
                     }
@@ -113,8 +120,9 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         if (vm.biometricLockEnabled) {
             val timeoutMs = vm.biometricLockTimeoutMin * 60 * 1000L
-            val elapsed = System.currentTimeMillis() - lastBackgroundTime
-            if (!hasUnlockedOnce || (lastBackgroundTime != 0L && elapsed >= timeoutMs)) {
+            val elapsed = SystemClock.elapsedRealtime() - vm.lastBackgroundAt
+            if (!vm.hasUnlockedSession || (vm.lastBackgroundAt != 0L && elapsed >= timeoutMs)) {
+                vm.markSessionLocked()
                 isAppLocked.value = true
                 promptBiometric()
             }
@@ -124,48 +132,75 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         if (!isChangingConfigurations) {
-            lastBackgroundTime = System.currentTimeMillis()
+            vm.markBackgrounded(SystemClock.elapsedRealtime())
         }
+    }
+
+    private fun canUseDeviceAuth(): Boolean {
+        val manager = getSystemService(BiometricManager::class.java) ?: return false
+        return manager.canAuthenticate(
+            BiometricManager.Authenticators.BIOMETRIC_STRONG or
+                BiometricManager.Authenticators.DEVICE_CREDENTIAL
+        ) == BiometricManager.BIOMETRIC_SUCCESS
+    }
+
+    private fun unlock() {
+        activeSignal = null
+        isAppLocked.value = false
+        vm.markSessionUnlocked(SystemClock.elapsedRealtime())
     }
 
     private fun promptBiometric() {
         if (!vm.biometricLockEnabled) {
-            isAppLocked.value = false
+            unlock()
             return
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            try {
-                val prompt = BiometricPrompt.Builder(this)
-                    .setTitle(Strings.biometricLockTitle(vm.language))
-                    .setAllowedAuthenticators(
-                        BiometricManager.Authenticators.BIOMETRIC_STRONG or
+        if (!canUseDeviceAuth()) {
+            vm.setBiometricLock(false)
+            unlock()
+            Toast.makeText(this, Strings.biometricUnavailable(vm.language), Toast.LENGTH_LONG).show()
+            return
+        }
+        if (activeSignal != null) return
+        try {
+            val prompt = BiometricPrompt.Builder(this)
+                .setTitle(Strings.biometricLockTitle(vm.language))
+                .setAllowedAuthenticators(
+                    BiometricManager.Authenticators.BIOMETRIC_STRONG or
                         BiometricManager.Authenticators.DEVICE_CREDENTIAL
-                    )
-                    .build()
-                val signal = CancellationSignal()
-                prompt.authenticate(
-                    signal,
-                    mainExecutor,
-                    object : BiometricPrompt.AuthenticationCallback() {
-                        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult?) {
-                            isAppLocked.value = false
-                            hasUnlockedOnce = true
-                            lastBackgroundTime = System.currentTimeMillis()
-                        }
-                        override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
+                )
+                .build()
+            val signal = CancellationSignal()
+            activeSignal = signal
+            prompt.authenticate(
+                signal,
+                mainExecutor,
+                object : BiometricPrompt.AuthenticationCallback() {
+                    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult?) {
+                        unlock()
+                    }
+
+                    override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
+                        if (activeSignal === signal) activeSignal = null
+                        when (errorCode) {
+                            BiometricPrompt.BIOMETRIC_ERROR_HW_NOT_PRESENT,
+                            BiometricPrompt.BIOMETRIC_ERROR_HW_UNAVAILABLE,
+                            BiometricPrompt.BIOMETRIC_ERROR_NO_BIOMETRICS,
+                            BiometricPrompt.BIOMETRIC_ERROR_NO_DEVICE_CREDENTIAL,
+                            BiometricPrompt.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED -> {
+                                if (!canUseDeviceAuth()) {
+                                    vm.setBiometricLock(false)
+                                    unlock()
+                                }
+                            }
                         }
                     }
-                )
-            } catch (e: Exception) {
-                isAppLocked.value = false
-            }
-        } else {
-            isAppLocked.value = false
+                }
+            )
+        } catch (e: Exception) {
+            activeSignal = null
+            unlock()
         }
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
     }
 }
 
@@ -185,6 +220,8 @@ fun BooruApp(
     onLockNeeded: () -> Unit = {}
 ) {
     val lang = vm.language
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    val tabStateHolder = rememberSaveableStateHolder()
 
     LaunchedEffect(vm.biometricLockEnabled) {
         if (vm.biometricLockEnabled) {
@@ -260,8 +297,6 @@ fun BooruApp(
         return
     }
 
-    var selectedTab by remember { mutableIntStateOf(0) }
-
     val navItems = remember(vm.favoritesList.size, lang) {
         listOf(
             NavItemData(Strings.navExplore(lang), Icons.Rounded.Explore, Icons.Rounded.Explore),
@@ -271,6 +306,7 @@ fun BooruApp(
     }
 
     val context = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     var lastBackPressTime by remember { mutableLongStateOf(0L) }
 
     BackHandler(enabled = vm.fullscreenState == null) {
@@ -318,43 +354,50 @@ fun BooruApp(
                                 .displayCutoutPadding()
                                 .statusBarsPadding()
                         ) {
-                            Crossfade(
+                            AnimatedContent(
                                 targetState = selectedTab,
-                                animationSpec = tween(durationMillis = 140, easing = FastOutSlowInEasing),
-                                label = "TabCrossfade",
+                                transitionSpec = {
+                                    (fadeIn(tween(Motion.FADE_THROUGH_IN_MS, delayMillis = Motion.FADE_THROUGH_OUT_MS, easing = Motion.EmphasizedDecelerate)) +
+                                        scaleIn(tween(Motion.FADE_THROUGH_IN_MS, delayMillis = Motion.FADE_THROUGH_OUT_MS, easing = Motion.EmphasizedDecelerate), initialScale = 0.96f))
+                                        .togetherWith(fadeOut(tween(Motion.FADE_THROUGH_OUT_MS, easing = Motion.EmphasizedAccelerate)))
+                                },
+                                label = "TabFadeThrough",
                                 modifier = Modifier.fillMaxSize()
                             ) { tab ->
-                                Surface(
-                                    modifier = Modifier.fillMaxSize(),
-                                    color = MaterialTheme.colorScheme.surface
-                                ) {
-                                    when (tab) {
-                                        0 -> ExploreScreen(
-                                            vm = vm,
-                                            onNavigateToSettings = { selectedTab = 2 }
-                                        )
-                                        1 -> FavoritesScreen(
-                                            vm = vm,
-                                            onNavigateToExplore = { selectedTab = 0 }
-                                        )
-                                        2 -> SettingsScreen(
-                                            vm = vm
-                                        )
+                                tabStateHolder.SaveableStateProvider(tab) {
+                                    Surface(
+                                        modifier = Modifier.fillMaxSize(),
+                                        color = MaterialTheme.colorScheme.surface
+                                    ) {
+                                        when (tab) {
+                                            0 -> ExploreScreen(
+                                                vm = vm,
+                                                onNavigateToSettings = { selectedTab = 2 }
+                                            )
+                                            1 -> FavoritesScreen(
+                                                vm = vm,
+                                                onNavigateToExplore = { selectedTab = 0 }
+                                            )
+                                            2 -> SettingsScreen(
+                                                vm = vm
+                                            )
+                                        }
                                     }
                                 }
                             }
 
                             Surface(
                                 shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                    tonalElevation = 6.dp,
-                                    shadowElevation = 8.dp,
+                                color = MaterialTheme.colorScheme.surfaceContainer,
+                                    tonalElevation = 3.dp,
+                                    shadowElevation = 6.dp,
                                     modifier = Modifier
                                         .align(Alignment.BottomCenter)
-                                        .padding(horizontal = 24.dp, vertical = 14.dp)
+                                        .navigationBarsPadding()
+                                        .padding(horizontal = 24.dp, vertical = 12.dp)
                                         .height(64.dp)
-                                        .fillMaxWidth()
                                         .widthIn(max = 480.dp)
+                                        .fillMaxWidth()
                                 ) {
                                     Row(
                                         modifier = Modifier
@@ -369,7 +412,7 @@ fun BooruApp(
                                                 targetValue = if (isSelected)
                                                     MaterialTheme.colorScheme.primaryContainer
                                                 else
-                                                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0f),
+                                                    MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0f),
                                                 animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
                                                 label = "navItemBg"
                                             )
@@ -390,15 +433,20 @@ fun BooruApp(
                                                     .fillMaxHeight()
                                                     .clip(CircleShape)
                                                     .bouncyPress(scaleDown = 0.96f)
-                                                    .clickable {
-                                                        if (selectedTab == index) {
-                                                            if (index == 0) {
-                                                                vm.scrollToTop()
+                                                    .selectable(
+                                                        selected = isSelected,
+                                                        role = Role.Tab,
+                                                        onClick = {
+                                                            haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                                                            if (selectedTab == index) {
+                                                                if (index == 0) {
+                                                                    vm.scrollToTop()
+                                                                }
+                                                            } else {
+                                                                selectedTab = index
                                                             }
-                                                        } else {
-                                                            selectedTab = index
                                                         }
-                                                    }
+                                                    )
                                             ) {
                                                 Row(
                                                     modifier = Modifier
@@ -415,7 +463,7 @@ fun BooruApp(
                                                         ) { sel ->
                                                             Icon(
                                                                 imageVector = if (sel) item.selectedIcon else item.icon,
-                                                                contentDescription = item.label,
+                                                                contentDescription = if (isSelected) null else item.label,
                                                                 tint = contentColor,
                                                                 modifier = Modifier.size(22.dp)
                                                             )
@@ -429,7 +477,7 @@ fun BooruApp(
                                                                     containerColor = MaterialTheme.colorScheme.primary,
                                                                     contentColor = MaterialTheme.colorScheme.onPrimary
                                                                 ) {
-                                                                    Text("${item.badgeCount}")
+                                                                    Text(if (item.badgeCount > 99) "99+" else "${item.badgeCount}")
                                                                 }
                                                             }
                                                         ) {
@@ -490,7 +538,7 @@ fun BooruApp(
                                         .weight(0.58f)
                                         .fillMaxHeight()
                                 ) {
-                                    key(state.index, state.list.size) {
+                                    key(state.openId) {
                                         FullscreenMediaViewer(
                                             initialIndex = state.index,
                                             mediaList = if (state.isFromResults) vm.results else state.list,
@@ -537,15 +585,6 @@ fun BooruApp(
                 onDismissRequest = { vm.clearManualCheckResult() },
                 sheetState = checkSheetState,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                dragHandle = {
-                    Surface(
-                        modifier = Modifier
-                            .padding(vertical = 12.dp)
-                            .size(width = 36.dp, height = 4.dp),
-                        shape = CircleShape,
-                        color = Color.White
-                    ) {}
-                },
                 shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
             ) {
                 Column(
@@ -613,7 +652,11 @@ private fun UpdateBottomSheet(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val isDownloading by rememberUpdatedState(vm.isDownloadingUpdate)
+    val sheetState = rememberModalBottomSheetState(
+        skipPartiallyExpanded = true,
+        confirmValueChange = { it != SheetValue.Hidden || !isDownloading }
+    )
     val scope = rememberCoroutineScope()
 
     ModalBottomSheet(
@@ -624,15 +667,6 @@ private fun UpdateBottomSheet(
         },
         sheetState = sheetState,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        dragHandle = {
-            Surface(
-                modifier = Modifier
-                    .padding(vertical = 12.dp)
-                    .size(width = 36.dp, height = 4.dp),
-                shape = CircleShape,
-                color = Color.White
-            ) {}
-        },
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
@@ -796,7 +830,7 @@ private fun UpdateBottomSheet(
                         )
                         Spacer(Modifier.width(12.dp))
                         Text(
-                            text = if (lang == AppLanguage.RUSSIAN) "Файл обновления загружен и готов к установке." else "Update is downloaded and ready to install.",
+                            text = Strings.updateReadyToInstall(lang),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.SemiBold
@@ -847,7 +881,7 @@ private fun UpdateBottomSheet(
                     )
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = if (lang == AppLanguage.RUSSIAN) "Отмена" else "Cancel",
+                        text = Strings.cancelBtn(lang),
                         color = MaterialTheme.colorScheme.error,
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.labelLarge
@@ -860,7 +894,7 @@ private fun UpdateBottomSheet(
                 ) {
                     Button(
                         onClick = {
-                            vm.installApk(context, vm.downloadedApkFile!!)
+                            vm.downloadedApkFile?.let { vm.installApk(context, it) }
                         },
                         shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -884,7 +918,7 @@ private fun UpdateBottomSheet(
                         modifier = Modifier.align(Alignment.CenterHorizontally)
                     ) {
                         Text(
-                            text = if (lang == AppLanguage.RUSSIAN) "Скачать заново" else "Download again",
+                            text = Strings.downloadAgain(lang),
                             color = MaterialTheme.colorScheme.primary,
                             style = MaterialTheme.typography.labelMedium
                         )
@@ -907,9 +941,14 @@ private fun UpdateBottomSheet(
                     FilledTonalButton(
                         onClick = {
                             val targetUrl = info.apkDownloadUrl ?: info.releaseUrl
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl))
-                            context.startActivity(intent)
-                            scope.launch { sheetState.hide() }.invokeOnCompletion { vm.dismissUpdate() }
+                            val opened = runCatching {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                            }.isSuccess
+                            if (opened) {
+                                scope.launch { sheetState.hide() }.invokeOnCompletion { vm.dismissUpdate() }
+                            } else {
+                                Toast.makeText(context, Strings.noBrowserFound(lang), Toast.LENGTH_SHORT).show()
+                            }
                         },
                         shape = RoundedCornerShape(20.dp),
                         modifier = Modifier
