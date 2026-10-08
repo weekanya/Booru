@@ -11,9 +11,11 @@
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/1.png" width="260" alt="Screenshot 1"></td>
-    <td><img src="docs/screenshots/2.png" width="260" alt="Screenshot 2"></td>
-    <td><img src="docs/screenshots/3.png" width="260" alt="Screenshot 3"></td>
+    <td><img src="docs/screenshots/1.png" width="180" alt="Explore"></td>
+    <td><img src="docs/screenshots/4.png" width="180" alt="Search"></td>
+    <td><img src="docs/screenshots/5.png" width="180" alt="Post details"></td>
+    <td><img src="docs/screenshots/2.png" width="180" alt="Favorites"></td>
+    <td><img src="docs/screenshots/3.png" width="180" alt="Settings"></td>
   </tr>
 </table>
 

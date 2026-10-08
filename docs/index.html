@@ -325,6 +325,7 @@ em { font-style: normal; color: var(--md-sys-color-primary); font-weight: 700; f
 .screen-caption p { margin-top: 4px; }
 .pager { display: flex; align-items: center; gap: 16px; }
 .dots { display: flex; gap: 8px; }
+.dots span[hidden], .seg[hidden] { display: none; }
 .dots span { width: 8px; height: 8px; border-radius: 4px; background: var(--md-sys-color-outline-variant); transition: width var(--spring-fast), background-color var(--effects); }
 .dots span.on { width: 24px; background: var(--md-sys-color-primary); }
 
@@ -485,8 +486,10 @@ em { font-style: normal; color: var(--md-sys-color-primary); font-weight: 700; f
       <div class="screens">
         <div class="connected" role="tablist" aria-label="Screens">
           <button class="seg state" role="tab" aria-selected="true" data-shot="0"><span class="ms">check</span>Explore</button>
-          <button class="seg state" role="tab" aria-selected="false" data-shot="1" tabindex="-1"><span class="ms">check</span>Favorites</button>
-          <button class="seg state" role="tab" aria-selected="false" data-shot="2" tabindex="-1"><span class="ms">check</span>Settings</button>
+          <button class="seg state" role="tab" aria-selected="false" data-shot="1" tabindex="-1"><span class="ms">check</span>Search</button>
+          <button class="seg state" role="tab" aria-selected="false" data-shot="2" tabindex="-1"><span class="ms">check</span>Details</button>
+          <button class="seg state" role="tab" aria-selected="false" data-shot="3" tabindex="-1"><span class="ms">check</span>Favorites</button>
+          <button class="seg state" role="tab" aria-selected="false" data-shot="4" tabindex="-1"><span class="ms">check</span>Settings</button>
         </div>
         <div class="viewer">
           <button class="icon-btn tonal state side" data-step="-1" aria-label="Previous screen"><span class="ms">arrow_back</span></button>
@@ -499,7 +502,7 @@ em { font-style: normal; color: var(--md-sys-color-primary); font-weight: 700; f
         </div>
         <div class="pager">
           <button class="icon-btn tonal state" data-step="-1" aria-label="Previous screen"><span class="ms">arrow_back</span></button>
-          <div class="dots" id="dots"><span class="on"></span><span></span><span></span></div>
+          <div class="dots" id="dots"><span class="on"></span><span></span><span></span><span></span><span></span></div>
           <button class="icon-btn tonal state" data-step="1" aria-label="Next screen"><span class="ms">arrow_forward</span></button>
         </div>
       </div>
@@ -678,10 +681,11 @@ em { font-style: normal; color: var(--md-sys-color-primary); font-weight: 700; f
 
   var shots = [
     { src: "screenshots/1.png", title: "Explore", text: "One feed from every source, with search, filters and recommendations." },
+    { src: "screenshots/4.png", title: "Search", text: "Tag suggestions with categories and post counts, plus your search history." },
+    { src: "screenshots/5.png", title: "Details", text: "Download, like, add to a folder and explore tags right from the post." },
     { src: "screenshots/2.png", title: "Favorites", text: "Folders, search by tag and offline storage for everything you like." },
     { src: "screenshots/3.png", title: "Settings", text: "Themes, palettes, sources and privacy in one place." }
   ];
-  shots.forEach(function (s) { var im = new Image(); im.src = s.src; });
   var shotIndex = 0;
   var shotImg = document.getElementById("shotImg");
   var shotTitle = document.getElementById("shotTitle");
@@ -689,7 +693,22 @@ em { font-style: normal; color: var(--md-sys-color-primary); font-weight: 700; f
   var shotTabs = Array.prototype.slice.call(document.querySelectorAll("[data-shot]"));
   var dots = Array.prototype.slice.call(document.querySelectorAll("#dots span"));
   var swapTimer = null;
+  shots.forEach(function (sh, k) {
+    var im = new Image();
+    im.onerror = function () {
+      sh.missing = true;
+      shotTabs[k].hidden = true;
+      dots[k].hidden = true;
+      if (k === shotIndex) showShot(k + 1, 1);
+    };
+    im.src = sh.src;
+  });
   function showShot(i, dir) {
+    if (shots.every(function (sh) { return sh.missing; })) return;
+    var n = shots.length;
+    i = ((i % n) + n) % n;
+    var guard = 0;
+    while (shots[i].missing && guard++ < n) i = (((i + (dir || 1)) % n) + n) % n;
     i = (i + shots.length) % shots.length;
     if (i === shotIndex) return;
     if (dir === undefined) dir = i > shotIndex ? 1 : -1;
