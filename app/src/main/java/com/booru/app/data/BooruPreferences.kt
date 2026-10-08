@@ -216,7 +216,7 @@ class BooruPreferences(private val context: Context) {
     }
 
     val gridColumnsCount: Flow<Int> = read { prefs ->
-        prefs[KEY_GRID_COLUMNS_COUNT] ?: 0
+        (prefs[KEY_GRID_COLUMNS_COUNT] ?: 0).coerceIn(0, 3)
     }
 
     suspend fun saveCustomSources(sources: List<CustomBooruSource>) {
@@ -554,7 +554,7 @@ class BooruPreferences(private val context: Context) {
     }
 
     suspend fun setGridColumnsCount(cols: Int) {
-        context.dataStore.edit { it[KEY_GRID_COLUMNS_COUNT] = cols.coerceIn(0, 4) }
+        context.dataStore.edit { it[KEY_GRID_COLUMNS_COUNT] = cols.coerceIn(0, 3) }
     }
 
     suspend fun clearRecommendationData() {

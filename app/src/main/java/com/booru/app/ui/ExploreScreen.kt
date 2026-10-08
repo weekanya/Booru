@@ -572,7 +572,6 @@ fun ExploreScreen(
                             1 -> StaggeredGridCells.Fixed(adaptiveColumns(1))
                             2 -> StaggeredGridCells.Fixed(adaptiveColumns(2))
                             3 -> StaggeredGridCells.Fixed(adaptiveColumns(3))
-                            4 -> StaggeredGridCells.Fixed(adaptiveColumns(4))
                             else -> StaggeredGridCells.Adaptive(minSize = 175.dp)
                         }
 
@@ -619,7 +618,7 @@ fun ExploreScreen(
                                             val cur = if (vm.gridColumnsCount == 0) 2 else vm.gridColumnsCount
                                             if (finalZoom > 1.18f && cur > 1) {
                                                 vm.setGridColumns(cur - 1)
-                                            } else if (finalZoom < 0.84f && cur < 4) {
+                                            } else if (finalZoom < 0.84f && cur < 3) {
                                                 vm.setGridColumns(cur + 1)
                                             }
                                             scope.launch {
@@ -1503,7 +1502,7 @@ private fun SkeletonGrid(columnsSetting: Int) {
         label = "skeletonPulse"
     )
     val cells = when (columnsSetting) {
-        in 1..4 -> StaggeredGridCells.Fixed(columnsSetting)
+        in 1..3 -> StaggeredGridCells.Fixed(columnsSetting)
         else -> StaggeredGridCells.Adaptive(minSize = 175.dp)
     }
     val ratios = remember { listOf(0.75f, 1f, 0.66f, 0.8f, 1.2f, 0.7f, 0.9f, 0.62f, 1f, 0.78f, 0.7f, 1.1f) }

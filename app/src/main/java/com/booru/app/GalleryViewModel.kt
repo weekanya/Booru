@@ -1368,7 +1368,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun setGridColumns(cols: Int) {
-        gridColumnsCount = cols.coerceIn(0, 4)
+        gridColumnsCount = cols.coerceIn(0, 3)
         viewModelScope.launch {
             prefs.setGridColumnsCount(cols)
         }

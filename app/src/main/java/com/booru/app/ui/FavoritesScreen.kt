@@ -747,7 +747,6 @@ fun FavoritesScreen(
                     1 -> StaggeredGridCells.Fixed(adaptiveColumns(1))
                     2 -> StaggeredGridCells.Fixed(adaptiveColumns(2))
                     3 -> StaggeredGridCells.Fixed(adaptiveColumns(3))
-                    4 -> StaggeredGridCells.Fixed(adaptiveColumns(4))
                     else -> StaggeredGridCells.Adaptive(minSize = 175.dp)
                 }
                 LazyVerticalStaggeredGrid(
