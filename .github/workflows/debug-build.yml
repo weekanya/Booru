@@ -2,7 +2,7 @@ name: Debug APK
 
 on:
   push:
-    branches: [main]
+    branches: [main, test]
   workflow_dispatch:
 
 concurrency:
