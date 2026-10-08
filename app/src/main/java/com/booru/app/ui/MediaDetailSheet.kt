@@ -148,7 +148,6 @@ fun MediaDetailSheet(
     }
 
     val context = LocalContext.current
-    val showMessage = LocalShowMessage.current
     val lang = vm.language
     val coroutineScope = rememberCoroutineScope()
 
@@ -601,7 +600,7 @@ fun MediaDetailSheet(
                                             runCatching {
                                                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(browserUrl)))
                                             }.onFailure {
-                                                showMessage("Could not open browser")
+                                                Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
                                             }
                                         }
                                     )
@@ -1136,7 +1135,7 @@ fun MediaDetailSheet(
                         onClick = {
                             val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             cm.setPrimaryClip(ClipData.newPlainText("Tag", currentActionTag))
-                            showMessage(Strings.tagCopied(lang))
+                            Toast.makeText(context, Strings.tagCopied(lang), Toast.LENGTH_SHORT).show()
                             coroutineScope.launch {
                                 tagSheetState.hide()
                             }.invokeOnCompletion {
