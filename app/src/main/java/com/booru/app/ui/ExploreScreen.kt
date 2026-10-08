@@ -943,103 +943,37 @@ fun ExploreScreen(
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
                         if (vm.tagSuggestions.isNotEmpty()) {
-                            Card(
-                                shape = ShapeTokens.ExtraLarge,
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainer
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(Modifier.padding(vertical = 8.dp)) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically
+                            SearchSectionHeader(
+                                icon = Icons.Rounded.AutoAwesome,
+                                title = Strings.tagSuggestions(lang)
+                            )
+                            val suggestionCount = vm.tagSuggestions.size
+                            vm.tagSuggestions.forEachIndexed { index, suggestion ->
+                                val classified = remember(suggestion.value, suggestion.type) { TagClassifier.classify(suggestion.value, suggestion.type) }
+                                val category = classified.category
+                                val isDark = LocalIsDarkTheme.current
+                                val catColor = category.contentColor(isDark) ?: MaterialTheme.colorScheme.primary
+                                val catBg = category.containerColor(isDark) ?: MaterialTheme.colorScheme.secondaryContainer
+                                SearchListItem(
+                                    shape = segmentedListShape(index, suggestionCount),
+                                    onClick = { applySuggestion(suggestion.value, submit = false) },
+                                    icon = category.icon,
+                                    iconContainer = catBg,
+                                    iconTint = catColor,
+                                    title = suggestion.value,
+                                    titleColor = catColor,
+                                    supporting = if (suggestion.count > 0) "${category.displayName} · ${formatCompactCount(suggestion.count)}" else category.displayName
+                                ) {
+                                    IconButton(
+                                        onClick = { applySuggestion(suggestion.value, submit = true) },
+                                        modifier = Modifier.size(40.dp)
                                     ) {
                                         Icon(
-                                            Icons.Rounded.AutoAwesome,
-                                            null,
+                                            Icons.Rounded.Search,
+                                            contentDescription = "Search",
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(20.dp)
                                         )
-                                        Spacer(Modifier.width(10.dp))
-                                        Text(
-                                            Strings.tagSuggestions(lang),
-                                            style = MaterialTheme.typography.titleMedium,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-
-                                    vm.tagSuggestions.forEach { suggestion ->
-                                        Surface(
-                                            onClick = { applySuggestion(suggestion.value, submit = false) },
-                                            color = Color.Transparent,
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                val classified = remember(suggestion.value, suggestion.type) { TagClassifier.classify(suggestion.value, suggestion.type) }
-                                                val category = classified.category
-                                                val isDark = LocalIsDarkTheme.current
-                                                val catColor = category.contentColor(isDark) ?: MaterialTheme.colorScheme.primary
-                                                val catBg = category.containerColor(isDark) ?: MaterialTheme.colorScheme.surfaceContainerHighest
-
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    modifier = Modifier.weight(1f)
-                                                ) {
-                                                    Surface(
-                                                        shape = CircleShape,
-                                                        color = catBg,
-                                                        modifier = Modifier.size(32.dp)
-                                                    ) {
-                                                        Box(contentAlignment = Alignment.Center) {
-                                                            Icon(
-                                                                category.icon,
-                                                                null,
-                                                                tint = catColor,
-                                                                modifier = Modifier.size(16.dp)
-                                                            )
-                                                        }
-                                                    }
-                                                    Spacer(Modifier.width(12.dp))
-                                                    Column(modifier = Modifier.weight(1f, fill = false)) {
-                                                        Text(
-                                                            text = suggestion.value,
-                                                            style = MaterialTheme.typography.bodyLarge,
-                                                            color = catColor,
-                                                            fontWeight = FontWeight.Medium,
-                                                            maxLines = 1,
-                                                            overflow = TextOverflow.Ellipsis
-                                                        )
-                                                        Text(
-                                                            text = if (suggestion.count > 0) "${category.displayName} · ${formatCompactCount(suggestion.count)}" else category.displayName,
-                                                            style = MaterialTheme.typography.labelSmall,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                            fontWeight = FontWeight.SemiBold
-                                                        )
-                                                    }
-                                                }
-                                                IconButton(
-                                                    onClick = { applySuggestion(suggestion.value, submit = true) },
-                                                    modifier = Modifier.size(40.dp)
-                                                ) {
-                                                    Icon(
-                                                        Icons.Rounded.Search,
-                                                        contentDescription = "Search",
-                                                        tint = MaterialTheme.colorScheme.primary,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
                                     }
                                 }
                             }
@@ -1052,106 +986,55 @@ fun ExploreScreen(
                             else vm.searchHistory.filter { it.lowercase().contains(historyFilter) && !it.equals(historyFilter, ignoreCase = true) }
                         }
                         if (visibleHistory.isNotEmpty()) {
-                            Card(
-                                shape = ShapeTokens.ExtraLarge,
-                                colors = CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainer
-                                ),
-                                modifier = Modifier.fillMaxWidth()
+                            SearchSectionHeader(
+                                icon = Icons.Rounded.History,
+                                title = Strings.recentSearches(lang)
                             ) {
-                                Column(Modifier.padding(vertical = 8.dp)) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
+                                FilledTonalButton(
+                                    onClick = { vm.clearHistory() },
+                                    shape = CircleShape,
+                                    contentPadding = PaddingValues(horizontal = 12.dp),
+                                    modifier = Modifier.height(32.dp)
+                                ) {
+                                    Icon(Icons.Rounded.DeleteSweep, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(Strings.clearAll(lang), style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                            val shownHistory = visibleHistory.take(8)
+                            shownHistory.forEachIndexed { index, hist ->
+                                SearchListItem(
+                                    shape = segmentedListShape(index, shownHistory.size),
+                                    onClick = { submitSearch(hist) },
+                                    icon = Icons.Rounded.History,
+                                    iconContainer = MaterialTheme.colorScheme.secondaryContainer,
+                                    iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    title = hist
+                                ) {
+                                    IconButton(
+                                        onClick = {
+                                            val text = hist + " "
+                                            localQuery = TextFieldValue(text, TextRange(text.length))
+                                        },
+                                        modifier = Modifier.size(40.dp)
                                     ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                Icons.Rounded.History,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(22.dp)
-                                            )
-                                            Spacer(Modifier.width(10.dp))
-                                            Text(
-                                                Strings.recentSearches(lang),
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-
-                                        TextButton(
-                                            onClick = { vm.clearHistory() },
-                                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
-                                        ) {
-                                            Text(Strings.clearAll(lang), style = MaterialTheme.typography.labelMedium)
-                                        }
+                                        Icon(
+                                            Icons.Rounded.NorthWest,
+                                            contentDescription = "Insert tag",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(18.dp)
+                                        )
                                     }
-
-                                    visibleHistory.take(8).forEach { hist ->
-                                        Surface(
-                                            onClick = { submitSearch(hist) },
-                                            color = Color.Transparent,
-                                            modifier = Modifier.fillMaxWidth()
-                                        ) {
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.SpaceBetween
-                                            ) {
-                                                Row(
-                                                    verticalAlignment = Alignment.CenterVertically,
-                                                    modifier = Modifier.weight(1f)
-                                                ) {
-                                                    Icon(
-                                                        Icons.Rounded.History,
-                                                        null,
-                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        modifier = Modifier.size(20.dp)
-                                                    )
-                                                    Spacer(Modifier.width(14.dp))
-                                                    Text(
-                                                        hist,
-                                                        style = MaterialTheme.typography.bodyMedium,
-                                                        fontWeight = FontWeight.Medium,
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis,
-                                                        modifier = Modifier.weight(1f, fill = false)
-                                                    )
-                                                }
-                                                IconButton(
-                                                    onClick = {
-                                                        val text = hist + " "
-                                                        localQuery = TextFieldValue(text, TextRange(text.length))
-                                                    },
-                                                    modifier = Modifier.size(40.dp)
-                                                ) {
-                                                    Icon(
-                                                        Icons.Rounded.NorthWest,
-                                                        contentDescription = "Insert tag",
-                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                }
-
-                                                IconButton(
-                                                    onClick = { vm.removeFromHistory(hist) },
-                                                    modifier = Modifier.size(40.dp)
-                                                ) {
-                                                    Icon(
-                                                        Icons.Rounded.Close,
-                                                        contentDescription = Strings.closeBtn(lang),
-                                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                        modifier = Modifier.size(18.dp)
-                                                    )
-                                                }
-                                            }
-                                        }
+                                    IconButton(
+                                        onClick = { vm.removeFromHistory(hist) },
+                                        modifier = Modifier.size(40.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Rounded.Close,
+                                            contentDescription = Strings.closeBtn(lang),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(18.dp)
+                                        )
                                     }
                                 }
                             }
@@ -1182,6 +1065,94 @@ fun ExploreScreen(
                 lang = lang,
                 onDismiss = { showFilterSheet = false }
             )
+        }
+    }
+}
+
+@Composable
+private fun SearchSectionHeader(
+    icon: ImageVector,
+    title: String,
+    trailing: (@Composable () -> Unit)? = null
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 40.dp)
+            .padding(start = 4.dp, bottom = 8.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f)
+        )
+        trailing?.invoke()
+    }
+}
+
+@Composable
+private fun SearchListItem(
+    shape: androidx.compose.ui.graphics.Shape,
+    onClick: () -> Unit,
+    icon: ImageVector,
+    iconContainer: Color,
+    iconTint: Color,
+    title: String,
+    titleColor: Color = MaterialTheme.colorScheme.onSurface,
+    supporting: String? = null,
+    trailing: @Composable RowScope.() -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = ShapeTokens.Medium,
+                color = iconContainer,
+                contentColor = iconTint,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = titleColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (supporting != null) {
+                    Text(
+                        text = supporting,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            trailing()
         }
     }
 }
@@ -1701,105 +1672,161 @@ fun SourceSelectionSheet(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 36.dp)
-                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 20.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
                 ) {
                     Icon(
                         Icons.Rounded.Layers,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                     Spacer(Modifier.width(10.dp))
                     Text(
                         text = Strings.selectSourceTitle(lang),
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
-    
-                sources.forEachIndexed { index, src ->
-                    val isSelected = pendingSource?.let { it == src } ?: (currentSource == src || (customSources.find { it.key == src || it.id == src }?.let { it.key == currentSource || it.id == currentSource } ?: false))
-                    val itemColor by animateColorAsState(
-                        targetValue = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
-                        animationSpec = tween(160, easing = FastOutSlowInEasing),
-                        label = "sourceItemColor"
-                    )
-                    val badgeColor by animateColorAsState(
-                        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
-                        animationSpec = tween(160, easing = FastOutSlowInEasing),
-                        label = "sourceBadgeColor"
-                    )
-                    val badgeContent by animateColorAsState(
-                        targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        animationSpec = tween(160, easing = FastOutSlowInEasing),
-                        label = "sourceBadgeContent"
-                    )
-                    val icon = when (src) {
-                        BooruRepository.SOURCE_ALL -> Icons.Rounded.AutoAwesome
-                        BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit
-                        BooruRepository.SOURCE_GELBOORU -> Icons.Rounded.Image
-                        BooruRepository.SOURCE_REALBOORU -> Icons.Rounded.VideoLibrary
-                        BooruRepository.SOURCE_XBOORU -> Icons.Rounded.PhotoLibrary
-                        BooruRepository.SOURCE_TBIB -> Icons.Rounded.Public
-                        BooruRepository.SOURCE_YANDE -> Icons.Rounded.Collections
-                        BooruRepository.SOURCE_KONACHAN -> Icons.Rounded.Wallpaper
-                        BooruRepository.SOURCE_SAFEBOORU -> Icons.Rounded.Shield
-                        else -> Icons.Rounded.Language
-                    }
 
-                    Surface(
-                        onClick = {
-                            if (pendingSource == null) {
-                                pendingSource = src
-                                onSelect(src)
-                                scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-                            }
-                        },
-                        shape = segmentedListShape(index, sources.size),
-                        color = itemColor,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 2.dp)
+                fun isSelected(src: String): Boolean = pendingSource?.let { it == src }
+                    ?: (currentSource == src || (customSources.find { it.key == src || it.id == src }?.let { it.key == currentSource || it.id == currentSource } ?: false))
+
+                fun select(src: String) {
+                    if (pendingSource == null) {
+                        pendingSource = src
+                        onSelect(src)
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                    }
+                }
+
+                fun label(src: String): String =
+                    if (src == BooruRepository.SOURCE_ALL) Strings.sourceRecommendations(lang) else BooruRepository.getSourceDisplayName(src, customSources)
+
+                val featured = sources.filter { it == BooruRepository.SOURCE_ALL }
+                val rest = sources.filter { it != BooruRepository.SOURCE_ALL }
+
+                featured.forEach { src ->
+                    SourceTile(
+                        label = label(src),
+                        icon = sourceIcon(src),
+                        selected = isSelected(src),
+                        onClick = { select(src) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                rest.chunked(2).forEach { rowItems ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = badgeColor,
-                                contentColor = badgeContent,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = icon,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                            Spacer(Modifier.width(16.dp))
-                            Text(
-                                text = if (src == BooruRepository.SOURCE_ALL) Strings.sourceRecommendations(lang) else BooruRepository.getSourceDisplayName(src, customSources),
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = FontWeight.Medium,
-                                color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                        rowItems.forEach { src ->
+                            SourceTile(
+                                label = label(src),
+                                icon = sourceIcon(src),
+                                selected = isSelected(src),
+                                onClick = { select(src) },
                                 modifier = Modifier.weight(1f)
                             )
-                            RadioButton(
-                                selected = isSelected,
-                                onClick = null
-                            )
                         }
+                        if (rowItems.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
+            }
+        }
+    }
+}
+
+private fun sourceIcon(src: String): ImageVector = when (src) {
+    BooruRepository.SOURCE_ALL -> Icons.Rounded.AutoAwesome
+    BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit
+    BooruRepository.SOURCE_GELBOORU -> Icons.Rounded.Image
+    BooruRepository.SOURCE_REALBOORU -> Icons.Rounded.VideoLibrary
+    BooruRepository.SOURCE_XBOORU -> Icons.Rounded.PhotoLibrary
+    BooruRepository.SOURCE_TBIB -> Icons.Rounded.Public
+    BooruRepository.SOURCE_YANDE -> Icons.Rounded.Collections
+    BooruRepository.SOURCE_KONACHAN -> Icons.Rounded.Wallpaper
+    BooruRepository.SOURCE_SAFEBOORU -> Icons.Rounded.Shield
+    else -> Icons.Rounded.Language
+}
+
+@Composable
+private fun SourceTile(
+    label: String,
+    icon: ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+        animationSpec = Motion.effectsDefault(),
+        label = "sourceTileColor"
+    )
+    val badgeColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+        animationSpec = Motion.effectsDefault(),
+        label = "sourceTileBadge"
+    )
+    val badgeContent by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = Motion.effectsDefault(),
+        label = "sourceTileBadgeContent"
+    )
+    val corner by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (selected) 16.dp else 28.dp,
+        animationSpec = Motion.spatialDefault(),
+        label = "sourceTileCorner"
+    )
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(corner),
+        color = containerColor,
+        modifier = modifier.height(56.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 10.dp, end = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = badgeColor,
+                contentColor = badgeContent,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                }
+            }
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            AnimatedVisibility(
+                visible = selected,
+                enter = fadeIn(tween(160)) + scaleIn(Motion.spatialFast(), initialScale = 0.5f),
+                exit = fadeOut(tween(120)) + scaleOut(tween(120), targetScale = 0.5f)
+            ) {
+                Icon(
+                    Icons.Rounded.Check,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }

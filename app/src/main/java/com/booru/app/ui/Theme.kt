@@ -34,6 +34,7 @@ enum class AppPalette(val code: String, val title: String, val primaryColor: Col
     OCEAN("ocean", "Ocean Blue", Color(0xFF0288D1)),
     EMERALD("emerald", "Emerald Green", Color(0xFF2E7D32)),
     SUNSET("sunset", "Sunset Amber", Color(0xFFE65100)),
+    GRAPHITE("graphite", "Graphite Mono", Color(0xFF303034)),
     AMOLED("amoled", "Midnight AMOLED", Color(0xFF7C4DFF))
 }
 
@@ -150,6 +151,29 @@ private val SunsetDark = darkColorScheme(
     surfaceContainerLow = Color(0xFF221A14), surfaceContainerLowest = Color(0xFF140D08),
     outline = Color(0xFFA08D82), outlineVariant = Color(0xFF52443B),
     surfaceVariant = Color(0xFF52443B), onSurfaceVariant = Color(0xFFD6C3B6)
+)
+
+private val GraphiteLight = lightColorScheme(
+    primary = Color(0xFF303034), onPrimary = Color.White, primaryContainer = Color(0xFFDCDCE0), onPrimaryContainer = Color(0xFF1A1B1E),
+    secondary = Color(0xFF5D5E63), onSecondary = Color.White, secondaryContainer = Color(0xFFD8D8DD), onSecondaryContainer = Color(0xFF1A1B1E),
+    tertiary = Color(0xFF56595F), onTertiary = Color.White, tertiaryContainer = Color(0xFFD9DCE3), onTertiaryContainer = Color(0xFF16191E),
+    background = Color(0xFFFAF9FB), onBackground = Color(0xFF1B1B1D),
+    surface = Color(0xFFFAF9FB), onSurface = Color(0xFF1B1B1D),
+    surfaceContainer = Color(0xFFEEEDF0), surfaceContainerHigh = Color(0xFFE8E7EA), surfaceContainerHighest = Color(0xFFE2E2E5),
+    surfaceContainerLow = Color(0xFFF4F3F6), surfaceContainerLowest = Color.White,
+    outline = Color(0xFF77767B), outlineVariant = Color(0xFFC7C6CB),
+    surfaceVariant = Color(0xFFE2E2E5), onSurfaceVariant = Color(0xFF46464B)
+)
+private val GraphiteDark = darkColorScheme(
+    primary = Color(0xFFE3E2E6), onPrimary = Color(0xFF2F3033), primaryContainer = Color(0xFF46474B), onPrimaryContainer = Color(0xFFE3E2E6),
+    secondary = Color(0xFFC6C6CB), onSecondary = Color(0xFF2F3034), secondaryContainer = Color(0xFF45464B), onSecondaryContainer = Color(0xFFE2E2E7),
+    tertiary = Color(0xFFC3C7CF), onTertiary = Color(0xFF2C3137), tertiaryContainer = Color(0xFF43474E), onTertiaryContainer = Color(0xFFDFE2EA),
+    background = Color(0xFF131315), onBackground = Color(0xFFE4E2E5),
+    surface = Color(0xFF131315), onSurface = Color(0xFFE4E2E5),
+    surfaceContainer = Color(0xFF1F1F21), surfaceContainerHigh = Color(0xFF2A2A2C), surfaceContainerHighest = Color(0xFF353437),
+    surfaceContainerLow = Color(0xFF1B1B1D), surfaceContainerLowest = Color(0xFF0E0E10),
+    outline = Color(0xFF919095), outlineVariant = Color(0xFF46464B),
+    surfaceVariant = Color(0xFF46464B), onSurfaceVariant = Color(0xFFC7C6CB)
 )
 
 private val AmoledDark = darkColorScheme(
@@ -351,5 +375,6 @@ fun paletteColorScheme(
     palette == AppPalette.OCEAN -> if (isDark) OceanDark else OceanLight
     palette == AppPalette.EMERALD -> if (isDark) EmeraldDark else EmeraldLight
     palette == AppPalette.SUNSET -> if (isDark) SunsetDark else SunsetLight
+    palette == AppPalette.GRAPHITE -> if (isDark) GraphiteDark else GraphiteLight
     else -> if (isDark) VioletDark else VioletLight
 }

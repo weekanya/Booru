@@ -471,9 +471,7 @@ fun BooruApp(
                             if (!widthClass.usesNavigationRail) {
                             Surface(
                                 shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceContainer,
-                                    tonalElevation = 3.dp,
-                                    shadowElevation = 6.dp,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                     modifier = Modifier
                                         .align(Alignment.BottomCenter)
                                         .navigationBarsPadding()
