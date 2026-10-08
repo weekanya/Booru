@@ -41,7 +41,6 @@ fun isBuiltInSourceName(name: String): Boolean {
         "rule34",
         "gelbooru",
         "realbooru",
-        "xbooru",
         "tbib",
         "yande",
         "yande.re",

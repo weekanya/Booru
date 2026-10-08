@@ -232,7 +232,6 @@ fun ExploreScreen(
                             BooruRepository.SOURCE_GELBOORU -> Icons.Rounded.Image
                             BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit
                             BooruRepository.SOURCE_REALBOORU -> Icons.Rounded.VideoLibrary
-                            BooruRepository.SOURCE_XBOORU -> Icons.Rounded.PhotoLibrary
                             BooruRepository.SOURCE_TBIB -> Icons.Rounded.Public
                             BooruRepository.SOURCE_YANDE -> Icons.Rounded.Collections
                             BooruRepository.SOURCE_KONACHAN -> Icons.Rounded.Wallpaper
@@ -1750,7 +1749,6 @@ private fun sourceIcon(src: String): ImageVector = when (src) {
     BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit
     BooruRepository.SOURCE_GELBOORU -> Icons.Rounded.Image
     BooruRepository.SOURCE_REALBOORU -> Icons.Rounded.VideoLibrary
-    BooruRepository.SOURCE_XBOORU -> Icons.Rounded.PhotoLibrary
     BooruRepository.SOURCE_TBIB -> Icons.Rounded.Public
     BooruRepository.SOURCE_YANDE -> Icons.Rounded.Collections
     BooruRepository.SOURCE_KONACHAN -> Icons.Rounded.Wallpaper

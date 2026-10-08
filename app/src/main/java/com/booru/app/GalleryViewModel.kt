@@ -1714,7 +1714,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             BooruRepository.SOURCE_RULE34 to "rule34",
             BooruRepository.SOURCE_GELBOORU to "gelbooru",
             BooruRepository.SOURCE_REALBOORU to "realbooru",
-            BooruRepository.SOURCE_XBOORU to "xbooru",
             BooruRepository.SOURCE_TBIB to "tbib",
             BooruRepository.SOURCE_YANDE to "yande",
             BooruRepository.SOURCE_KONACHAN to "konachan",

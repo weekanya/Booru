@@ -73,7 +73,6 @@ object BooruCacheManager {
                     url.contains("gelbooru.com") -> "https://gelbooru.com/"
                     url.contains("rule34.xxx") -> "https://rule34.xxx/"
                     url.contains("realbooru.com") -> "https://realbooru.com/"
-                    url.contains("xbooru.com") -> "https://xbooru.com/"
                     url.contains("tbib.org") -> "https://tbib.org/"
                     url.contains("safebooru.org") -> "https://safebooru.org/"
                     url.contains("yande.re") -> "https://yande.re/"

@@ -134,7 +134,6 @@ class BooruRepository(
         const val SOURCE_RULE34 = "Rule34"
         const val SOURCE_GELBOORU = "Gelbooru"
         const val SOURCE_REALBOORU = "Realbooru"
-        const val SOURCE_XBOORU = "Xbooru"
         const val SOURCE_TBIB = "TBIB"
         const val SOURCE_KONACHAN = "Konachan"
 
@@ -143,7 +142,6 @@ class BooruRepository(
             SOURCE_RULE34,
             SOURCE_GELBOORU,
             SOURCE_REALBOORU,
-            SOURCE_XBOORU,
             SOURCE_TBIB,
             SOURCE_YANDE,
             SOURCE_KONACHAN,
@@ -162,7 +160,6 @@ class BooruRepository(
                 "rule34"    -> SOURCE_RULE34
                 "gelbooru"  -> SOURCE_GELBOORU
                 "realbooru" -> SOURCE_REALBOORU
-                "xbooru"    -> SOURCE_XBOORU
                 "tbib"      -> SOURCE_TBIB
                 "yande"     -> SOURCE_YANDE
                 "konachan"  -> SOURCE_KONACHAN
@@ -212,16 +209,15 @@ class BooruRepository(
             source == SOURCE_RULE34    -> listOf("rule34")
             source == SOURCE_GELBOORU  -> listOf("gelbooru")
             source == SOURCE_REALBOORU -> listOf("realbooru")
-            source == SOURCE_XBOORU    -> listOf("xbooru")
             source == SOURCE_TBIB      -> if (wantsOnlyVideos) emptyList() else listOf("tbib")
             source == SOURCE_KONACHAN  -> if (wantsOnlyVideos) emptyList() else listOf("konachan")
             else -> {
                 if (wantsOnlyVideos) {
-                    listOf("rule34", "gelbooru", "realbooru", "xbooru")
+                    listOf("rule34", "gelbooru", "realbooru")
                 } else if (excludeSafe) {
-                    listOf("rule34", "gelbooru", "realbooru", "xbooru", "tbib", "yande", "konachan")
+                    listOf("rule34", "gelbooru", "realbooru", "tbib", "yande", "konachan")
                 } else {
-                    listOf("rule34", "gelbooru", "realbooru", "xbooru", "tbib", "yande", "konachan", "safebooru")
+                    listOf("rule34", "gelbooru", "realbooru", "tbib", "yande", "konachan", "safebooru")
                 }
             }
         }
@@ -547,14 +543,14 @@ class BooruRepository(
             if (wantsGifs && !wantsVideos && !wantsPhotos) {
                 if (!cleaned.contains("animated")) {
                     when (key) {
-                        "rule34", "gelbooru", "safebooru", "xbooru", "tbib", "realbooru" -> parts.add("animated")
+                        "rule34", "gelbooru", "safebooru", "tbib", "realbooru" -> parts.add("animated")
                         else -> if (custom != null) parts.add("animated")
                     }
                 }
             } else if (wantsVideos && !wantsGifs && !wantsPhotos) {
                 if (!cleaned.contains("video")) {
                     when (key) {
-                        "rule34", "gelbooru", "xbooru", "realbooru" -> parts.add("video")
+                        "rule34", "gelbooru", "realbooru" -> parts.add("video")
                         else -> {
                             if (custom != null) {
                                 when (custom.engine) {
@@ -567,7 +563,7 @@ class BooruRepository(
                 }
             } else if (wantsPhotos && !wantsVideos && !wantsGifs) {
                 when (key) {
-                    "rule34", "gelbooru", "xbooru", "tbib", "realbooru" -> {
+                    "rule34", "gelbooru", "tbib", "realbooru" -> {
                         if (!cleaned.contains("-video")) parts.add("-video")
                         if (!cleaned.contains("-animated")) parts.add("-animated")
                     }
@@ -584,7 +580,7 @@ class BooruRepository(
             } else if (wantsVideos && wantsGifs && !wantsPhotos) {
                 if (!cleaned.contains("animated")) {
                     when (key) {
-                        "rule34", "gelbooru", "safebooru", "xbooru", "tbib", "realbooru" -> parts.add("animated")
+                        "rule34", "gelbooru", "safebooru", "tbib", "realbooru" -> parts.add("animated")
                         else -> if (custom != null) parts.add("animated")
                     }
                 }
@@ -608,7 +604,7 @@ class BooruRepository(
                 when (key) {
                     "yande", "konachan" -> parts.add("rating:s")
                     "gelbooru"          -> parts.add("rating:general")
-                    "rule34", "xbooru", "tbib", "realbooru" -> parts.add("rating:safe")
+                    "rule34", "tbib", "realbooru" -> parts.add("rating:safe")
                     "safebooru"         -> Unit
                 }
             }
@@ -629,7 +625,7 @@ class BooruRepository(
                 when (key) {
                     "yande", "konachan" -> parts.add("-rating:s")
                     "gelbooru"          -> parts.add("-rating:general")
-                    "rule34", "xbooru", "tbib", "realbooru" -> parts.add("-rating:safe")
+                    "rule34", "tbib", "realbooru" -> parts.add("-rating:safe")
                     "safebooru"         -> Unit
                 }
             }
@@ -656,7 +652,7 @@ class BooruRepository(
                 } else {
                     when (key) {
                         "yande", "konachan" -> parts.add("order:score")
-                        "rule34", "xbooru", "tbib" -> parts.add("sort:score:desc")
+                        "rule34", "tbib" -> parts.add("sort:score:desc")
                         "gelbooru", "safebooru" -> {
                             if (parts.size < 2) parts.add("sort:score:desc")
                         }
@@ -672,7 +668,7 @@ class BooruRepository(
                 } else {
                     when (key) {
                         "yande", "konachan" -> parts.add("order:random")
-                        "rule34", "xbooru" -> parts.add("sort:random")
+                        "rule34" -> parts.add("sort:random")
                         "gelbooru" -> {
                             if (parts.size < 2) parts.add("sort:random")
                         }
@@ -691,7 +687,7 @@ class BooruRepository(
                     } else {
                         when (key) {
                             "yande", "konachan" -> parts.add("order:id_desc")
-                            "rule34", "xbooru", "tbib", "realbooru" -> parts.add("sort:id:desc")
+                            "rule34", "tbib", "realbooru" -> parts.add("sort:id:desc")
                             "gelbooru", "safebooru" -> {
                                 if (parts.size < 2) {
                                     parts.add("sort:id:desc")
@@ -909,7 +905,6 @@ class BooruRepository(
             "safebooru" -> "https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1"
             "yande"     -> "https://yande.re/post.json"
             "konachan"  -> "https://konachan.net/post.json"
-            "xbooru"    -> "https://xbooru.com/index.php?page=dapi&s=post&q=index&json=1"
             "tbib"      -> "https://tbib.org/index.php?page=dapi&s=post&q=index&json=1"
             "gelbooru"  -> "https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1"
             "rule34"    -> "https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1"
@@ -948,7 +943,6 @@ class BooruRepository(
             "gelbooru"  -> reqBuilder.header("Referer", "https://gelbooru.com/")
             "rule34"    -> reqBuilder.header("Referer", "https://rule34.xxx/")
             "safebooru" -> reqBuilder.header("Referer", "https://safebooru.org/")
-            "xbooru"    -> reqBuilder.header("Referer", "https://xbooru.com/")
             "tbib"      -> reqBuilder.header("Referer", "https://tbib.org/")
             "yande"     -> reqBuilder.header("Referer", "https://yande.re/")
             "konachan"  -> reqBuilder.header("Referer", "https://konachan.net/")
@@ -1200,7 +1194,6 @@ class BooruRepository(
                 "safebooru" -> "https://safebooru.org"
                 "gelbooru"  -> "https://gelbooru.com"
                 "rule34"    -> "https://api-cdn.rule34.xxx"
-                "xbooru"    -> if (image.endsWith(".mp4")) "https://mp4.xbooru.com" else "https://img.xbooru.com"
                 "tbib"      -> "https://tbib.org"
                 else        -> ""
             }
@@ -1249,13 +1242,11 @@ class BooruRepository(
                 "safebooru" -> "https://safebooru.org"
                 "gelbooru"  -> "https://img3.gelbooru.com"
                 "rule34"    -> "https://api-cdn.rule34.xxx"
-                "xbooru"    -> "https://xbooru.com"
                 "tbib"      -> "https://tbib.org"
                 else        -> ""
             }
             if (host.isNotBlank()) {
-                val querySuffix = if (key == "xbooru" && id.isNotBlank()) "?$id" else ""
-                preview = "$host/thumbnails/$directory/thumbnail_$baseImgName.jpg$querySuffix"
+                preview = "$host/thumbnails/$directory/thumbnail_$baseImgName.jpg"
             } else if (customSource?.engine == BooruEngine.GELBOORU && customBaseUrl.isNotBlank()) {
                 preview = "${customBaseUrl.trimEnd('/')}/thumbnails/$directory/thumbnail_$baseImgName.jpg"
             }
@@ -1270,10 +1261,6 @@ class BooruRepository(
         }
         if (preview.startsWith("//")) {
             preview = "https:$preview"
-        }
-
-        if (key == "xbooru" && id.isNotBlank() && preview.isNotBlank() && !preview.contains("?")) {
-            preview = "$preview?$id"
         }
 
         val sampleObj = o.optJSONObject("sample")
@@ -1292,13 +1279,11 @@ class BooruRepository(
                 "safebooru" -> "https://safebooru.org"
                 "rule34"    -> "https://api-cdn.rule34.xxx"
                 "gelbooru"  -> "https://img3.gelbooru.com"
-                "xbooru"    -> "https://xbooru.com"
                 "tbib"      -> "https://tbib.org"
                 else        -> ""
             }
             if (host.isNotBlank()) {
-                val querySuffix = if (key == "xbooru" && id.isNotBlank()) "?$id" else ""
-                sample = "$host/samples/$directory/sample_$baseImgName.jpg$querySuffix"
+                sample = "$host/samples/$directory/sample_$baseImgName.jpg"
             }
         }
 
@@ -1307,10 +1292,6 @@ class BooruRepository(
         }
         if (sample.startsWith("//")) {
             sample = "https:$sample"
-        }
-
-        if (key == "xbooru" && id.isNotBlank() && sample.isNotBlank() && !sample.contains("?")) {
-            sample = "$sample?$id"
         }
 
         if (sample.isBlank() || sample == "null") {

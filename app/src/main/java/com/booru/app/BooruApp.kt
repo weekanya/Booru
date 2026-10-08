@@ -69,7 +69,6 @@ class BooruApplication : Application(), ImageLoaderFactory {
                     url.contains("gelbooru.com") -> "https://gelbooru.com/"
                     url.contains("rule34.xxx") -> "https://rule34.xxx/"
                     url.contains("realbooru.com") -> "https://realbooru.com/"
-                    url.contains("xbooru.com") -> "https://xbooru.com/"
                     url.contains("tbib.org") -> "https://tbib.org/"
                     url.contains("safebooru.org") -> "https://safebooru.org/"
                     url.contains("yande.re") -> "https://yande.re/"
@@ -92,7 +91,6 @@ class BooruApplication : Application(), ImageLoaderFactory {
 
                 val isBooruDomain = url.contains("realbooru.com") ||
                         url.contains("safebooru.org") ||
-                        url.contains("xbooru.com") ||
                         url.contains("tbib.org") ||
                         url.contains("gelbooru.com") ||
                         url.contains("rule34.xxx")
@@ -102,10 +100,6 @@ class BooruApplication : Application(), ImageLoaderFactory {
                     val candidateUrls = LinkedHashSet<String>()
                     val query = if (url.contains("?")) "?" + url.substringAfter("?") else ""
                     val cleanUrl = url.substringBefore("?")
-
-                    if (url.contains("xbooru.com") && !url.contains("?")) {
-                        candidateUrls.add("$url?1")
-                    }
 
                     if (cleanUrl.contains("/samples/")) {
                         val filename = cleanUrl.substringAfterLast("/sample_").substringBefore(".")
@@ -118,10 +112,6 @@ class BooruApplication : Application(), ImageLoaderFactory {
                         candidateUrls.add("$dir/$filename.gif$query")
                         candidateUrls.add("$dir/$filename.webp$query")
                         candidateUrls.add("$thumbDir/thumbnail_$filename.jpg$query")
-                        if (cleanUrl.contains("xbooru.com")) {
-                            candidateUrls.add("$cleanUrl?1")
-                            candidateUrls.add(cleanUrl.replace("img.xbooru.com", "xbooru.com") + query)
-                        }
                     } else if (cleanUrl.contains("/images/")) {
                         val baseWithoutExt = cleanUrl.substringBeforeLast(".")
                         val filename = cleanUrl.substringAfterLast("/").substringBefore(".")
@@ -137,12 +127,6 @@ class BooruApplication : Application(), ImageLoaderFactory {
                         candidateUrls.add("$baseWithoutExt.webm$query")
                         candidateUrls.add("$sampleDir/sample_$filename.jpg$query")
                         candidateUrls.add("$thumbDir/thumbnail_$filename.jpg$query")
-
-                        if (cleanUrl.contains("xbooru.com")) {
-                            candidateUrls.add("$cleanUrl?1")
-                            candidateUrls.add(cleanUrl.replace("img.xbooru.com", "xbooru.com") + query)
-                            candidateUrls.add(cleanUrl.replace("xbooru.com", "img.xbooru.com") + query)
-                        }
                     } else if (cleanUrl.contains("/thumbnails/")) {
                         val filename = cleanUrl.substringAfterLast("/thumbnail_").substringBefore(".")
                         val thumbDir = cleanUrl.substringBeforeLast("/thumbnail_")
@@ -239,7 +223,6 @@ object BooruVideoCache {
         url.contains("gelbooru.com") -> "https://gelbooru.com/"
         url.contains("rule34.xxx") -> "https://rule34.xxx/"
         url.contains("realbooru.com") -> "https://realbooru.com/"
-        url.contains("xbooru.com") -> "https://xbooru.com/"
         url.contains("tbib.org") -> "https://tbib.org/"
         url.contains("safebooru.org") -> "https://safebooru.org/"
         url.contains("yande.re") -> "https://yande.re/"

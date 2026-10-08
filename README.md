@@ -18,7 +18,7 @@
 
 ## Features
 
-- **Sources:** Rule34, Gelbooru, Realbooru, Xbooru, TBIB, Yande.re, Konachan, Safebooru. You can also add any custom Gelbooru, Moebooru or Danbooru instance.
+- **Sources:** Rule34, Gelbooru, Realbooru, TBIB, Yande.re, Konachan, Safebooru. You can also add any custom Gelbooru, Moebooru or Danbooru instance.
 - **For you feed:** posts from all enabled sources in one feed, with recommendations learned on the device from your favorites. A slider sets the mix between new posts and recommendations. Each source can be turned on or off.
 - **Search:** multiple tags at once, autocomplete that shows tag categories and post counts, and search history.
 - **Filters:** content type (photos, videos, GIFs), rating, hide AI-generated posts. Sort by newest, top score or random.

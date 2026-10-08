@@ -76,7 +76,6 @@ object MediaActionHandler {
                 downloadUrl.contains("gelbooru.com") -> "https://gelbooru.com/"
                 downloadUrl.contains("rule34.xxx") -> "https://rule34.xxx/"
                 downloadUrl.contains("realbooru.com") -> "https://realbooru.com/"
-                downloadUrl.contains("xbooru.com") -> "https://xbooru.com/"
                 downloadUrl.contains("tbib.org") -> "https://tbib.org/"
                 downloadUrl.contains("safebooru.org") -> "https://safebooru.org/"
                 downloadUrl.contains("yande.re") -> "https://yande.re/"
