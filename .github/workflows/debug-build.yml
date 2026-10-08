@@ -26,7 +26,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /usr/local/lib/android/sdk/platforms/android-37*
-          key: android-sdk-platform-37
+          key: android-sdk-platform-37-v2
 
       - name: Install Android SDK platform 37
         if: steps.sdk-cache.outputs.cache-hit != 'true'
@@ -42,11 +42,25 @@ jobs:
           echo "Installing $PKG"
           yes | "$SDKMANAGER" --install --channel=3 "$PKG" > /dev/null
           DIR="$ANDROID_HOME/platforms/${PKG#platforms;}"
-          if [ "$DIR" != "$ANDROID_HOME/platforms/android-37" ]; then
-            cp -r "$DIR" "$ANDROID_HOME/platforms/android-37"
-            sed -i "s|path=\"$PKG\"|path=\"platforms;android-37\"|" "$ANDROID_HOME/platforms/android-37/package.xml"
+          TARGET="$ANDROID_HOME/platforms/android-37"
+          if [ "$DIR" != "$TARGET" ]; then
+            rm -rf "$TARGET"
+            cp -r "$DIR" "$TARGET"
+            sed -i -E \
+              -e "s|path=\"$PKG\"|path=\"platforms;android-37\"|" \
+              -e 's|<api-level>37\.[0-9]+</api-level>|<api-level>37</api-level>|' \
+              -e 's|<minor-api-level>[^<]*</minor-api-level>||' \
+              -e 's|<codename>[^<]*</codename>||' \
+              "$TARGET/package.xml"
+            sed -i -E \
+              -e 's|^(AndroidVersion\.ApiLevel)=37\.[0-9]+|\1=37|' \
+              -e '/^AndroidVersion\.(MinorApiLevel|CodeName)=/d' \
+              -e 's|^(Pkg\.Path)=.*|\1=platforms;android-37|' \
+              "$TARGET/source.properties"
+            sed -i -E 's|^(ro\.build\.version\.sdk)=.*|\1=37|' "$TARGET/build.prop" || true
           fi
-          ls "$ANDROID_HOME/platforms"
+          grep -o '<type-details.*</type-details>' "$TARGET/package.xml" || true
+          cat "$TARGET/source.properties"
 
       - uses: gradle/actions/setup-gradle@v5
         with:
@@ -55,7 +69,7 @@ jobs:
       - name: Build debug APK
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleDebug
 
       - uses: actions/upload-artifact@v5
         with:
