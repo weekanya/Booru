@@ -12,7 +12,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
@@ -26,6 +32,41 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
+enum class OptionControl { Radio, Checkbox, Switch }
+
+@Composable
+fun SegmentedSectionHeader(title: String, icon: ImageVector, modifier: Modifier = Modifier) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier.padding(start = 4.dp, top = 12.dp, bottom = 8.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            color = MaterialTheme.colorScheme.primary
+        )
+    }
+}
+
+@Composable
+fun SegmentedGroupTitle(title: String, modifier: Modifier = Modifier) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = modifier.padding(start = 4.dp, top = 8.dp)
+    )
+}
+
 @Composable
 fun SegmentedOptionItem(
     title: String,
@@ -36,6 +77,7 @@ fun SegmentedOptionItem(
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
     supporting: String? = null,
+    control: OptionControl = OptionControl.Radio,
     leading: (@Composable () -> Unit)? = null
 ) {
     val containerColor by animateColorAsState(
@@ -103,7 +145,21 @@ fun SegmentedOptionItem(
                     )
                 }
             }
-            RadioButton(selected = selected, onClick = null)
+            when (control) {
+                OptionControl.Radio -> RadioButton(selected = selected, onClick = null)
+                OptionControl.Checkbox -> Checkbox(checked = selected, onCheckedChange = null)
+                OptionControl.Switch -> Switch(
+                    checked = selected,
+                    onCheckedChange = null,
+                    thumbContent = {
+                        Icon(
+                            imageVector = if (selected) Icons.Rounded.Check else Icons.Rounded.Close,
+                            contentDescription = null,
+                            modifier = Modifier.size(SwitchDefaults.IconSize)
+                        )
+                    }
+                )
+            }
         }
     }
 }

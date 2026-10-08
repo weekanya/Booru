@@ -441,7 +441,7 @@ fun FavoritesScreen(
             }
 
             if (vm.favoritesList.isNotEmpty() || vm.customFolders.isNotEmpty()) {
-                val targetFolderPage = if (pagerState.isScrollInProgress) pagerState.targetPage else pagerState.currentPage
+                val targetFolderPage = pagerState.currentPage
                 LazyRow(
                     state = chipRowState,
                     modifier = Modifier
@@ -1030,117 +1030,41 @@ private fun FavoritesFilterBottomSheet(
                     }
                 }
     
-                Surface(
-                    shape = ShapeTokens.ExtraLarge,
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        ) {
-                            FilterSectionIcon(Icons.AutoMirrored.Rounded.Sort)
-                            Spacer(Modifier.width(12.dp))
-                            Text(
-                                text = Strings.favSortTitle(lang),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-    
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
-                        ) {
-                            val sortOptions = listOf(
-                                Triple(FavoriteSortOrder.NEWEST, Strings.favSortNewest(lang), Icons.Rounded.Schedule),
-                                Triple(FavoriteSortOrder.OLDEST, Strings.favSortOldest(lang), Icons.Rounded.History)
-                            )
-                            sortOptions.forEachIndexed { orderIndex, (order, label, icon) ->
-                                FilterOptionButton(
-                                    selected = draftSort == order,
-                                    onClick = { draftSort = order },
-                                    position = groupPosition(orderIndex, sortOptions.size),
-                                    label = label,
-                                    icon = icon,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-                    }
+                SegmentedSectionHeader(Strings.favSortTitle(lang), Icons.AutoMirrored.Rounded.Sort)
+                val sortOptions = listOf(
+                    Triple(FavoriteSortOrder.NEWEST, Strings.favSortNewest(lang), Icons.Rounded.Schedule),
+                    Triple(FavoriteSortOrder.OLDEST, Strings.favSortOldest(lang), Icons.Rounded.History)
+                )
+                sortOptions.forEachIndexed { index, (order, label, icon) ->
+                    SegmentedOptionItem(
+                        title = label,
+                        selected = draftSort == order,
+                        index = index,
+                        count = sortOptions.size,
+                        icon = icon,
+                        onClick = { draftSort = order }
+                    )
                 }
-    
-                Spacer(Modifier.height(14.dp))
-    
-                Surface(
-                    shape = ShapeTokens.ExtraLarge,
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = 12.dp)
-                        ) {
-                            FilterSectionIcon(Icons.Rounded.Category)
-                            Spacer(Modifier.width(12.dp))
-                            Text(
-                                text = Strings.contentTypeTitle(lang),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-    
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
-                        ) {
-                            FilterOptionButton(
-                                selected = draftType == FavoriteMediaTypeFilter.ALL,
-                                position = GroupPosition.Leading,
-                                onClick = { draftType = FavoriteMediaTypeFilter.ALL },
-                                label = "${Strings.favFilterAll(lang)} ($allCount)",
-                                modifier = Modifier.weight(1f)
-                            )
-                            FilterOptionButton(
-                                selected = draftType == FavoriteMediaTypeFilter.IMAGES,
-                                position = GroupPosition.Trailing,
-                                onClick = { draftType = FavoriteMediaTypeFilter.IMAGES },
-                                label = "${Strings.favFilterImages(lang)} ($imagesCount)",
-                                icon = Icons.Rounded.Image,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-    
-                        Spacer(Modifier.height(8.dp))
-    
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
-                        ) {
-                            FilterOptionButton(
-                                selected = draftType == FavoriteMediaTypeFilter.GIFS,
-                                position = GroupPosition.Leading,
-                                onClick = { draftType = FavoriteMediaTypeFilter.GIFS },
-                                label = "${Strings.favFilterGifs(lang)} ($gifsCount)",
-                                icon = Icons.Rounded.Gif,
-                                modifier = Modifier.weight(1f)
-                            )
-                            FilterOptionButton(
-                                selected = draftType == FavoriteMediaTypeFilter.VIDEOS,
-                                position = GroupPosition.Trailing,
-                                onClick = { draftType = FavoriteMediaTypeFilter.VIDEOS },
-                                label = "${Strings.favFilterVideos(lang)} ($videosCount)",
-                                icon = Icons.Rounded.Videocam,
-                                modifier = Modifier.weight(1f)
-                            )
-                        }
-                    }
+
+                SegmentedSectionHeader(if (lang == AppLanguage.RUSSIAN) "Тип контента" else "Content type", Icons.Rounded.PermMedia)
+                val typeOptions = listOf(
+                    Triple(FavoriteMediaTypeFilter.ALL, Strings.favFilterAll(lang) to allCount, Icons.Rounded.Apps),
+                    Triple(FavoriteMediaTypeFilter.IMAGES, Strings.favFilterImages(lang) to imagesCount, Icons.Rounded.Image),
+                    Triple(FavoriteMediaTypeFilter.GIFS, Strings.favFilterGifs(lang) to gifsCount, Icons.Rounded.Gif),
+                    Triple(FavoriteMediaTypeFilter.VIDEOS, Strings.favFilterVideos(lang) to videosCount, Icons.Rounded.Videocam)
+                )
+                typeOptions.forEachIndexed { index, (type, labelCount, icon) ->
+                    SegmentedOptionItem(
+                        title = labelCount.first,
+                        supporting = "${labelCount.second}",
+                        selected = draftType == type,
+                        index = index,
+                        count = typeOptions.size,
+                        icon = icon,
+                        onClick = { draftType = type }
+                    )
                 }
-    
+
                 Spacer(Modifier.height(20.dp))
     
                 Button(
