@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -506,7 +507,9 @@ fun ExploreScreen(
                     isRefreshing = vm.isRefreshing,
                     onRefresh = { vm.refresh(isPull = true) },
                     state = pullRefreshState,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clipToBounds(),
                     indicator = {}
                 ) {
                     if (vm.loading && vm.results.isEmpty()) {
@@ -598,7 +601,8 @@ fun ExploreScreen(
                                                 }
                                                 val zoom = event.calculateZoom()
                                                 currentZoom = (currentZoom * zoom).coerceIn(0.65f, 1.55f)
-                                                scope.launch { pinchScaleAnim.snapTo(currentZoom) }
+                                                val visualScale = (1f + (currentZoom - 1f) * 0.45f).coerceIn(0.88f, 1.12f)
+                                                scope.launch { pinchScaleAnim.snapTo(visualScale) }
                                                 val centroid = event.calculateCentroid()
                                                 if (size.width > 0 && size.height > 0) {
                                                     pinchPivot = TransformOrigin(
