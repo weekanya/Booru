@@ -9,21 +9,13 @@ runs:
         distribution: temurin
         java-version: 21
 
-    - name: Cache Android SDK packages
-      id: sdk-cache
-      uses: actions/cache@v4
-      with:
-        path: /usr/local/lib/android/sdk/platforms/android-37*
-        key: android-sdk-platform-37-v2
-
     - name: Install Android SDK platform 37
-      if: steps.sdk-cache.outputs.cache-hit != 'true'
       shell: bash
       run: |
         SDKMANAGER="$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
         yes | "$SDKMANAGER" --licenses --channel=3 > /dev/null || true
         "$SDKMANAGER" --list --channel=3 2>/dev/null | grep -o 'platforms;android-[0-9A-Za-z.\-]*' | sort -u | tail -n 15
-        PKG="$("$SDKMANAGER" --list --channel=3 2>/dev/null | grep -o 'platforms;android-37[0-9A-Za-z.\-]*' | sort -V | head -1)"
+        PKG="$("$SDKMANAGER" --list --channel=3 2>/dev/null | grep -oE 'platforms;android-37\.[0-9]+' | sort -uV | head -1)"
         if [ -z "$PKG" ]; then
           echo "::error::No platforms;android-37* package found in any SDK channel"
           exit 1
