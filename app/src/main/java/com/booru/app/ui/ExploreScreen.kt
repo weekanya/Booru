@@ -1763,12 +1763,6 @@ fun FilterOptionButton(
     ToggleButton(
         checked = selected,
         onCheckedChange = { onClick() },
-        colors = ToggleButtonDefaults.toggleButtonColors(
-            containerColor = containerColor,
-            contentColor = contentColor,
-            checkedContainerColor = containerColor,
-            checkedContentColor = contentColor
-        ),
         contentPadding = PaddingValues(horizontal = 6.dp),
         modifier = modifier.height(46.dp)
     ) {
