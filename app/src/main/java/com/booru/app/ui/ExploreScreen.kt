@@ -2063,8 +2063,8 @@ private fun FilterSelectionBottomSheet(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                                 Card(
-                                    shape = ShapeTokens.ExtraLarge,
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                                    shape = ShapeTokens.LargeIncreased,
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
@@ -2114,8 +2114,8 @@ private fun FilterSelectionBottomSheet(
                                 }
     
                                 Card(
-                                    shape = ShapeTokens.ExtraLarge,
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                                    shape = ShapeTokens.LargeIncreased,
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
@@ -2172,8 +2172,8 @@ private fun FilterSelectionBottomSheet(
                                 }
     
                                 Card(
-                                    shape = ShapeTokens.ExtraLarge,
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                                    shape = ShapeTokens.LargeIncreased,
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -2232,8 +2232,8 @@ private fun FilterSelectionBottomSheet(
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Card(
-                                    shape = ShapeTokens.ExtraLarge,
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                                    shape = ShapeTokens.LargeIncreased,
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
@@ -2274,8 +2274,8 @@ private fun FilterSelectionBottomSheet(
     
                                 if (vm.query.isBlank()) {
                                     Card(
-                                        shape = ShapeTokens.ExtraLarge,
-                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                                        shape = ShapeTokens.LargeIncreased,
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {

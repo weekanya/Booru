@@ -308,17 +308,7 @@ fun BooruTheme(
     }
 
     val context = LocalContext.current
-    val colorScheme = when {
-        palette == AppPalette.MONET && useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-        palette == AppPalette.AMOLED -> if (isDark) AmoledDark else VioletLight
-        palette == AppPalette.SAKURA -> if (isDark) SakuraDark else SakuraLight
-        palette == AppPalette.OCEAN -> if (isDark) OceanDark else OceanLight
-        palette == AppPalette.EMERALD -> if (isDark) EmeraldDark else EmeraldLight
-        palette == AppPalette.SUNSET -> if (isDark) SunsetDark else SunsetLight
-        else -> if (isDark) VioletDark else VioletLight
-    }
+    val colorScheme = paletteColorScheme(context, palette, isDark, useDynamicColor)
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -346,3 +336,20 @@ fun BooruTheme(
 }
 
 val LocalIsDarkTheme = staticCompositionLocalOf { false }
+
+fun paletteColorScheme(
+    context: android.content.Context,
+    palette: AppPalette,
+    isDark: Boolean,
+    useDynamicColor: Boolean = true
+): ColorScheme = when {
+    palette == AppPalette.MONET && useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+    }
+    palette == AppPalette.AMOLED -> if (isDark) AmoledDark else VioletLight
+    palette == AppPalette.SAKURA -> if (isDark) SakuraDark else SakuraLight
+    palette == AppPalette.OCEAN -> if (isDark) OceanDark else OceanLight
+    palette == AppPalette.EMERALD -> if (isDark) EmeraldDark else EmeraldLight
+    palette == AppPalette.SUNSET -> if (isDark) SunsetDark else SunsetLight
+    else -> if (isDark) VioletDark else VioletLight
+}

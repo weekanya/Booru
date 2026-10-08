@@ -1077,28 +1077,7 @@ fun SettingsScreen(
     }
 
     if (showPaletteDialog) {
-        val isDark = when (vm.themeMode) {
-            ThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
-            ThemeMode.DARK -> true
-            ThemeMode.LIGHT -> false
-        }
-        val monetDynamicPrimary = remember(isDark) {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).primary
-                else androidx.compose.material3.dynamicLightColorScheme(context).primary
-            } else {
-                Color(0xFF6750A4)
-            }
-        }
-        val monetDynamicSecondary = remember(isDark) {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).tertiary
-                else androidx.compose.material3.dynamicLightColorScheme(context).tertiary
-            } else {
-                if (isDark) Color(0xFFD0BCFF) else Color(0xFF7E5260)
-            }
-        }
-
+        val isDark = LocalIsDarkTheme.current
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         SheetMotion {
             ModalBottomSheet(
@@ -1111,64 +1090,77 @@ fun SettingsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
-                        .padding(horizontal = 20.dp)
+                        .padding(horizontal = 16.dp)
                         .padding(bottom = 24.dp)
-                        .verticalScroll(rememberScrollState())
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 16.dp)
+                        modifier = Modifier.padding(start = 4.dp, bottom = 16.dp)
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Rounded.Palette,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = Strings.colorPaletteTitle(lang),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                        SettingIconBadge(
+                            icon = Icons.Rounded.Palette,
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                         )
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = Strings.colorPaletteTitle(lang),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = vm.palette.title,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
-    
-                    AppPalette.entries.forEachIndexed { index, pal ->
-                        val swatchBrush = remember(pal, monetDynamicPrimary, monetDynamicSecondary) {
-                            if (pal == AppPalette.MONET) {
-                                androidx.compose.ui.graphics.Brush.linearGradient(
-                                    colors = listOf(monetDynamicPrimary, monetDynamicSecondary)
-                                )
-                            } else {
-                                androidx.compose.ui.graphics.SolidColor(pal.primaryColor)
+
+                    Surface(
+                        shape = ShapeTokens.ExtraLarge,
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        val columns = 4
+                        Column(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            AppPalette.entries.chunked(columns).forEach { rowItems ->
+                                Row(modifier = Modifier.fillMaxWidth()) {
+                                    rowItems.forEach { pal ->
+                                        PaletteTile(
+                                            palette = pal,
+                                            isDark = isDark,
+                                            selected = vm.palette == pal,
+                                            onClick = { vm.updatePalette(pal) },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                    repeat(columns - rowItems.size) {
+                                        Spacer(Modifier.weight(1f))
+                                    }
+                                }
                             }
                         }
-                        SegmentedOptionItem(
-                            title = pal.title,
-                            selected = vm.palette == pal,
-                            index = index,
-                            count = AppPalette.entries.size,
-                            leading = {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(CircleShape)
-                                        .background(swatchBrush)
-                                )
-                            },
-                            onClick = {
-                                vm.updatePalette(pal)
-                                scope.launch { sheetState.hide() }.invokeOnCompletion { showPaletteDialog = false }
-                            }
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { showPaletteDialog = false }
+                        },
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                    ) {
+                        Text(
+                            text = if (lang == AppLanguage.RUSSIAN) "Готово" else "Done",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
@@ -1307,37 +1299,6 @@ fun SettingsScreen(
 
                             SettingsDivider()
 
-                            val isDark = when (vm.themeMode) {
-                                ThemeMode.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
-                                ThemeMode.DARK -> true
-                                ThemeMode.LIGHT -> false
-                            }
-                            val monetDynamicPrimary = remember(isDark) {
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                    if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).primary
-                                    else androidx.compose.material3.dynamicLightColorScheme(context).primary
-                                } else {
-                                    Color(0xFF6750A4)
-                                }
-                            }
-                            val monetDynamicSecondary = remember(isDark) {
-                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-                                    if (isDark) androidx.compose.material3.dynamicDarkColorScheme(context).tertiary
-                                    else androidx.compose.material3.dynamicLightColorScheme(context).tertiary
-                                } else {
-                                    Color(0xFF7E5260)
-                                }
-                            }
-                            val currentSwatchBrush = remember(vm.palette, monetDynamicPrimary, monetDynamicSecondary) {
-                                if (vm.palette == AppPalette.MONET) {
-                                    androidx.compose.ui.graphics.Brush.linearGradient(
-                                        colors = listOf(monetDynamicPrimary, monetDynamicSecondary)
-                                    )
-                                } else {
-                                    androidx.compose.ui.graphics.SolidColor(vm.palette.primaryColor)
-                                }
-                            }
-
                             SettingRowItem(
                                 title = Strings.colorPaletteTitle(lang),
                                 subtitle = vm.palette.title,
@@ -1350,7 +1311,7 @@ fun SettingsScreen(
                                     ) {
                                         ThemeSwatch(
                                             primary = MaterialTheme.colorScheme.primary,
-                                            secondary = MaterialTheme.colorScheme.secondaryContainer,
+                                            secondary = MaterialTheme.colorScheme.secondary,
                                             tertiary = MaterialTheme.colorScheme.tertiary,
                                             modifier = Modifier.size(32.dp)
                                         )
@@ -1738,6 +1699,85 @@ private fun SettingsTabBar(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PaletteTile(
+    palette: AppPalette,
+    isDark: Boolean,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val scheme = remember(palette, isDark) { paletteColorScheme(context, palette, isDark) }
+    val corner by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (selected) 20.dp else 32.dp,
+        animationSpec = Motion.spatialDefault(),
+        label = "paletteCorner"
+    )
+    val ringColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+        animationSpec = Motion.effectsDefault(),
+        label = "paletteRing"
+    )
+    val checkScale by animateFloatAsState(
+        targetValue = if (selected) 1f else 0f,
+        animationSpec = Motion.spatialFast(),
+        label = "paletteCheck"
+    )
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .clip(ShapeTokens.Large)
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp)
+    ) {
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .size(64.dp)
+                .border(BorderStroke(2.dp, ringColor), RoundedCornerShape(corner))
+                .padding(5.dp)
+                .clip(RoundedCornerShape(corner - 3.dp))
+                .background(scheme.surfaceContainerHighest)
+        ) {
+            ThemeSwatch(
+                primary = scheme.primary,
+                secondary = scheme.secondary,
+                tertiary = scheme.tertiary,
+                modifier = Modifier.size(40.dp)
+            )
+            Surface(
+                shape = CircleShape,
+                color = scheme.primary,
+                contentColor = scheme.onPrimary,
+                modifier = Modifier
+                    .size(22.dp)
+                    .graphicsLayer {
+                        scaleX = checkScale
+                        scaleY = checkScale
+                        alpha = checkScale.coerceIn(0f, 1f)
+                    }
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(14.dp))
+                }
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = palette.title,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+            color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            maxLines = 2,
+            minLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 2.dp)
+        )
     }
 }
 

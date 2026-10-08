@@ -106,10 +106,12 @@ import com.booru.app.data.TagClassifier
 import com.booru.app.data.TagCategory
 import androidx.compose.ui.graphics.luminance
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import com.booru.app.data.network.NetworkClient
 import java.io.File
@@ -272,7 +274,8 @@ fun MediaDetailSheet(
                                 lang = lang,
                                 previewUrl = item.gridImageUrl(vm.imageQuality != com.booru.app.data.ImageQuality.SAVER),
                                 modifier = Modifier.fillMaxSize(),
-                                isActive = pagerState.currentPage == page && !showTrueFullscreen && !isDismissingSheet
+                                isActive = pagerState.currentPage == page && !showTrueFullscreen && !isDismissingSheet,
+                                onFullscreen = { showTrueFullscreen = true }
                             )
                         } else {
                             DetailZoomableImage(
@@ -368,7 +371,7 @@ fun MediaDetailSheet(
                     }
     
                     androidx.compose.animation.AnimatedVisibility(
-                        visible = !isCurrentPageZoomed,
+                        visible = !isCurrentPageZoomed && !currentMedia.isVideo,
                         enter = fadeIn(tween(180)) + scaleIn(tween(200), initialScale = 0.8f),
                         exit = fadeOut(tween(140)) + scaleOut(tween(160), targetScale = 0.8f),
                         modifier = Modifier
@@ -1629,7 +1632,8 @@ fun BooruVideoPlayer(
     isActive: Boolean = true,
     isExternalControls: Boolean = false,
     externalShowControls: Boolean = true,
-    onToggleControls: (() -> Unit)? = null
+    onToggleControls: (() -> Unit)? = null,
+    onFullscreen: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val activeState = rememberUpdatedState(isActive)
@@ -1655,38 +1659,7 @@ fun BooruVideoPlayer(
     }
 
     val exoPlayer = remember(videoUrl) {
-        val referer = when {
-            videoUrl.contains("gelbooru.com") -> "https://gelbooru.com/"
-            videoUrl.contains("rule34.xxx") -> "https://rule34.xxx/"
-            videoUrl.contains("realbooru.com") -> "https://realbooru.com/"
-            videoUrl.contains("xbooru.com") -> "https://xbooru.com/"
-            videoUrl.contains("tbib.org") -> "https://tbib.org/"
-            videoUrl.contains("safebooru.org") -> "https://safebooru.org/"
-            videoUrl.contains("yande.re") -> "https://yande.re/"
-            videoUrl.contains("konachan") -> "https://konachan.net/"
-            else -> "https://gelbooru.com/"
-        }
-
-        val httpDataSourceFactory = androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(
-            NetworkClient.baseClient.newBuilder()
-                .connectTimeout(15, TimeUnit.SECONDS)
-                .readTimeout(20, TimeUnit.SECONDS)
-                .followRedirects(true)
-                .build()
-        )
-            .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-            .setDefaultRequestProperties(
-                mapOf(
-                    "Referer" to referer,
-                    "Accept" to "*/*"
-                )
-            )
-
-        val cache = com.booru.app.BooruVideoCache.getCache(context)
-        val cacheDataSourceFactory = androidx.media3.datasource.cache.CacheDataSource.Factory()
-            .setCache(cache)
-            .setUpstreamDataSourceFactory(httpDataSourceFactory)
-            .setFlags(androidx.media3.datasource.cache.CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        val cacheDataSourceFactory = com.booru.app.BooruVideoCache.playerDataSourceFactory(context, videoUrl)
 
         val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(context)
             .setDataSourceFactory(cacheDataSourceFactory)
@@ -1709,6 +1682,7 @@ fun BooruVideoPlayer(
                 setMediaItem(mediaItem)
                 repeatMode = Player.REPEAT_MODE_ALL
                 playWhenReady = activeState.value
+                setSeekParameters(androidx.media3.exoplayer.SeekParameters.CLOSEST_SYNC)
                 addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
                         if (playbackState == Player.STATE_READY) {
@@ -1732,8 +1706,21 @@ fun BooruVideoPlayer(
                         isPlaying = playing
                     }
                 })
-                prepare()
             }
+    }
+
+    var isPrepared by remember(videoUrl) { mutableStateOf(false) }
+    LaunchedEffect(exoPlayer, isActive) {
+        if (!isActive) return@LaunchedEffect
+        val headReady = CompletableDeferred<Unit>()
+        launch {
+            com.booru.app.BooruVideoCache.prefetchParallel(context, videoUrl) { headReady.complete(Unit) }
+        }
+        if (!isPrepared) {
+            withTimeoutOrNull(2500) { headReady.await() }
+            isPrepared = true
+            exoPlayer.prepare()
+        }
     }
 
     LaunchedEffect(playbackSpeed, exoPlayer) {
@@ -2073,6 +2060,26 @@ fun BooruVideoPlayer(
                                 tint = Color.White,
                                 modifier = Modifier.size(18.dp)
                             )
+                        }
+
+                        if (onFullscreen != null) {
+                            FilledTonalIconButton(
+                                onClick = onFullscreen,
+                                shape = CircleShape,
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = Color.Black.copy(alpha = 0.5f)
+                                ),
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .bouncyPress()
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Fullscreen,
+                                    contentDescription = Strings.fullscreen(lang),
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }

@@ -1031,8 +1031,8 @@ private fun FavoritesFilterBottomSheet(
                 }
     
                 Surface(
-                    shape = ShapeTokens.ExtraLarge,
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = ShapeTokens.LargeIncreased,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -1075,8 +1075,8 @@ private fun FavoritesFilterBottomSheet(
                 Spacer(Modifier.height(14.dp))
     
                 Surface(
-                    shape = ShapeTokens.ExtraLarge,
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = ShapeTokens.LargeIncreased,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {

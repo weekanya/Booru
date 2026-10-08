@@ -452,12 +452,12 @@ object Strings {
     }
 
     fun aboutAppDesc(lang: AppLanguage): String = when (lang) {
-        AppLanguage.RUSSIAN -> "Booru • Версия 5.3"
-        AppLanguage.JAPANESE -> "Booru • バージョン 5.3"
-        AppLanguage.CHINESE -> "Booru • 版本 5.3"
-        AppLanguage.KOREAN -> "Booru • 버전 5.3"
-        AppLanguage.ARABIC -> "Booru • الإصدار 5.3"
-        else -> "Booru • Version 5.3"
+        AppLanguage.RUSSIAN -> "Booru • Версия 6.0"
+        AppLanguage.JAPANESE -> "Booru • バージョン 6.0"
+        AppLanguage.CHINESE -> "Booru • 版本 6.0"
+        AppLanguage.KOREAN -> "Booru • 버전 6.0"
+        AppLanguage.ARABIC -> "Booru • الإصدار 6.0"
+        else -> "Booru • Version 6.0"
     }
 
     fun checkUpdatesTitle(lang: AppLanguage) = when (lang) {
