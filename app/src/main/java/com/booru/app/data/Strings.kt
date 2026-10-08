@@ -281,30 +281,30 @@ object Strings {
     }
 
     fun qualityOriginal(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Оригинал (Максимальное)"
-        AppLanguage.JAPANESE -> "オリジナル (最高品質)"
-        AppLanguage.CHINESE -> "原图 (最高画质)"
-        AppLanguage.KOREAN -> "원본 (최고 화질)"
-        AppLanguage.ARABIC -> "الأصلي (أعلى جودة)"
-        else -> "Original (Full Quality)"
+        AppLanguage.RUSSIAN -> "Оригинал"
+        AppLanguage.JAPANESE -> "オリジナル"
+        AppLanguage.CHINESE -> "原图"
+        AppLanguage.KOREAN -> "원본"
+        AppLanguage.ARABIC -> "الأصلي"
+        else -> "Original"
     }
 
     fun qualitySample(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Оптимальное (Сэмпл)"
-        AppLanguage.JAPANESE -> "標準 (サンプル)"
-        AppLanguage.CHINESE -> "标准 (Sample)"
-        AppLanguage.KOREAN -> "표준 (샘플)"
-        AppLanguage.ARABIC -> "قياسي (عينة)"
-        else -> "Optimal (Sample)"
+        AppLanguage.RUSSIAN -> "Оптимальное"
+        AppLanguage.JAPANESE -> "標準"
+        AppLanguage.CHINESE -> "标准"
+        AppLanguage.KOREAN -> "표준"
+        AppLanguage.ARABIC -> "قياسي"
+        else -> "Optimal"
     }
 
     fun qualitySaver(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Экономия трафика (Превью)"
-        AppLanguage.JAPANESE -> "データ節約 (プレビュー)"
-        AppLanguage.CHINESE -> "省流 (预览图)"
-        AppLanguage.KOREAN -> "데이터 절약 (미리보기)"
-        AppLanguage.ARABIC -> "توفير البيانات (معاينة)"
-        else -> "Data Saver (Preview)"
+        AppLanguage.RUSSIAN -> "Экономия трафика"
+        AppLanguage.JAPANESE -> "データ節約"
+        AppLanguage.CHINESE -> "省流"
+        AppLanguage.KOREAN -> "데이터 절약"
+        AppLanguage.ARABIC -> "توفير البيانات"
+        else -> "Data Saver"
     }
 
     fun customSourcesTitle(lang: AppLanguage) = when (lang) {
@@ -1168,6 +1168,15 @@ object Strings {
         else -> "Feed sources"
     }
 
+    fun feedSourcesCount(enabled: Int, total: Int, lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Включено $enabled из $total"
+        AppLanguage.JAPANESE -> "$total 件中 $enabled 件が有効"
+        AppLanguage.CHINESE -> "已启用 $enabled / $total"
+        AppLanguage.KOREAN -> "$total 개 중 $enabled 개 사용"
+        AppLanguage.ARABIC -> "مفعّل $enabled من $total"
+        else -> "$enabled of $total enabled"
+    }
+
     fun sourceToggleDesc(enabled: Boolean, lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> if (enabled) "Используется в ленте и поиске" else "Отключён"
         AppLanguage.JAPANESE -> if (enabled) "フィードと検索で使用" else "無効"
@@ -1648,8 +1657,21 @@ object Strings {
     }
 
     fun feedRecommendedOnly(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Мои теги"
-        else -> "My tags"
+        AppLanguage.RUSSIAN -> "Для вас"
+        AppLanguage.JAPANESE -> "おすすめ"
+        AppLanguage.CHINESE -> "为你推荐"
+        AppLanguage.KOREAN -> "추천"
+        AppLanguage.ARABIC -> "لك"
+        else -> "For you"
+    }
+
+    fun feedMixTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Рекомендации в ленте"
+        AppLanguage.JAPANESE -> "フィードのおすすめ"
+        AppLanguage.CHINESE -> "信息流推荐"
+        AppLanguage.KOREAN -> "피드 추천"
+        AppLanguage.ARABIC -> "التوصيات في الخلاصة"
+        else -> "Feed recommendations"
     }
 
     fun securitySection(lang: AppLanguage) = when (lang) {

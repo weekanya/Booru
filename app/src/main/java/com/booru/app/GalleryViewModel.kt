@@ -917,7 +917,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun applyFailure(e: Throwable, keepResults: Boolean) {
-        if (!keepResults) results = emptyList()
+        if (!keepResults) {
+            results = emptyList()
+            hasMore = false
+        }
         isNetworkError = e is BooruNetworkException || e is IOException
         when (e) {
             is BooruAuthException -> {
@@ -1070,7 +1073,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 throw c
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to load more items: ${e.message}", e)
-                if (searchGen == currentSearchGeneration) loadMoreError = true
+                if (searchGen == currentSearchGeneration) {
+                    val isAuthFailure = e is BooruAuthException || (e is BooruHttpException && (e.statusCode == 401 || e.statusCode == 403))
+                    if (isAuthFailure || results.isEmpty()) hasMore = false else loadMoreError = true
+                }
             } finally {
                 if (token == loadMoreToken) loadingMore = false
             }

@@ -1,8 +1,6 @@
 name: Debug APK
 
 on:
-  push:
-    branches: [main, test]
   workflow_dispatch:
 
 concurrency:

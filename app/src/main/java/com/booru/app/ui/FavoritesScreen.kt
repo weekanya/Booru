@@ -848,12 +848,12 @@ private fun FolderTabPill(
 ) {
     val containerColor by animateColorAsState(
         targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
-        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = tween(160, easing = FastOutSlowInEasing),
         label = "folderPillBg"
     )
     val contentColor by animateColorAsState(
         targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = tween(160, easing = FastOutSlowInEasing),
         label = "folderPillContent"
     )
 
@@ -977,6 +977,8 @@ private fun FavoritesFilterBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    var draftSort by remember { mutableStateOf(currentSort) }
+    var draftType by remember { mutableStateOf(currentType) }
 
     SheetMotion {
         ModalBottomSheet(
@@ -1026,8 +1028,8 @@ private fun FavoritesFilterBottomSheet(
     
                     TextButton(
                         onClick = {
-                            onSortSelected(FavoriteSortOrder.NEWEST)
-                            onTypeSelected(FavoriteMediaTypeFilter.ALL)
+                            draftSort = FavoriteSortOrder.NEWEST
+                            draftType = FavoriteMediaTypeFilter.ALL
                         },
                         shape = CircleShape,
                         modifier = Modifier.bouncyPress()
@@ -1076,8 +1078,8 @@ private fun FavoritesFilterBottomSheet(
                             )
                             sortOptions.forEach { (order, label, icon) ->
                                 FilterOptionButton(
-                                    selected = currentSort == order,
-                                    onClick = { onSortSelected(order) },
+                                    selected = draftSort == order,
+                                    onClick = { draftSort = order },
                                     label = label,
                                     icon = icon,
                                     modifier = Modifier.weight(1f)
@@ -1119,14 +1121,14 @@ private fun FavoritesFilterBottomSheet(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             FilterOptionButton(
-                                selected = currentType == FavoriteMediaTypeFilter.ALL,
-                                onClick = { onTypeSelected(FavoriteMediaTypeFilter.ALL) },
+                                selected = draftType == FavoriteMediaTypeFilter.ALL,
+                                onClick = { draftType = FavoriteMediaTypeFilter.ALL },
                                 label = "${Strings.favFilterAll(lang)} ($allCount)",
                                 modifier = Modifier.weight(1f)
                             )
                             FilterOptionButton(
-                                selected = currentType == FavoriteMediaTypeFilter.IMAGES,
-                                onClick = { onTypeSelected(FavoriteMediaTypeFilter.IMAGES) },
+                                selected = draftType == FavoriteMediaTypeFilter.IMAGES,
+                                onClick = { draftType = FavoriteMediaTypeFilter.IMAGES },
                                 label = "${Strings.favFilterImages(lang)} ($imagesCount)",
                                 icon = Icons.Rounded.Image,
                                 modifier = Modifier.weight(1f)
@@ -1140,15 +1142,15 @@ private fun FavoritesFilterBottomSheet(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             FilterOptionButton(
-                                selected = currentType == FavoriteMediaTypeFilter.GIFS,
-                                onClick = { onTypeSelected(FavoriteMediaTypeFilter.GIFS) },
+                                selected = draftType == FavoriteMediaTypeFilter.GIFS,
+                                onClick = { draftType = FavoriteMediaTypeFilter.GIFS },
                                 label = "${Strings.favFilterGifs(lang)} ($gifsCount)",
                                 icon = Icons.Rounded.Gif,
                                 modifier = Modifier.weight(1f)
                             )
                             FilterOptionButton(
-                                selected = currentType == FavoriteMediaTypeFilter.VIDEOS,
-                                onClick = { onTypeSelected(FavoriteMediaTypeFilter.VIDEOS) },
+                                selected = draftType == FavoriteMediaTypeFilter.VIDEOS,
+                                onClick = { draftType = FavoriteMediaTypeFilter.VIDEOS },
                                 label = "${Strings.favFilterVideos(lang)} ($videosCount)",
                                 icon = Icons.Rounded.Videocam,
                                 modifier = Modifier.weight(1f)
@@ -1161,6 +1163,8 @@ private fun FavoritesFilterBottomSheet(
     
                 Button(
                     onClick = {
+                        onSortSelected(draftSort)
+                        onTypeSelected(draftType)
                         scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                     },
                     shape = RoundedCornerShape(20.dp),

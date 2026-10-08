@@ -452,7 +452,14 @@ fun ExploreScreen(
                             }
 
                             TextButton(onClick = { vm.clearError() }) {
-                                Text(Strings.closeBtn(lang))
+                                Text(
+                                    Strings.closeBtn(lang),
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (vm.isAuthError)
+                                        MaterialTheme.colorScheme.onTertiaryContainer
+                                    else
+                                        MaterialTheme.colorScheme.onErrorContainer
+                                )
                             }
                         }
                     }
@@ -1639,6 +1646,7 @@ fun SourceSelectionSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    var pendingSource by remember { mutableStateOf<String?>(null) }
 
     SheetMotion {
         ModalBottomSheet(
@@ -1673,7 +1681,12 @@ fun SourceSelectionSheet(
                 }
     
                 sources.forEach { src ->
-                    val isSelected = currentSource == src || (customSources.find { it.key == src || it.id == src }?.let { it.key == currentSource || it.id == currentSource } ?: false)
+                    val isSelected = pendingSource?.let { it == src } ?: (currentSource == src || (customSources.find { it.key == src || it.id == src }?.let { it.key == currentSource || it.id == currentSource } ?: false))
+                    val itemColor by animateColorAsState(
+                        targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        label = "sourceItemColor"
+                    )
                     val icon = when (src) {
                         BooruRepository.SOURCE_ALL -> Icons.Rounded.AutoAwesome
                         BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit
@@ -1689,19 +1702,23 @@ fun SourceSelectionSheet(
     
                     Surface(
                         onClick = {
-                            onSelect(src)
-                            scope.launch {
-                                sheetState.hide()
-                            }.invokeOnCompletion {
-                                onDismiss()
+                            if (pendingSource == null) {
+                                pendingSource = src
+                                scope.launch {
+                                    kotlinx.coroutines.delay(140)
+                                    sheetState.hide()
+                                }.invokeOnCompletion {
+                                    onSelect(src)
+                                    onDismiss()
+                                }
                             }
                         },
                         shape = RoundedCornerShape(16.dp),
-                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+                        color = itemColor,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp)
-                            .bouncyPress()
+                            .bouncyPress(0.97f)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -1751,12 +1768,12 @@ fun FilterOptionButton(
 ) {
     val containerColor by animateColorAsState(
         targetValue = if (selected) selectedContainerColor else unselectedContainerColor,
-        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = tween(160, easing = FastOutSlowInEasing),
         label = "filterBtnBg"
     )
     val contentColor by animateColorAsState(
         targetValue = if (selected) selectedContentColor else unselectedContentColor,
-        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = tween(160, easing = FastOutSlowInEasing),
         label = "filterBtnContent"
     )
 
@@ -1929,12 +1946,12 @@ private fun FilterSelectionBottomSheet(
                             val isSelected = targetFilterIndex == index
                             val bg by animateColorAsState(
                                 targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
-                                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+                                animationSpec = tween(160, easing = FastOutSlowInEasing),
                                 label = "filterTabBg"
                             )
                             val fg by animateColorAsState(
                                 targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+                                animationSpec = tween(160, easing = FastOutSlowInEasing),
                                 label = "filterTabFg"
                             )
                             Surface(
@@ -2228,7 +2245,7 @@ private fun FilterSelectionBottomSheet(
                                                 Icon(Icons.Rounded.AutoAwesome, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                                 Spacer(Modifier.width(8.dp))
                                                 Text(
-                                                    text = Strings.feedRecommendedOnly(lang),
+                                                    text = Strings.feedMixTitle(lang),
                                                     style = MaterialTheme.typography.labelLarge,
                                                     fontWeight = FontWeight.Bold,
                                                     color = MaterialTheme.colorScheme.onSurface
@@ -2240,9 +2257,9 @@ private fun FilterSelectionBottomSheet(
                                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                                             ) {
                                                 listOf(
-                                                    Triple(0.0f, Strings.feedNewestOnly(lang), tempRecRatio <= 0.15f),
-                                                    Triple(0.5f, Strings.feedBalanced(lang), tempRecRatio in 0.35f..0.65f),
-                                                    Triple(1.0f, Strings.feedRecommendedOnly(lang), tempRecRatio >= 0.85f)
+                                                    Triple(0.0f, Strings.feedNewestOnly(lang), tempRecRatio < 0.25f),
+                                                    Triple(0.5f, Strings.feedBalanced(lang), tempRecRatio >= 0.25f && tempRecRatio <= 0.75f),
+                                                    Triple(1.0f, Strings.feedRecommendedOnly(lang), tempRecRatio > 0.75f)
                                                 ).forEach { (presetVal, label, active) ->
                                                     FilterOptionButton(
                                                         selected = active,

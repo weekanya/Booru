@@ -127,8 +127,67 @@ fun SettingsScreen(
     var customUserId by remember { mutableStateOf("") }
     var newBlacklistTag by remember { mutableStateOf("") }
     var showLanguageBottomSheet by remember { mutableStateOf(false) }
+    var showFeedSourcesSheet by remember { mutableStateOf(false) }
     var blacklistFilterQuery by remember { mutableStateOf("") }
     var editingCustomSource by remember { mutableStateOf<CustomBooruSource?>(null) }
+
+    if (showFeedSourcesSheet) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        SheetMotion {
+            ModalBottomSheet(
+                onDismissRequest = { showFeedSourcesSheet = false },
+                sheetState = sheetState,
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 32.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    ) {
+                        SettingIconBadge(
+                            icon = Icons.Rounded.Public,
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Column {
+                            Text(
+                                text = Strings.feedSourcesTitle(lang),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                            val toggleable = vm.toggleableSources
+                            Text(
+                                text = Strings.feedSourcesCount(toggleable.count { vm.isSourceEnabled(it) }, toggleable.size, lang),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    SettingsGroupCard {
+                        vm.toggleableSources.forEachIndexed { index, src ->
+                            if (index > 0) SettingsDivider()
+                            val enabled = vm.isSourceEnabled(src)
+                            SettingSwitchItem(
+                                title = BooruRepository.getSourceDisplayName(src),
+                                subtitle = Strings.sourceToggleDesc(enabled, lang),
+                                icon = feedSourceIcon(src),
+                                checked = enabled,
+                                onCheckedChange = { vm.setSourceEnabled(src, it) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     if (showRule34Dialog) {
         val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -1303,12 +1362,12 @@ fun SettingsScreen(
                     val isSelected = targetCategoryIndex == index
                     val animBg by animateColorAsState(
                         targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+                        animationSpec = tween(160, easing = FastOutSlowInEasing),
                         label = "settingsTabBg"
                     )
                     val animFg by animateColorAsState(
                         targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+                        animationSpec = tween(160, easing = FastOutSlowInEasing),
                         label = "settingsTabFg"
                     )
 
@@ -1655,17 +1714,13 @@ fun SettingsScreen(
                         SectionLabel(Strings.feedSourcesTitle(lang))
 
                         SettingsGroupCard {
-                            vm.toggleableSources.forEachIndexed { index, src ->
-                                if (index > 0) SettingsDivider()
-                                val enabled = vm.isSourceEnabled(src)
-                                SettingSwitchItem(
-                                    title = BooruRepository.getSourceDisplayName(src),
-                                    subtitle = Strings.sourceToggleDesc(enabled, lang),
-                                    icon = Icons.Rounded.Public,
-                                    checked = enabled,
-                                    onCheckedChange = { vm.setSourceEnabled(src, it) }
-                                )
-                            }
+                            val toggleable = vm.toggleableSources
+                            SettingRowItem(
+                                title = Strings.feedSourcesTitle(lang),
+                                subtitle = Strings.feedSourcesCount(toggleable.count { vm.isSourceEnabled(it) }, toggleable.size, lang),
+                                icon = Icons.Rounded.Public,
+                                onClick = { showFeedSourcesSheet = true }
+                            )
                         }
                     }
 
@@ -1845,6 +1900,18 @@ fun SettingsScreen(
             }
         }
     }
+}
+
+private fun feedSourceIcon(source: String): ImageVector = when (source) {
+    BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit
+    BooruRepository.SOURCE_GELBOORU -> Icons.Rounded.Image
+    BooruRepository.SOURCE_REALBOORU -> Icons.Rounded.VideoLibrary
+    BooruRepository.SOURCE_XBOORU -> Icons.Rounded.PhotoLibrary
+    BooruRepository.SOURCE_TBIB -> Icons.Rounded.Public
+    BooruRepository.SOURCE_YANDE -> Icons.Rounded.Collections
+    BooruRepository.SOURCE_KONACHAN -> Icons.Rounded.Wallpaper
+    BooruRepository.SOURCE_SAFEBOORU -> Icons.Rounded.Shield
+    else -> Icons.Rounded.Language
 }
 
 @Composable

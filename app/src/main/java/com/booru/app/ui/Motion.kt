@@ -108,8 +108,8 @@ fun Modifier.bouncyPress(scaleDown: Float = 0.94f): Modifier = composed {
                     animScale.animateTo(
                         targetValue = scaleDown,
                         animationSpec = spring(
-                            dampingRatio = 0.82f,
-                            stiffness = 1200f
+                            dampingRatio = 1f,
+                            stiffness = 1400f
                         )
                     )
                 }
@@ -118,8 +118,8 @@ fun Modifier.bouncyPress(scaleDown: Float = 0.94f): Modifier = composed {
                     animScale.animateTo(
                         targetValue = 1f,
                         animationSpec = spring(
-                            dampingRatio = 0.68f,
-                            stiffness = 900f
+                            dampingRatio = 0.88f,
+                            stiffness = 700f
                         )
                     )
                 }
