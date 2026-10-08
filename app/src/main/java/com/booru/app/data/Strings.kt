@@ -478,6 +478,24 @@ object Strings {
         else -> "Tap to check GitHub for new releases"
     }
 
+    fun updateHeadline(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Доступно обновление"
+        AppLanguage.JAPANESE -> "アップデートがあります"
+        AppLanguage.CHINESE -> "有新版本可用"
+        AppLanguage.KOREAN -> "새 업데이트 가능"
+        AppLanguage.ARABIC -> "يتوفر تحديث"
+        else -> "Update available"
+    }
+
+    fun whatsNewTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Что нового"
+        AppLanguage.JAPANESE -> "新機能"
+        AppLanguage.CHINESE -> "更新内容"
+        AppLanguage.KOREAN -> "새로운 기능"
+        AppLanguage.ARABIC -> "ما الجديد"
+        else -> "What's new"
+    }
+
     fun updateAvailableTitle(lang: AppLanguage, version: String) = when (lang) {
         AppLanguage.RUSSIAN -> "Доступно обновление ($version)"
         AppLanguage.JAPANESE -> "アップデートがあります ($version)"

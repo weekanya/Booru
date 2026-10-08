@@ -82,17 +82,17 @@ fun SegmentedOptionItem(
 ) {
     val containerColor by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
-        animationSpec = tween(160, easing = FastOutSlowInEasing),
+        animationSpec = Motion.effectsDefault(),
         label = "segmentedItemColor"
     )
     val badgeColor by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
-        animationSpec = tween(160, easing = FastOutSlowInEasing),
+        animationSpec = Motion.effectsDefault(),
         label = "segmentedBadgeColor"
     )
     val badgeContent by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = tween(160, easing = FastOutSlowInEasing),
+        animationSpec = Motion.effectsDefault(),
         label = "segmentedBadgeContent"
     )
     Surface(

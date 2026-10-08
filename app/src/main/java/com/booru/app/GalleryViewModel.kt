@@ -1641,13 +1641,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var activeDownloads by mutableStateOf<Set<String>>(emptySet()); private set
     var isSettingWallpaper by mutableStateOf(false); private set
 
-    private fun toast(message: String, long: Boolean = false) {
-        android.widget.Toast.makeText(
-            getApplication(),
-            message,
-            if (long) android.widget.Toast.LENGTH_LONG else android.widget.Toast.LENGTH_SHORT
-        ).show()
+    private val _messages = kotlinx.coroutines.flow.MutableSharedFlow<String>(extraBufferCapacity = 16)
+    val messages: kotlinx.coroutines.flow.SharedFlow<String> = _messages
+
+    fun postMessage(message: String) {
+        _messages.tryEmit(message)
     }
+
+    private fun toast(message: String) = postMessage(message)
 
     fun downloadMedia(media: RemoteMedia) {
         val key = media.mediaKey
@@ -1658,12 +1659,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try {
                 com.booru.app.ui.MediaActionHandler.downloadMedia(getApplication(), media, ImageQuality.ORIGINAL)
-                    .onSuccess { filename -> toast("${com.booru.app.data.Strings.downloadSuccess(lang)}: $filename", long = true) }
-                    .onFailure { e -> toast("${com.booru.app.data.Strings.downloadFailed(lang)}: ${e.message}", long = true) }
+                    .onSuccess { filename -> toast("${com.booru.app.data.Strings.downloadSuccess(lang)}: $filename") }
+                    .onFailure { e -> toast("${com.booru.app.data.Strings.downloadFailed(lang)}: ${e.message}") }
             } catch (c: CancellationException) {
                 throw c
             } catch (e: Exception) {
-                toast("${com.booru.app.data.Strings.downloadFailed(lang)}: ${e.message}", long = true)
+                toast("${com.booru.app.data.Strings.downloadFailed(lang)}: ${e.message}")
             } finally {
                 activeDownloads = activeDownloads - key
             }

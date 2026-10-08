@@ -46,11 +46,11 @@ import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.ZoomOutMap
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -199,7 +199,7 @@ fun ImmersiveMediaViewer(
             targetValue = if (isContentVisible) {
                 (1f - (abs(animatedDragOffsetY) / 500f)).coerceIn(0.15f, 1f)
             } else 0f,
-            animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing),
+            animationSpec = Motion.effectsDefault(),
             label = "bgAlpha"
         )
 
@@ -314,21 +314,16 @@ fun ImmersiveMediaViewer(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = Color.Black.copy(alpha = 0.50f),
-                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
-                            modifier = Modifier.bouncyPress()
+                        OutlinedIconButton(
+                            onClick = { dismissWithAnimation() },
+                            colors = IconButtonDefaults.outlinedIconButtonColors(
+                                containerColor = Color.Black.copy(alpha = 0.50f),
+                                contentColor = Color.White
+                            ),
+                            shapes = IconButtonDefaults.shapes(),
+                            border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
                         ) {
-                            IconButton(
-                                onClick = { dismissWithAnimation() },
-                                colors = IconButtonDefaults.iconButtonColors(
-                                    containerColor = Color.Transparent,
-                                    contentColor = Color.White
-                                )
-                            ) {
-                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
-                            }
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                         }
 
                         Row(
@@ -369,41 +364,31 @@ fun ImmersiveMediaViewer(
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             val current = (mediaList.getOrNull(pagerState.currentPage) ?: mediaList.last())
                             val isFav = vm.isFavorite(current)
-                            Surface(
-                                shape = CircleShape,
-                                color = Color.Black.copy(alpha = 0.50f),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
-                                modifier = Modifier.bouncyPress()
+                            OutlinedIconButton(
+                                onClick = { vm.toggleFavorite(current) },
+                                colors = IconButtonDefaults.outlinedIconButtonColors(
+                                    containerColor = Color.Black.copy(alpha = 0.50f),
+                                    contentColor = if (isFav) MaterialTheme.colorScheme.primary else Color.White
+                                ),
+                                shapes = IconButtonDefaults.shapes(),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
                             ) {
-                                IconButton(
-                                    onClick = { vm.toggleFavorite(current) },
-                                    colors = IconButtonDefaults.iconButtonColors(
-                                        containerColor = Color.Transparent,
-                                        contentColor = if (isFav) MaterialTheme.colorScheme.primary else Color.White
-                                    )
-                                ) {
-                                    Icon(
-                                        if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                        contentDescription = "Favorite"
-                                    )
-                                }
+                                Icon(
+                                    if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                    contentDescription = "Favorite"
+                                )
                             }
 
-                            Surface(
-                                shape = CircleShape,
-                                color = Color.Black.copy(alpha = 0.50f),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
-                                modifier = Modifier.bouncyPress()
+                            OutlinedIconButton(
+                                onClick = { onDownload(current) },
+                                colors = IconButtonDefaults.outlinedIconButtonColors(
+                                    containerColor = Color.Black.copy(alpha = 0.50f),
+                                    contentColor = Color.White
+                                ),
+                                shapes = IconButtonDefaults.shapes(),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
                             ) {
-                                IconButton(
-                                    onClick = { onDownload(current) },
-                                    colors = IconButtonDefaults.iconButtonColors(
-                                        containerColor = Color.Transparent,
-                                        contentColor = Color.White
-                                    )
-                                ) {
-                                    Icon(Icons.Rounded.Download, contentDescription = "Download")
-                                }
+                                Icon(Icons.Rounded.Download, contentDescription = "Download")
                             }
                         }
                     }
@@ -469,24 +454,19 @@ fun ImmersiveMediaViewer(
                         }
 
                         if (isPageZoomed) {
-                            Surface(
-                                shape = CircleShape,
-                                color = Color.Black.copy(alpha = 0.50f),
-                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f)),
-                                modifier = Modifier.bouncyPress()
+                            OutlinedIconButton(
+                                onClick = {
+                                    resetZoomKey++
+                                    isPageZoomed = false
+                                },
+                                colors = IconButtonDefaults.outlinedIconButtonColors(
+                                    containerColor = Color.Black.copy(alpha = 0.50f),
+                                    contentColor = Color.White
+                                ),
+                                shapes = IconButtonDefaults.shapes(),
+                                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
                             ) {
-                                IconButton(
-                                    onClick = {
-                                        resetZoomKey++
-                                        isPageZoomed = false
-                                    },
-                                    colors = IconButtonDefaults.iconButtonColors(
-                                        containerColor = Color.Transparent,
-                                        contentColor = Color.White
-                                    )
-                                ) {
-                                    Icon(Icons.Rounded.ZoomOutMap, contentDescription = "Reset Zoom")
-                                }
+                                Icon(Icons.Rounded.ZoomOutMap, contentDescription = "Reset Zoom")
                             }
                         }
                     }

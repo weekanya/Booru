@@ -16,7 +16,6 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.core.graphics.drawable.toBitmap
 import java.util.Locale
 import androidx.activity.compose.BackHandler
@@ -51,6 +50,7 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import kotlin.math.abs
 import androidx.compose.foundation.pager.HorizontalPager
@@ -151,6 +151,7 @@ fun MediaDetailSheet(
     }
 
     val context = LocalContext.current
+    val showMessage = LocalShowMessage.current
     val lang = vm.language
     val coroutineScope = rememberCoroutineScope()
 
@@ -169,7 +170,7 @@ fun MediaDetailSheet(
     var showTrueFullscreen by remember { mutableStateOf(false) }
     var showMoreMenu by remember { mutableStateOf(false) }
 
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberExpandedSheetState()
     var isDismissingSheet by remember { mutableStateOf(false) }
     val dismissSheetAnimated: () -> Unit = {
         if (!isDismissingSheet) {
@@ -224,11 +225,11 @@ fun MediaDetailSheet(
             onDismissRequest = onDismiss,
             modifier = Modifier.statusBarsPadding(),
             containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-            tonalElevation = 4.dp,
             dragHandle = null,
             sheetState = sheetState,
             shape = ShapeTokens.ExtraLargeIncreasedTop
         ) {
+            Box {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -302,7 +303,6 @@ fun MediaDetailSheet(
                         Surface(
                             shape = CircleShape,
                             color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.90f),
-                            shadowElevation = 2.dp
                         ) {
                             Text(
                                 text = currentMedia.source.uppercase(),
@@ -318,8 +318,7 @@ fun MediaDetailSheet(
                         if (currentMedia.isGif) {
                             Surface(
                                 shape = CircleShape,
-                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.95f),
-                                shadowElevation = 2.dp
+                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.95f)
                             ) {
                                 Text(
                                     text = "GIF",
@@ -332,8 +331,7 @@ fun MediaDetailSheet(
                         } else if (currentMedia.isVideo) {
                             Surface(
                                 shape = CircleShape,
-                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.95f),
-                                shadowElevation = 2.dp
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.95f)
                             ) {
                                 Text(
                                     text = "VIDEO",
@@ -356,8 +354,7 @@ fun MediaDetailSheet(
                         if (mediaList.size > 1) {
                             Surface(
                                 shape = CircleShape,
-                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.90f),
-                                shadowElevation = 2.dp
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.90f)
                             ) {
                                 Text(
                                     text = "${pagerState.currentPage + 1} / ${mediaList.size}",
@@ -372,20 +369,21 @@ fun MediaDetailSheet(
     
                     androidx.compose.animation.AnimatedVisibility(
                         visible = !isCurrentPageZoomed && !currentMedia.isVideo,
-                        enter = fadeIn(tween(180)) + scaleIn(tween(200), initialScale = 0.8f),
-                        exit = fadeOut(tween(140)) + scaleOut(tween(160), targetScale = 0.8f),
+                        enter = fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialFast(), initialScale = 0.8f),
+                        exit = fadeOut(Motion.effectsFast()) + scaleOut(Motion.effectsFast(), targetScale = 0.8f),
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(12.dp)
                     ) {
+                        val pressSource1 = remember { MutableInteractionSource() }
                         Surface(
                             onClick = { showTrueFullscreen = true },
-                            shape = CircleShape,
+                            shape = pressMorphShape(pressSource1),
+                            interactionSource = pressSource1,
                             color = Color.Black.copy(alpha = 0.55f),
                             contentColor = Color.White,
                             modifier = Modifier
                                 .size(40.dp)
-                                .bouncyPress()
                         ) {
                             Box(contentAlignment = Alignment.Center) {
                                 Icon(
@@ -464,11 +462,11 @@ fun MediaDetailSheet(
                     AnimatedVisibility(
                         visible = isFav,
                         enter = expandHorizontally(Motion.spatialDefault(), expandFrom = Alignment.Start) +
-                            fadeIn(tween(200, delayMillis = 60)) +
+                            fadeIn(Motion.effectsDefault()) +
                             scaleIn(Motion.spatialDefault(), initialScale = 0.6f),
-                        exit = shrinkHorizontally(tween(180), shrinkTowards = Alignment.Start) +
-                            fadeOut(tween(120)) +
-                            scaleOut(tween(150), targetScale = 0.6f)
+                        exit = shrinkHorizontally(Motion.effectsFast(), shrinkTowards = Alignment.Start) +
+                            fadeOut(Motion.effectsFast()) +
+                            scaleOut(Motion.effectsFast(), targetScale = 0.6f)
                     ) {
                         Row {
                             Spacer(Modifier.width(8.dp))
@@ -503,7 +501,7 @@ fun MediaDetailSheet(
                 }
 
                 if (showMoreSheet) {
-                    val moreSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                    val moreSheetState = rememberExpandedSheetState()
                     SheetMotion {
                         ModalBottomSheet(
                             onDismissRequest = { showMoreSheet = false },
@@ -549,7 +547,7 @@ fun MediaDetailSheet(
                                                     runCatching {
                                                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(browserUrl)))
                                                     }.onFailure {
-                                                        Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
+                                                        showMessage(Strings.noBrowserFound(lang))
                                                     }
                                                 }
                                             }
@@ -643,7 +641,7 @@ fun MediaDetailSheet(
                         MaterialTheme.colorScheme.primaryContainer
                     else
                         MaterialTheme.colorScheme.surfaceContainerHighest,
-                    animationSpec = tween(220),
+                    animationSpec = Motion.effectsDefault(),
                     label = "chevronBg"
                 )
                 val chevronTint by animateColorAsState(
@@ -651,12 +649,12 @@ fun MediaDetailSheet(
                         MaterialTheme.colorScheme.primary
                     else
                         MaterialTheme.colorScheme.onSurfaceVariant,
-                    animationSpec = tween(220),
+                    animationSpec = Motion.effectsDefault(),
                     label = "chevronTint"
                 )
                 val rotation by animateFloatAsState(
                     targetValue = if (isTagsExpanded) 180f else 0f,
-                    animationSpec = tween(250, easing = FastOutSlowInEasing),
+                    animationSpec = Motion.effectsDefault(),
                     label = "tagsChevron"
                 )
     
@@ -736,16 +734,16 @@ fun MediaDetailSheet(
                         AnimatedVisibility(
                             visible = isTagsExpanded,
                             enter = expandVertically(
-                                animationSpec = tween(260, easing = FastOutSlowInEasing),
+                                animationSpec = Motion.effectsDefault(),
                                 expandFrom = Alignment.Top
                             ) + fadeIn(
-                                animationSpec = tween(180, easing = FastOutSlowInEasing)
+                                animationSpec = Motion.effectsDefault()
                             ),
                             exit = shrinkVertically(
-                                animationSpec = tween(200, easing = FastOutSlowInEasing),
+                                animationSpec = Motion.effectsDefault(),
                                 shrinkTowards = Alignment.Top
                             ) + fadeOut(
-                                animationSpec = tween(180, easing = FastOutSlowInEasing)
+                                animationSpec = Motion.effectsDefault()
                             )
                         ) {
                             Column(
@@ -775,11 +773,13 @@ fun MediaDetailSheet(
                     }
                 }
             }
+            SheetSnackbarHost(Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+            }
         }
     }
 
     if (showWallpaperDialog) {
-        val wallpaperSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val wallpaperSheetState = rememberExpandedSheetState()
         SheetMotion {
             ModalBottomSheet(
                 onDismissRequest = { showWallpaperDialog = false },
@@ -873,7 +873,7 @@ fun MediaDetailSheet(
     }
 
     if (showFolderDialog) {
-        val folderSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val folderSheetState = rememberExpandedSheetState()
         val currentFolder = vm.getMediaFolder(currentMedia)
         SheetMotion {
             ModalBottomSheet(
@@ -921,7 +921,7 @@ fun MediaDetailSheet(
     if (selectedTagForAction != null) {
         val currentActionTag = selectedTagForAction!!
         val isBlacklisted = vm.tagBlacklist.any { it.equals(currentActionTag, ignoreCase = true) }
-        val tagSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val tagSheetState = rememberExpandedSheetState()
         SheetMotion {
             ModalBottomSheet(
                 onDismissRequest = { selectedTagForAction = null },
@@ -943,7 +943,7 @@ fun MediaDetailSheet(
                     ) {
                         val headerColor by animateColorAsState(
                             targetValue = if (isBlacklisted) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
-                            animationSpec = tween(200, easing = FastOutSlowInEasing),
+                            animationSpec = Motion.effectsDefault(),
                             label = "tagHeaderColor"
                         )
                         Surface(
@@ -970,8 +970,8 @@ fun MediaDetailSheet(
                             )
                             androidx.compose.animation.AnimatedVisibility(
                                 visible = isBlacklisted,
-                                enter = fadeIn(tween(200)) + expandVertically(Motion.spatialDefault()),
-                                exit = fadeOut(tween(150)) + shrinkVertically(Motion.spatialDefault())
+                                enter = fadeIn(Motion.effectsDefault()) + expandVertically(Motion.spatialDefault()),
+                                exit = fadeOut(Motion.effectsFast()) + shrinkVertically(Motion.spatialDefault())
                             ) {
                                 Surface(
                                     shape = CircleShape,
@@ -1018,7 +1018,7 @@ fun MediaDetailSheet(
                         onClick = {
                             val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             cm.setPrimaryClip(ClipData.newPlainText("Tag", currentActionTag))
-                            Toast.makeText(context, Strings.tagCopied(lang), Toast.LENGTH_SHORT).show()
+                            showMessage(Strings.tagCopied(lang))
                             coroutineScope.launch {
                                 tagSheetState.hide()
                             }.invokeOnCompletion {
@@ -1074,12 +1074,12 @@ private fun TagActionItem(
 ) {
     val badgeColor by animateColorAsState(
         targetValue = if (destructive) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
-        animationSpec = tween(200, easing = FastOutSlowInEasing),
+        animationSpec = Motion.effectsDefault(),
         label = "tagActionBadge"
     )
     val badgeContent by animateColorAsState(
         targetValue = if (destructive) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
-        animationSpec = tween(200, easing = FastOutSlowInEasing),
+        animationSpec = Motion.effectsDefault(),
         label = "tagActionBadgeContent"
     )
     Surface(
@@ -1103,7 +1103,7 @@ private fun TagActionItem(
                 Box(contentAlignment = Alignment.Center) {
                     AnimatedContent(
                         targetState = icon,
-                        transitionSpec = { (fadeIn(tween(160)) + scaleIn(tween(200), initialScale = 0.7f)) togetherWith fadeOut(tween(120)) },
+                        transitionSpec = { (fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialFast(), initialScale = 0.7f)) togetherWith fadeOut(Motion.effectsFast()) },
                         label = "tagActionIcon"
                     ) { target ->
                         Icon(target, contentDescription = null, modifier = Modifier.size(20.dp))
@@ -1113,7 +1113,7 @@ private fun TagActionItem(
             Spacer(Modifier.width(16.dp))
             AnimatedContent(
                 targetState = title,
-                transitionSpec = { fadeIn(tween(160)) togetherWith fadeOut(tween(120)) },
+                transitionSpec = { fadeIn(Motion.effectsDefault()) togetherWith fadeOut(Motion.effectsFast()) },
                 label = "tagActionTitle",
                 modifier = Modifier.weight(1f)
             ) { target ->
@@ -1429,12 +1429,11 @@ fun DetailZoomableImage(
                         rawOffset = Offset.Zero
                         onZoomChanged(false)
                     },
-                    shape = CircleShape,
+                    shapes = IconButtonDefaults.shapes(shape = CircleShape, pressedShape = IconButtonDefaults.smallPressedShape),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(14.dp)
                         .size(38.dp)
-                        .bouncyPress()
                 ) {
                     Icon(
                         Icons.Rounded.ZoomOutMap,
@@ -1458,13 +1457,14 @@ private fun WallpaperOptionItem(
     title: String,
     onClick: () -> Unit
 ) {
+    val pressSource2 = remember { MutableInteractionSource() }
     Surface(
         onClick = onClick,
-        shape = ShapeTokens.Medium,
+        shape = pressMorphShape(pressSource2, resting = 12.dp),
+        interactionSource = pressSource2,
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         modifier = Modifier
             .fillMaxWidth()
-            .bouncyPress()
     ) {
         Row(
             modifier = Modifier
@@ -1550,17 +1550,19 @@ private fun OptInFlowDetailTags(
                 val chipIcon = if (isBlacklisted) Icons.Rounded.Block else cat.icon
                 val iconTint = if (isBlacklisted) scheme.error else (tone ?: scheme.primary)
 
+                val chipPress = remember { MutableInteractionSource() }
+                val chipShape = pressMorphShape(chipPress, pressedFraction = 0.3f)
                 Surface(
-                    shape = CircleShape,
+                    shape = chipShape,
                     color = chipBg,
                     modifier = Modifier
-                        .bouncyPress()
-                        .pointerInput(item.rawTag) {
-                            detectTapGestures(
-                                onTap = { onTagClick(item.rawTag) },
-                                onLongPress = { onTagLongClick(item.rawTag) }
-                            )
-                        }
+                        .clip(chipShape)
+                        .combinedClickable(
+                            interactionSource = chipPress,
+                            indication = ripple(),
+                            onClick = { onTagClick(item.rawTag) },
+                            onLongClick = { onTagLongClick(item.rawTag) }
+                        )
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
@@ -1609,8 +1611,7 @@ private fun RatingBadge(rating: String, lang: AppLanguage) {
 
     Surface(
         shape = CircleShape,
-        color = bg,
-        shadowElevation = 2.dp
+        color = bg
     ) {
         Text(
             text = label,
@@ -1875,9 +1876,8 @@ fun BooruVideoPlayer(
                         currentPosMs = target
                     },
                     modifier = Modifier
-                        .size(46.dp)
-                        .bouncyPress(),
-                    shape = CircleShape,
+                        .size(46.dp),
+                    shapes = IconButtonDefaults.shapes(shape = CircleShape, pressedShape = IconButtonDefaults.smallPressedShape),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = Color.Black.copy(alpha = 0.6f)
                     )
@@ -1907,9 +1907,8 @@ fun BooruVideoPlayer(
                         }
                     },
                     modifier = Modifier
-                        .size(60.dp)
-                        .bouncyPress(),
-                    shape = CircleShape,
+                        .size(60.dp),
+                    shapes = IconButtonDefaults.shapes(shape = CircleShape, pressedShape = IconButtonDefaults.smallPressedShape),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.primary
                     )
@@ -1930,9 +1929,8 @@ fun BooruVideoPlayer(
                         currentPosMs = target
                     },
                     modifier = Modifier
-                        .size(46.dp)
-                        .bouncyPress(),
-                    shape = CircleShape,
+                        .size(46.dp),
+                    shapes = IconButtonDefaults.shapes(shape = CircleShape, pressedShape = IconButtonDefaults.smallPressedShape),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = Color.Black.copy(alpha = 0.6f)
                     )
@@ -1974,7 +1972,7 @@ fun BooruVideoPlayer(
                     else -> 0f
                 }
 
-                Slider(
+                ExpressiveSlider(
                     value = sliderPosition,
                     onValueChange = {
                         isSeeking = true
@@ -2024,13 +2022,12 @@ fun BooruVideoPlayer(
                                 val nextIdx = if (idx in 0 until speedOptions.size - 1) idx + 1 else 0
                                 playbackSpeed = speedOptions[nextIdx]
                             },
-                            shape = CircleShape,
+                            shapes = IconButtonDefaults.shapes(shape = CircleShape, pressedShape = IconButtonDefaults.smallPressedShape),
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
                                 containerColor = Color.Black.copy(alpha = 0.5f)
                             ),
                             modifier = Modifier
                                 .size(34.dp)
-                                .bouncyPress()
                         ) {
                             val text = if (playbackSpeed == 1f) "1x" else if (playbackSpeed == 2f) "2x" else "${playbackSpeed}x"
                             Text(
@@ -2046,13 +2043,12 @@ fun BooruVideoPlayer(
                                 isMuted = !isMuted
                                 exoPlayer.volume = if (isMuted) 0f else 1f
                             },
-                            shape = CircleShape,
+                            shapes = IconButtonDefaults.shapes(shape = CircleShape, pressedShape = IconButtonDefaults.smallPressedShape),
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
                                 containerColor = Color.Black.copy(alpha = 0.5f)
                             ),
                             modifier = Modifier
                                 .size(34.dp)
-                                .bouncyPress()
                         ) {
                             Icon(
                                 imageVector = if (isMuted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
@@ -2065,13 +2061,12 @@ fun BooruVideoPlayer(
                         if (onFullscreen != null) {
                             FilledTonalIconButton(
                                 onClick = onFullscreen,
-                                shape = CircleShape,
+                                shapes = IconButtonDefaults.shapes(shape = CircleShape, pressedShape = IconButtonDefaults.smallPressedShape),
                                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                                     containerColor = Color.Black.copy(alpha = 0.5f)
                                 ),
                                 modifier = Modifier
                                     .size(34.dp)
-                                    .bouncyPress()
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.Fullscreen,

@@ -137,7 +137,7 @@ fun SettingsScreen(
     var editingCustomSource by remember { mutableStateOf<CustomBooruSource?>(null) }
 
     if (showFeedSourcesSheet) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val sheetState = rememberExpandedSheetState()
         SheetMotion {
             ModalBottomSheet(
                 onDismissRequest = { showFeedSourcesSheet = false },
@@ -194,7 +194,7 @@ fun SettingsScreen(
     }
 
     if (showRule34Dialog) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val sheetState = rememberExpandedSheetState()
         SheetMotion {
             ModalBottomSheet(
                 onDismissRequest = { showRule34Dialog = false },
@@ -293,7 +293,7 @@ fun SettingsScreen(
                     FilledTonalButton(
                         onClick = {
                             val url = "https://rule34.xxx/index.php?page=account&s=options"
-                            context.openUrlSafely(url, lang)
+                            context.openUrlSafely(url, lang, showMessage)
                         },
                         shape = ShapeTokens.Medium,
                         modifier = Modifier.fillMaxWidth()
@@ -322,7 +322,7 @@ fun SettingsScreen(
     }
 
     if (showGelbooruDialog) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val sheetState = rememberExpandedSheetState()
         SheetMotion {
             ModalBottomSheet(
                 onDismissRequest = { showGelbooruDialog = false },
@@ -421,7 +421,7 @@ fun SettingsScreen(
                     FilledTonalButton(
                         onClick = {
                             val url = "https://gelbooru.com/index.php?page=account&s=options"
-                            context.openUrlSafely(url, lang)
+                            context.openUrlSafely(url, lang, showMessage)
                         },
                         shape = ShapeTokens.Medium,
                         modifier = Modifier.fillMaxWidth()
@@ -450,7 +450,7 @@ fun SettingsScreen(
     }
 
     if (showQualityDialog) {
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val sheetState = rememberExpandedSheetState()
         SheetMotion {
             ModalBottomSheet(
                 onDismissRequest = { showQualityDialog = false },
@@ -522,7 +522,7 @@ fun SettingsScreen(
 
     if (showAddCustomSourceDialog) {
         val isEditing = editingCustomSource != null
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val sheetState = rememberExpandedSheetState()
         SheetMotion {
             ModalBottomSheet(
                 onDismissRequest = {
@@ -697,11 +697,10 @@ fun SettingsScreen(
                                 scope.launch { sheetState.hide() }.invokeOnCompletion { showAddCustomSourceDialog = false }
                             }
                         },
-                        shape = ShapeTokens.LargeIncreased,
+                        shapes = ButtonDefaults.shapes(shape = ShapeTokens.LargeIncreased, pressedShape = ButtonDefaults.pressedShape),
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp)
-                            .bouncyPress()
                     ) {
                         Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
@@ -735,7 +734,7 @@ fun SettingsScreen(
             }
         }
 
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val sheetState = rememberExpandedSheetState()
 
         SheetMotion {
             ModalBottomSheet(
@@ -831,8 +830,8 @@ fun SettingsScreen(
                                 }
                                 AnimatedVisibility(
                                     visible = newBlacklistTag.isNotEmpty(),
-                                    enter = fadeIn(tween(150)) + scaleIn(Motion.spatialDefault()),
-                                    exit = fadeOut(tween(120)) + scaleOut(tween(120))
+                                    enter = fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialDefault()),
+                                    exit = fadeOut(Motion.effectsFast()) + scaleOut(Motion.effectsFast())
                                 ) {
                                     IconButton(
                                         onClick = { newBlacklistTag = "" },
@@ -871,8 +870,8 @@ fun SettingsScreen(
 
                     AnimatedVisibility(
                         visible = vm.tagBlacklist.size > 4,
-                        enter = fadeIn(tween(280, easing = FastOutSlowInEasing)) + expandVertically(animationSpec = Motion.spatialSlow()),
-                        exit = fadeOut(tween(220, easing = FastOutSlowInEasing)) + shrinkVertically(animationSpec = Motion.spatialSlow())
+                        enter = fadeIn(Motion.effectsDefault()) + expandVertically(animationSpec = Motion.spatialSlow()),
+                        exit = fadeOut(Motion.effectsFast()) + shrinkVertically(animationSpec = Motion.spatialSlow())
                     ) {
                         Surface(
                             shape = CircleShape,
@@ -939,8 +938,8 @@ fun SettingsScreen(
                     AnimatedContent(
                         targetState = vm.tagBlacklist.isEmpty(),
                         transitionSpec = {
-                            fadeIn(tween(300, easing = FastOutSlowInEasing))
-                                .togetherWith(fadeOut(tween(220, easing = FastOutSlowInEasing)))
+                            fadeIn(Motion.effectsDefault())
+                                .togetherWith(fadeOut(Motion.effectsFast()))
                         },
                         label = "blacklistContentTransition"
                     ) { isEmpty ->
@@ -1046,8 +1045,8 @@ fun SettingsScreen(
                     ) {
                         AnimatedVisibility(
                             visible = vm.tagBlacklist.isNotEmpty(),
-                            enter = fadeIn(tween(250, easing = FastOutSlowInEasing)) + expandHorizontally(animationSpec = Motion.spatialSlow()),
-                            exit = fadeOut(tween(200, easing = FastOutSlowInEasing)) + shrinkHorizontally(animationSpec = Motion.spatialSlow())
+                            enter = fadeIn(Motion.effectsDefault()) + expandHorizontally(animationSpec = Motion.spatialSlow()),
+                            exit = fadeOut(Motion.effectsFast()) + shrinkHorizontally(animationSpec = Motion.spatialSlow())
                         ) {
                             AnimatedConfirmDeleteButton(
                                 onConfirmed = {
@@ -1086,7 +1085,7 @@ fun SettingsScreen(
 
     if (showPaletteDialog) {
         val isDark = LocalIsDarkTheme.current
-        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        val sheetState = rememberExpandedSheetState()
         SheetMotion {
             ModalBottomSheet(
                 onDismissRequest = { showPaletteDialog = false },
@@ -1519,13 +1518,13 @@ fun SettingsScreen(
                                                 showMessage(Strings.clearRecommendationsSuccess(lang))
                                             }
                                         },
-                                        shape = ShapeTokens.Large,
+                                        shapes = ButtonDefaults.shapes(shape = ShapeTokens.Large, pressedShape = ButtonDefaults.pressedShape),
                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                                         colors = ButtonDefaults.filledTonalButtonColors(
                                             containerColor = MaterialTheme.colorScheme.errorContainer,
                                             contentColor = MaterialTheme.colorScheme.onErrorContainer
                                         ),
-                                        modifier = Modifier.bouncyPress()
+                                        modifier = Modifier
                                     ) {
                                         Text(
                                             text = Strings.resetFilters(lang),
@@ -1585,15 +1584,15 @@ fun SettingsScreen(
                                 trailing = {
                                     FilledTonalButton(
                                         onClick = {
-                                            context.openUrlSafely("https://github.com/weekanya/Booru", lang)
+                                            context.openUrlSafely("https://github.com/weekanya/Booru", lang, showMessage)
                                         },
-                                        shape = ShapeTokens.Large,
+                                        shapes = ButtonDefaults.shapes(shape = ShapeTokens.Large, pressedShape = ButtonDefaults.pressedShape),
                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                                         colors = ButtonDefaults.filledTonalButtonColors(
                                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                         ),
-                                        modifier = Modifier.bouncyPress()
+                                        modifier = Modifier
                                     ) {
                                         Icon(
                                             painter = painterResource(id = R.drawable.ic_github),
@@ -1620,7 +1619,7 @@ fun SettingsScreen(
                                     FilledTonalButton(
                                         onClick = { vm.checkForUpdates(isAutoCheck = false) },
                                         enabled = !vm.isCheckingUpdate,
-                                        shape = ShapeTokens.Large,
+                                        shapes = ButtonDefaults.shapes(shape = ShapeTokens.Large, pressedShape = ButtonDefaults.pressedShape),
                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                                         colors = ButtonDefaults.filledTonalButtonColors(
                                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -1630,7 +1629,6 @@ fun SettingsScreen(
                                         ),
                                         modifier = Modifier
                                             .height(36.dp)
-                                            .bouncyPress()
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
                                             Text(
@@ -1642,9 +1640,8 @@ fun SettingsScreen(
                                                 }
                                             )
                                             if (vm.isCheckingUpdate) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(18.dp),
-                                                    strokeWidth = 2.dp,
+                                                LoadingIndicator(
+                                                    modifier = Modifier.size(24.dp),
                                                     color = MaterialTheme.colorScheme.onSecondaryContainer
                                                 )
                                             }
@@ -2054,7 +2051,7 @@ private fun LanguageSelectionBottomSheet(
     onLanguageSelected: (AppLanguage) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberExpandedSheetState()
     val scope = rememberCoroutineScope()
 
     SheetMotion {
@@ -2146,21 +2143,20 @@ private fun BlacklistTagChip(
 
     AnimatedVisibility(
         visibleState = visibleState,
-        enter = fadeIn(tween(200, easing = FastOutSlowInEasing)) + scaleIn(
+        enter = fadeIn(Motion.effectsDefault()) + scaleIn(
             initialScale = 0.85f,
-            animationSpec = tween(200, easing = FastOutSlowInEasing)
+            animationSpec = Motion.effectsDefault()
         ),
-        exit = fadeOut(tween(160, easing = FastOutLinearInEasing)) + scaleOut(
+        exit = fadeOut(Motion.effectsFast()) + scaleOut(
             targetScale = 0.8f,
-            animationSpec = tween(160)
+            animationSpec = Motion.effectsDefault()
         ) + shrinkHorizontally(
-            animationSpec = tween(160)
+            animationSpec = Motion.effectsDefault()
         )
     ) {
         Surface(
             shape = ShapeTokens.Small,
-            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-            modifier = Modifier.bouncyPress()
+            color = MaterialTheme.colorScheme.surfaceContainerHighest
         ) {
             Row(
                 modifier = Modifier
@@ -2208,11 +2204,9 @@ private fun BlacklistTagChip(
     }
 }
 
-private fun android.content.Context.openUrlSafely(url: String, lang: AppLanguage) {
+private fun android.content.Context.openUrlSafely(url: String, lang: AppLanguage, showMessage: (String) -> Unit) {
     val opened = runCatching {
         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
     }.isSuccess
-    if (!opened) {
-        android.widget.Toast.makeText(this, Strings.noBrowserFound(lang), android.widget.Toast.LENGTH_SHORT).show()
-    }
+    if (!opened) showMessage(Strings.noBrowserFound(lang))
 }

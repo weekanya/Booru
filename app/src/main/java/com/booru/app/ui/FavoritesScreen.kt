@@ -284,7 +284,7 @@ fun FavoritesScreen(
                                 keyboardController?.hide()
                                 showFilterSheet = true
                             },
-                            shape = CircleShape,
+                            shapes = ButtonDefaults.shapes(shape = CircleShape, pressedShape = ButtonDefaults.pressedShape),
                             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
                             colors = ButtonDefaults.filledTonalButtonColors(
                                 containerColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -292,7 +292,6 @@ fun FavoritesScreen(
                             ),
                             modifier = Modifier
                                 .height(38.dp)
-                                .bouncyPress()
                         ) {
                             Icon(
                                 Icons.Rounded.Tune,
@@ -390,14 +389,14 @@ fun FavoritesScreen(
                     }
                     AnimatedVisibility(
                         visible = filterText.isNotEmpty(),
-                        enter = fadeIn(tween(150)) + scaleIn(Motion.spatialDefault()),
-                        exit = fadeOut(tween(150)) + scaleOut()
+                        enter = fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialDefault()),
+                        exit = fadeOut(Motion.effectsFast()) + scaleOut()
                     ) {
                         IconButton(
+                            shapes = IconButtonDefaults.shapes(),
                             onClick = { filterText = "" },
                             modifier = Modifier
                                 .size(28.dp)
-                                .bouncyPress()
                         ) {
                             Icon(
                                 Icons.Rounded.Close,
@@ -451,9 +450,9 @@ fun FavoritesScreen(
                         val isSelected = targetFolderPage == pageIndex
                         Box(
                             modifier = Modifier.animateItem(
-                                fadeInSpec = tween(260, easing = FastOutSlowInEasing),
+                                fadeInSpec = Motion.effectsDefault(),
                                 placementSpec = null,
-                                fadeOutSpec = tween(180)
+                                fadeOutSpec = Motion.effectsFast()
                             )
                         ) {
                         FolderTabPill(
@@ -477,17 +476,18 @@ fun FavoritesScreen(
                     }
 
                     item(key = "add_folder_pill") {
+                        val pressSource1 = remember { MutableInteractionSource() }
                         Surface(
                             onClick = {
                                 newFolderName = ""
                                 showCreateFolderDialog = true
                             },
-                            shape = ShapeTokens.LargeIncreased,
+                            shape = pressMorphShape(pressSource1, resting = 20.dp),
+                            interactionSource = pressSource1,
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             contentColor = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
                                 .height(42.dp)
-                                .bouncyPress()
                         ) {
                             Row(
                                 modifier = Modifier.padding(horizontal = 14.dp),
@@ -648,8 +648,8 @@ fun FavoritesScreen(
                         Spacer(Modifier.height(24.dp))
                         Button(
                             onClick = onNavigateToExplore,
-                            shape = ShapeTokens.LargeIncreased,
-                            modifier = Modifier.bouncyPress()
+                            shapes = ButtonDefaults.shapes(shape = ShapeTokens.LargeIncreased, pressedShape = ButtonDefaults.pressedShape),
+                            modifier = Modifier
                         ) {
                             Icon(Icons.Rounded.Explore, null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
@@ -697,8 +697,8 @@ fun FavoritesScreen(
                                 onClick = {
                                     scope.launch { pagerState.animateScrollToPage(0) }
                                 },
-                                shape = ShapeTokens.LargeIncreased,
-                                modifier = Modifier.bouncyPress()
+                                shapes = ButtonDefaults.shapes(shape = ShapeTokens.LargeIncreased, pressedShape = ButtonDefaults.pressedShape),
+                                modifier = Modifier
                             ) {
                                 Icon(Icons.Rounded.FolderSpecial, null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
@@ -732,8 +732,8 @@ fun FavoritesScreen(
                                     filterText = ""
                                     mediaTypeFilter = FavoriteMediaTypeFilter.ALL
                                 },
-                                shape = ShapeTokens.LargeIncreased,
-                                modifier = Modifier.bouncyPress()
+                                shapes = ButtonDefaults.shapes(shape = ShapeTokens.LargeIncreased, pressedShape = ButtonDefaults.pressedShape),
+                                modifier = Modifier
                             ) {
                                 Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(8.dp))
@@ -808,7 +808,7 @@ fun FavoritesScreen(
             }
         }
     }
-    SnackbarHost(
+    FlatSnackbarHost(
         hostState = snackbarHostState,
         modifier = Modifier
             .align(Alignment.BottomCenter)
@@ -829,23 +829,24 @@ private fun FolderTabPill(
 ) {
     val containerColor by animateColorAsState(
         targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
-        animationSpec = tween(160, easing = FastOutSlowInEasing),
+        animationSpec = Motion.effectsDefault(),
         label = "folderPillBg"
     )
     val contentColor by animateColorAsState(
         targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = tween(160, easing = FastOutSlowInEasing),
+        animationSpec = Motion.effectsDefault(),
         label = "folderPillContent"
     )
 
+    val pressSource2 = remember { MutableInteractionSource() }
     Surface(
         onClick = onClick,
-        shape = ShapeTokens.LargeIncreased,
+        shape = pressMorphShape(pressSource2, resting = 20.dp),
+        interactionSource = pressSource2,
         color = containerColor,
         contentColor = contentColor,
         modifier = Modifier
             .height(42.dp)
-            .bouncyPress()
     ) {
         Row(
             modifier = Modifier
@@ -854,7 +855,7 @@ private fun FolderTabPill(
         ) {
             Crossfade(
                 targetState = isSelected,
-                animationSpec = tween(180, easing = FastOutSlowInEasing),
+                animationSpec = Motion.effectsDefault(),
                 label = "folderPillIcon",
                 modifier = Modifier.size(18.dp)
             ) { selected ->
@@ -932,7 +933,7 @@ private fun FavoritesFilterBottomSheet(
     onTypeSelected: (FavoriteMediaTypeFilter) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberExpandedSheetState()
     val scope = rememberCoroutineScope()
     var draftSort by remember { mutableStateOf(currentSort) }
     var draftType by remember { mutableStateOf(currentType) }
@@ -988,8 +989,8 @@ private fun FavoritesFilterBottomSheet(
                             draftSort = FavoriteSortOrder.NEWEST
                             draftType = FavoriteMediaTypeFilter.ALL
                         },
-                        shape = CircleShape,
-                        modifier = Modifier.bouncyPress()
+                        shapes = ButtonDefaults.shapes(shape = CircleShape, pressedShape = ButtonDefaults.pressedShape),
+                        modifier = Modifier
                     ) {
                         Text(
                             text = Strings.resetFilters(lang),
@@ -1149,7 +1150,7 @@ private fun CreateFolderBottomSheet(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberExpandedSheetState()
     val scope = rememberCoroutineScope()
     var folderName by remember { mutableStateOf("") }
     val trimmedName = folderName.trim()
@@ -1240,11 +1241,10 @@ private fun CreateFolderBottomSheet(
                         onClick = {
                             scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                         },
-                        shape = ShapeTokens.Large,
+                        shapes = ButtonDefaults.shapes(shape = ShapeTokens.Large, pressedShape = ButtonDefaults.pressedShape),
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
-                            .bouncyPress()
                     ) {
                         Text(Strings.cancelBtn(lang))
                     }
@@ -1252,11 +1252,10 @@ private fun CreateFolderBottomSheet(
                     Button(
                         onClick = submit,
                         enabled = canCreate,
-                        shape = ShapeTokens.Large,
+                        shapes = ButtonDefaults.shapes(shape = ShapeTokens.Large, pressedShape = ButtonDefaults.pressedShape),
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
-                            .bouncyPress()
                     ) {
                         Text(Strings.create(lang))
                     }
@@ -1274,7 +1273,7 @@ private fun DeleteFolderBottomSheet(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberExpandedSheetState()
     val scope = rememberCoroutineScope()
 
     SheetMotion {
@@ -1337,11 +1336,10 @@ private fun DeleteFolderBottomSheet(
                         onClick = {
                             scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                         },
-                        shape = ShapeTokens.Large,
+                        shapes = ButtonDefaults.shapes(shape = ShapeTokens.Large, pressedShape = ButtonDefaults.pressedShape),
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
-                            .bouncyPress()
                     ) {
                         Text(Strings.cancelBtn(lang))
                     }
@@ -1355,11 +1353,10 @@ private fun DeleteFolderBottomSheet(
                             containerColor = MaterialTheme.colorScheme.error,
                             contentColor = MaterialTheme.colorScheme.onError
                         ),
-                        shape = ShapeTokens.Large,
+                        shapes = ButtonDefaults.shapes(shape = ShapeTokens.Large, pressedShape = ButtonDefaults.pressedShape),
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
-                            .bouncyPress()
                     ) {
                         Text(if (lang == AppLanguage.RUSSIAN) "Удалить" else "Delete")
                     }
@@ -1550,9 +1547,8 @@ private fun FavoriteCard(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(8.dp)
-                    .size(36.dp)
-                    .bouncyPress(),
-                shape = CircleShape,
+                    .size(36.dp),
+                shapes = IconButtonDefaults.shapes(shape = CircleShape, pressedShape = IconButtonDefaults.smallPressedShape),
                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.95f),
                     contentColor = MaterialTheme.colorScheme.primary

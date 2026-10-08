@@ -62,69 +62,11 @@ object Motion {
     )
 
     val TabTransition: AnimatedContentTransitionScope<Int>.() -> ContentTransform = {
-        (fadeIn(animationSpec = tween(140, easing = FastOutSlowInEasing)))
+        (fadeIn(animationSpec = Motion.effectsDefault()))
             .togetherWith(
-                fadeOut(animationSpec = tween(90, easing = FastOutLinearInEasing))
+                fadeOut(animationSpec = Motion.effectsFast())
             )
     }
-}
-
-fun Modifier.bouncyClick(
-    scaleDown: Float = 0.94f,
-    onClick: () -> Unit
-): Modifier = composed {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) scaleDown else 1f,
-        animationSpec = Motion.snappySpring(),
-        label = "bouncyClickScale"
-    )
-
-    this
-        .graphicsLayer {
-            scaleX = scale
-            scaleY = scale
-        }
-        .clickable(
-            interactionSource = interactionSource,
-            indication = null,
-            onClick = onClick
-        )
-}
-
-fun Modifier.bouncyPress(scaleDown: Float = 0.94f): Modifier = composed {
-    val animScale = remember { Animatable(1f) }
-    val scope = rememberCoroutineScope()
-    this
-        .graphicsLayer {
-            scaleX = animScale.value
-            scaleY = animScale.value
-        }
-        .pointerInput(scaleDown) {
-            awaitEachGesture {
-                awaitFirstDown(requireUnconsumed = false)
-                scope.launch {
-                    animScale.animateTo(
-                        targetValue = scaleDown,
-                        animationSpec = spring(
-                            dampingRatio = 1f,
-                            stiffness = 1400f
-                        )
-                    )
-                }
-                waitForUpOrCancellation()
-                scope.launch {
-                    animScale.animateTo(
-                        targetValue = 1f,
-                        animationSpec = spring(
-                            dampingRatio = 0.88f,
-                            stiffness = 700f
-                        )
-                    )
-                }
-            }
-        }
 }
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
@@ -144,4 +86,73 @@ fun SheetMotion(content: @Composable () -> Unit) {
         motionScheme = SmoothSheetMotionScheme,
         content = content
     )
+}
+
+private class FractionCornerShape(private val fraction: Float) : androidx.compose.ui.graphics.Shape {
+    override fun createOutline(
+        size: androidx.compose.ui.geometry.Size,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+        density: androidx.compose.ui.unit.Density
+    ): androidx.compose.ui.graphics.Outline {
+        val radius = minOf(size.width, size.height) * fraction.coerceIn(0f, 0.5f)
+        return androidx.compose.ui.graphics.Outline.Rounded(
+            androidx.compose.ui.geometry.RoundRect(
+                rect = androidx.compose.ui.geometry.Rect(androidx.compose.ui.geometry.Offset.Zero, size),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(radius)
+            )
+        )
+    }
+}
+
+@Composable
+fun pressMorphShape(
+    interactionSource: androidx.compose.foundation.interaction.InteractionSource,
+    restingFraction: Float = 0.5f,
+    pressedFraction: Float = 0.25f
+): androidx.compose.ui.graphics.Shape {
+    val pressed by interactionSource.collectIsPressedAsState()
+    val fraction by animateFloatAsState(
+        targetValue = if (pressed) pressedFraction else restingFraction,
+        animationSpec = Motion.spatialFast(),
+        label = "pressMorphFraction"
+    )
+    return FractionCornerShape(fraction)
+}
+
+@Composable
+fun pressMorphShape(
+    interactionSource: androidx.compose.foundation.interaction.InteractionSource,
+    resting: androidx.compose.ui.unit.Dp,
+    pressed: androidx.compose.ui.unit.Dp = resting * 0.5f
+): androidx.compose.ui.graphics.Shape {
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val radius by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (isPressed) pressed else resting,
+        animationSpec = Motion.spatialFast(),
+        label = "pressMorphRadius"
+    )
+    return androidx.compose.foundation.shape.RoundedCornerShape(radius.coerceAtLeast(androidx.compose.ui.unit.Dp(0f)))
+}
+
+class MorphShape(
+    private val morph: androidx.graphics.shapes.Morph,
+    private val progress: Float
+) : androidx.compose.ui.graphics.Shape {
+    override fun createOutline(
+        size: androidx.compose.ui.geometry.Size,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+        density: androidx.compose.ui.unit.Density
+    ): androidx.compose.ui.graphics.Outline {
+        val path = androidx.compose.ui.graphics.Path()
+        morph.asCubics(progress).forEachIndexed { i, c ->
+            if (i == 0) path.moveTo(c.anchor0X * size.width, c.anchor0Y * size.height)
+            path.cubicTo(
+                c.control0X * size.width, c.control0Y * size.height,
+                c.control1X * size.width, c.control1Y * size.height,
+                c.anchor1X * size.width, c.anchor1Y * size.height
+            )
+        }
+        path.close()
+        return androidx.compose.ui.graphics.Outline.Generic(path)
+    }
 }

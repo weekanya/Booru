@@ -7,6 +7,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -204,53 +205,52 @@ fun ExploreScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 70.dp)
+                .padding(top = 64.dp)
         ) {
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .padding(start = 16.dp, end = 16.dp, bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                FilledTonalButton(
+                ConnectedBarButton(
+                    position = GroupPosition.Leading,
                     onClick = { showSourceSheet = true },
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                    shape = CircleShape,
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                    ),
-                    modifier = Modifier
-                        .height(38.dp)
-                        .bouncyPress()
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.weight(1f)
                 ) {
-                    Icon(
-                        imageVector = when (vm.source) {
-                            BooruRepository.SOURCE_ALL -> Icons.Rounded.AutoAwesome
-                            BooruRepository.SOURCE_GELBOORU -> Icons.Rounded.Image
-                            BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit
-                            BooruRepository.SOURCE_REALBOORU -> Icons.Rounded.VideoLibrary
-                            BooruRepository.SOURCE_TBIB -> Icons.Rounded.Public
-                            BooruRepository.SOURCE_YANDE -> Icons.Rounded.Collections
-                            BooruRepository.SOURCE_KONACHAN -> Icons.Rounded.Wallpaper
-                            else -> Icons.Rounded.Shield
+                    AnimatedContent(
+                        targetState = vm.source,
+                        transitionSpec = {
+                            (fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialFast(), initialScale = 0.92f))
+                                .togetherWith(fadeOut(Motion.effectsFast()))
                         },
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = vm.getSourceDisplayName(vm.source),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.width(2.dp))
+                        modifier = Modifier.weight(1f),
+                        label = "sourceButtonLabel"
+                    ) { src ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = sourceIcon(src),
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = vm.getSourceDisplayName(src),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                     Icon(
                         Icons.Rounded.ArrowDropDown,
                         contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 
@@ -261,42 +261,35 @@ fun ExploreScreen(
 
                 val filterBtnContainer by animateColorAsState(
                     targetValue = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    animationSpec = tween(220, easing = FastOutSlowInEasing),
+                    animationSpec = Motion.effectsDefault(),
                     label = "filterBtnContainer"
                 )
                 val filterBtnContent by animateColorAsState(
                     targetValue = if (activeFilterCount > 0) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
-                    animationSpec = tween(220, easing = FastOutSlowInEasing),
+                    animationSpec = Motion.effectsDefault(),
                     label = "filterBtnContent"
                 )
-                FilledTonalButton(
+                ConnectedBarButton(
+                    position = GroupPosition.Trailing,
                     onClick = { showFilterSheet = true },
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
-                    shape = CircleShape,
-                    colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = filterBtnContainer,
-                        contentColor = filterBtnContent
-                    ),
-                    modifier = Modifier
-                        .height(38.dp)
-                        .bouncyPress()
+                    containerColor = filterBtnContainer,
+                    contentColor = filterBtnContent
                 ) {
                     Icon(
                         Icons.Rounded.Tune,
                         contentDescription = null,
-                        modifier = Modifier.size(17.dp),
-                        tint = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(Modifier.width(6.dp))
+                    Spacer(Modifier.width(8.dp))
                     Text(
                         text = Strings.filtersButton(lang),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold
                     )
                     AnimatedVisibility(
                         visible = activeFilterCount > 0,
-                        enter = fadeIn(tween(180)) + expandHorizontally(Motion.spatialDefault()) + scaleIn(Motion.spatialFast(), initialScale = 0.4f),
-                        exit = fadeOut(tween(140)) + shrinkHorizontally(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium)) + scaleOut(tween(140), targetScale = 0.4f)
+                        enter = fadeIn(Motion.effectsDefault()) + expandHorizontally(Motion.spatialDefault()) + scaleIn(Motion.spatialFast(), initialScale = 0.4f),
+                        exit = fadeOut(Motion.effectsFast()) + shrinkHorizontally(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium)) + scaleOut(Motion.effectsFast(), targetScale = 0.4f)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                         Spacer(Modifier.width(6.dp))
@@ -310,8 +303,8 @@ fun ExploreScreen(
                                     targetState = activeFilterCount,
                                     transitionSpec = {
                                         val up = targetState > initialState
-                                        (slideInVertically(Motion.spatialFast()) { if (up) it else -it } + fadeIn(tween(150)))
-                                            .togetherWith(slideOutVertically(tween(150)) { if (up) -it else it } + fadeOut(tween(120)))
+                                        (slideInVertically(Motion.spatialFast()) { if (up) it else -it } + fadeIn(Motion.effectsDefault()))
+                                            .togetherWith(slideOutVertically(Motion.effectsFast()) { if (up) -it else it } + fadeOut(Motion.effectsFast()))
                                     },
                                     label = "filterCount"
                                 ) { count ->
@@ -666,7 +659,7 @@ fun ExploreScreen(
                                 onFavoriteClick = { vm.toggleFavorite(media) },
                                 onClick = { vm.openFullscreen(vm.results, index) },
                                 modifier = Modifier.animateItem(
-                                    fadeInSpec = tween(220, easing = Motion.EmphasizedDecelerate),
+                                    fadeInSpec = Motion.effectsDefault(),
                                     placementSpec = null,
                                     fadeOutSpec = null
                                 )
@@ -696,16 +689,28 @@ fun ExploreScreen(
         }
     }
 
+        val pressSource1 = remember { MutableInteractionSource() }
+        val searchPressed by pressSource1.collectIsPressedAsState()
+        val searchOuter by androidx.compose.animation.core.animateDpAsState(
+            targetValue = if (searchPressed) 16.dp else 28.dp,
+            animationSpec = Motion.spatialFast(),
+            label = "searchOuter"
+        )
+        val searchInner by androidx.compose.animation.core.animateDpAsState(
+            targetValue = if (searchPressed) 4.dp else 8.dp,
+            animationSpec = Motion.spatialFast(),
+            label = "searchInner"
+        )
         Surface(
             onClick = { searchExpanded = true },
-            shape = CircleShape,
+            shape = RoundedCornerShape(topStart = searchOuter, topEnd = searchOuter, bottomStart = searchInner, bottomEnd = searchInner),
+            interactionSource = pressSource1,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 6.dp)
+                .padding(start = 16.dp, end = 16.dp, top = 6.dp)
                 .height(56.dp)
-                .bouncyPress()
         ) {
             Row(
                 modifier = Modifier
@@ -812,8 +817,8 @@ fun ExploreScreen(
 
         AnimatedVisibility(
             visible = searchExpanded,
-            enter = fadeIn(tween(200, easing = Motion.EmphasizedDecelerate)),
-            exit = fadeOut(tween(170, easing = Motion.EmphasizedAccelerate)),
+            enter = fadeIn(Motion.effectsDefault()),
+            exit = fadeOut(Motion.effectsFast()),
             modifier = Modifier.fillMaxSize()
         ) {
             Surface(
@@ -921,15 +926,13 @@ fun ExploreScreen(
 
                     androidx.compose.animation.AnimatedVisibility(
                         visible = vm.suggestionsLoading,
-                        enter = fadeIn(tween(120)),
-                        exit = fadeOut(tween(160))
+                        enter = fadeIn(Motion.effectsDefault()),
+                        exit = fadeOut(Motion.effectsFast())
                     ) {
-                        LinearProgressIndicator(
+                        LinearWavyProgressIndicator(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 40.dp)
-                                .height(3.dp)
-                                .clip(CircleShape),
+                                .padding(horizontal = 40.dp),
                             color = MaterialTheme.colorScheme.primary,
                             trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
                         )
@@ -1539,7 +1542,7 @@ private fun FeedFooter(
             reachedEnd -> 3
             else -> 0
         },
-        transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(120)) },
+        transitionSpec = { fadeIn(Motion.effectsDefault()) togetherWith fadeOut(Motion.effectsFast()) },
         contentAlignment = Alignment.Center,
         label = "feedFooter",
         modifier = Modifier.fillMaxWidth()
@@ -1657,9 +1660,32 @@ fun SourceSelectionSheet(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberExpandedSheetState()
     val scope = rememberCoroutineScope()
     var pendingSource by remember { mutableStateOf<String?>(null) }
+    val columns = if (LocalWindowWidthClass.current == WindowWidthClass.Compact) 2 else 3
+
+    fun isCustom(src: String): Boolean = customSources.any { it.id == src || it.key == src }
+
+    fun isSelected(src: String): Boolean = pendingSource?.let { it == src }
+        ?: (currentSource == src || (customSources.find { it.key == src || it.id == src }?.let { it.key == currentSource || it.id == currentSource } ?: false))
+
+    fun select(src: String) {
+        if (pendingSource == null) {
+            pendingSource = src
+            onSelect(src)
+            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+        }
+    }
+
+    fun label(src: String): String =
+        if (src == BooruRepository.SOURCE_ALL) Strings.sourceRecommendations(lang) else BooruRepository.getSourceDisplayName(src, customSources)
+
+    val builtInRows = buildList {
+        sources.firstOrNull { it == BooruRepository.SOURCE_ALL }?.let { add(listOf(it)) }
+        addAll(sources.filter { it != BooruRepository.SOURCE_ALL && !isCustom(it) }.chunked(columns))
+    }
+    val customRows = sources.filter { isCustom(it) }.chunked(columns)
 
     SheetMotion {
         ModalBottomSheet(
@@ -1672,72 +1698,58 @@ fun SourceSelectionSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
-                    .padding(bottom = 20.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(bottom = 24.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
-                ) {
-                    Icon(
-                        Icons.Rounded.Layers,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = Strings.selectSourceTitle(lang),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
+                Text(
+                    text = Strings.selectSourceTitle(lang),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.padding(start = 8.dp, top = 4.dp, bottom = 16.dp)
+                )
 
-                fun isSelected(src: String): Boolean = pendingSource?.let { it == src }
-                    ?: (currentSource == src || (customSources.find { it.key == src || it.id == src }?.let { it.key == currentSource || it.id == currentSource } ?: false))
-
-                fun select(src: String) {
-                    if (pendingSource == null) {
-                        pendingSource = src
-                        onSelect(src)
-                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-                    }
-                }
-
-                fun label(src: String): String =
-                    if (src == BooruRepository.SOURCE_ALL) Strings.sourceRecommendations(lang) else BooruRepository.getSourceDisplayName(src, customSources)
-
-                val featured = sources.filter { it == BooruRepository.SOURCE_ALL }
-                val rest = sources.filter { it != BooruRepository.SOURCE_ALL }
-
-                featured.forEach { src ->
-                    SourceTile(
-                        label = label(src),
-                        icon = sourceIcon(src),
-                        selected = isSelected(src),
-                        onClick = { select(src) },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                rest.chunked(2).forEach { rowItems ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                val grid: @Composable (List<List<String>>) -> Unit = { rows ->
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.selectableGroup()
                     ) {
-                        rowItems.forEach { src ->
-                            SourceTile(
-                                label = label(src),
-                                icon = sourceIcon(src),
-                                selected = isSelected(src),
-                                onClick = { select(src) },
-                                modifier = Modifier.weight(1f)
-                            )
+                        rows.forEachIndexed { r, row ->
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                row.forEachIndexed { c, src ->
+                                    val featured = src == BooruRepository.SOURCE_ALL
+                                    SourceTile(
+                                        label = label(src),
+                                        icon = sourceIcon(src),
+                                        selected = isSelected(src),
+                                        onClick = { select(src) },
+                                        supporting = if (featured) Strings.sourceRecommendationsDesc(lang) else null,
+                                        featured = featured,
+                                        outerTopStart = r == 0 && c == 0,
+                                        outerTopEnd = r == 0 && c == row.lastIndex,
+                                        outerBottomStart = r == rows.lastIndex && c == 0,
+                                        outerBottomEnd = r == rows.lastIndex && c == row.lastIndex,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
                         }
-                        if (rowItems.size == 1) Spacer(Modifier.weight(1f))
                     }
+                }
+
+                grid(builtInRows)
+
+                if (customRows.isNotEmpty()) {
+                    SegmentedSectionHeader(
+                        title = Strings.customSourcesTitle(lang),
+                        icon = Icons.Rounded.Language,
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                    grid(customRows)
                 }
             }
         }
@@ -1762,71 +1774,175 @@ private fun SourceTile(
     icon: ImageVector,
     selected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    supporting: String? = null,
+    featured: Boolean = false,
+    outerTopStart: Boolean = true,
+    outerTopEnd: Boolean = true,
+    outerBottomStart: Boolean = true,
+    outerBottomEnd: Boolean = true
 ) {
+    val height = if (featured) 72.dp else 56.dp
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+
+    @Composable
+    fun corner(outer: Boolean, name: String): androidx.compose.ui.unit.Dp {
+        val target = when {
+            selected -> height / 2
+            pressed -> 12.dp
+            outer -> 20.dp
+            else -> 4.dp
+        }
+        val value by androidx.compose.animation.core.animateDpAsState(
+            targetValue = target,
+            animationSpec = Motion.spatialDefault(),
+            label = name
+        )
+        return value
+    }
+
+    val shape = RoundedCornerShape(
+        topStart = corner(outerTopStart, "sourceTileTopStart"),
+        topEnd = corner(outerTopEnd, "sourceTileTopEnd"),
+        bottomEnd = corner(outerBottomEnd, "sourceTileBottomEnd"),
+        bottomStart = corner(outerBottomStart, "sourceTileBottomStart")
+    )
     val containerColor by animateColorAsState(
         targetValue = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
         animationSpec = Motion.effectsDefault(),
         label = "sourceTileColor"
     )
+    val contentColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+        animationSpec = Motion.effectsDefault(),
+        label = "sourceTileContent"
+    )
     val badgeColor by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+        targetValue = when {
+            selected -> MaterialTheme.colorScheme.primary
+            featured -> MaterialTheme.colorScheme.primaryContainer
+            else -> MaterialTheme.colorScheme.surfaceContainerHighest
+        },
         animationSpec = Motion.effectsDefault(),
         label = "sourceTileBadge"
     )
     val badgeContent by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        targetValue = when {
+            selected -> MaterialTheme.colorScheme.onPrimary
+            featured -> MaterialTheme.colorScheme.onPrimaryContainer
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        },
         animationSpec = Motion.effectsDefault(),
         label = "sourceTileBadgeContent"
     )
-    val corner by androidx.compose.animation.core.animateDpAsState(
-        targetValue = if (selected) 16.dp else 28.dp,
+    val morphProgress by animateFloatAsState(
+        targetValue = if (selected) 1f else 0f,
         animationSpec = Motion.spatialDefault(),
-        label = "sourceTileCorner"
+        label = "sourceTileBadgeMorph"
     )
+    val badgeMorph = remember { androidx.graphics.shapes.Morph(MaterialShapes.Circle, MaterialShapes.Cookie9Sided) }
+    val badgeSize = if (featured) 44.dp else 36.dp
+
     Surface(
+        selected = selected,
         onClick = onClick,
-        shape = RoundedCornerShape(corner),
+        shape = shape,
         color = containerColor,
-        modifier = modifier.height(56.dp)
+        contentColor = contentColor,
+        interactionSource = interactionSource,
+        modifier = modifier.height(height)
     ) {
         Row(
-            modifier = Modifier.padding(start = 10.dp, end = 14.dp),
+            modifier = Modifier.padding(start = 10.dp, end = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                shape = CircleShape,
-                color = badgeColor,
-                contentColor = badgeContent,
-                modifier = Modifier.size(36.dp)
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(badgeSize)
+                    .background(badgeColor, MorphShape(badgeMorph, morphProgress.coerceIn(0f, 1f)))
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = badgeContent,
+                    modifier = Modifier.size(if (featured) 22.dp else 18.dp)
+                )
+            }
+            Spacer(Modifier.width(if (featured) 14.dp else 10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    style = if (featured) MaterialTheme.typography.titleMedium else MaterialTheme.typography.labelLarge,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (supporting != null) {
+                    Text(
+                        text = supporting,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
-            Spacer(Modifier.width(10.dp))
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
             AnimatedVisibility(
                 visible = selected,
-                enter = fadeIn(tween(160)) + scaleIn(Motion.spatialFast(), initialScale = 0.5f),
-                exit = fadeOut(tween(120)) + scaleOut(tween(120), targetScale = 0.5f)
+                enter = fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialFast(), initialScale = 0.5f),
+                exit = fadeOut(Motion.effectsFast()) + scaleOut(Motion.effectsFast(), targetScale = 0.5f)
             ) {
                 Icon(
                     Icons.Rounded.Check,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun ConnectedBarButton(
+    position: GroupPosition,
+    onClick: () -> Unit,
+    containerColor: Color,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val outer by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (pressed) 12.dp else 20.dp,
+        animationSpec = Motion.spatialFast(),
+        label = "barButtonOuter"
+    )
+    val inner by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (pressed) 4.dp else 8.dp,
+        animationSpec = Motion.spatialFast(),
+        label = "barButtonInner"
+    )
+    val shape = when (position) {
+        GroupPosition.Leading -> RoundedCornerShape(topStart = inner, bottomStart = outer, topEnd = inner, bottomEnd = inner)
+        GroupPosition.Trailing -> RoundedCornerShape(topStart = inner, bottomStart = inner, topEnd = inner, bottomEnd = outer)
+        GroupPosition.Middle -> RoundedCornerShape(inner)
+    }
+    Surface(
+        onClick = onClick,
+        shape = shape,
+        color = containerColor,
+        contentColor = contentColor,
+        interactionSource = interactionSource,
+        modifier = modifier.height(40.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 14.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            content = content
+        )
     }
 }
 
@@ -1874,12 +1990,12 @@ fun FilterOptionButton(
 ) {
     val containerColor by animateColorAsState(
         targetValue = if (selected) selectedContainerColor else unselectedContainerColor,
-        animationSpec = tween(160, easing = FastOutSlowInEasing),
+        animationSpec = Motion.effectsDefault(),
         label = "filterBtnBg"
     )
     val contentColor by animateColorAsState(
         targetValue = if (selected) selectedContentColor else unselectedContentColor,
-        animationSpec = tween(160, easing = FastOutSlowInEasing),
+        animationSpec = Motion.effectsDefault(),
         label = "filterBtnContent"
     )
 
@@ -1898,12 +2014,12 @@ fun FilterOptionButton(
             ) {
                 AnimatedVisibility(
                     visible = selected,
-                    enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
+                    enter = fadeIn(animationSpec = Motion.effectsDefault()) +
                         expandHorizontally(
                             animationSpec = Motion.spatialDefault(),
                             expandFrom = Alignment.Start
                         ),
-                    exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
+                    exit = fadeOut(animationSpec = Motion.effectsFast()) +
                         shrinkHorizontally(
                             animationSpec = Motion.spatialDefault(),
                             shrinkTowards = Alignment.Start
@@ -1948,7 +2064,7 @@ private fun FilterSelectionBottomSheet(
     lang: AppLanguage,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val sheetState = rememberExpandedSheetState()
     val scope = rememberCoroutineScope()
 
     var tempContentTypes by remember { mutableStateOf(vm.selectedContentTypes) }
@@ -2263,7 +2379,7 @@ private fun FilterSelectionBottomSheet(
                                 ) {
                                     Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            FilterSectionIcon(Icons.Rounded.Sort)
+                                            FilterSectionIcon(Icons.AutoMirrored.Rounded.Sort)
                                             Spacer(Modifier.width(12.dp))
                                             Text(
                                                 text = if (lang == AppLanguage.RUSSIAN) "Сортировка" else "Sort by",
@@ -2340,14 +2456,13 @@ private fun FilterSelectionBottomSheet(
                                                 animationSpec = if (draggingRatio) snap() else Motion.spatialDefault(),
                                                 label = "recRatio"
                                             )
-                                            Slider(
+                                            ExpressiveSlider(
                                                 value = shownRatio,
                                                 onValueChange = {
                                                     draggingRatio = true
                                                     tempRecRatio = it
                                                 },
                                                 onValueChangeFinished = { draggingRatio = false },
-                                                valueRange = 0f..1f,
                                                 modifier = Modifier.fillMaxWidth()
                                             )
                                         }

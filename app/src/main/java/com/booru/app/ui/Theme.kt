@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import android.app.Activity
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -377,4 +378,34 @@ fun paletteColorScheme(
     palette == AppPalette.SUNSET -> if (isDark) SunsetDark else SunsetLight
     palette == AppPalette.GRAPHITE -> if (isDark) GraphiteDark else GraphiteLight
     else -> if (isDark) VioletDark else VioletLight
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun rememberExpandedSheetState(
+    confirmValueChange: (SheetValue) -> Boolean = { true }
+): SheetState = rememberBottomSheetState(
+    initialValue = SheetValue.Hidden,
+    enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
+    confirmValueChange = confirmValueChange
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExpressiveSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier,
+    onValueChangeFinished: (() -> Unit)? = null,
+    colors: SliderColors = SliderDefaults.colors()
+) {
+    val state = androidx.compose.runtime.remember { SliderState(value = value) }
+    state.value = value
+    Slider(
+        state = state,
+        onValueChange = onValueChange,
+        onValueChangeFinished = onValueChangeFinished,
+        colors = colors,
+        modifier = modifier
+    )
 }

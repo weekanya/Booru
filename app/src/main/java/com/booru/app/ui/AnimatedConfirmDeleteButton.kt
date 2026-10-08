@@ -29,6 +29,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -71,16 +72,17 @@ fun AnimatedConfirmDeleteButton(
 
     val animatedContainerColor by animateColorAsState(
         targetValue = if (isConfirming) MaterialTheme.colorScheme.error else idleContainerColor,
-        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+        animationSpec = Motion.effectsDefault(),
         label = "confirmDeleteContainer"
     )
 
     val animatedContentColor by animateColorAsState(
         targetValue = if (isConfirming) MaterialTheme.colorScheme.onError else idleContentColor,
-        animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing),
+        animationSpec = Motion.effectsDefault(),
         label = "confirmDeleteContent"
     )
 
+    val pressSource = remember { MutableInteractionSource() }
     Surface(
         onClick = {
             if (isConfirming) {
@@ -90,21 +92,21 @@ fun AnimatedConfirmDeleteButton(
                 isConfirming = true
             }
         },
-        shape = CircleShape,
+        shape = pressMorphShape(pressSource),
+        interactionSource = pressSource,
         color = animatedContainerColor,
         contentColor = animatedContentColor,
         modifier = modifier
             .height(height)
-            .bouncyPress()
     ) {
         AnimatedContent(
             targetState = isConfirming,
             transitionSpec = {
-                (fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                (fadeIn(animationSpec = Motion.effectsDefault()) +
                     scaleIn(initialScale = 0.90f, animationSpec = Motion.spatialDefault()))
                     .togetherWith(
-                        fadeOut(animationSpec = tween(160, easing = FastOutSlowInEasing)) +
-                            scaleOut(targetScale = 0.90f, animationSpec = tween(160, easing = FastOutSlowInEasing))
+                        fadeOut(animationSpec = Motion.effectsFast()) +
+                            scaleOut(targetScale = 0.90f, animationSpec = Motion.effectsDefault())
                     ).using(
                         SizeTransform(clip = false) { _, _ ->
                             Motion.spatialDefault()
