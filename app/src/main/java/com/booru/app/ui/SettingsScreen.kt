@@ -1699,40 +1699,42 @@ private fun SettingsTabBar(
     onSelect: (Int) -> Unit
 ) {
     val selectedIndex = if (pagerState.isScrollInProgress) pagerState.targetPage else pagerState.currentPage
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .wrapContentWidth(Alignment.CenterHorizontally)
-            .readableContentWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
-    ) {
-        titles.forEachIndexed { index, title ->
-            val selected = selectedIndex == index
-            ToggleButton(
-                checked = selected,
-                onCheckedChange = { onSelect(index) },
-                shapes = groupPosition(index, titles.size).toggleShapes(),
-                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 56.dp)
-                    .semantics { role = Role.Tab }
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = icons[index],
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+    ToggleGroupColors {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .wrapContentWidth(Alignment.CenterHorizontally)
+                .readableContentWidth()
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
+        ) {
+            titles.forEachIndexed { index, title ->
+                val selected = selectedIndex == index
+                ToggleButton(
+                    checked = selected,
+                    onCheckedChange = { onSelect(index) },
+                    shapes = groupPosition(index, titles.size).toggleShapes(),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 56.dp)
+                        .semantics { role = Role.Tab }
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = icons[index],
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }
@@ -1964,33 +1966,35 @@ fun <T> MD3SegmentedChoiceRow(
     iconProvider: (T) -> ImageVector? = { null },
     labelProvider: (T) -> String
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
-    ) {
-        options.forEachIndexed { index, option ->
-            val isSelected = option == selectedOption
-            ToggleButton(
-                checked = isSelected,
-                onCheckedChange = { onOptionSelected(option) },
-                shapes = groupPosition(index, options.size).toggleShapes(),
-                contentPadding = PaddingValues(horizontal = 6.dp),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(44.dp)
-                    .semantics { role = Role.RadioButton }
-            ) {
-                val icon = iconProvider(option)
-                if (icon != null) {
-                    Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
+    ToggleGroupColors {
+        Row(
+            modifier = modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
+        ) {
+            options.forEachIndexed { index, option ->
+                val isSelected = option == selectedOption
+                ToggleButton(
+                    checked = isSelected,
+                    onCheckedChange = { onOptionSelected(option) },
+                    shapes = groupPosition(index, options.size).toggleShapes(),
+                    contentPadding = PaddingValues(horizontal = 6.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .semantics { role = Role.RadioButton }
+                ) {
+                    val icon = iconProvider(option)
+                    if (icon != null) {
+                        Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text(
+                        text = labelProvider(option),
+                        style = MaterialTheme.typography.labelLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
-                Text(
-                    text = labelProvider(option),
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
             }
         }
     }

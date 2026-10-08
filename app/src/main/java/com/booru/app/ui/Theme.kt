@@ -45,7 +45,8 @@ private val VioletLight = lightColorScheme(
     surface = Color(0xFFFEF7FF), onSurface = Color(0xFF1D1B20),
     surfaceContainer = Color(0xFFF3EDF7), surfaceContainerHigh = Color(0xFFECE6F0), surfaceContainerHighest = Color(0xFFE6E0E9),
     surfaceContainerLow = Color(0xFFF7F2FA), surfaceContainerLowest = Color.White,
-    outline = Color(0xFF79747E), outlineVariant = Color(0xFFCAC4D0)
+    outline = Color(0xFF79747E), outlineVariant = Color(0xFFCAC4D0),
+    surfaceVariant = Color(0xFFE6E0E9), onSurfaceVariant = Color(0xFF49454F)
 )
 private val VioletDark = darkColorScheme(
     primary = Color(0xFFD0BCFF), onPrimary = Color(0xFF381E72), primaryContainer = Color(0xFF4F378B), onPrimaryContainer = Color(0xFFEADDFF),
@@ -55,7 +56,8 @@ private val VioletDark = darkColorScheme(
     surface = Color(0xFF141218), onSurface = Color(0xFFE6E0E9),
     surfaceContainer = Color(0xFF211F26), surfaceContainerHigh = Color(0xFF2B2930), surfaceContainerHighest = Color(0xFF36343B),
     surfaceContainerLow = Color(0xFF1D1B20), surfaceContainerLowest = Color(0xFF0F0D13),
-    outline = Color(0xFF938F99), outlineVariant = Color(0xFF49454F)
+    outline = Color(0xFF938F99), outlineVariant = Color(0xFF49454F),
+    surfaceVariant = Color(0xFF49454F), onSurfaceVariant = Color(0xFFCAC4D0)
 )
 
 private val SakuraLight = lightColorScheme(
@@ -66,7 +68,8 @@ private val SakuraLight = lightColorScheme(
     surface = Color(0xFFFFF8F8), onSurface = Color(0xFF22191B),
     surfaceContainer = Color(0xFFF9EBEC), surfaceContainerHigh = Color(0xFFF3E5E6), surfaceContainerHighest = Color(0xFFEDDFE0),
     surfaceContainerLow = Color(0xFFFFF0F1), surfaceContainerLowest = Color.White,
-    outline = Color(0xFF837375), outlineVariant = Color(0xFFD6C2C3)
+    outline = Color(0xFF837375), outlineVariant = Color(0xFFD6C2C3),
+    surfaceVariant = Color(0xFFEDDFE0), onSurfaceVariant = Color(0xFF514345)
 )
 private val SakuraDark = darkColorScheme(
     primary = Color(0xFFFFB1C1), onPrimary = Color(0xFF650024), primaryContainer = Color(0xFF8F0037), onPrimaryContainer = Color(0xFFFFD9DF),
@@ -76,7 +79,8 @@ private val SakuraDark = darkColorScheme(
     surface = Color(0xFF191113), onSurface = Color(0xFFF0DEE0),
     surfaceContainer = Color(0xFF261D1F), surfaceContainerHigh = Color(0xFF312829), surfaceContainerHighest = Color(0xFF3C3234),
     surfaceContainerLow = Color(0xFF22191B), surfaceContainerLowest = Color(0xFF140C0E),
-    outline = Color(0xFF9E8C8E), outlineVariant = Color(0xFF514345)
+    outline = Color(0xFF9E8C8E), outlineVariant = Color(0xFF514345),
+    surfaceVariant = Color(0xFF514345), onSurfaceVariant = Color(0xFFD6C2C3)
 )
 
 private val OceanLight = lightColorScheme(
@@ -87,7 +91,8 @@ private val OceanLight = lightColorScheme(
     surface = Color(0xFFFBFCFE), onSurface = Color(0xFF191C1E),
     surfaceContainer = Color(0xFFEDF1F5), surfaceContainerHigh = Color(0xFFE7EBF0), surfaceContainerHighest = Color(0xFFE1E6EA),
     surfaceContainerLow = Color(0xFFF3F7FB), surfaceContainerLowest = Color.White,
-    outline = Color(0xFF71787E), outlineVariant = Color(0xFFC1C7CE)
+    outline = Color(0xFF71787E), outlineVariant = Color(0xFFC1C7CE),
+    surfaceVariant = Color(0xFFE1E6EA), onSurfaceVariant = Color(0xFF41474D)
 )
 private val OceanDark = darkColorScheme(
     primary = Color(0xFF7BD0FF), onPrimary = Color(0xFF00354A), primaryContainer = Color(0xFF004D6A), onPrimaryContainer = Color(0xFFC3E8FF),
@@ -97,7 +102,8 @@ private val OceanDark = darkColorScheme(
     surface = Color(0xFF111416), onSurface = Color(0xFFE1E6EA),
     surfaceContainer = Color(0xFF1D2023), surfaceContainerHigh = Color(0xFF272B2E), surfaceContainerHighest = Color(0xFF323639),
     surfaceContainerLow = Color(0xFF191C1E), surfaceContainerLowest = Color(0xFF0C0F11),
-    outline = Color(0xFF8B9297), outlineVariant = Color(0xFF41474D)
+    outline = Color(0xFF8B9297), outlineVariant = Color(0xFF41474D),
+    surfaceVariant = Color(0xFF41474D), onSurfaceVariant = Color(0xFFC1C7CE)
 )
 
 private val EmeraldLight = lightColorScheme(
@@ -108,7 +114,8 @@ private val EmeraldLight = lightColorScheme(
     surface = Color(0xFFF6FBF3), onSurface = Color(0xFF181D19),
     surfaceContainer = Color(0xFFEAEFE7), surfaceContainerHigh = Color(0xFFE4EAE1), surfaceContainerHighest = Color(0xFFDFE4DC),
     surfaceContainerLow = Color(0xFFF0F5ED), surfaceContainerLowest = Color.White,
-    outline = Color(0xFF717971), outlineVariant = Color(0xFFC0C9BE)
+    outline = Color(0xFF717971), outlineVariant = Color(0xFFC0C9BE),
+    surfaceVariant = Color(0xFFDFE4DC), onSurfaceVariant = Color(0xFF414941)
 )
 private val EmeraldDark = darkColorScheme(
     primary = Color(0xFF74DAA3), onPrimary = Color(0xFF003920), primaryContainer = Color(0xFF005232), onPrimaryContainer = Color(0xFF91F7BE),
@@ -118,7 +125,8 @@ private val EmeraldDark = darkColorScheme(
     surface = Color(0xFF101511), onSurface = Color(0xFFDFE4DC),
     surfaceContainer = Color(0xFF1C211D), surfaceContainerHigh = Color(0xFF262C27), surfaceContainerHighest = Color(0xFF313732),
     surfaceContainerLow = Color(0xFF181D19), surfaceContainerLowest = Color(0xFF0B100C),
-    outline = Color(0xFF8A9388), outlineVariant = Color(0xFF414941)
+    outline = Color(0xFF8A9388), outlineVariant = Color(0xFF414941),
+    surfaceVariant = Color(0xFF414941), onSurfaceVariant = Color(0xFFC0C9BE)
 )
 
 private val SunsetLight = lightColorScheme(
@@ -129,7 +137,8 @@ private val SunsetLight = lightColorScheme(
     surface = Color(0xFFFFF8F5), onSurface = Color(0xFF221A14),
     surfaceContainer = Color(0xFFF9ECE3), surfaceContainerHigh = Color(0xFFF3E6DE), surfaceContainerHighest = Color(0xFFEDE0D8),
     surfaceContainerLow = Color(0xFFFFF1E9), surfaceContainerLowest = Color.White,
-    outline = Color(0xFF847469), outlineVariant = Color(0xFFD6C3B6)
+    outline = Color(0xFF847469), outlineVariant = Color(0xFFD6C3B6),
+    surfaceVariant = Color(0xFFEDE0D8), onSurfaceVariant = Color(0xFF52443B)
 )
 private val SunsetDark = darkColorScheme(
     primary = Color(0xFFFFB782), onPrimary = Color(0xFF4F2500), primaryContainer = Color(0xFF703700), onPrimaryContainer = Color(0xFFFFDCC4),
@@ -139,7 +148,8 @@ private val SunsetDark = darkColorScheme(
     surface = Color(0xFF1A120C), onSurface = Color(0xFFEDE0D8),
     surfaceContainer = Color(0xFF281E18), surfaceContainerHigh = Color(0xFF332922), surfaceContainerHighest = Color(0xFF3E342C),
     surfaceContainerLow = Color(0xFF221A14), surfaceContainerLowest = Color(0xFF140D08),
-    outline = Color(0xFFA08D82), outlineVariant = Color(0xFF52443B)
+    outline = Color(0xFFA08D82), outlineVariant = Color(0xFF52443B),
+    surfaceVariant = Color(0xFF52443B), onSurfaceVariant = Color(0xFFD6C3B6)
 )
 
 private val AmoledDark = darkColorScheme(
@@ -150,7 +160,8 @@ private val AmoledDark = darkColorScheme(
     surface = Color(0xFF000000), onSurface = Color(0xFFE6E0E9),
     surfaceContainer = Color(0xFF101012), surfaceContainerHigh = Color(0xFF18181C), surfaceContainerHighest = Color(0xFF222228),
     surfaceContainerLow = Color(0xFF08080A), surfaceContainerLowest = Color(0xFF000000),
-    outline = Color(0xFF938F99), outlineVariant = Color(0xFF3E3C44)
+    outline = Color(0xFF938F99), outlineVariant = Color(0xFF3E3C44),
+    surfaceVariant = Color(0xFF2A2830), onSurfaceVariant = Color(0xFFCAC4D0)
 )
 
 object ShapeTokens {
@@ -170,6 +181,18 @@ fun segmentedListShape(index: Int, count: Int): RoundedCornerShape {
     val top = if (index == 0) 20.dp else 4.dp
     val bottom = if (index == count - 1) 20.dp else 4.dp
     return RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
+}
+
+@Composable
+fun ToggleGroupColors(content: @Composable () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val adjusted = androidx.compose.runtime.remember(scheme) {
+        scheme.copy(
+            surfaceContainer = scheme.secondaryContainer,
+            onSurfaceVariant = scheme.onSecondaryContainer
+        )
+    }
+    MaterialExpressiveTheme(colorScheme = adjusted, content = content)
 }
 
 val BooruShapes = Shapes(

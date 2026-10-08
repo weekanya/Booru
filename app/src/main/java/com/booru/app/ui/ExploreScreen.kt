@@ -1857,58 +1857,60 @@ fun FilterOptionButton(
         label = "filterBtnContent"
     )
 
-    ToggleButton(
-        checked = selected,
-        onCheckedChange = { onClick() },
-        shapes = position.toggleShapes(),
-        contentPadding = PaddingValues(horizontal = 6.dp),
-        modifier = modifier.height(40.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+    ToggleGroupColors {
+        ToggleButton(
+            checked = selected,
+            onCheckedChange = { onClick() },
+            shapes = position.toggleShapes(),
+            contentPadding = PaddingValues(horizontal = 6.dp),
+            modifier = modifier.height(40.dp)
         ) {
-            AnimatedVisibility(
-                visible = selected,
-                enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
-                    expandHorizontally(
-                        animationSpec = Motion.spatialDefault(),
-                        expandFrom = Alignment.Start
-                    ),
-                exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
-                    shrinkHorizontally(
-                        animationSpec = Motion.spatialDefault(),
-                        shrinkTowards = Alignment.Start
-                    )
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                AnimatedVisibility(
+                    visible = selected,
+                    enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
+                        expandHorizontally(
+                            animationSpec = Motion.spatialDefault(),
+                            expandFrom = Alignment.Start
+                        ),
+                    exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
+                        shrinkHorizontally(
+                            animationSpec = Motion.spatialDefault(),
+                            shrinkTowards = Alignment.Start
+                        )
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(17.dp),
+                            tint = contentColor
+                        )
+                        Spacer(Modifier.width(5.dp))
+                    }
+                }
+                if (icon != null && !selected) {
                     Icon(
-                        imageVector = Icons.Rounded.Check,
+                        imageVector = icon,
                         contentDescription = null,
                         modifier = Modifier.size(17.dp),
                         tint = contentColor
                     )
                     Spacer(Modifier.width(5.dp))
                 }
-            }
-            if (icon != null && !selected) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(17.dp),
-                    tint = contentColor
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    color = contentColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-                Spacer(Modifier.width(5.dp))
             }
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                color = contentColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
         }
     }
 }
