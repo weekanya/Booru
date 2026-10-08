@@ -1302,10 +1302,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     var hasUnlockedSession = false; private set
     var lastBackgroundAt = 0L; private set
+    var isBackgrounded = false; private set
 
     fun markSessionUnlocked(now: Long) {
         hasUnlockedSession = true
         lastBackgroundAt = now
+        isBackgrounded = false
     }
 
     fun markSessionLocked() {
@@ -1314,6 +1316,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun markBackgrounded(now: Long) {
         lastBackgroundAt = now
+        isBackgrounded = true
+    }
+
+    fun markForegrounded() {
+        isBackgrounded = false
     }
 
     fun setBiometricLock(enabled: Boolean, timeoutMin: Int = biometricLockTimeoutMin) {

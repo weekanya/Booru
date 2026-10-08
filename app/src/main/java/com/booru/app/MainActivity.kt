@@ -139,12 +139,14 @@ class MainActivity : ComponentActivity() {
         if (vm.biometricLockEnabled) {
             val timeoutMs = vm.biometricLockTimeoutMin * 60 * 1000L
             val elapsed = SystemClock.elapsedRealtime() - vm.lastBackgroundAt
-            if (!vm.hasUnlockedSession || (vm.lastBackgroundAt != 0L && elapsed >= timeoutMs)) {
+            val leftApp = vm.isBackgrounded && elapsed >= timeoutMs
+            if (!vm.hasUnlockedSession || leftApp) {
                 vm.markSessionLocked()
                 isAppLocked.value = true
                 promptBiometric()
             }
         }
+        vm.markForegrounded()
     }
 
     override fun onStop() {
