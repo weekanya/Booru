@@ -1,0 +1,84 @@
+name: Release APK (R8)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      HAS_RELEASE_KEY: ${{ secrets.BOORU_KEYSTORE_BASE64 != '' && secrets.BOORU_KEYSTORE_PASSWORD != '' && secrets.BOORU_KEY_ALIAS != '' && secrets.BOORU_KEY_PASSWORD != '' }}
+      SIGNING_DIR: /home/runner/booru-signing
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: ./.github/actions/android-setup
+
+      - name: Restore CI signing key
+        if: env.HAS_RELEASE_KEY != 'true'
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/booru-signing/ci.jks
+          key: booru-ci-signing-key-v1
+
+      - name: Prepare signing key
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.BOORU_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p "$SIGNING_DIR"
+          if [ "$HAS_RELEASE_KEY" = "true" ]; then
+            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$SIGNING_DIR/release.jks"
+            echo "::notice::Signing with the release key from repository secrets"
+          else
+            if [ ! -f "$SIGNING_DIR/ci.jks" ]; then
+              keytool -genkeypair -keystore "$SIGNING_DIR/ci.jks" -storetype PKCS12 \
+                -storepass booru-ci -keypass booru-ci -alias booru-ci \
+                -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Booru CI"
+            fi
+            echo "::notice::Release secrets are not set, signing with the CI key"
+          fi
+
+      - name: Build release APK
+        env:
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.BOORU_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.BOORU_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.BOORU_KEY_PASSWORD }}
+        run: |
+          if [ "$HAS_RELEASE_KEY" = "true" ]; then
+            export BOORU_KEYSTORE_PATH="$SIGNING_DIR/release.jks"
+            export BOORU_KEYSTORE_PASSWORD="$RELEASE_KEYSTORE_PASSWORD"
+            export BOORU_KEY_ALIAS="$RELEASE_KEY_ALIAS"
+            export BOORU_KEY_PASSWORD="$RELEASE_KEY_PASSWORD"
+          else
+            export BOORU_KEYSTORE_PATH="$SIGNING_DIR/ci.jks"
+            export BOORU_KEYSTORE_PASSWORD=booru-ci
+            export BOORU_KEY_ALIAS=booru-ci
+            export BOORU_KEY_PASSWORD=booru-ci
+          fi
+          chmod +x gradlew
+          ./gradlew assembleRelease
+
+      - name: Remove signing key
+        if: always()
+        run: rm -f "$SIGNING_DIR/release.jks"
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: booru-release-${{ github.run_number }}
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v5
+        with:
+          name: booru-release-mapping-${{ github.run_number }}
+          path: app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: warn
+          retention-days: 30
