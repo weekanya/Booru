@@ -18,6 +18,7 @@ runs:
 
     - name: Install Android SDK platform 37
       if: steps.sdk-cache.outputs.cache-hit != 'true'
+      shell: bash
       run: |
         SDKMANAGER="$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
         yes | "$SDKMANAGER" --licenses --channel=3 > /dev/null || true
