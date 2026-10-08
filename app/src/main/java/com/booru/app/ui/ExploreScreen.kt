@@ -295,7 +295,7 @@ fun ExploreScreen(
                     )
                     AnimatedVisibility(
                         visible = activeFilterCount > 0,
-                        enter = fadeIn(tween(180)) + expandHorizontally(spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow)) + scaleIn(spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMedium), initialScale = 0.4f),
+                        enter = fadeIn(tween(180)) + expandHorizontally(Motion.spatialDefault()) + scaleIn(Motion.spatialFast(), initialScale = 0.4f),
                         exit = fadeOut(tween(140)) + shrinkHorizontally(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium)) + scaleOut(tween(140), targetScale = 0.4f)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -310,7 +310,7 @@ fun ExploreScreen(
                                     targetState = activeFilterCount,
                                     transitionSpec = {
                                         val up = targetState > initialState
-                                        (slideInVertically(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium)) { if (up) it else -it } + fadeIn(tween(150)))
+                                        (slideInVertically(Motion.spatialFast()) { if (up) it else -it } + fadeIn(tween(150)))
                                             .togetherWith(slideOutVertically(tween(150)) { if (up) -it else it } + fadeOut(tween(120)))
                                     },
                                     label = "filterCount"
@@ -408,7 +408,7 @@ fun ExploreScreen(
                         else
                             MaterialTheme.colorScheme.errorContainer
                     ),
-                    shape = RoundedCornerShape(20.dp),
+                    shape = ShapeTokens.LargeIncreased,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 6.dp)
@@ -573,10 +573,10 @@ fun ExploreScreen(
                         }
                     } else {
                         val gridCells = when (vm.gridColumnsCount) {
-                            1 -> StaggeredGridCells.Fixed(1)
-                            2 -> StaggeredGridCells.Fixed(2)
-                            3 -> StaggeredGridCells.Fixed(3)
-                            4 -> StaggeredGridCells.Fixed(4)
+                            1 -> StaggeredGridCells.Fixed(adaptiveColumns(1))
+                            2 -> StaggeredGridCells.Fixed(adaptiveColumns(2))
+                            3 -> StaggeredGridCells.Fixed(adaptiveColumns(3))
+                            4 -> StaggeredGridCells.Fixed(adaptiveColumns(4))
                             else -> StaggeredGridCells.Adaptive(minSize = 175.dp)
                         }
 
@@ -628,7 +628,7 @@ fun ExploreScreen(
                                             scope.launch {
                                                 pinchScaleAnim.animateTo(
                                                     1f,
-                                                    spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                                                    Motion.spatialDefault()
                                                 )
                                             }
                                         }
@@ -943,7 +943,7 @@ fun ExploreScreen(
                     ) {
                         if (vm.tagSuggestions.isNotEmpty()) {
                             Card(
-                                shape = RoundedCornerShape(24.dp),
+                                shape = ShapeTokens.ExtraLarge,
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.surfaceContainer
                                 ),
@@ -1052,7 +1052,7 @@ fun ExploreScreen(
                         }
                         if (visibleHistory.isNotEmpty()) {
                             Card(
-                                shape = RoundedCornerShape(24.dp),
+                                shape = ShapeTokens.ExtraLarge,
                                 colors = CardDefaults.cardColors(
                                     containerColor = MaterialTheme.colorScheme.surfaceContainer
                                 ),
@@ -1132,7 +1132,7 @@ fun ExploreScreen(
                                                 ) {
                                                     Icon(
                                                         Icons.Rounded.NorthWest,
-                                                        contentDescription = null,
+                                                        contentDescription = "Insert tag",
                                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                                         modifier = Modifier.size(18.dp)
                                                     )
@@ -1288,7 +1288,7 @@ private fun MediaCard(
     }
 
     Card(
-        shape = RoundedCornerShape(20.dp),
+        shape = ShapeTokens.LargeIncreased,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
         ),
@@ -1298,7 +1298,7 @@ private fun MediaCard(
                 scaleX = animatedScale
                 scaleY = animatedScale
             }
-            .clip(RoundedCornerShape(20.dp))
+            .clip(ShapeTokens.LargeIncreased)
             .combinedClickable(
                 interactionSource = interactionSource,
                 indication = LocalIndication.current,
@@ -1546,7 +1546,7 @@ private fun SkeletonGrid(columnsSetting: Int) {
                     .fillMaxWidth()
                     .aspectRatio(ratios[index])
                     .graphicsLayer { alpha = pulse }
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(ShapeTokens.LargeIncreased)
                     .background(color)
             )
         }
@@ -1695,7 +1695,7 @@ fun SourceSelectionSheet(
             onDismissRequest = onDismiss,
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+            shape = ShapeTokens.ExtraLargeTop
         ) {
             Column(
                 modifier = Modifier
@@ -1755,7 +1755,7 @@ fun SourceSelectionSheet(
                                 }
                             }
                         },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = ShapeTokens.Large,
                         color = itemColor,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1796,6 +1796,21 @@ fun SourceSelectionSheet(
     }
 }
 
+enum class GroupPosition { Leading, Middle, Trailing }
+
+fun groupPosition(index: Int, count: Int): GroupPosition = when {
+    index == 0 -> GroupPosition.Leading
+    index == count - 1 -> GroupPosition.Trailing
+    else -> GroupPosition.Middle
+}
+
+@Composable
+fun GroupPosition.toggleShapes(): ToggleButtonShapes = when (this) {
+    GroupPosition.Leading -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+    GroupPosition.Middle -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+    GroupPosition.Trailing -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+}
+
 @Composable
 fun FilterOptionButton(
     selected: Boolean,
@@ -1803,6 +1818,7 @@ fun FilterOptionButton(
     label: String,
     icon: ImageVector? = null,
     modifier: Modifier = Modifier,
+    position: GroupPosition = GroupPosition.Middle,
     selectedContainerColor: Color = MaterialTheme.colorScheme.primary,
     selectedContentColor: Color = MaterialTheme.colorScheme.onPrimary,
     unselectedContainerColor: Color = MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -1822,6 +1838,7 @@ fun FilterOptionButton(
     ToggleButton(
         checked = selected,
         onCheckedChange = { onClick() },
+        shapes = position.toggleShapes(),
         contentPadding = PaddingValues(horizontal = 6.dp),
         modifier = modifier.height(46.dp)
     ) {
@@ -1834,18 +1851,12 @@ fun FilterOptionButton(
                 visible = selected,
                 enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
                     expandHorizontally(
-                        animationSpec = spring(
-                            dampingRatio = 0.78f,
-                            stiffness = Spring.StiffnessMediumLow
-                        ),
+                        animationSpec = Motion.spatialDefault(),
                         expandFrom = Alignment.Start
                     ),
                 exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
                     shrinkHorizontally(
-                        animationSpec = spring(
-                            dampingRatio = 0.88f,
-                            stiffness = Spring.StiffnessMediumLow
-                        ),
+                        animationSpec = Motion.spatialDefault(),
                         shrinkTowards = Alignment.Start
                     )
             ) {
@@ -1907,7 +1918,7 @@ private fun FilterSelectionBottomSheet(
             onDismissRequest = onDismiss,
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+            shape = ShapeTokens.ExtraLargeTop
         ) {
             Column(
                 modifier = Modifier
@@ -1967,7 +1978,7 @@ private fun FilterSelectionBottomSheet(
                 }
     
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = ShapeTokens.Large,
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -2001,11 +2012,11 @@ private fun FilterSelectionBottomSheet(
                                     scope.launch {
                                         filterPagerState.animateScrollToPage(
                                             page = index,
-                                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                                            animationSpec = Motion.spatialDefault()
                                         )
                                     }
                                 },
-                                shape = RoundedCornerShape(12.dp),
+                                shape = ShapeTokens.Medium,
                                 color = bg,
                                 contentColor = fg,
                                 modifier = Modifier
@@ -2024,18 +2035,12 @@ private fun FilterSelectionBottomSheet(
                                         visible = isSelected,
                                         enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
                                             expandHorizontally(
-                                                animationSpec = spring(
-                                                    dampingRatio = 0.78f,
-                                                    stiffness = Spring.StiffnessMediumLow
-                                                ),
+                                                animationSpec = Motion.spatialDefault(),
                                                 expandFrom = Alignment.Start
                                             ),
                                         exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
                                             shrinkHorizontally(
-                                                animationSpec = spring(
-                                                    dampingRatio = 0.88f,
-                                                    stiffness = Spring.StiffnessMediumLow
-                                                ),
+                                                animationSpec = Motion.spatialDefault(),
                                                 shrinkTowards = Alignment.Start
                                             )
                                     ) {
@@ -2078,7 +2083,7 @@ private fun FilterSelectionBottomSheet(
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                                 Card(
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = ShapeTokens.LargeIncreased,
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -2096,7 +2101,7 @@ private fun FilterSelectionBottomSheet(
                                         Spacer(Modifier.height(12.dp))
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
                                         ) {
                                             val types = listOf(
                                                 Triple(ContentType.PHOTOS, Strings.contentTypePhotos(lang), Icons.Rounded.Image),
@@ -2107,9 +2112,10 @@ private fun FilterSelectionBottomSheet(
                                                 selected = tempContentTypes.isEmpty(),
                                                 onClick = { tempContentTypes = emptySet() },
                                                 label = Strings.favFilterAll(lang),
+                                                position = GroupPosition.Leading,
                                                 modifier = Modifier.weight(1f)
                                             )
-                                            types.forEach { (type, label, icon) ->
+                                            types.forEachIndexed { typeIndex, (type, label, icon) ->
                                                 val selected = tempContentTypes.contains(type)
                                                 FilterOptionButton(
                                                     selected = selected,
@@ -2117,6 +2123,7 @@ private fun FilterSelectionBottomSheet(
                                                         val updated = if (selected) tempContentTypes - type else tempContentTypes + type
                                                         tempContentTypes = if (updated.size == types.size) emptySet() else updated
                                                     },
+                                                    position = groupPosition(typeIndex + 1, types.size + 1),
                                                     label = label,
                                                     icon = icon,
                                                     modifier = Modifier.weight(1f)
@@ -2127,7 +2134,7 @@ private fun FilterSelectionBottomSheet(
                                 }
     
                                 Card(
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = ShapeTokens.LargeIncreased,
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -2145,7 +2152,7 @@ private fun FilterSelectionBottomSheet(
                                         Spacer(Modifier.height(12.dp))
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
                                         ) {
                                             val isAllRating = !tempSafeMode && !tempExcludeSafe
                                             FilterOptionButton(
@@ -2155,6 +2162,7 @@ private fun FilterSelectionBottomSheet(
                                                     tempExcludeSafe = false
                                                 },
                                                 label = Strings.allRatings(lang),
+                                                position = GroupPosition.Leading,
                                                 modifier = Modifier.weight(1f)
                                             )
                                             FilterOptionButton(
@@ -2165,6 +2173,7 @@ private fun FilterSelectionBottomSheet(
                                                 },
                                                 label = Strings.only18Badge(lang),
                                                 icon = Icons.Rounded.Explicit,
+                                                position = GroupPosition.Middle,
                                                 modifier = Modifier.weight(1f)
                                             )
                                             FilterOptionButton(
@@ -2175,6 +2184,7 @@ private fun FilterSelectionBottomSheet(
                                                 },
                                                 label = Strings.safeModeBadge(lang),
                                                 icon = Icons.Rounded.Shield,
+                                                position = GroupPosition.Trailing,
                                                 modifier = Modifier.weight(1f)
                                             )
                                         }
@@ -2182,7 +2192,7 @@ private fun FilterSelectionBottomSheet(
                                 }
     
                                 Card(
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = ShapeTokens.LargeIncreased,
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -2235,7 +2245,7 @@ private fun FilterSelectionBottomSheet(
                                 verticalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
                                 Card(
-                                    shape = RoundedCornerShape(20.dp),
+                                    shape = ShapeTokens.LargeIncreased,
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -2253,18 +2263,19 @@ private fun FilterSelectionBottomSheet(
                                         Spacer(Modifier.height(12.dp))
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
                                         ) {
                                             val sortOrders = listOfNotNull(
                                                 Triple(SortOrder.NEWEST, Strings.sortNewest(lang), Icons.Rounded.Schedule),
                                                 if (!isRealbooru) Triple(SortOrder.SCORE, Strings.sortScore(lang), Icons.Rounded.Star) else null,
                                                 Triple(SortOrder.RANDOM, Strings.sortRandom(lang), Icons.Rounded.Shuffle)
                                             )
-                                            sortOrders.forEach { (order, label, icon) ->
+                                            sortOrders.forEachIndexed { orderIndex, (order, label, icon) ->
                                                 val selected = (tempSortOrder == order)
                                                 FilterOptionButton(
                                                     selected = selected,
                                                     onClick = { tempSortOrder = order },
+                                                    position = groupPosition(orderIndex, sortOrders.size),
                                                     label = label,
                                                     icon = icon,
                                                     modifier = Modifier.weight(1f)
@@ -2276,7 +2287,7 @@ private fun FilterSelectionBottomSheet(
     
                                 if (vm.query.isBlank()) {
                                     Card(
-                                        shape = RoundedCornerShape(20.dp),
+                                        shape = ShapeTokens.LargeIncreased,
                                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
@@ -2294,16 +2305,17 @@ private fun FilterSelectionBottomSheet(
                                             Spacer(Modifier.height(10.dp))
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
                                             ) {
                                                 listOf(
                                                     Triple(0.0f, Strings.feedNewestOnly(lang), tempRecRatio < 0.25f),
                                                     Triple(0.5f, Strings.feedBalanced(lang), tempRecRatio >= 0.25f && tempRecRatio <= 0.75f),
                                                     Triple(1.0f, Strings.feedRecommendedOnly(lang), tempRecRatio > 0.75f)
-                                                ).forEach { (presetVal, label, active) ->
+                                                ).forEachIndexed { presetIndex, (presetVal, label, active) ->
                                                     FilterOptionButton(
                                                         selected = active,
                                                         onClick = { tempRecRatio = presetVal },
+                                                        position = groupPosition(presetIndex, 3),
                                                         label = label,
                                                         modifier = Modifier.weight(1f)
                                                     )
@@ -2313,7 +2325,7 @@ private fun FilterSelectionBottomSheet(
                                             var draggingRatio by remember { mutableStateOf(false) }
                                             val shownRatio by animateFloatAsState(
                                                 targetValue = tempRecRatio,
-                                                animationSpec = if (draggingRatio) snap() else spring(dampingRatio = 0.86f, stiffness = Spring.StiffnessMediumLow),
+                                                animationSpec = if (draggingRatio) snap() else Motion.spatialDefault(),
                                                 label = "recRatio"
                                             )
                                             Slider(
@@ -2355,7 +2367,7 @@ private fun FilterSelectionBottomSheet(
                             onDismiss()
                         }
                     },
-                    shape = RoundedCornerShape(20.dp),
+                    shape = ShapeTokens.LargeIncreased,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary

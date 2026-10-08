@@ -1,8 +1,12 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.booru.app.ui
 
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.selection.toggleable
 import android.content.Intent
 import android.net.Uri
@@ -138,7 +142,7 @@ fun SettingsScreen(
                 onDismissRequest = { showFeedSourcesSheet = false },
                 sheetState = sheetState,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                shape = ShapeTokens.ExtraLargeTop
             ) {
                 Column(
                     modifier = Modifier
@@ -196,7 +200,7 @@ fun SettingsScreen(
                 onDismissRequest = { showRule34Dialog = false },
                 sheetState = sheetState,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                shape = ShapeTokens.ExtraLargeTop
             ) {
                 Column(
                     modifier = Modifier
@@ -270,12 +274,12 @@ fun SettingsScreen(
                         trailingIcon = {
                             if (rule34User.isNotEmpty()) {
                                 IconButton(onClick = { rule34User = "" }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Rounded.Close, null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Rounded.Close, Strings.closeBtn(lang), modifier = Modifier.size(16.dp))
                                 }
                             }
                         },
                         singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = ShapeTokens.Medium,
                         modifier = Modifier.fillMaxWidth()
                     )
     
@@ -290,12 +294,12 @@ fun SettingsScreen(
                         trailingIcon = {
                             if (rule34Key.isNotEmpty()) {
                                 IconButton(onClick = { rule34Key = "" }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Rounded.Close, null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Rounded.Close, Strings.closeBtn(lang), modifier = Modifier.size(16.dp))
                                 }
                             }
                         },
                         singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = ShapeTokens.Medium,
                         modifier = Modifier.fillMaxWidth()
                     )
     
@@ -304,7 +308,7 @@ fun SettingsScreen(
                             val url = "https://rule34.xxx/index.php?page=account&s=options"
                             context.openUrlSafely(url, lang)
                         },
-                        shape = RoundedCornerShape(14.dp),
+                        shape = ShapeTokens.Medium,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, modifier = Modifier.size(16.dp))
@@ -318,7 +322,7 @@ fun SettingsScreen(
                             scope.launch { sheetState.hide() }.invokeOnCompletion { showRule34Dialog = false }
                             Toast.makeText(context, Strings.keysSavedToast(lang), Toast.LENGTH_SHORT).show()
                         },
-                        shape = RoundedCornerShape(14.dp),
+                        shape = ShapeTokens.Medium,
                         modifier = Modifier.fillMaxWidth().height(48.dp)
                     ) {
                         Icon(Icons.Rounded.Check, null, modifier = Modifier.size(18.dp))
@@ -337,7 +341,7 @@ fun SettingsScreen(
                 onDismissRequest = { showGelbooruDialog = false },
                 sheetState = sheetState,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                shape = ShapeTokens.ExtraLargeTop
             ) {
                 Column(
                     modifier = Modifier
@@ -411,12 +415,12 @@ fun SettingsScreen(
                         trailingIcon = {
                             if (gelbooruUser.isNotEmpty()) {
                                 IconButton(onClick = { gelbooruUser = "" }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Rounded.Close, null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Rounded.Close, Strings.closeBtn(lang), modifier = Modifier.size(16.dp))
                                 }
                             }
                         },
                         singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = ShapeTokens.Medium,
                         modifier = Modifier.fillMaxWidth()
                     )
     
@@ -431,12 +435,12 @@ fun SettingsScreen(
                         trailingIcon = {
                             if (gelbooruKey.isNotEmpty()) {
                                 IconButton(onClick = { gelbooruKey = "" }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Rounded.Close, null, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Rounded.Close, Strings.closeBtn(lang), modifier = Modifier.size(16.dp))
                                 }
                             }
                         },
                         singleLine = true,
-                        shape = RoundedCornerShape(14.dp),
+                        shape = ShapeTokens.Medium,
                         modifier = Modifier.fillMaxWidth()
                     )
     
@@ -445,7 +449,7 @@ fun SettingsScreen(
                             val url = "https://gelbooru.com/index.php?page=account&s=options"
                             context.openUrlSafely(url, lang)
                         },
-                        shape = RoundedCornerShape(14.dp),
+                        shape = ShapeTokens.Medium,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, modifier = Modifier.size(16.dp))
@@ -459,7 +463,7 @@ fun SettingsScreen(
                             scope.launch { sheetState.hide() }.invokeOnCompletion { showGelbooruDialog = false }
                             Toast.makeText(context, Strings.keysSavedToast(lang), Toast.LENGTH_SHORT).show()
                         },
-                        shape = RoundedCornerShape(14.dp),
+                        shape = ShapeTokens.Medium,
                         modifier = Modifier.fillMaxWidth().height(48.dp)
                     ) {
                         Icon(Icons.Rounded.Check, null, modifier = Modifier.size(18.dp))
@@ -478,7 +482,7 @@ fun SettingsScreen(
                 onDismissRequest = { showQualityDialog = false },
                 sheetState = sheetState,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                shape = ShapeTokens.ExtraLargeTop
             ) {
                 Column(
                     modifier = Modifier
@@ -533,7 +537,7 @@ fun SettingsScreen(
                                 MaterialTheme.colorScheme.primaryContainer
                             else
                                 MaterialTheme.colorScheme.surfaceContainerHigh,
-                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+                            animationSpec = Motion.spatialDefault(),
                             label = "qualityBg"
                         )
     
@@ -542,7 +546,7 @@ fun SettingsScreen(
                                 MaterialTheme.colorScheme.onPrimaryContainer
                             else
                                 MaterialTheme.colorScheme.onSurface,
-                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+                            animationSpec = Motion.spatialDefault(),
                             label = "qualityContent"
                         )
     
@@ -551,7 +555,7 @@ fun SettingsScreen(
                                 MaterialTheme.colorScheme.primary
                             else
                                 MaterialTheme.colorScheme.onSurfaceVariant,
-                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+                            animationSpec = Motion.spatialDefault(),
                             label = "qualityIcon"
                         )
     
@@ -560,7 +564,7 @@ fun SettingsScreen(
                                 vm.updateImageQuality(q)
                                 scope.launch { sheetState.hide() }.invokeOnCompletion { showQualityDialog = false }
                             },
-                            shape = RoundedCornerShape(16.dp),
+                            shape = ShapeTokens.Large,
                             color = containerColor,
                             contentColor = contentColor,
                             modifier = Modifier
@@ -590,18 +594,12 @@ fun SettingsScreen(
                                     visible = isSelected,
                                     enter = fadeIn(animationSpec = tween(240, easing = LinearOutSlowInEasing)) +
                                         expandHorizontally(
-                                            animationSpec = spring(
-                                                dampingRatio = 0.78f,
-                                                stiffness = Spring.StiffnessMediumLow
-                                            ),
+                                            animationSpec = Motion.spatialDefault(),
                                             expandFrom = Alignment.Start
                                         ),
                                     exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
                                         shrinkHorizontally(
-                                            animationSpec = spring(
-                                                dampingRatio = 0.88f,
-                                                stiffness = Spring.StiffnessMediumLow
-                                            ),
+                                            animationSpec = Motion.spatialDefault(),
                                             shrinkTowards = Alignment.Start
                                         )
                                 ) {
@@ -633,7 +631,7 @@ fun SettingsScreen(
                 },
                 sheetState = sheetState,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                shape = ShapeTokens.ExtraLargeTop
             ) {
                 Column(
                     modifier = Modifier
@@ -706,7 +704,7 @@ fun SettingsScreen(
                         isError = customNameError != null,
                         supportingText = customNameError?.let { msg -> { Text(msg) } },
                         singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
+                        shape = ShapeTokens.Large,
                         modifier = Modifier.fillMaxWidth()
                     )
     
@@ -725,7 +723,7 @@ fun SettingsScreen(
                         supportingText = customUrlError?.let { msg -> { Text(msg) } },
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri),
                         singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
+                        shape = ShapeTokens.Large,
                         modifier = Modifier.fillMaxWidth()
                     )
     
@@ -757,7 +755,7 @@ fun SettingsScreen(
                             Icon(Icons.Rounded.Person, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         },
                         singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
+                        shape = ShapeTokens.Large,
                         modifier = Modifier.fillMaxWidth()
                     )
     
@@ -772,13 +770,13 @@ fun SettingsScreen(
                             IconButton(onClick = { showCustomApiKey = !showCustomApiKey }) {
                                 Icon(
                                     if (showCustomApiKey) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                                    contentDescription = null
+                                    contentDescription = if (showCustomApiKey) "Hide API key" else "Show API key"
                                 )
                             }
                         },
                         visualTransformation = if (showCustomApiKey) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
                         singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
+                        shape = ShapeTokens.Large,
                         modifier = Modifier.fillMaxWidth()
                     )
     
@@ -819,7 +817,7 @@ fun SettingsScreen(
                                 scope.launch { sheetState.hide() }.invokeOnCompletion { showAddCustomSourceDialog = false }
                             }
                         },
-                        shape = RoundedCornerShape(20.dp),
+                        shape = ShapeTokens.LargeIncreased,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(50.dp)
@@ -867,7 +865,7 @@ fun SettingsScreen(
                 },
                 sheetState = sheetState,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                shape = ShapeTokens.ExtraLargeTop
             ) {
                 Column(
                     modifier = Modifier
@@ -956,7 +954,7 @@ fun SettingsScreen(
                                 }
                             },
                             singleLine = true,
-                            shape = RoundedCornerShape(14.dp),
+                            shape = ShapeTokens.Medium,
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                             keyboardActions = KeyboardActions(onDone = { addTagAction() }),
                             modifier = Modifier.weight(1f)
@@ -981,7 +979,7 @@ fun SettingsScreen(
                             enabled = isAddActive,
                             modifier = Modifier
                                 .size(50.dp)
-                                .clip(RoundedCornerShape(14.dp))
+                                .clip(ShapeTokens.Medium)
                                 .background(addBtnBg)
                                 .bouncyPress()
                         ) {
@@ -996,11 +994,11 @@ fun SettingsScreen(
     
                     AnimatedVisibility(
                         visible = vm.tagBlacklist.size > 4,
-                        enter = fadeIn(tween(280, easing = FastOutSlowInEasing)) + expandVertically(animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow)),
-                        exit = fadeOut(tween(220, easing = FastOutSlowInEasing)) + shrinkVertically(animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow))
+                        enter = fadeIn(tween(280, easing = FastOutSlowInEasing)) + expandVertically(animationSpec = Motion.spatialSlow()),
+                        exit = fadeOut(tween(220, easing = FastOutSlowInEasing)) + shrinkVertically(animationSpec = Motion.spatialSlow())
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(14.dp),
+                            shape = ShapeTokens.Medium,
                             color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1071,7 +1069,7 @@ fun SettingsScreen(
                     ) { isEmpty ->
                         if (isEmpty) {
                             Surface(
-                                shape = RoundedCornerShape(16.dp),
+                                shape = ShapeTokens.Large,
                                 color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -1157,8 +1155,8 @@ fun SettingsScreen(
                     ) {
                         AnimatedVisibility(
                             visible = vm.tagBlacklist.isNotEmpty(),
-                            enter = fadeIn(tween(250, easing = FastOutSlowInEasing)) + expandHorizontally(animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow)),
-                            exit = fadeOut(tween(200, easing = FastOutSlowInEasing)) + shrinkHorizontally(animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessLow))
+                            enter = fadeIn(tween(250, easing = FastOutSlowInEasing)) + expandHorizontally(animationSpec = Motion.spatialSlow()),
+                            exit = fadeOut(tween(200, easing = FastOutSlowInEasing)) + shrinkHorizontally(animationSpec = Motion.spatialSlow())
                         ) {
                             AnimatedConfirmDeleteButton(
                                 onConfirmed = {
@@ -1183,7 +1181,7 @@ fun SettingsScreen(
                                     blacklistFilterQuery = ""
                                 }
                             },
-                            shape = RoundedCornerShape(14.dp),
+                            shape = ShapeTokens.Medium,
                             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
                             modifier = Modifier.bouncyPress()
                         ) {
@@ -1226,7 +1224,7 @@ fun SettingsScreen(
                 onDismissRequest = { showPaletteDialog = false },
                 sheetState = sheetState,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                shape = ShapeTokens.ExtraLargeTop
             ) {
                 Column(
                     modifier = Modifier
@@ -1280,7 +1278,7 @@ fun SettingsScreen(
                                 vm.updatePalette(pal)
                                 scope.launch { sheetState.hide() }.invokeOnCompletion { showPaletteDialog = false }
                             },
-                            shape = RoundedCornerShape(18.dp),
+                            shape = ShapeTokens.LargeIncreased,
                             color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1365,7 +1363,7 @@ fun SettingsScreen(
                 scope.launch {
                     pagerState.animateScrollToPage(
                         page = index,
-                        animationSpec = spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow)
+                        animationSpec = Motion.spatialDefault()
                     )
                 }
             }
@@ -1381,6 +1379,8 @@ fun SettingsScreen(
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.surface)
                     .verticalScroll(rememberScrollState())
+                    .wrapContentWidth(Alignment.CenterHorizontally)
+                    .readableContentWidth()
                     .padding(horizontal = 16.dp)
                     .padding(top = 8.dp, bottom = 88.dp)
             ) {
@@ -1488,7 +1488,7 @@ fun SettingsScreen(
                                         Box(
                                             modifier = Modifier
                                                 .size(width = 40.dp, height = 24.dp)
-                                                .clip(RoundedCornerShape(12.dp))
+                                                .clip(ShapeTokens.Medium)
                                                 .background(currentSwatchBrush),
                                             contentAlignment = Alignment.CenterEnd
                                         ) {
@@ -1696,7 +1696,7 @@ fun SettingsScreen(
                                                 Toast.makeText(context, Strings.clearRecommendationsSuccess(lang), Toast.LENGTH_SHORT).show()
                                             }
                                         },
-                                        shape = RoundedCornerShape(16.dp),
+                                        shape = ShapeTokens.Large,
                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                                         colors = ButtonDefaults.filledTonalButtonColors(
                                             containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -1764,7 +1764,7 @@ fun SettingsScreen(
                                         onClick = {
                                             context.openUrlSafely("https://github.com/weekanya/Booru", lang)
                                         },
-                                        shape = RoundedCornerShape(16.dp),
+                                        shape = ShapeTokens.Large,
                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                                         colors = ButtonDefaults.filledTonalButtonColors(
                                             containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -1797,7 +1797,7 @@ fun SettingsScreen(
                                     FilledTonalButton(
                                         onClick = { vm.checkForUpdates(isAutoCheck = false) },
                                         enabled = !vm.isCheckingUpdate,
-                                        shape = RoundedCornerShape(16.dp),
+                                        shape = ShapeTokens.Large,
                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                                         colors = ButtonDefaults.filledTonalButtonColors(
                                             containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -1844,67 +1844,41 @@ private fun SettingsTabBar(
     pagerState: androidx.compose.foundation.pager.PagerState,
     onSelect: (Int) -> Unit
 ) {
-    val isRtl = androidx.compose.ui.platform.LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl
-    Surface(
-        shape = RoundedCornerShape(28.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+    val selectedIndex = if (pagerState.isScrollInProgress) pagerState.targetPage else pagerState.currentPage
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .wrapContentWidth(Alignment.CenterHorizontally)
+            .readableContentWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
     ) {
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(4.dp)
-        ) {
-            val count = titles.size
-            val tabWidth = maxWidth / count
-            Box(
+        titles.forEachIndexed { index, title ->
+            val selected = selectedIndex == index
+            ToggleButton(
+                checked = selected,
+                onCheckedChange = { onSelect(index) },
+                shapes = groupPosition(index, titles.size).toggleShapes(),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
                 modifier = Modifier
-                    .width(tabWidth)
-                    .height(56.dp)
-                    .graphicsLayer {
-                        val position = (pagerState.currentPage + pagerState.currentPageOffsetFraction)
-                            .coerceIn(0f, (count - 1).toFloat())
-                        val offset = position * tabWidth.toPx()
-                        translationX = if (isRtl) -offset else offset
-                    }
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.primary)
-            )
-            Row(modifier = Modifier.fillMaxWidth()) {
-                titles.forEachIndexed { index, title ->
-                    val selected = (if (pagerState.isScrollInProgress) pagerState.targetPage else pagerState.currentPage) == index
-                    val contentColor by animateColorAsState(
-                        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        animationSpec = tween(160, easing = FastOutSlowInEasing),
-                        label = "settingsTabContent"
+                    .weight(1f)
+                    .heightIn(min = 56.dp)
+                    .semantics { role = Role.Tab }
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = icons[index],
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
                     )
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp)
-                            .clip(RoundedCornerShape(24.dp))
-                            .clickable { onSelect(index) },
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = icons[index],
-                            contentDescription = null,
-                            tint = contentColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                            color = contentColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
         }
@@ -1930,7 +1904,7 @@ private fun SettingIconBadge(
     contentColor: Color
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = ShapeTokens.Medium,
         color = containerColor,
         modifier = Modifier.size(40.dp)
     ) {
@@ -1961,7 +1935,7 @@ private fun SettingsGroupCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        shape = RoundedCornerShape(24.dp),
+        shape = ShapeTokens.ExtraLarge,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainer
         ),
@@ -2133,7 +2107,7 @@ fun <T> MD3SegmentedChoiceRow(
                     MaterialTheme.colorScheme.primary
                 else
                     MaterialTheme.colorScheme.surfaceContainerHighest,
-                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+                animationSpec = Motion.spatialDefault(),
                 label = "segmentedBg"
             )
 
@@ -2142,13 +2116,13 @@ fun <T> MD3SegmentedChoiceRow(
                     MaterialTheme.colorScheme.onPrimary
                 else
                     MaterialTheme.colorScheme.onSurfaceVariant,
-                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+                animationSpec = Motion.spatialDefault(),
                 label = "segmentedContent"
             )
 
             Surface(
                 onClick = { onOptionSelected(option) },
-                shape = RoundedCornerShape(16.dp),
+                shape = ShapeTokens.Large,
                 color = containerColor,
                 contentColor = contentColor,
                 modifier = Modifier
@@ -2167,18 +2141,12 @@ fun <T> MD3SegmentedChoiceRow(
                         visible = isSelected,
                         enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
                             expandHorizontally(
-                                animationSpec = spring(
-                                    dampingRatio = 0.78f,
-                                    stiffness = Spring.StiffnessMediumLow
-                                ),
+                                animationSpec = Motion.spatialDefault(),
                                 expandFrom = Alignment.Start
                             ),
                         exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
                             shrinkHorizontally(
-                                animationSpec = spring(
-                                    dampingRatio = 0.88f,
-                                    stiffness = Spring.StiffnessMediumLow
-                                ),
+                                animationSpec = Motion.spatialDefault(),
                                 shrinkTowards = Alignment.Start
                             )
                     ) {
@@ -2219,7 +2187,7 @@ private fun LanguageSelectionBottomSheet(
             onDismissRequest = onDismiss,
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+            shape = ShapeTokens.ExtraLargeTop
         ) {
             Column(
                 modifier = Modifier
@@ -2276,7 +2244,7 @@ private fun LanguageSelectionBottomSheet(
                                     onDismiss()
                                 }
                             },
-                            shape = RoundedCornerShape(18.dp),
+                            shape = ShapeTokens.LargeIncreased,
                             color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                             contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier
@@ -2355,7 +2323,7 @@ private fun BlacklistTagChip(
         )
     ) {
         Surface(
-            shape = RoundedCornerShape(12.dp),
+            shape = ShapeTokens.Medium,
             color = MaterialTheme.colorScheme.surfaceContainerHigh,
             modifier = Modifier.bouncyPress()
         ) {

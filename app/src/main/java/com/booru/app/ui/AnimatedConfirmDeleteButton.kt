@@ -101,16 +101,13 @@ fun AnimatedConfirmDeleteButton(
             targetState = isConfirming,
             transitionSpec = {
                 (fadeIn(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
-                    scaleIn(initialScale = 0.90f, animationSpec = spring(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)))
+                    scaleIn(initialScale = 0.90f, animationSpec = Motion.spatialDefault()))
                     .togetherWith(
                         fadeOut(animationSpec = tween(160, easing = FastOutSlowInEasing)) +
                             scaleOut(targetScale = 0.90f, animationSpec = tween(160, easing = FastOutSlowInEasing))
                     ).using(
                         SizeTransform(clip = false) { _, _ ->
-                            spring(
-                                dampingRatio = Spring.DampingRatioLowBouncy,
-                                stiffness = Spring.StiffnessMediumLow
-                            )
+                            Motion.spatialDefault()
                         }
                     )
             },

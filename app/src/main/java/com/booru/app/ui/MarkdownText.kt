@@ -53,7 +53,7 @@ fun MarkdownText(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(ShapeTokens.Small)
                             .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                             .padding(8.dp)
                     ) {
@@ -170,7 +170,7 @@ fun MarkdownText(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(ShapeTokens.Small)
                     .background(MaterialTheme.colorScheme.surfaceContainerHighest)
                     .padding(8.dp)
             ) {

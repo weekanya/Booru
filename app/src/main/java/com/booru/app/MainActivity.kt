@@ -84,6 +84,9 @@ import com.booru.app.ui.FullscreenMediaViewer
 import com.booru.app.ui.Motion
 import com.booru.app.ui.SettingsScreen
 import com.booru.app.ui.SheetMotion
+import com.booru.app.ui.ShapeTokens
+import com.booru.app.ui.LocalWindowWidthClass
+import com.booru.app.ui.WindowWidthClass
 
 class MainActivity : ComponentActivity() {
     private val isAppLocked = mutableStateOf(false)
@@ -212,6 +215,46 @@ private data class NavItemData(
     val badgeCount: Int = 0
 )
 
+@Composable
+private fun BooruNavigationRail(
+    items: List<NavItemData>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit
+) {
+    NavigationRail(
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier.fillMaxHeight()
+    ) {
+        Spacer(Modifier.weight(1f))
+        items.forEachIndexed { index, item ->
+            val selected = selectedIndex == index
+            NavigationRailItem(
+                selected = selected,
+                onClick = { onSelect(index) },
+                icon = {
+                    val icon = if (selected) item.selectedIcon else item.icon
+                    if (item.badgeCount > 0) {
+                        BadgedBox(
+                            badge = {
+                                Badge {
+                                    Text(if (item.badgeCount > 99) "99+" else "${item.badgeCount}")
+                                }
+                            }
+                        ) {
+                            Icon(icon, contentDescription = item.label)
+                        }
+                    } else {
+                        Icon(icon, contentDescription = item.label)
+                    }
+                },
+                label = { Text(item.label) }
+            )
+            Spacer(Modifier.height(12.dp))
+        }
+        Spacer(Modifier.weight(1f))
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BooruApp(
@@ -282,7 +325,7 @@ fun BooruApp(
                     Spacer(Modifier.height(32.dp))
                     Button(
                         onClick = onUnlockRequest,
-                        shape = RoundedCornerShape(20.dp),
+                        shape = ShapeTokens.LargeIncreased,
                         modifier = Modifier
                             .fillMaxWidth(0.6f)
                             .height(50.dp)
@@ -346,6 +389,15 @@ fun BooruApp(
             ) {
                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                     val isWideScreen = maxWidth >= 760.dp
+                    val widthClass = WindowWidthClass.fromWidth(maxWidth)
+                    val onNavSelect: (Int) -> Unit = { index ->
+                        haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
+                        if (selectedTab == index) {
+                            if (index == 0) vm.scrollToTop()
+                        } else {
+                            selectedTab = index
+                        }
+                    }
                     val state = vm.fullscreenState
 
                     val mainContent = @Composable {
@@ -355,6 +407,20 @@ fun BooruApp(
                                 .displayCutoutPadding()
                                 .statusBarsPadding()
                         ) {
+                            CompositionLocalProvider(LocalWindowWidthClass provides widthClass) {
+                            Row(modifier = Modifier.fillMaxSize()) {
+                            if (widthClass.usesNavigationRail) {
+                                BooruNavigationRail(
+                                    items = navItems,
+                                    selectedIndex = selectedTab,
+                                    onSelect = onNavSelect
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                            ) {
                             AnimatedContent(
                                 targetState = selectedTab,
                                 transitionSpec = {
@@ -387,6 +453,11 @@ fun BooruApp(
                                 }
                             }
 
+                            }
+                            }
+                            }
+
+                            if (!widthClass.usesNavigationRail) {
                             Surface(
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.surfaceContainer,
@@ -414,7 +485,7 @@ fun BooruApp(
                                                     MaterialTheme.colorScheme.primaryContainer
                                                 else
                                                     MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0f),
-                                                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
+                                                animationSpec = Motion.spatialFast(),
                                                 label = "navItemBg"
                                             )
                                             val contentColor by animateColorAsState(
@@ -422,7 +493,7 @@ fun BooruApp(
                                                     MaterialTheme.colorScheme.onPrimaryContainer
                                                 else
                                                     MaterialTheme.colorScheme.onSurfaceVariant,
-                                                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
+                                                animationSpec = Motion.spatialFast(),
                                                 label = "navItemColor"
                                             )
 
@@ -491,11 +562,11 @@ fun BooruApp(
                                                     AnimatedVisibility(
                                                         visible = isSelected,
                                                         enter = fadeIn(animationSpec = tween(140, easing = LinearOutSlowInEasing)) + expandHorizontally(
-                                                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
+                                                            animationSpec = Motion.spatialFast(),
                                                             expandFrom = Alignment.Start
                                                         ),
                                                         exit = fadeOut(animationSpec = tween(100, easing = FastOutLinearInEasing)) + shrinkHorizontally(
-                                                            animationSpec = spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMedium),
+                                                            animationSpec = Motion.spatialFast(),
                                                             shrinkTowards = Alignment.Start
                                                         )
                                                     ) {
@@ -515,6 +586,7 @@ fun BooruApp(
                                         }
                                     }
                                 }
+                            }
                             }
                     }
 
@@ -587,7 +659,7 @@ fun BooruApp(
                     onDismissRequest = { vm.clearManualCheckResult() },
                     sheetState = checkSheetState,
                     containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                    shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+                    shape = ShapeTokens.ExtraLargeTop
                 ) {
                     Column(
                         modifier = Modifier
@@ -630,7 +702,7 @@ fun BooruApp(
                             onClick = {
                                 scope.launch { checkSheetState.hide() }.invokeOnCompletion { vm.clearManualCheckResult() }
                             },
-                            shape = RoundedCornerShape(20.dp),
+                            shape = ShapeTokens.LargeIncreased,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp)
@@ -671,7 +743,7 @@ private fun UpdateBottomSheet(
             },
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+            shape = ShapeTokens.ExtraLargeTop
         ) {
             Column(
                 modifier = Modifier
@@ -751,7 +823,7 @@ private fun UpdateBottomSheet(
     
                 if (vm.isDownloadingUpdate) {
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
+                        shape = ShapeTokens.LargeIncreased,
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                     ) {
@@ -796,7 +868,7 @@ private fun UpdateBottomSheet(
                     }
                 } else if (vm.updateDownloadError != null) {
                     Surface(
-                        shape = RoundedCornerShape(18.dp),
+                        shape = ShapeTokens.LargeIncreased,
                         color = MaterialTheme.colorScheme.errorContainer,
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                     ) {
@@ -818,7 +890,7 @@ private fun UpdateBottomSheet(
                 }
                 if (vm.downloadedApkFile != null) {
                     Surface(
-                        shape = RoundedCornerShape(18.dp),
+                        shape = ShapeTokens.LargeIncreased,
                         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
                     ) {
@@ -845,7 +917,7 @@ private fun UpdateBottomSheet(
     
                 if (info.releaseNotes.isNotBlank()) {
                     Surface(
-                        shape = RoundedCornerShape(20.dp),
+                        shape = ShapeTokens.LargeIncreased,
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -870,7 +942,7 @@ private fun UpdateBottomSheet(
                             vm.cancelUpdateDownload()
                             scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                         },
-                        shape = RoundedCornerShape(20.dp),
+                        shape = ShapeTokens.LargeIncreased,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
                         modifier = Modifier
                             .fillMaxWidth()
@@ -900,7 +972,7 @@ private fun UpdateBottomSheet(
                             onClick = {
                                 vm.downloadedApkFile?.let { vm.installApk(context, it) }
                             },
-                            shape = RoundedCornerShape(20.dp),
+                            shape = ShapeTokens.LargeIncreased,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = MaterialTheme.colorScheme.onPrimary
@@ -934,7 +1006,7 @@ private fun UpdateBottomSheet(
                             onClick = {
                                 vm.downloadAndInstallUpdate(context, info)
                             },
-                            shape = RoundedCornerShape(20.dp),
+                            shape = ShapeTokens.LargeIncreased,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp)
@@ -954,7 +1026,7 @@ private fun UpdateBottomSheet(
                                     Toast.makeText(context, Strings.noBrowserFound(lang), Toast.LENGTH_SHORT).show()
                                 }
                             },
-                            shape = RoundedCornerShape(20.dp),
+                            shape = ShapeTokens.LargeIncreased,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp)
@@ -968,7 +1040,7 @@ private fun UpdateBottomSheet(
                         onClick = {
                             vm.downloadAndInstallUpdate(context, info)
                         },
-                        shape = RoundedCornerShape(20.dp),
+                        shape = ShapeTokens.LargeIncreased,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary

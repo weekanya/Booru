@@ -191,7 +191,7 @@ fun ImmersiveMediaViewer(
         var dragDismissOffsetY by remember { mutableFloatStateOf(0f) }
         val animatedDragOffsetY by animateFloatAsState(
             targetValue = dragDismissOffsetY,
-            animationSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+            animationSpec = Motion.spatialDefault(),
             label = "dragDismissOffset"
         )
 
@@ -207,7 +207,7 @@ fun ImmersiveMediaViewer(
             targetValue = if (isContentVisible) {
                 (1f - (abs(animatedDragOffsetY) / 2500f)).coerceIn(0.85f, 1f)
             } else 0.92f,
-            animationSpec = if (isClosing) tween(200, easing = FastOutSlowInEasing) else spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+            animationSpec = if (isClosing) tween(200, easing = FastOutSlowInEasing) else Motion.spatialDefault(),
             label = "contentScale"
         )
 

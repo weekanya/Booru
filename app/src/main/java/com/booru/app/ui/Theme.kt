@@ -153,12 +153,25 @@ private val AmoledDark = darkColorScheme(
     outline = Color(0xFF938F99), outlineVariant = Color(0xFF3E3C44)
 )
 
+object ShapeTokens {
+    val ExtraSmall = RoundedCornerShape(4.dp)
+    val Small = RoundedCornerShape(8.dp)
+    val Medium = RoundedCornerShape(12.dp)
+    val Large = RoundedCornerShape(16.dp)
+    val LargeIncreased = RoundedCornerShape(20.dp)
+    val ExtraLarge = RoundedCornerShape(28.dp)
+    val ExtraLargeIncreased = RoundedCornerShape(32.dp)
+    val ExtraExtraLarge = RoundedCornerShape(48.dp)
+    val ExtraLargeTop = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    val ExtraLargeIncreasedTop = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+}
+
 val BooruShapes = Shapes(
-    extraSmall = RoundedCornerShape(4.dp),
-    small      = RoundedCornerShape(12.dp),
-    medium     = RoundedCornerShape(20.dp),
-    large      = RoundedCornerShape(28.dp),
-    extraLarge = RoundedCornerShape(36.dp)
+    extraSmall = ShapeTokens.ExtraSmall,
+    small = ShapeTokens.Small,
+    medium = ShapeTokens.Medium,
+    large = ShapeTokens.Large,
+    extraLarge = ShapeTokens.ExtraLarge
 )
 
 val BooruTypography = Typography(

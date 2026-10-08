@@ -222,7 +222,7 @@ fun MediaDetailSheet(
             tonalElevation = 4.dp,
             dragHandle = null,
             sheetState = sheetState,
-            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+            shape = ShapeTokens.ExtraLargeIncreasedTop
         ) {
             Column(
                 modifier = Modifier
@@ -248,7 +248,7 @@ fun MediaDetailSheet(
                         .fillMaxWidth()
                         .heightIn(min = 360.dp, max = 560.dp)
                         .padding(horizontal = 16.dp)
-                        .clip(RoundedCornerShape(26.dp))
+                        .clip(ShapeTokens.ExtraLarge)
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                     contentAlignment = Alignment.Center
                 ) {
@@ -395,7 +395,7 @@ fun MediaDetailSheet(
                 Spacer(Modifier.height(14.dp))
     
                 Surface(
-                    shape = RoundedCornerShape(24.dp),
+                    shape = ShapeTokens.ExtraLarge,
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -477,9 +477,9 @@ fun MediaDetailSheet(
     
                             AnimatedVisibility(
                                 visible = isFav,
-                                enter = expandHorizontally(spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow), expandFrom = Alignment.Start) +
+                                enter = expandHorizontally(Motion.spatialDefault(), expandFrom = Alignment.Start) +
                                     fadeIn(tween(220, delayMillis = 60)) +
-                                    scaleIn(spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMediumLow), initialScale = 0.6f),
+                                    scaleIn(Motion.spatialDefault(), initialScale = 0.6f),
                                 exit = shrinkHorizontally(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium), shrinkTowards = Alignment.Start) +
                                     fadeOut(tween(120)) +
                                     scaleOut(tween(150), targetScale = 0.6f)
@@ -623,7 +623,7 @@ fun MediaDetailSheet(
                     ) {
                         if (showScore) {
                             Surface(
-                                shape = RoundedCornerShape(20.dp),
+                                shape = ShapeTokens.LargeIncreased,
                                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 modifier = Modifier.weight(1f)
                             ) {
@@ -665,7 +665,7 @@ fun MediaDetailSheet(
     
                         if (showResolution) {
                             Surface(
-                                shape = RoundedCornerShape(20.dp),
+                                shape = ShapeTokens.LargeIncreased,
                                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 modifier = Modifier.weight(1f)
                             ) {
@@ -742,7 +742,7 @@ fun MediaDetailSheet(
                 )
     
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = ShapeTokens.LargeIncreased,
                     color = cardBg,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -864,7 +864,7 @@ fun MediaDetailSheet(
             ModalBottomSheet(
                 onDismissRequest = { showWallpaperDialog = false },
                 sheetState = wallpaperSheetState,
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                shape = ShapeTokens.ExtraLargeTop,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             ) {
                 Column(
@@ -976,7 +976,7 @@ fun MediaDetailSheet(
             ModalBottomSheet(
                 onDismissRequest = { showFolderDialog = false },
                 sheetState = folderSheetState,
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                shape = ShapeTokens.ExtraLargeTop,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             ) {
                 Column(
@@ -1002,7 +1002,7 @@ fun MediaDetailSheet(
                                 showFolderDialog = false
                             }
                         },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = ShapeTokens.Large,
                         color = if (currentFolder == null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1029,7 +1029,7 @@ fun MediaDetailSheet(
                                     showFolderDialog = false
                                 }
                             },
-                            shape = RoundedCornerShape(16.dp),
+                            shape = ShapeTokens.Large,
                             color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1058,7 +1058,7 @@ fun MediaDetailSheet(
             ModalBottomSheet(
                 onDismissRequest = { selectedTagForAction = null },
                 sheetState = tagSheetState,
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                shape = ShapeTokens.ExtraLargeTop,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             ) {
                 Column(
@@ -1138,7 +1138,7 @@ fun MediaDetailSheet(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
+                            shape = ShapeTokens.Large,
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1183,7 +1183,7 @@ fun MediaDetailSheet(
                         }
     
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
+                            shape = ShapeTokens.Large,
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1228,7 +1228,7 @@ fun MediaDetailSheet(
                         }
     
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
+                            shape = ShapeTokens.Large,
                             color = if (isBlacklisted)
                                 MaterialTheme.colorScheme.surfaceContainerHighest
                             else
@@ -1645,7 +1645,7 @@ private fun WallpaperOptionItem(
 ) {
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
+        shape = ShapeTokens.Medium,
         color = MaterialTheme.colorScheme.surfaceContainerHighest,
         modifier = Modifier
             .fillMaxWidth()
@@ -2022,7 +2022,7 @@ fun BooruVideoPlayer(
 
         if (playbackError) {
             Surface(
-                shape = RoundedCornerShape(24.dp),
+                shape = ShapeTokens.ExtraLarge,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.94f),
                 modifier = Modifier.padding(24.dp)
             ) {

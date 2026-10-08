@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.booru.app.ui
 
 import androidx.compose.animation.AnimatedContent
@@ -369,7 +371,7 @@ fun FavoritesScreen(
 
         if (vm.favoritesList.isNotEmpty()) {
             Surface(
-                shape = RoundedCornerShape(22.dp),
+                shape = ShapeTokens.LargeIncreased,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -417,7 +419,7 @@ fun FavoritesScreen(
                     }
                     AnimatedVisibility(
                         visible = filterText.isNotEmpty(),
-                        enter = fadeIn(tween(150)) + scaleIn(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMediumLow)),
+                        enter = fadeIn(tween(150)) + scaleIn(Motion.spatialDefault()),
                         exit = fadeOut(tween(150)) + scaleOut()
                     ) {
                         IconButton(
@@ -479,7 +481,7 @@ fun FavoritesScreen(
                         Box(
                             modifier = Modifier.animateItem(
                                 fadeInSpec = tween(260, easing = FastOutSlowInEasing),
-                                placementSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+                                placementSpec = Motion.spatialDefault(),
                                 fadeOutSpec = tween(180)
                             )
                         ) {
@@ -509,7 +511,7 @@ fun FavoritesScreen(
                                 newFolderName = ""
                                 showCreateFolderDialog = true
                             },
-                            shape = RoundedCornerShape(20.dp),
+                            shape = ShapeTokens.LargeIncreased,
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             contentColor = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
@@ -543,7 +545,7 @@ fun FavoritesScreen(
                     getFolderMediaList(currentFolder).size
                 }
                 Surface(
-                    shape = RoundedCornerShape(14.dp),
+                    shape = ShapeTokens.Medium,
                     color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -675,7 +677,7 @@ fun FavoritesScreen(
                         Spacer(Modifier.height(24.dp))
                         Button(
                             onClick = onNavigateToExplore,
-                            shape = RoundedCornerShape(20.dp),
+                            shape = ShapeTokens.LargeIncreased,
                             modifier = Modifier.bouncyPress()
                         ) {
                             Icon(Icons.Rounded.Explore, null, modifier = Modifier.size(18.dp))
@@ -724,7 +726,7 @@ fun FavoritesScreen(
                                 onClick = {
                                     scope.launch { pagerState.animateScrollToPage(0) }
                                 },
-                                shape = RoundedCornerShape(20.dp),
+                                shape = ShapeTokens.LargeIncreased,
                                 modifier = Modifier.bouncyPress()
                             ) {
                                 Icon(Icons.Rounded.FolderSpecial, null, modifier = Modifier.size(18.dp))
@@ -759,7 +761,7 @@ fun FavoritesScreen(
                                     filterText = ""
                                     mediaTypeFilter = FavoriteMediaTypeFilter.ALL
                                 },
-                                shape = RoundedCornerShape(20.dp),
+                                shape = ShapeTokens.LargeIncreased,
                                 modifier = Modifier.bouncyPress()
                             ) {
                                 Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(18.dp))
@@ -771,10 +773,10 @@ fun FavoritesScreen(
                 }
             } else {
                 val gridCells = when (vm.gridColumnsCount) {
-                    1 -> StaggeredGridCells.Fixed(1)
-                    2 -> StaggeredGridCells.Fixed(2)
-                    3 -> StaggeredGridCells.Fixed(3)
-                    4 -> StaggeredGridCells.Fixed(4)
+                    1 -> StaggeredGridCells.Fixed(adaptiveColumns(1))
+                    2 -> StaggeredGridCells.Fixed(adaptiveColumns(2))
+                    3 -> StaggeredGridCells.Fixed(adaptiveColumns(3))
+                    4 -> StaggeredGridCells.Fixed(adaptiveColumns(4))
                     else -> StaggeredGridCells.Adaptive(minSize = 175.dp)
                 }
                 LazyVerticalStaggeredGrid(
@@ -867,7 +869,7 @@ private fun FolderTabPill(
 
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(20.dp),
+        shape = ShapeTokens.LargeIncreased,
         color = containerColor,
         contentColor = contentColor,
         modifier = Modifier
@@ -883,18 +885,12 @@ private fun FolderTabPill(
                 visible = isSelected,
                 enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
                     expandHorizontally(
-                        animationSpec = spring(
-                            dampingRatio = 0.78f,
-                            stiffness = Spring.StiffnessMediumLow
-                        ),
+                        animationSpec = Motion.spatialDefault(),
                         expandFrom = Alignment.Start
                     ),
                 exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
                     shrinkHorizontally(
-                        animationSpec = spring(
-                            dampingRatio = 0.88f,
-                            stiffness = Spring.StiffnessMediumLow
-                        ),
+                        animationSpec = Motion.spatialDefault(),
                         shrinkTowards = Alignment.Start
                     )
             ) {
@@ -993,7 +989,7 @@ private fun FavoritesFilterBottomSheet(
             onDismissRequest = onDismiss,
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+            shape = ShapeTokens.ExtraLargeTop
         ) {
             Column(
                 modifier = Modifier
@@ -1052,7 +1048,7 @@ private fun FavoritesFilterBottomSheet(
                 }
     
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = ShapeTokens.LargeIncreased,
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -1078,16 +1074,17 @@ private fun FavoritesFilterBottomSheet(
     
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
                         ) {
                             val sortOptions = listOf(
                                 Triple(FavoriteSortOrder.NEWEST, Strings.favSortNewest(lang), Icons.Rounded.Schedule),
                                 Triple(FavoriteSortOrder.OLDEST, Strings.favSortOldest(lang), Icons.Rounded.History)
                             )
-                            sortOptions.forEach { (order, label, icon) ->
+                            sortOptions.forEachIndexed { orderIndex, (order, label, icon) ->
                                 FilterOptionButton(
                                     selected = draftSort == order,
                                     onClick = { draftSort = order },
+                                    position = groupPosition(orderIndex, sortOptions.size),
                                     label = label,
                                     icon = icon,
                                     modifier = Modifier.weight(1f)
@@ -1100,7 +1097,7 @@ private fun FavoritesFilterBottomSheet(
                 Spacer(Modifier.height(14.dp))
     
                 Surface(
-                    shape = RoundedCornerShape(20.dp),
+                    shape = ShapeTokens.LargeIncreased,
                     color = MaterialTheme.colorScheme.surfaceContainer,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -1126,16 +1123,18 @@ private fun FavoritesFilterBottomSheet(
     
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
                         ) {
                             FilterOptionButton(
                                 selected = draftType == FavoriteMediaTypeFilter.ALL,
+                                position = GroupPosition.Leading,
                                 onClick = { draftType = FavoriteMediaTypeFilter.ALL },
                                 label = "${Strings.favFilterAll(lang)} ($allCount)",
                                 modifier = Modifier.weight(1f)
                             )
                             FilterOptionButton(
                                 selected = draftType == FavoriteMediaTypeFilter.IMAGES,
+                                position = GroupPosition.Trailing,
                                 onClick = { draftType = FavoriteMediaTypeFilter.IMAGES },
                                 label = "${Strings.favFilterImages(lang)} ($imagesCount)",
                                 icon = Icons.Rounded.Image,
@@ -1147,10 +1146,11 @@ private fun FavoritesFilterBottomSheet(
     
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
                         ) {
                             FilterOptionButton(
                                 selected = draftType == FavoriteMediaTypeFilter.GIFS,
+                                position = GroupPosition.Leading,
                                 onClick = { draftType = FavoriteMediaTypeFilter.GIFS },
                                 label = "${Strings.favFilterGifs(lang)} ($gifsCount)",
                                 icon = Icons.Rounded.Gif,
@@ -1158,6 +1158,7 @@ private fun FavoritesFilterBottomSheet(
                             )
                             FilterOptionButton(
                                 selected = draftType == FavoriteMediaTypeFilter.VIDEOS,
+                                position = GroupPosition.Trailing,
                                 onClick = { draftType = FavoriteMediaTypeFilter.VIDEOS },
                                 label = "${Strings.favFilterVideos(lang)} ($videosCount)",
                                 icon = Icons.Rounded.Videocam,
@@ -1175,7 +1176,7 @@ private fun FavoritesFilterBottomSheet(
                         onTypeSelected(draftType)
                         scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                     },
-                    shape = RoundedCornerShape(20.dp),
+                    shape = ShapeTokens.LargeIncreased,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
@@ -1234,7 +1235,7 @@ private fun CreateFolderBottomSheet(
             onDismissRequest = onDismiss,
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+            shape = ShapeTokens.ExtraLargeTop
         ) {
             Column(
                 modifier = Modifier
@@ -1279,7 +1280,7 @@ private fun CreateFolderBottomSheet(
                     supportingText = if (isDuplicate) {
                         { Text(Strings.folderNameExists(lang)) }
                     } else null,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = ShapeTokens.Large,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { submit() }),
                     modifier = Modifier
@@ -1297,7 +1298,7 @@ private fun CreateFolderBottomSheet(
                         onClick = {
                             scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                         },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = ShapeTokens.Large,
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
@@ -1309,7 +1310,7 @@ private fun CreateFolderBottomSheet(
                     Button(
                         onClick = submit,
                         enabled = canCreate,
-                        shape = RoundedCornerShape(16.dp),
+                        shape = ShapeTokens.Large,
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
@@ -1339,7 +1340,7 @@ private fun DeleteFolderBottomSheet(
             onDismissRequest = onDismiss,
             sheetState = sheetState,
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+            shape = ShapeTokens.ExtraLargeTop
         ) {
             Column(
                 modifier = Modifier
@@ -1394,7 +1395,7 @@ private fun DeleteFolderBottomSheet(
                         onClick = {
                             scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                         },
-                        shape = RoundedCornerShape(16.dp),
+                        shape = ShapeTokens.Large,
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
@@ -1412,7 +1413,7 @@ private fun DeleteFolderBottomSheet(
                             containerColor = MaterialTheme.colorScheme.error,
                             contentColor = MaterialTheme.colorScheme.onError
                         ),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = ShapeTokens.Large,
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp)
@@ -1468,7 +1469,7 @@ private fun FavoriteCard(
     }
 
     Card(
-        shape = RoundedCornerShape(20.dp),
+        shape = ShapeTokens.LargeIncreased,
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
         ),
@@ -1478,7 +1479,7 @@ private fun FavoriteCard(
                 scaleX = animatedScale
                 scaleY = animatedScale
             }
-            .clip(RoundedCornerShape(20.dp))
+            .clip(ShapeTokens.LargeIncreased)
             .clickable(
                 interactionSource = interactionSource,
                 indication = LocalIndication.current,
