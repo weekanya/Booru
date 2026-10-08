@@ -21,13 +21,23 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Cache Android SDK packages
+        id: sdk-cache
+        uses: actions/cache@v4
+        with:
+          path: /usr/local/lib/android/sdk/platforms/android-37
+          key: android-sdk-platform-37
+
       - name: Install Android SDK packages
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
         run: |
           SDKMANAGER="$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
           yes | "$SDKMANAGER" --licenses > /dev/null || true
-          "$SDKMANAGER" --install "platforms;android-37" "platform-tools"
+          "$SDKMANAGER" --install "platforms;android-37"
 
       - uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: false
 
       - name: Build debug APK
         run: |
