@@ -476,60 +476,7 @@ fun ExploreScreen(
                     onRefresh = { vm.refresh(isPull = true) },
                     state = pullRefreshState,
                     modifier = Modifier.fillMaxSize(),
-                    indicator = {
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = pullRefreshState.distanceFraction > 0.12f && !vm.isRefreshing && !pullRefreshState.isAnimating,
-                            enter = fadeIn(tween(140)) + scaleIn(Motion.spatialFast(), initialScale = 0.85f),
-                            exit = fadeOut(tween(120)) + scaleOut(tween(120), targetScale = 0.85f),
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(top = 8.dp)
-                        ) {
-                            val isReady = pullRefreshState.distanceFraction >= 1f
-                            val pillColor by animateColorAsState(
-                                if (isReady) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                Motion.effectsDefault(),
-                                label = "pullPillColor"
-                            )
-                            Surface(
-                                shape = CircleShape,
-                                color = pillColor,
-                                contentColor = if (isReady) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                                tonalElevation = 0.dp,
-                                shadowElevation = 0.dp,
-                                border = null,
-                                modifier = Modifier.height(34.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (isReady) Icons.Rounded.Check else Icons.Rounded.ArrowDownward,
-                                        contentDescription = null,
-                                        modifier = Modifier
-                                            .size(16.dp)
-                                            .graphicsLayer {
-                                                rotationZ = if (isReady) 0f else pullRefreshState.distanceFraction.coerceIn(0f, 1f) * 140f
-                                            }
-                                    )
-                                    Spacer(Modifier.width(6.dp))
-                                    AnimatedContent(
-                                        targetState = isReady,
-                                        transitionSpec = { fadeIn(tween(120)) togetherWith fadeOut(tween(90)) },
-                                        label = "pullLabel"
-                                    ) { ready ->
-                                        Text(
-                                            text = if (ready) Strings.releaseToRefresh(lang) else Strings.pullToRefresh(lang),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    indicator = {}
                 ) {
                     if (vm.loading && vm.results.isEmpty()) {
                         SkeletonGrid(columnsSetting = vm.gridColumnsCount)
@@ -2372,73 +2319,77 @@ private fun SleekTopProgressIndicator(
     modifier: Modifier = Modifier
 ) {
     val primary = MaterialTheme.colorScheme.primary
-    val refreshingState by rememberUpdatedState(isRefreshing)
-    val isVisible by remember { derivedStateOf { refreshingState || pullFraction() > 0.04f } }
+    val currentPullFraction by rememberUpdatedState(pullFraction)
+    val pull = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        snapshotFlow { currentPullFraction().coerceIn(0f, 1f) }.collectLatest { target ->
+            if (target == 0f) {
+                pull.animateTo(0f, tween(320, easing = FastOutSlowInEasing))
+            } else {
+                pull.snapTo(target)
+            }
+        }
+    }
+    val refreshAlpha by animateFloatAsState(
+        targetValue = if (isRefreshing) 1f else 0f,
+        animationSpec = tween(if (isRefreshing) 260 else 420, easing = FastOutSlowInEasing),
+        label = "refreshAlpha"
+    )
+    val isVisible by remember { derivedStateOf { pull.value > 0.005f || refreshAlpha > 0.005f } }
+    if (!isVisible) return
 
-    AnimatedVisibility(
-        visible = isVisible,
-        enter = fadeIn(animationSpec = tween(150)),
-        exit = fadeOut(animationSpec = tween(220)),
+    val sweepEasing = remember { CubicBezierEasing(0.65f, 0f, 0.35f, 1f) }
+    val sweep = rememberInfiniteTransition(label = "refreshSweep").animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1600, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "sweepPhase"
+    )
+
+    Box(
         modifier = modifier
-    ) {
-        val infiniteTransition = rememberInfiniteTransition(label = "indicatorShimmer")
-        val shimmerPhase = infiniteTransition.animateFloat(
-            initialValue = -0.4f,
-            targetValue = 1.4f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 1100, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "shimmerPhase"
-        )
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 3.dp)
+            .height(2.dp)
+            .drawBehind {
+                val width = size.width
+                val height = size.height
+                val cornerRadius = CornerRadius(height / 2f, height / 2f)
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 2.dp)
-                .height(3.dp)
-                .drawBehind {
-                    val width = size.width
-                    val height = size.height
-                    val cornerRadius = CornerRadius(height / 2f, height / 2f)
+                val p = pull.value
+                val pullAlpha = (1f - refreshAlpha) * (0.25f + 0.75f * p)
+                if (p > 0f && pullAlpha > 0f) {
+                    val activeWidth = (width * LinearOutSlowInEasing.transform(p)).coerceAtLeast(height)
+                    drawRoundRect(
+                        color = primary.copy(alpha = pullAlpha),
+                        topLeft = Offset((width - activeWidth) / 2f, 0f),
+                        size = Size(activeWidth, height),
+                        cornerRadius = cornerRadius
+                    )
+                }
 
-                    if (refreshingState) {
+                if (refreshAlpha > 0f) {
+                    drawRoundRect(
+                        color = primary.copy(alpha = 0.12f * refreshAlpha),
+                        cornerRadius = cornerRadius
+                    )
+                    val t = sweep.value
+                    val segment = 0.18f + 0.22f * kotlin.math.sin(t * Math.PI.toFloat())
+                    val start = sweepEasing.transform(t) * (1f + segment) - segment
+                    val left = (start * width).coerceIn(0f, width)
+                    val right = ((start + segment) * width).coerceIn(0f, width)
+                    if (right - left > 0.5f) {
                         drawRoundRect(
-                            color = primary.copy(alpha = 0.12f),
-                            cornerRadius = cornerRadius
-                        )
-                        val sweepWidth = width * 0.4f
-                        val startX = (shimmerPhase.value * width) - (sweepWidth / 2f)
-                        drawRoundRect(
-                            brush = Brush.horizontalGradient(
-                                colors = listOf(
-                                    primary.copy(alpha = 0f),
-                                    primary.copy(alpha = 0.85f),
-                                    primary.copy(alpha = 0f)
-                                ),
-                                startX = startX,
-                                endX = startX + sweepWidth
-                            ),
-                            cornerRadius = cornerRadius
-                        )
-                    } else {
-                        val clamped = pullFraction().coerceIn(0f, 1f)
-                        val activeWidth = (clamped * width).coerceAtLeast(height)
-                        val left = (width - activeWidth) / 2f
-                        drawRoundRect(
-                            brush = Brush.horizontalGradient(
-                                listOf(
-                                    primary.copy(alpha = 0.25f),
-                                    primary.copy(alpha = 0.85f),
-                                    primary.copy(alpha = 0.25f)
-                                )
-                            ),
+                            color = primary.copy(alpha = refreshAlpha),
                             topLeft = Offset(left, 0f),
-                            size = Size(activeWidth, height),
+                            size = Size(right - left, height),
                             cornerRadius = cornerRadius
                         )
                     }
                 }
-        )
-    }
+            }
+    )
 }
