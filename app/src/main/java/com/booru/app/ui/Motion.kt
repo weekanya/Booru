@@ -126,3 +126,22 @@ fun Modifier.bouncyPress(scaleDown: Float = 0.94f): Modifier = composed {
             }
         }
 }
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+private object SmoothSheetMotionScheme : androidx.compose.material3.MotionScheme {
+    override fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 380f)
+    override fun <T> fastSpatialSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 560f)
+    override fun <T> slowSpatialSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 240f)
+    override fun <T> defaultEffectsSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 700f)
+    override fun <T> fastEffectsSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 420f)
+    override fun <T> slowEffectsSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 280f)
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+fun SheetMotion(content: @Composable () -> Unit) {
+    androidx.compose.material3.MaterialExpressiveTheme(
+        motionScheme = SmoothSheetMotionScheme,
+        content = content
+    )
+}

@@ -83,6 +83,7 @@ import com.booru.app.ui.FavoritesScreen
 import com.booru.app.ui.FullscreenMediaViewer
 import com.booru.app.ui.Motion
 import com.booru.app.ui.SettingsScreen
+import com.booru.app.ui.SheetMotion
 
 class MainActivity : ComponentActivity() {
     private val isAppLocked = mutableStateOf(false)
@@ -581,60 +582,62 @@ fun BooruApp(
         vm.manualCheckResult?.let { result ->
             val checkSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
             val scope = rememberCoroutineScope()
-            ModalBottomSheet(
-                onDismissRequest = { vm.clearManualCheckResult() },
-                sheetState = checkSheetState,
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .padding(bottom = 32.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+            SheetMotion {
+                ModalBottomSheet(
+                    onDismissRequest = { vm.clearManualCheckResult() },
+                    sheetState = checkSheetState,
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = if (result == "UP_TO_DATE") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer,
-                        modifier = Modifier.size(56.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                if (result == "UP_TO_DATE") Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
-                                contentDescription = null,
-                                tint = if (result == "UP_TO_DATE") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                                modifier = Modifier.size(30.dp)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    Text(
-                        text = if (result == "UP_TO_DATE") Strings.upToDateTitle(lang) else Strings.updateCheckFailedTitle(lang),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = if (result == "UP_TO_DATE") Strings.upToDateDesc(lang) else Strings.updateCheckFailedDesc(lang),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(Modifier.height(24.dp))
-                    Button(
-                        onClick = {
-                            scope.launch { checkSheetState.hide() }.invokeOnCompletion { vm.clearManualCheckResult() }
-                        },
-                        shape = RoundedCornerShape(20.dp),
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(48.dp)
-                            .bouncyPress()
+                            .padding(horizontal = 24.dp)
+                            .padding(bottom = 32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text("OK", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                        Surface(
+                            shape = CircleShape,
+                            color = if (result == "UP_TO_DATE") MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.errorContainer,
+                            modifier = Modifier.size(56.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    if (result == "UP_TO_DATE") Icons.Rounded.CheckCircle else Icons.Rounded.ErrorOutline,
+                                    contentDescription = null,
+                                    tint = if (result == "UP_TO_DATE") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                    modifier = Modifier.size(30.dp)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = if (result == "UP_TO_DATE") Strings.upToDateTitle(lang) else Strings.updateCheckFailedTitle(lang),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = if (result == "UP_TO_DATE") Strings.upToDateDesc(lang) else Strings.updateCheckFailedDesc(lang),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(Modifier.height(24.dp))
+                        Button(
+                            onClick = {
+                                scope.launch { checkSheetState.hide() }.invokeOnCompletion { vm.clearManualCheckResult() }
+                            },
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .bouncyPress()
+                        ) {
+                            Text("OK", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 }
             }
@@ -659,242 +662,311 @@ private fun UpdateBottomSheet(
     )
     val scope = rememberCoroutineScope()
 
-    ModalBottomSheet(
-        onDismissRequest = {
-            if (!vm.isDownloadingUpdate) {
-                onDismiss()
-            }
-        },
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 28.dp)
+    SheetMotion {
+        ModalBottomSheet(
+            onDismissRequest = {
+                if (!vm.isDownloadingUpdate) {
+                    onDismiss()
+                }
+            },
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 28.dp)
             ) {
                 Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(46.dp)
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Rounded.SystemUpdate,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(14.dp))
-                    Column(modifier = Modifier.weight(1f, fill = false)) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.size(46.dp)
                         ) {
-                            Text(
-                                text = Strings.updateAvailableTitle(lang, info.latestVersion),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.secondaryContainer
-                            ) {
-                                Text(
-                                    text = "v${info.latestVersion}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Rounded.SystemUpdate,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
+                        Spacer(Modifier.width(14.dp))
+                        Column(modifier = Modifier.weight(1f, fill = false)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = Strings.updateAvailableTitle(lang, info.latestVersion),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.secondaryContainer
+                                ) {
+                                    Text(
+                                        text = "v${info.latestVersion}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+    
+                    if (!vm.isDownloadingUpdate) {
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Close,
+                                contentDescription = Strings.closeBtn(lang),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
-
-                if (!vm.isDownloadingUpdate) {
-                    IconButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.size(36.dp)
+    
+                Spacer(Modifier.height(14.dp))
+    
+                if (vm.isDownloadingUpdate) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = Strings.downloadingUpdate(lang),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = "${(vm.updateDownloadProgress * 100).toInt()}%",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            LinearProgressIndicator(
+                                progress = { vm.updateDownloadProgress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(8.dp)
+                                    .clip(CircleShape),
+                                color = MaterialTheme.colorScheme.primary,
+                                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = vm.updateDownloadProgressText,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else if (vm.updateDownloadError != null) {
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text(
+                                text = Strings.updateDownloadFailed(lang),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = vm.updateDownloadError ?: "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer
+                            )
+                        }
+                    }
+                }
+                if (vm.downloadedApkFile != null) {
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Rounded.DownloadDone,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text(
+                                text = Strings.updateReadyToInstall(lang),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
+    
+                if (info.releaseNotes.isNotBlank()) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 120.dp, max = 340.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .verticalScroll(rememberScrollState())
+                                .padding(16.dp)
+                        ) {
+                            com.booru.app.ui.MarkdownText(markdown = info.releaseNotes)
+                        }
+                    }
+                }
+    
+                Spacer(Modifier.height(18.dp))
+    
+                if (vm.isDownloadingUpdate) {
+                    OutlinedButton(
+                        onClick = {
+                            vm.cancelUpdateDownload()
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp)
+                            .bouncyPress()
                     ) {
                         Icon(
                             Icons.Rounded.Close,
-                            contentDescription = Strings.closeBtn(lang),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = Strings.cancelBtn(lang),
+                            color = MaterialTheme.colorScheme.error,
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelLarge
                         )
                     }
-                }
-            }
-
-            Spacer(Modifier.height(14.dp))
-
-            if (vm.isDownloadingUpdate) {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                ) {
+                } else if (vm.downloadedApkFile != null) {
                     Column(
-                        modifier = Modifier.padding(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = Strings.downloadingUpdate(lang),
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "${(vm.updateDownloadProgress * 100).toInt()}%",
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        Spacer(Modifier.height(12.dp))
-                        LinearProgressIndicator(
-                            progress = { vm.updateDownloadProgress },
+                        Button(
+                            onClick = {
+                                vm.downloadedApkFile?.let { vm.installApk(context, it) }
+                            },
+                            shape = RoundedCornerShape(20.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(8.dp)
-                                .clip(CircleShape),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = vm.updateDownloadProgressText,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                                .height(48.dp)
+                                .bouncyPress()
+                        ) {
+                            Icon(Icons.Rounded.SystemUpdate, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(Strings.installUpdate(lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
+                        }
+                        TextButton(
+                            onClick = {
+                                vm.deleteDownloadedApk()
+                                vm.downloadAndInstallUpdate(context, info)
+                            },
+                            modifier = Modifier.align(Alignment.CenterHorizontally)
+                        ) {
+                            Text(
+                                text = Strings.downloadAgain(lang),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
                     }
-                }
-            } else if (vm.updateDownloadError != null) {
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(
-                            text = Strings.updateDownloadFailed(lang),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = vm.updateDownloadError ?: "",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onErrorContainer
-                        )
+                } else if (vm.updateDownloadError != null) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {
+                                vm.downloadAndInstallUpdate(context, info)
+                            },
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .bouncyPress()
+                        ) {
+                            Text(Strings.updateButton(lang), fontWeight = FontWeight.Bold)
+                        }
+                        FilledTonalButton(
+                            onClick = {
+                                val targetUrl = info.apkDownloadUrl ?: info.releaseUrl
+                                val opened = runCatching {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                                }.isSuccess
+                                if (opened) {
+                                    scope.launch { sheetState.hide() }.invokeOnCompletion { vm.dismissUpdate() }
+                                } else {
+                                    Toast.makeText(context, Strings.noBrowserFound(lang), Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .bouncyPress()
+                        ) {
+                            Text(Strings.openInBrowser(lang))
+                        }
                     }
-                }
-            }
-            if (vm.downloadedApkFile != null) {
-                Surface(
-                    shape = RoundedCornerShape(18.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Rounded.DownloadDone,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(24.dp)
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = Strings.updateReadyToInstall(lang),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                }
-            }
-
-            if (info.releaseNotes.isNotBlank()) {
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 120.dp, max = 340.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState())
-                            .padding(16.dp)
-                    ) {
-                        com.booru.app.ui.MarkdownText(markdown = info.releaseNotes)
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(18.dp))
-
-            if (vm.isDownloadingUpdate) {
-                OutlinedButton(
-                    onClick = {
-                        vm.cancelUpdateDownload()
-                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-                    },
-                    shape = RoundedCornerShape(20.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(alpha = 0.5f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .bouncyPress()
-                ) {
-                    Icon(
-                        Icons.Rounded.Close,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = Strings.cancelBtn(lang),
-                        color = MaterialTheme.colorScheme.error,
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            } else if (vm.downloadedApkFile != null) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                } else {
                     Button(
                         onClick = {
-                            vm.downloadedApkFile?.let { vm.installApk(context, it) }
+                            vm.downloadAndInstallUpdate(context, info)
                         },
                         shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.buttonColors(
@@ -908,111 +980,44 @@ private fun UpdateBottomSheet(
                     ) {
                         Icon(Icons.Rounded.SystemUpdate, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(Strings.installUpdate(lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
-                    }
-                    TextButton(
-                        onClick = {
-                            vm.deleteDownloadedApk()
-                            vm.downloadAndInstallUpdate(context, info)
-                        },
-                        modifier = Modifier.align(Alignment.CenterHorizontally)
-                    ) {
-                        Text(
-                            text = Strings.downloadAgain(lang),
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.labelMedium
-                        )
+                        Text(Strings.updateButton(lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
                     }
                 }
-            } else if (vm.updateDownloadError != null) {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
-                        onClick = {
-                            vm.downloadAndInstallUpdate(context, info)
-                        },
-                        shape = RoundedCornerShape(20.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .bouncyPress()
+    
+                if (!vm.isDownloadingUpdate) {
+                    Spacer(Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(Strings.updateButton(lang), fontWeight = FontWeight.Bold)
-                    }
-                    FilledTonalButton(
-                        onClick = {
-                            val targetUrl = info.apkDownloadUrl ?: info.releaseUrl
-                            val opened = runCatching {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                            }.isSuccess
-                            if (opened) {
-                                scope.launch { sheetState.hide() }.invokeOnCompletion { vm.dismissUpdate() }
-                            } else {
-                                Toast.makeText(context, Strings.noBrowserFound(lang), Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        shape = RoundedCornerShape(20.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .bouncyPress()
-                    ) {
-                        Text(Strings.openInBrowser(lang))
-                    }
-                }
-            } else {
-                Button(
-                    onClick = {
-                        vm.downloadAndInstallUpdate(context, info)
-                    },
-                    shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .bouncyPress()
-                ) {
-                    Icon(Icons.Rounded.SystemUpdate, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(Strings.updateButton(lang), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.labelLarge)
-                }
-            }
-
-            if (!vm.isDownloadingUpdate) {
-                Spacer(Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(
-                        onClick = {
-                            vm.ignoreUpdate(info.latestVersion)
-                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-                        },
-                        shape = CircleShape,
-                        modifier = Modifier.bouncyPress()
-                    ) {
-                        Text(
-                            Strings.dontRemindAgain(lang),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.outline
-                        )
-                    }
-                    TextButton(
-                        onClick = {
-                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-                        },
-                        shape = CircleShape,
-                        modifier = Modifier.bouncyPress()
-                    ) {
-                        Text(
-                            Strings.closeBtn(lang),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        TextButton(
+                            onClick = {
+                                vm.ignoreUpdate(info.latestVersion)
+                                scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                            },
+                            shape = CircleShape,
+                            modifier = Modifier.bouncyPress()
+                        ) {
+                            Text(
+                                Strings.dontRemindAgain(lang),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.outline
+                            )
+                        }
+                        TextButton(
+                            onClick = {
+                                scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                            },
+                            shape = CircleShape,
+                            modifier = Modifier.bouncyPress()
+                        ) {
+                            Text(
+                                Strings.closeBtn(lang),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }

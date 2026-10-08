@@ -1159,6 +1159,24 @@ object Strings {
         else -> "Light theme"
     }
 
+    fun feedSourcesTitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Источники ленты"
+        AppLanguage.JAPANESE -> "フィードのソース"
+        AppLanguage.CHINESE -> "信息流来源"
+        AppLanguage.KOREAN -> "피드 소스"
+        AppLanguage.ARABIC -> "مصادر الخلاصة"
+        else -> "Feed sources"
+    }
+
+    fun sourceToggleDesc(enabled: Boolean, lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> if (enabled) "Используется в ленте и поиске" else "Отключён"
+        AppLanguage.JAPANESE -> if (enabled) "フィードと検索で使用" else "無効"
+        AppLanguage.CHINESE -> if (enabled) "用于信息流和搜索" else "已停用"
+        AppLanguage.KOREAN -> if (enabled) "피드와 검색에 사용" else "사용 안 함"
+        AppLanguage.ARABIC -> if (enabled) "مستخدم في الخلاصة والبحث" else "معطّل"
+        else -> if (enabled) "Used in feed and search" else "Disabled"
+    }
+
     fun tagBlacklistTitle(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Чёрный список тегов"
         AppLanguage.JAPANESE -> "タグブロックリスト"

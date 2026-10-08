@@ -978,207 +978,209 @@ private fun FavoritesFilterBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp)
-                .verticalScroll(rememberScrollState())
+    SheetMotion {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 24.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Rounded.Tune,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        text = if (lang == AppLanguage.RUSSIAN) "Сортировка и фильтры" else "Sort & Filters",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                TextButton(
-                    onClick = {
-                        onSortSelected(FavoriteSortOrder.NEWEST)
-                        onTypeSelected(FavoriteMediaTypeFilter.ALL)
-                    },
-                    shape = CircleShape,
-                    modifier = Modifier.bouncyPress()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = Strings.resetFilters(lang),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Rounded.Sort,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Rounded.Tune,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
                         Text(
-                            text = Strings.favSortTitle(lang),
-                            style = MaterialTheme.typography.titleSmall,
+                            text = if (lang == AppLanguage.RUSSIAN) "Сортировка и фильтры" else "Sort & Filters",
+                            style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                     }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    
+                    TextButton(
+                        onClick = {
+                            onSortSelected(FavoriteSortOrder.NEWEST)
+                            onTypeSelected(FavoriteMediaTypeFilter.ALL)
+                        },
+                        shape = CircleShape,
+                        modifier = Modifier.bouncyPress()
                     ) {
-                        val sortOptions = listOf(
-                            Triple(FavoriteSortOrder.NEWEST, Strings.favSortNewest(lang), Icons.Rounded.Schedule),
-                            Triple(FavoriteSortOrder.OLDEST, Strings.favSortOldest(lang), Icons.Rounded.History)
+                        Text(
+                            text = Strings.resetFilters(lang),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
                         )
-                        sortOptions.forEach { (order, label, icon) ->
+                    }
+                }
+    
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.Sort,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = Strings.favSortTitle(lang),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+    
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            val sortOptions = listOf(
+                                Triple(FavoriteSortOrder.NEWEST, Strings.favSortNewest(lang), Icons.Rounded.Schedule),
+                                Triple(FavoriteSortOrder.OLDEST, Strings.favSortOldest(lang), Icons.Rounded.History)
+                            )
+                            sortOptions.forEach { (order, label, icon) ->
+                                FilterOptionButton(
+                                    selected = currentSort == order,
+                                    onClick = { onSortSelected(order) },
+                                    label = label,
+                                    icon = icon,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
+                    }
+                }
+    
+                Spacer(Modifier.height(14.dp))
+    
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Category,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = Strings.contentTypeTitle(lang),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+    
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
                             FilterOptionButton(
-                                selected = currentSort == order,
-                                onClick = { onSortSelected(order) },
-                                label = label,
-                                icon = icon,
+                                selected = currentType == FavoriteMediaTypeFilter.ALL,
+                                onClick = { onTypeSelected(FavoriteMediaTypeFilter.ALL) },
+                                label = "${Strings.favFilterAll(lang)} ($allCount)",
+                                modifier = Modifier.weight(1f)
+                            )
+                            FilterOptionButton(
+                                selected = currentType == FavoriteMediaTypeFilter.IMAGES,
+                                onClick = { onTypeSelected(FavoriteMediaTypeFilter.IMAGES) },
+                                label = "${Strings.favFilterImages(lang)} ($imagesCount)",
+                                icon = Icons.Rounded.Image,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+    
+                        Spacer(Modifier.height(8.dp))
+    
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterOptionButton(
+                                selected = currentType == FavoriteMediaTypeFilter.GIFS,
+                                onClick = { onTypeSelected(FavoriteMediaTypeFilter.GIFS) },
+                                label = "${Strings.favFilterGifs(lang)} ($gifsCount)",
+                                icon = Icons.Rounded.Gif,
+                                modifier = Modifier.weight(1f)
+                            )
+                            FilterOptionButton(
+                                selected = currentType == FavoriteMediaTypeFilter.VIDEOS,
+                                onClick = { onTypeSelected(FavoriteMediaTypeFilter.VIDEOS) },
+                                label = "${Strings.favFilterVideos(lang)} ($videosCount)",
+                                icon = Icons.Rounded.Videocam,
                                 modifier = Modifier.weight(1f)
                             )
                         }
                     }
                 }
-            }
-
-            Spacer(Modifier.height(14.dp))
-
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.surfaceContainer,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Category,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = Strings.contentTypeTitle(lang),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        FilterOptionButton(
-                            selected = currentType == FavoriteMediaTypeFilter.ALL,
-                            onClick = { onTypeSelected(FavoriteMediaTypeFilter.ALL) },
-                            label = "${Strings.favFilterAll(lang)} ($allCount)",
-                            modifier = Modifier.weight(1f)
-                        )
-                        FilterOptionButton(
-                            selected = currentType == FavoriteMediaTypeFilter.IMAGES,
-                            onClick = { onTypeSelected(FavoriteMediaTypeFilter.IMAGES) },
-                            label = "${Strings.favFilterImages(lang)} ($imagesCount)",
-                            icon = Icons.Rounded.Image,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-
-                    Spacer(Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        FilterOptionButton(
-                            selected = currentType == FavoriteMediaTypeFilter.GIFS,
-                            onClick = { onTypeSelected(FavoriteMediaTypeFilter.GIFS) },
-                            label = "${Strings.favFilterGifs(lang)} ($gifsCount)",
-                            icon = Icons.Rounded.Gif,
-                            modifier = Modifier.weight(1f)
-                        )
-                        FilterOptionButton(
-                            selected = currentType == FavoriteMediaTypeFilter.VIDEOS,
-                            onClick = { onTypeSelected(FavoriteMediaTypeFilter.VIDEOS) },
-                            label = "${Strings.favFilterVideos(lang)} ($videosCount)",
-                            icon = Icons.Rounded.Videocam,
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
+    
+                Spacer(Modifier.height(20.dp))
+    
+                Button(
+                    onClick = {
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                    },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .bouncyPress()
+                ) {
+                    Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = if (lang == AppLanguage.RUSSIAN) "Готово" else "Done",
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
-            }
-
-            Spacer(Modifier.height(20.dp))
-
-            Button(
-                onClick = {
-                    scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-                },
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .bouncyPress()
-            ) {
-                Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = if (lang == AppLanguage.RUSSIAN) "Готово" else "Done",
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.labelLarge
-                )
             }
         }
     }
@@ -1215,92 +1217,94 @@ private fun CreateFolderBottomSheet(
         } catch (_: Exception) {}
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp)
+    SheetMotion {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 16.dp)
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    modifier = Modifier.size(42.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Rounded.CreateNewFolder,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    text = Strings.newFolder(lang),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
-            OutlinedTextField(
-                value = folderName,
-                onValueChange = { folderName = it.take(40) },
-                placeholder = { Text(Strings.folderNamePlaceholder(lang)) },
-                singleLine = true,
-                isError = isDuplicate,
-                supportingText = if (isDuplicate) {
-                    { Text(Strings.folderNameExists(lang)) }
-                } else null,
-                shape = RoundedCornerShape(16.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                keyboardActions = KeyboardActions(onDone = { submit() }),
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .focusRequester(focusRequester)
-            )
-
-            Spacer(Modifier.height(20.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp)
             ) {
-                OutlinedButton(
-                    onClick = {
-                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-                    },
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .bouncyPress()
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 16.dp)
                 ) {
-                    Text(Strings.cancelBtn(lang))
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(42.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Rounded.CreateNewFolder,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = Strings.newFolder(lang),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
-
-                Button(
-                    onClick = submit,
-                    enabled = canCreate,
+    
+                OutlinedTextField(
+                    value = folderName,
+                    onValueChange = { folderName = it.take(40) },
+                    placeholder = { Text(Strings.folderNamePlaceholder(lang)) },
+                    singleLine = true,
+                    isError = isDuplicate,
+                    supportingText = if (isDuplicate) {
+                        { Text(Strings.folderNameExists(lang)) }
+                    } else null,
                     shape = RoundedCornerShape(16.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { submit() }),
                     modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .bouncyPress()
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
+                )
+    
+                Spacer(Modifier.height(20.dp))
+    
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(Strings.create(lang))
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .bouncyPress()
+                    ) {
+                        Text(Strings.cancelBtn(lang))
+                    }
+    
+                    Button(
+                        onClick = submit,
+                        enabled = canCreate,
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .bouncyPress()
+                    ) {
+                        Text(Strings.create(lang))
+                    }
                 }
             }
         }
@@ -1318,90 +1322,92 @@ private fun DeleteFolderBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 32.dp)
+    SheetMotion {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 12.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp)
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    modifier = Modifier.size(42.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 12.dp)
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Rounded.DeleteOutline,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.size(22.dp)
-                        )
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        modifier = Modifier.size(42.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Rounded.DeleteOutline,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = if (lang == AppLanguage.RUSSIAN) "Удалить коллекцию?" else "Delete collection?",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
-                Spacer(Modifier.width(12.dp))
+    
                 Text(
-                    text = if (lang == AppLanguage.RUSSIAN) "Удалить коллекцию?" else "Delete collection?",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = if (lang == AppLanguage.RUSSIAN)
+                        "Коллекция «$folderName» будет удалена. Медиафайлы останутся в общем избранном."
+                    else
+                        "Collection \"$folderName\" will be removed. Media items will remain in favorites.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            }
-
-            Text(
-                text = if (lang == AppLanguage.RUSSIAN)
-                    "Коллекция «$folderName» будет удалена. Медиафайлы останутся в общем избранном."
-                else
-                    "Collection \"$folderName\" will be removed. Media items will remain in favorites.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            Spacer(Modifier.height(24.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = {
-                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-                    },
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .bouncyPress()
+    
+                Spacer(Modifier.height(24.dp))
+    
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(Strings.cancelBtn(lang))
-                }
-
-                Button(
-                    onClick = {
-                        onConfirm()
-                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
-                        contentColor = MaterialTheme.colorScheme.onError
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .bouncyPress()
-                ) {
-                    Text(if (lang == AppLanguage.RUSSIAN) "Удалить" else "Delete")
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .bouncyPress()
+                    ) {
+                        Text(Strings.cancelBtn(lang))
+                    }
+    
+                    Button(
+                        onClick = {
+                            onConfirm()
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                            .bouncyPress()
+                    ) {
+                        Text(if (lang == AppLanguage.RUSSIAN) "Удалить" else "Delete")
+                    }
                 }
             }
         }

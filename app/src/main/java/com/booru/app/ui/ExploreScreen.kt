@@ -1640,93 +1640,95 @@ fun SourceSelectionSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 36.dp)
-                .verticalScroll(rememberScrollState())
+    SheetMotion {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(bottom = 16.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 36.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
-                Icon(
-                    Icons.Rounded.Layers,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
-                Spacer(Modifier.width(10.dp))
-                Text(
-                    text = Strings.selectSourceTitle(lang),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            sources.forEach { src ->
-                val isSelected = currentSource == src || (customSources.find { it.key == src || it.id == src }?.let { it.key == currentSource || it.id == currentSource } ?: false)
-                val icon = when (src) {
-                    BooruRepository.SOURCE_ALL -> Icons.Rounded.AutoAwesome
-                    BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit
-                    BooruRepository.SOURCE_GELBOORU -> Icons.Rounded.Image
-                    BooruRepository.SOURCE_REALBOORU -> Icons.Rounded.VideoLibrary
-                    BooruRepository.SOURCE_XBOORU -> Icons.Rounded.PhotoLibrary
-                    BooruRepository.SOURCE_TBIB -> Icons.Rounded.Public
-                    BooruRepository.SOURCE_YANDE -> Icons.Rounded.Collections
-                    BooruRepository.SOURCE_KONACHAN -> Icons.Rounded.Wallpaper
-                    BooruRepository.SOURCE_SAFEBOORU -> Icons.Rounded.Shield
-                    else -> Icons.Rounded.Language
-                }
-
-                Surface(
-                    onClick = {
-                        onSelect(src)
-                        scope.launch {
-                            sheetState.hide()
-                        }.invokeOnCompletion {
-                            onDismiss()
-                        }
-                    },
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                        .bouncyPress()
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 16.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Icon(
+                        Icons.Rounded.Layers,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = Strings.selectSourceTitle(lang),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+    
+                sources.forEach { src ->
+                    val isSelected = currentSource == src || (customSources.find { it.key == src || it.id == src }?.let { it.key == currentSource || it.id == currentSource } ?: false)
+                    val icon = when (src) {
+                        BooruRepository.SOURCE_ALL -> Icons.Rounded.AutoAwesome
+                        BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit
+                        BooruRepository.SOURCE_GELBOORU -> Icons.Rounded.Image
+                        BooruRepository.SOURCE_REALBOORU -> Icons.Rounded.VideoLibrary
+                        BooruRepository.SOURCE_XBOORU -> Icons.Rounded.PhotoLibrary
+                        BooruRepository.SOURCE_TBIB -> Icons.Rounded.Public
+                        BooruRepository.SOURCE_YANDE -> Icons.Rounded.Collections
+                        BooruRepository.SOURCE_KONACHAN -> Icons.Rounded.Wallpaper
+                        BooruRepository.SOURCE_SAFEBOORU -> Icons.Rounded.Shield
+                        else -> Icons.Rounded.Language
+                    }
+    
+                    Surface(
+                        onClick = {
+                            onSelect(src)
+                            scope.launch {
+                                sheetState.hide()
+                            }.invokeOnCompletion {
+                                onDismiss()
+                            }
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp)
+                            .bouncyPress()
                     ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Spacer(Modifier.width(14.dp))
-                        Text(
-                            text = if (src == BooruRepository.SOURCE_ALL) Strings.sourceRecommendations(lang) else BooruRepository.getSourceDisplayName(src, customSources),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.weight(1f)
-                        )
-                        if (isSelected) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Icon(
-                                Icons.Rounded.CheckCircle,
+                                imageVector = icon,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
+                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp)
                             )
+                            Spacer(Modifier.width(14.dp))
+                            Text(
+                                text = if (src == BooruRepository.SOURCE_ALL) Strings.sourceRecommendations(lang) else BooruRepository.getSourceDisplayName(src, customSources),
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (isSelected) {
+                                Icon(
+                                    Icons.Rounded.CheckCircle,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -1758,19 +1760,20 @@ fun FilterOptionButton(
         label = "filterBtnContent"
     )
 
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        color = containerColor,
-        contentColor = contentColor,
-        modifier = modifier
-            .height(46.dp)
-            .bouncyPress()
+    ToggleButton(
+        checked = selected,
+        onCheckedChange = { onClick() },
+        colors = ToggleButtonDefaults.toggleButtonColors(
+            containerColor = containerColor,
+            contentColor = contentColor,
+            checkedContainerColor = containerColor,
+            checkedContentColor = contentColor
+        ),
+        contentPadding = PaddingValues(horizontal = 6.dp),
+        modifier = modifier.height(46.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 6.dp),
+            modifier = Modifier.fillMaxSize(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
@@ -1846,380 +1849,181 @@ private fun FilterSelectionBottomSheet(
     var tempRecRatio by remember { mutableFloatStateOf(vm.recommendationRatio) }
     val filterPagerState = rememberPagerState(initialPage = 0) { 2 }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 24.dp)
+    SheetMotion {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(36.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Rounded.Tune,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        text = Strings.filtersAndSorting(lang),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-
-                TextButton(
-                    onClick = {
-                        tempContentTypes = emptySet()
-                        tempSortOrder = SortOrder.NEWEST
-                        tempSafeMode = false
-                        tempExcludeSafe = false
-                        tempNoAi = false
-                        tempRecRatio = 0.5f
-                    },
-                    shape = CircleShape
-                ) {
-                    Text(
-                        text = Strings.resetFilters(lang),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp)
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 24.dp)
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        .padding(bottom = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    val tabs = listOf(
-                        Pair(if (lang == AppLanguage.RUSSIAN) "Контент и рейтинг" else "Content & Rating", Icons.Rounded.Category),
-                        Pair(if (lang == AppLanguage.RUSSIAN) "Сортировка и лента" else "Sorting & Feed", Icons.Rounded.AutoAwesome)
-                    )
-                    val targetFilterIndex = if (filterPagerState.isScrollInProgress) filterPagerState.targetPage else filterPagerState.currentPage
-                    tabs.forEachIndexed { index, (title, icon) ->
-                        val isSelected = targetFilterIndex == index
-                        val bg by animateColorAsState(
-                            targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
-                            label = "filterTabBg"
-                        )
-                        val fg by animateColorAsState(
-                            targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
-                            label = "filterTabFg"
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
-                            onClick = {
-                                scope.launch {
-                                    filterPagerState.animateScrollToPage(
-                                        page = index,
-                                        animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.primaryContainer,
+                            modifier = Modifier.size(36.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Rounded.Tune,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = Strings.filtersAndSorting(lang),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+    
+                    TextButton(
+                        onClick = {
+                            tempContentTypes = emptySet()
+                            tempSortOrder = SortOrder.NEWEST
+                            tempSafeMode = false
+                            tempExcludeSafe = false
+                            tempNoAi = false
+                            tempRecRatio = 0.5f
+                        },
+                        shape = CircleShape
+                    ) {
+                        Text(
+                            text = Strings.resetFilters(lang),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+    
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 6.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val tabs = listOf(
+                            Pair(if (lang == AppLanguage.RUSSIAN) "Контент и рейтинг" else "Content & Rating", Icons.Rounded.Category),
+                            Pair(if (lang == AppLanguage.RUSSIAN) "Сортировка и лента" else "Sorting & Feed", Icons.Rounded.AutoAwesome)
+                        )
+                        val targetFilterIndex = if (filterPagerState.isScrollInProgress) filterPagerState.targetPage else filterPagerState.currentPage
+                        tabs.forEachIndexed { index, (title, icon) ->
+                            val isSelected = targetFilterIndex == index
+                            val bg by animateColorAsState(
+                                targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
+                                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+                                label = "filterTabBg"
+                            )
+                            val fg by animateColorAsState(
+                                targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+                                label = "filterTabFg"
+                            )
+                            Surface(
+                                onClick = {
+                                    scope.launch {
+                                        filterPagerState.animateScrollToPage(
+                                            page = index,
+                                            animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
+                                        )
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                color = bg,
+                                contentColor = fg,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .bouncyPress()
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(horizontal = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    AnimatedVisibility(
+                                        visible = isSelected,
+                                        enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
+                                            expandHorizontally(
+                                                animationSpec = spring(
+                                                    dampingRatio = 0.78f,
+                                                    stiffness = Spring.StiffnessMediumLow
+                                                ),
+                                                expandFrom = Alignment.Start
+                                            ),
+                                        exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
+                                            shrinkHorizontally(
+                                                animationSpec = spring(
+                                                    dampingRatio = 0.88f,
+                                                    stiffness = Spring.StiffnessMediumLow
+                                                ),
+                                                shrinkTowards = Alignment.Start
+                                            )
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.Check,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(17.dp)
+                                            )
+                                            Spacer(Modifier.width(5.dp))
+                                        }
+                                    }
+                                    Text(
+                                        text = title,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
                                     )
                                 }
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            color = bg,
-                            contentColor = fg,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .bouncyPress()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(horizontal = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                AnimatedVisibility(
-                                    visible = isSelected,
-                                    enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
-                                        expandHorizontally(
-                                            animationSpec = spring(
-                                                dampingRatio = 0.78f,
-                                                stiffness = Spring.StiffnessMediumLow
-                                            ),
-                                            expandFrom = Alignment.Start
-                                        ),
-                                    exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
-                                        shrinkHorizontally(
-                                            animationSpec = spring(
-                                                dampingRatio = 0.88f,
-                                                stiffness = Spring.StiffnessMediumLow
-                                            ),
-                                            shrinkTowards = Alignment.Start
-                                        )
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            imageVector = Icons.Rounded.Check,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(17.dp)
-                                        )
-                                        Spacer(Modifier.width(5.dp))
-                                    }
-                                }
-                                Text(
-                                    text = title,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
                             }
                         }
                     }
                 }
-            }
-
-            Spacer(Modifier.height(10.dp))
-
-            HorizontalPager(
-                state = filterPagerState,
-                beyondViewportPageCount = 1,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(350.dp)
-            ) { page ->
-                if (page == 0) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                            Card(
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Rounded.PermMedia, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(
-                                            text = Strings.contentTypeTitle(lang),
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                    Spacer(Modifier.height(12.dp))
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        val types = listOf(
-                                            Triple(ContentType.PHOTOS, Strings.contentTypePhotos(lang), Icons.Rounded.Image),
-                                            Triple(ContentType.VIDEOS, Strings.contentTypeVideos(lang), Icons.Rounded.Videocam),
-                                            Triple(ContentType.GIFS, Strings.contentTypeGifs(lang), Icons.Rounded.Gif)
-                                        )
-                                        types.forEach { (type, label, icon) ->
-                                            val selected = tempContentTypes.contains(type)
-                                            FilterOptionButton(
-                                                selected = selected,
-                                                onClick = {
-                                                    tempContentTypes = if (selected) tempContentTypes - type else tempContentTypes + type
-                                                },
-                                                label = label,
-                                                icon = icon,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            Card(
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Rounded.Shield, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(
-                                            text = Strings.allRatings(lang),
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                    Spacer(Modifier.height(12.dp))
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        val isAllRating = !tempSafeMode && !tempExcludeSafe
-                                        FilterOptionButton(
-                                            selected = isAllRating,
-                                            onClick = {
-                                                tempSafeMode = false
-                                                tempExcludeSafe = false
-                                            },
-                                            label = Strings.allRatings(lang),
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        FilterOptionButton(
-                                            selected = tempExcludeSafe,
-                                            onClick = {
-                                                tempExcludeSafe = !tempExcludeSafe
-                                                if (tempExcludeSafe) tempSafeMode = false
-                                            },
-                                            label = Strings.only18Badge(lang),
-                                            icon = Icons.Rounded.Explicit,
-                                            selectedContainerColor = MaterialTheme.colorScheme.error,
-                                            selectedContentColor = MaterialTheme.colorScheme.onError,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        FilterOptionButton(
-                                            selected = tempSafeMode,
-                                            onClick = {
-                                                tempSafeMode = !tempSafeMode
-                                                if (tempSafeMode) tempExcludeSafe = false
-                                            },
-                                            label = Strings.safeModeBadge(lang),
-                                            icon = Icons.Rounded.Shield,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                    }
-                                }
-                            }
-
-                            Card(
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { tempNoAi = !tempNoAi }
-                                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.weight(1f)
-                                    ) {
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = if (tempNoAi) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                            modifier = Modifier.size(36.dp)
-                                        ) {
-                                            Box(contentAlignment = Alignment.Center) {
-                                                Icon(
-                                                    Icons.Rounded.AutoAwesome,
-                                                    contentDescription = null,
-                                                    tint = if (tempNoAi) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                                    modifier = Modifier.size(18.dp)
-                                                )
-                                            }
-                                        }
-                                        Spacer(Modifier.width(12.dp))
-                                        Column {
-                                            Text(
-                                                text = Strings.noAiBadge(lang),
-                                                style = MaterialTheme.typography.bodyLarge,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            Text(
-                                                text = if (lang == AppLanguage.RUSSIAN) "Скрывать арты, созданные нейросетями" else "Hide AI-generated artworks",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
-                                    }
-                                    Switch(
-                                        checked = tempNoAi,
-                                        onCheckedChange = { tempNoAi = it }
-                                    )
-                                }
-                            }
-                        }
-                    } else {
+    
+                Spacer(Modifier.height(10.dp))
+    
+                HorizontalPager(
+                    state = filterPagerState,
+                    beyondViewportPageCount = 1,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(350.dp)
+                ) { page ->
+                    if (page == 0) {
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            Card(
-                                shape = RoundedCornerShape(20.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Rounded.Sort, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(
-                                            text = if (lang == AppLanguage.RUSSIAN) "Сортировка" else "Sort by",
-                                            style = MaterialTheme.typography.labelLarge,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                    Spacer(Modifier.height(12.dp))
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        val sortOrders = listOfNotNull(
-                                            Triple(SortOrder.NEWEST, Strings.sortNewest(lang), Icons.Rounded.Schedule),
-                                            if (!isRealbooru) Triple(SortOrder.SCORE, Strings.sortScore(lang), Icons.Rounded.Star) else null,
-                                            Triple(SortOrder.RANDOM, Strings.sortRandom(lang), Icons.Rounded.Shuffle)
-                                        )
-                                        sortOrders.forEach { (order, label, icon) ->
-                                            val selected = (tempSortOrder == order)
-                                            FilterOptionButton(
-                                                selected = selected,
-                                                onClick = { tempSortOrder = order },
-                                                label = label,
-                                                icon = icon,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (vm.query.isBlank()) {
                                 Card(
                                     shape = RoundedCornerShape(20.dp),
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
@@ -2227,96 +2031,297 @@ private fun FilterSelectionBottomSheet(
                                 ) {
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Rounded.AutoAwesome, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                            Icon(Icons.Rounded.PermMedia, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                                             Spacer(Modifier.width(8.dp))
                                             Text(
-                                                text = Strings.feedRecommendedOnly(lang),
+                                                text = Strings.contentTypeTitle(lang),
                                                 style = MaterialTheme.typography.labelLarge,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
                                         }
-                                        Spacer(Modifier.height(10.dp))
+                                        Spacer(Modifier.height(12.dp))
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                                         ) {
-                                            listOf(
-                                                Triple(0.0f, Strings.feedNewestOnly(lang), tempRecRatio <= 0.15f),
-                                                Triple(0.5f, Strings.feedBalanced(lang), tempRecRatio in 0.35f..0.65f),
-                                                Triple(1.0f, Strings.feedRecommendedOnly(lang), tempRecRatio >= 0.85f)
-                                            ).forEach { (presetVal, label, active) ->
+                                            val types = listOf(
+                                                Triple(ContentType.PHOTOS, Strings.contentTypePhotos(lang), Icons.Rounded.Image),
+                                                Triple(ContentType.VIDEOS, Strings.contentTypeVideos(lang), Icons.Rounded.Videocam),
+                                                Triple(ContentType.GIFS, Strings.contentTypeGifs(lang), Icons.Rounded.Gif)
+                                            )
+                                            types.forEach { (type, label, icon) ->
+                                                val selected = tempContentTypes.contains(type)
                                                 FilterOptionButton(
-                                                    selected = active,
-                                                    onClick = { tempRecRatio = presetVal },
+                                                    selected = selected,
+                                                    onClick = {
+                                                        tempContentTypes = if (selected) tempContentTypes - type else tempContentTypes + type
+                                                    },
                                                     label = label,
+                                                    icon = icon,
                                                     modifier = Modifier.weight(1f)
                                                 )
                                             }
                                         }
-                                        Spacer(Modifier.height(8.dp))
-                                        var draggingRatio by remember { mutableStateOf(false) }
-                                        val shownRatio by animateFloatAsState(
-                                            targetValue = tempRecRatio,
-                                            animationSpec = if (draggingRatio) snap() else spring(dampingRatio = 0.86f, stiffness = Spring.StiffnessMediumLow),
-                                            label = "recRatio"
+                                    }
+                                }
+    
+                                Card(
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Rounded.Shield, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(
+                                                text = Strings.allRatings(lang),
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                        Spacer(Modifier.height(12.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            val isAllRating = !tempSafeMode && !tempExcludeSafe
+                                            FilterOptionButton(
+                                                selected = isAllRating,
+                                                onClick = {
+                                                    tempSafeMode = false
+                                                    tempExcludeSafe = false
+                                                },
+                                                label = Strings.allRatings(lang),
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            FilterOptionButton(
+                                                selected = tempExcludeSafe,
+                                                onClick = {
+                                                    tempExcludeSafe = !tempExcludeSafe
+                                                    if (tempExcludeSafe) tempSafeMode = false
+                                                },
+                                                label = Strings.only18Badge(lang),
+                                                icon = Icons.Rounded.Explicit,
+                                                selectedContainerColor = MaterialTheme.colorScheme.error,
+                                                selectedContentColor = MaterialTheme.colorScheme.onError,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            FilterOptionButton(
+                                                selected = tempSafeMode,
+                                                onClick = {
+                                                    tempSafeMode = !tempSafeMode
+                                                    if (tempSafeMode) tempExcludeSafe = false
+                                                },
+                                                label = Strings.safeModeBadge(lang),
+                                                icon = Icons.Rounded.Shield,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                    }
+                                }
+    
+                                Card(
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { tempNoAi = !tempNoAi }
+                                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = if (tempNoAi) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        Icons.Rounded.AutoAwesome,
+                                                        contentDescription = null,
+                                                        tint = if (tempNoAi) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
+                                            Spacer(Modifier.width(12.dp))
+                                            Column {
+                                                Text(
+                                                    text = Strings.noAiBadge(lang),
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Text(
+                                                    text = if (lang == AppLanguage.RUSSIAN) "Скрывать арты, созданные нейросетями" else "Hide AI-generated artworks",
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                        Switch(
+                                            checked = tempNoAi,
+                                            onCheckedChange = { tempNoAi = it }
                                         )
-                                        Slider(
-                                            value = shownRatio,
-                                            onValueChange = {
-                                                draggingRatio = true
-                                                tempRecRatio = it
-                                            },
-                                            onValueChangeFinished = { draggingRatio = false },
-                                            valueRange = 0f..1f,
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Card(
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(Icons.Rounded.Sort, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(
+                                                text = if (lang == AppLanguage.RUSSIAN) "Сортировка" else "Sort by",
+                                                style = MaterialTheme.typography.labelLarge,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                        Spacer(Modifier.height(12.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            val sortOrders = listOfNotNull(
+                                                Triple(SortOrder.NEWEST, Strings.sortNewest(lang), Icons.Rounded.Schedule),
+                                                if (!isRealbooru) Triple(SortOrder.SCORE, Strings.sortScore(lang), Icons.Rounded.Star) else null,
+                                                Triple(SortOrder.RANDOM, Strings.sortRandom(lang), Icons.Rounded.Shuffle)
+                                            )
+                                            sortOrders.forEach { (order, label, icon) ->
+                                                val selected = (tempSortOrder == order)
+                                                FilterOptionButton(
+                                                    selected = selected,
+                                                    onClick = { tempSortOrder = order },
+                                                    label = label,
+                                                    icon = icon,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+    
+                                if (vm.query.isBlank()) {
+                                    Card(
+                                        shape = RoundedCornerShape(20.dp),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(16.dp)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(Icons.Rounded.AutoAwesome, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(
+                                                    text = Strings.feedRecommendedOnly(lang),
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                            Spacer(Modifier.height(10.dp))
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                listOf(
+                                                    Triple(0.0f, Strings.feedNewestOnly(lang), tempRecRatio <= 0.15f),
+                                                    Triple(0.5f, Strings.feedBalanced(lang), tempRecRatio in 0.35f..0.65f),
+                                                    Triple(1.0f, Strings.feedRecommendedOnly(lang), tempRecRatio >= 0.85f)
+                                                ).forEach { (presetVal, label, active) ->
+                                                    FilterOptionButton(
+                                                        selected = active,
+                                                        onClick = { tempRecRatio = presetVal },
+                                                        label = label,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                }
+                                            }
+                                            Spacer(Modifier.height(8.dp))
+                                            var draggingRatio by remember { mutableStateOf(false) }
+                                            val shownRatio by animateFloatAsState(
+                                                targetValue = tempRecRatio,
+                                                animationSpec = if (draggingRatio) snap() else spring(dampingRatio = 0.86f, stiffness = Spring.StiffnessMediumLow),
+                                                label = "recRatio"
+                                            )
+                                            Slider(
+                                                value = shownRatio,
+                                                onValueChange = {
+                                                    draggingRatio = true
+                                                    tempRecRatio = it
+                                                },
+                                                onValueChangeFinished = { draggingRatio = false },
+                                                valueRange = 0f..1f,
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
-
-            Spacer(Modifier.height(16.dp))
-
-            Button(
-                onClick = {
-                    val ratioChanged = kotlin.math.abs(tempRecRatio - vm.recommendationRatio) > 0.01f
-                    val filtersChanged = tempContentTypes != vm.selectedContentTypes || tempSortOrder != vm.sortOrder ||
-                        tempSafeMode != vm.safeMode || tempExcludeSafe != vm.excludeSafe || tempNoAi != vm.noAi
-                    vm.updateRecommendationRatio(tempRecRatio)
-                    if (ratioChanged && !filtersChanged && vm.query.isBlank()) vm.refresh(isPull = false)
-                    vm.applyAllFilters(
-                        contentTypes = tempContentTypes,
-                        sortOrder = tempSortOrder,
-                        safeMode = tempSafeMode,
-                        excludeSafe = tempExcludeSafe,
-                        noAi = tempNoAi
+    
+                Spacer(Modifier.height(16.dp))
+    
+                Button(
+                    onClick = {
+                        val ratioChanged = kotlin.math.abs(tempRecRatio - vm.recommendationRatio) > 0.01f
+                        val filtersChanged = tempContentTypes != vm.selectedContentTypes || tempSortOrder != vm.sortOrder ||
+                            tempSafeMode != vm.safeMode || tempExcludeSafe != vm.excludeSafe || tempNoAi != vm.noAi
+                        vm.updateRecommendationRatio(tempRecRatio)
+                        if (ratioChanged && !filtersChanged && vm.query.isBlank()) vm.refresh(isPull = false)
+                        vm.applyAllFilters(
+                            contentTypes = tempContentTypes,
+                            sortOrder = tempSortOrder,
+                            safeMode = tempSafeMode,
+                            excludeSafe = tempExcludeSafe,
+                            noAi = tempNoAi
+                        )
+                        scope.launch {
+                            sheetState.hide()
+                        }.invokeOnCompletion {
+                            onDismiss()
+                        }
+                    },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .bouncyPress()
+                ) {
+                    Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = Strings.applyFilters(lang),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelLarge
                     )
-                    scope.launch {
-                        sheetState.hide()
-                    }.invokeOnCompletion {
-                        onDismiss()
-                    }
-                },
-                shape = RoundedCornerShape(20.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .bouncyPress()
-            ) {
-                Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = Strings.applyFilters(lang),
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.labelLarge
-                )
+                }
             }
         }
     }

@@ -75,6 +75,7 @@ class BooruPreferences(private val context: Context) {
         val KEY_FAVORITE_FOLDERS_JSON = stringPreferencesKey("favorite_folders_json")
         val KEY_CUSTOM_FOLDERS = stringSetPreferencesKey("custom_folders")
         val KEY_GRID_COLUMNS_COUNT = intPreferencesKey("grid_columns_count")
+        val KEY_DISABLED_SOURCES = stringSetPreferencesKey("disabled_sources")
     }
 
     val themeMode: Flow<ThemeMode> = read { prefs ->
@@ -230,6 +231,14 @@ class BooruPreferences(private val context: Context) {
 
     suspend fun clearIgnoredUpdateVersion() {
         context.dataStore.edit { it.remove(KEY_IGNORED_UPDATE_VERSION) }
+    }
+
+    val disabledSources: Flow<Set<String>> = read { prefs ->
+        prefs[KEY_DISABLED_SOURCES] ?: emptySet()
+    }
+
+    suspend fun setDisabledSources(keys: Set<String>) {
+        context.dataStore.edit { it[KEY_DISABLED_SOURCES] = keys }
     }
 
     suspend fun setImageQuality(quality: ImageQuality) {

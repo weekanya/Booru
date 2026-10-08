@@ -213,329 +213,286 @@ fun MediaDetailSheet(
         vm.applyWallpaper(target, media)
     }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        modifier = Modifier.statusBarsPadding(),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
-        tonalElevation = 4.dp,
-        dragHandle = null,
-        sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 36.dp)
+    SheetMotion {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            modifier = Modifier.statusBarsPadding(),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+            tonalElevation = 4.dp,
+            dragHandle = null,
+            sheetState = sheetState,
+            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
         ) {
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                contentAlignment = Alignment.Center
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = 36.dp)
             ) {
-                Surface(
-                    modifier = Modifier.size(width = 32.dp, height = 4.dp),
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                ) {}
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 360.dp, max = 560.dp)
-                    .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainerHigh),
-                contentAlignment = Alignment.Center
-            ) {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
-                    beyondViewportPageCount = 1,
-                    userScrollEnabled = !isCurrentPageZoomed,
-                    key = { page ->
-                        val m = mediaList.getOrNull(page)
-                        if (m != null) "${m.source}_${m.id.ifBlank { m.url }}_$page" else page
-                    }
-                ) { page ->
-                    val item = mediaList.getOrNull(page) ?: return@HorizontalPager
-                    if (item.isVideo) {
-                        BooruVideoPlayer(
-                            videoUrl = vm.resolveVideoUrl(item),
-                            lang = lang,
-                            previewUrl = item.gridImageUrl(vm.imageQuality != com.booru.app.data.ImageQuality.SAVER),
-                            modifier = Modifier.fillMaxSize(),
-                            isActive = pagerState.currentPage == page && !showTrueFullscreen && !isDismissingSheet
-                        )
-                    } else {
-                        DetailZoomableImage(
-                            media = item,
-                            vm = vm,
-                            isActive = (pagerState.currentPage == page),
-                            resetZoomKey = if (pagerState.currentPage == page) resetZoomKey else 0,
-                            onZoomChanged = { zoomed ->
-                                if (pagerState.currentPage == page) {
-                                    isCurrentPageZoomed = zoomed
-                                }
-                            }
-                        )
-                    }
-                }
-
-                Row(
+                Box(
                     modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Surface(
+                        modifier = Modifier.size(width = 32.dp, height = 4.dp),
                         shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.90f),
-                        shadowElevation = 2.dp
-                    ) {
-                        Text(
-                            text = currentMedia.source.uppercase(),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                        )
-                    }
-
-                    RatingBadge(currentMedia.rating, lang)
-
-                    if (currentMedia.isGif) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.95f),
-                            shadowElevation = 2.dp
-                        ) {
-                            Text(
-                                text = "GIF",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    } else if (currentMedia.isVideo) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.95f),
-                            shadowElevation = 2.dp
-                        ) {
-                            Text(
-                                text = "VIDEO",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    ) {}
                 }
-
-                Row(
+    
+                Box(
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .fillMaxWidth()
+                        .heightIn(min = 360.dp, max = 560.dp)
+                        .padding(horizontal = 16.dp)
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                    contentAlignment = Alignment.Center
                 ) {
-                    if (mediaList.size > 1) {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        beyondViewportPageCount = 1,
+                        userScrollEnabled = !isCurrentPageZoomed,
+                        key = { page ->
+                            val m = mediaList.getOrNull(page)
+                            if (m != null) "${m.source}_${m.id.ifBlank { m.url }}_$page" else page
+                        }
+                    ) { page ->
+                        val item = mediaList.getOrNull(page) ?: return@HorizontalPager
+                        if (item.isVideo) {
+                            BooruVideoPlayer(
+                                videoUrl = vm.resolveVideoUrl(item),
+                                lang = lang,
+                                previewUrl = item.gridImageUrl(vm.imageQuality != com.booru.app.data.ImageQuality.SAVER),
+                                modifier = Modifier.fillMaxSize(),
+                                isActive = pagerState.currentPage == page && !showTrueFullscreen && !isDismissingSheet
+                            )
+                        } else {
+                            DetailZoomableImage(
+                                media = item,
+                                vm = vm,
+                                isActive = (pagerState.currentPage == page),
+                                resetZoomKey = if (pagerState.currentPage == page) resetZoomKey else 0,
+                                onZoomChanged = { zoomed ->
+                                    if (pagerState.currentPage == page) {
+                                        isCurrentPageZoomed = zoomed
+                                    }
+                                }
+                            )
+                        }
+                    }
+    
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Surface(
                             shape = CircleShape,
                             color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.90f),
                             shadowElevation = 2.dp
                         ) {
                             Text(
-                                text = "${pagerState.currentPage + 1} / ${mediaList.size}",
+                                text = currentMedia.source.uppercase(),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             )
                         }
-                    }
-                }
-
-                Surface(
-                    onClick = { showTrueFullscreen = true },
-                    shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.55f),
-                    contentColor = Color.White,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(12.dp)
-                        .size(38.dp)
-                        .bouncyPress()
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            Icons.Rounded.Fullscreen,
-                            contentDescription = Strings.fullscreen(lang),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(14.dp))
-
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Button(
-                        onClick = { downloadCurrentMedia(currentMedia) },
-                        enabled = !isDownloading,
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
-                        modifier = Modifier
-                            .height(40.dp)
-                            .bouncyPress()
-                    ) {
-                        if (isDownloading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                strokeWidth = 2.dp,
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = Strings.loadingOriginal(lang),
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        } else {
-                            Icon(Icons.Rounded.Download, null, Modifier.size(18.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = Strings.downloadBtn(lang),
-                                fontWeight = FontWeight.Bold,
-                                style = MaterialTheme.typography.labelMedium
-                            )
-                        }
-                    }
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val isFav = vm.isFavorite(currentMedia)
-                        val favBg by animateColorAsState(
-                            targetValue = if (isFav) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
-                            label = "favBg"
-                        )
-                        val favFg by animateColorAsState(
-                            targetValue = if (isFav) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            label = "favFg"
-                        )
-                        FilledTonalIconButton(
-                            onClick = { vm.toggleFavorite(currentMedia) },
-                            modifier = Modifier
-                                .size(40.dp)
-                                .bouncyPress(),
-                            shape = CircleShape,
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = favBg,
-                                contentColor = favFg
-                            )
-                        ) {
-                            Icon(
-                                imageVector = if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = "Favorite",
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        AnimatedVisibility(
-                            visible = isFav,
-                            enter = fadeIn(tween(180)) + expandHorizontally(tween(200)),
-                            exit = fadeOut(tween(140)) + shrinkHorizontally(tween(180))
-                        ) {
-                            FilledTonalIconButton(
-                                onClick = { showFolderDialog = true },
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .bouncyPress(),
+    
+                        RatingBadge(currentMedia.rating, lang)
+    
+                        if (currentMedia.isGif) {
+                            Surface(
                                 shape = CircleShape,
-                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = if (vm.getMediaFolder(currentMedia) != null) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    contentColor = if (vm.getMediaFolder(currentMedia) != null) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                                color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.95f),
+                                shadowElevation = 2.dp
                             ) {
-                                Icon(
-                                    imageVector = if (vm.getMediaFolder(currentMedia) != null) Icons.Rounded.Folder else Icons.Rounded.FolderOpen,
-                                    contentDescription = Strings.addToFolder(lang),
-                                    modifier = Modifier.size(20.dp)
+                                Text(
+                                    text = "GIF",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
+                        } else if (currentMedia.isVideo) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.95f),
+                                shadowElevation = 2.dp
+                            ) {
+                                Text(
+                                    text = "VIDEO",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
                         }
-
-                        FilledTonalIconButton(
-                            onClick = { showTrueFullscreen = true },
-                            modifier = Modifier
-                                .size(40.dp)
-                                .bouncyPress(),
-                            shape = CircleShape,
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        ) {
+                    }
+    
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (mediaList.size > 1) {
+                            Surface(
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.90f),
+                                shadowElevation = 2.dp
+                            ) {
+                                Text(
+                                    text = "${pagerState.currentPage + 1} / ${mediaList.size}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                )
+                            }
+                        }
+                    }
+    
+                    Surface(
+                        onClick = { showTrueFullscreen = true },
+                        shape = CircleShape,
+                        color = Color.Black.copy(alpha = 0.55f),
+                        contentColor = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(12.dp)
+                            .size(38.dp)
+                            .bouncyPress()
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
                             Icon(
                                 Icons.Rounded.Fullscreen,
                                 contentDescription = Strings.fullscreen(lang),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
-
-                        FilledTonalIconButton(
-                            onClick = {
-                                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    val shareUrl = currentMedia.postWebUrl.ifBlank { currentMedia.url.ifBlank { currentMedia.sample } }
-                                    putExtra(Intent.EXTRA_TEXT, shareUrl)
-                                }
-                                context.startActivity(Intent.createChooser(shareIntent, Strings.share(lang)))
-                            },
-                            modifier = Modifier
-                                .size(40.dp)
-                                .bouncyPress(),
+                    }
+                }
+    
+                Spacer(Modifier.height(14.dp))
+    
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Button(
+                            onClick = { downloadCurrentMedia(currentMedia) },
+                            enabled = !isDownloading,
                             shape = CircleShape,
-                            colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
+                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp),
+                            modifier = Modifier
+                                .height(40.dp)
+                                .bouncyPress()
                         ) {
-                            Icon(
-                                Icons.Rounded.Share,
-                                contentDescription = "Share",
-                                modifier = Modifier.size(19.dp)
-                            )
+                            if (isDownloading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                    color = MaterialTheme.colorScheme.onPrimary
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = Strings.loadingOriginal(lang),
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            } else {
+                                Icon(Icons.Rounded.Download, null, Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = Strings.downloadBtn(lang),
+                                    fontWeight = FontWeight.Bold,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
                         }
-
-                        Box {
+    
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val isFav = vm.isFavorite(currentMedia)
+                            val favBg by animateColorAsState(
+                                targetValue = if (isFav) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                label = "favBg"
+                            )
+                            val favFg by animateColorAsState(
+                                targetValue = if (isFav) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                label = "favFg"
+                            )
                             FilledTonalIconButton(
-                                onClick = { showMoreMenu = true },
+                                onClick = { vm.toggleFavorite(currentMedia) },
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .bouncyPress(),
+                                shape = CircleShape,
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = favBg,
+                                    contentColor = favFg
+                                )
+                            ) {
+                                Icon(
+                                    imageVector = if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                    contentDescription = "Favorite",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+    
+                            AnimatedVisibility(
+                                visible = isFav,
+                                enter = fadeIn(tween(180)) + expandHorizontally(tween(200)),
+                                exit = fadeOut(tween(140)) + shrinkHorizontally(tween(180))
+                            ) {
+                                FilledTonalIconButton(
+                                    onClick = { showFolderDialog = true },
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .bouncyPress(),
+                                    shape = CircleShape,
+                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                        containerColor = if (vm.getMediaFolder(currentMedia) != null) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        contentColor = if (vm.getMediaFolder(currentMedia) != null) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                ) {
+                                    Icon(
+                                        imageVector = if (vm.getMediaFolder(currentMedia) != null) Icons.Rounded.Folder else Icons.Rounded.FolderOpen,
+                                        contentDescription = Strings.addToFolder(lang),
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+    
+                            FilledTonalIconButton(
+                                onClick = { showTrueFullscreen = true },
                                 modifier = Modifier
                                     .size(40.dp)
                                     .bouncyPress(),
@@ -546,70 +503,244 @@ fun MediaDetailSheet(
                                 )
                             ) {
                                 Icon(
-                                    Icons.Rounded.MoreVert,
-                                    contentDescription = "More",
+                                    Icons.Rounded.Fullscreen,
+                                    contentDescription = Strings.fullscreen(lang),
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
-
-                            DropdownMenu(
-                                expanded = showMoreMenu,
-                                onDismissRequest = { showMoreMenu = false }
+    
+                            FilledTonalIconButton(
+                                onClick = {
+                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        val shareUrl = currentMedia.postWebUrl.ifBlank { currentMedia.url.ifBlank { currentMedia.sample } }
+                                        putExtra(Intent.EXTRA_TEXT, shareUrl)
+                                    }
+                                    context.startActivity(Intent.createChooser(shareIntent, Strings.share(lang)))
+                                },
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .bouncyPress(),
+                                shape = CircleShape,
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             ) {
-                                if (!currentMedia.isVideo) {
+                                Icon(
+                                    Icons.Rounded.Share,
+                                    contentDescription = "Share",
+                                    modifier = Modifier.size(19.dp)
+                                )
+                            }
+    
+                            Box {
+                                FilledTonalIconButton(
+                                    onClick = { showMoreMenu = true },
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .bouncyPress(),
+                                    shape = CircleShape,
+                                    colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.MoreVert,
+                                        contentDescription = "More",
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+    
+                                DropdownMenu(
+                                    expanded = showMoreMenu,
+                                    onDismissRequest = { showMoreMenu = false }
+                                ) {
+                                    if (!currentMedia.isVideo) {
+                                        DropdownMenuItem(
+                                            text = { Text(Strings.setWallpaperTitle(lang)) },
+                                            leadingIcon = {
+                                                Icon(Icons.Rounded.Wallpaper, null, modifier = Modifier.size(20.dp))
+                                            },
+                                            onClick = {
+                                                showMoreMenu = false
+                                                showWallpaperDialog = true
+                                            }
+                                        )
+                                    }
                                     DropdownMenuItem(
-                                        text = { Text(Strings.setWallpaperTitle(lang)) },
+                                        text = { Text(if (lang == AppLanguage.RUSSIAN) "Открыть в браузере" else "Open in browser") },
                                         leadingIcon = {
-                                            Icon(Icons.Rounded.Wallpaper, null, modifier = Modifier.size(20.dp))
+                                            Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, modifier = Modifier.size(20.dp))
                                         },
                                         onClick = {
                                             showMoreMenu = false
-                                            showWallpaperDialog = true
+                                            val browserUrl = currentMedia.postWebUrl.ifBlank { currentMedia.url.ifBlank { currentMedia.sample } }
+                                            runCatching {
+                                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(browserUrl)))
+                                            }.onFailure {
+                                                Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
+                                            }
                                         }
                                     )
                                 }
-                                DropdownMenuItem(
-                                    text = { Text(if (lang == AppLanguage.RUSSIAN) "Открыть в браузере" else "Open in browser") },
-                                    leadingIcon = {
-                                        Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, modifier = Modifier.size(20.dp))
-                                    },
-                                    onClick = {
-                                        showMoreMenu = false
-                                        val browserUrl = currentMedia.postWebUrl.ifBlank { currentMedia.url.ifBlank { currentMedia.sample } }
-                                        runCatching {
-                                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(browserUrl)))
-                                        }.onFailure {
-                                            Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                                )
                             }
                         }
                     }
                 }
-            }
-
-            val isRealbooru = currentMedia.source.equals("realbooru", ignoreCase = true) || currentMedia.url.contains("realbooru.com")
-            val showScore = !isRealbooru
-            val showResolution = currentMedia.width > 0 && currentMedia.height > 0
-
-            if (showScore || showResolution) {
+    
+                val isRealbooru = currentMedia.source.equals("realbooru", ignoreCase = true) || currentMedia.url.contains("realbooru.com")
+                val showScore = !isRealbooru
+                val showResolution = currentMedia.width > 0 && currentMedia.height > 0
+    
+                if (showScore || showResolution) {
+                    Spacer(Modifier.height(14.dp))
+    
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        if (showScore) {
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.primaryContainer,
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                Icons.Rounded.Star,
+                                                null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                    Column {
+                                        Text(
+                                            text = Strings.scoreLabel(currentMedia.score, lang),
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface
+                                        )
+                                        Text(
+                                            text = "Score",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+    
+                        if (showResolution) {
+                            Surface(
+                                shape = RoundedCornerShape(20.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.secondaryContainer,
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                Icons.Rounded.AspectRatio,
+                                                null,
+                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    }
+                                    Column {
+                                        Text(
+                                            text = "${currentMedia.width}×${currentMedia.height}",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = "Resolution",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+    
                 Spacer(Modifier.height(14.dp))
-
-                Row(
+    
+                val cardBg by animateColorAsState(
+                    targetValue = if (isTagsExpanded)
+                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f)
+                    else
+                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.60f),
+                    animationSpec = tween(220),
+                    label = "tagsCardBg"
+                )
+                val chevronBg by animateColorAsState(
+                    targetValue = if (isTagsExpanded)
+                        MaterialTheme.colorScheme.primaryContainer
+                    else
+                        MaterialTheme.colorScheme.surfaceContainerHighest,
+                    animationSpec = tween(220),
+                    label = "chevronBg"
+                )
+                val chevronTint by animateColorAsState(
+                    targetValue = if (isTagsExpanded)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    animationSpec = tween(220),
+                    label = "chevronTint"
+                )
+                val rotation by animateFloatAsState(
+                    targetValue = if (isTagsExpanded) 180f else 0f,
+                    animationSpec = tween(250, easing = FastOutSlowInEasing),
+                    label = "tagsChevron"
+                )
+    
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = cardBg,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        .padding(horizontal = 16.dp)
                 ) {
-                    if (showScore) {
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            modifier = Modifier.weight(1f)
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bouncyPress()
+                                .clickable { isTagsExpanded = !isTagsExpanded }
+                                .padding(horizontal = 16.dp, vertical = 13.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
@@ -620,122 +751,114 @@ fun MediaDetailSheet(
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
-                                            Icons.Rounded.Star,
-                                            null,
+                                            Icons.Rounded.Sell,
+                                            contentDescription = null,
                                             tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(18.dp)
                                         )
                                     }
                                 }
                                 Column {
                                     Text(
-                                        text = Strings.scoreLabel(currentMedia.score, lang),
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        text = Strings.tagsLabel(currentMedia.tagList.size, lang),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = "Score",
+                                        text = if (isTagsExpanded) {
+                                            if (lang == AppLanguage.RUSSIAN) "Нажмите, чтобы скрыть" else "Tap to collapse"
+                                        } else {
+                                            if (lang == AppLanguage.RUSSIAN) "Нажмите, чтобы показать" else "Tap to expand"
+                                        },
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
-                        }
-                    }
-
-                    if (showResolution) {
-                        Surface(
-                            shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+    
+                            Surface(
+                                shape = CircleShape,
+                                color = chevronBg,
+                                modifier = Modifier.size(34.dp)
                             ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.secondaryContainer,
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            Icons.Rounded.AspectRatio,
-                                            null,
-                                            tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                            modifier = Modifier.size(20.dp)
-                                        )
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        Icons.Rounded.ExpandMore,
+                                        contentDescription = if (isTagsExpanded) "Collapse" else "Expand",
+                                        tint = chevronTint,
+                                        modifier = Modifier
+                                            .size(22.dp)
+                                            .graphicsLayer { rotationZ = rotation }
+                                    )
+                                }
+                            }
+                        }
+    
+                        AnimatedVisibility(
+                            visible = isTagsExpanded,
+                            enter = expandVertically(
+                                animationSpec = tween(260, easing = FastOutSlowInEasing),
+                                expandFrom = Alignment.Top
+                            ) + fadeIn(
+                                animationSpec = tween(180, easing = FastOutSlowInEasing)
+                            ),
+                            exit = shrinkVertically(
+                                animationSpec = tween(200, easing = FastOutSlowInEasing),
+                                shrinkTowards = Alignment.Top
+                            ) + fadeOut(
+                                animationSpec = tween(180, easing = FastOutSlowInEasing)
+                            )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 14.dp, end = 14.dp, bottom = 14.dp, top = 2.dp)
+                            ) {
+                                HorizontalDivider(
+                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f),
+                                    modifier = Modifier.padding(bottom = 12.dp)
+                                )
+                                OptInFlowDetailTags(
+                                    tags = currentMedia.tagList,
+                                    blacklistedTags = vm.tagBlacklist,
+                                    lang = lang,
+                                    onTagClick = { tag ->
+                                        vm.searchTag(tag, currentMedia.sourceId.ifBlank { currentMedia.source })
+                                        onDismiss()
+                                        onNavigateToExplore?.invoke()
+                                    },
+                                    onTagLongClick = { tag ->
+                                        selectedTagForAction = tag
                                     }
-                                }
-                                Column {
-                                    Text(
-                                        text = "${currentMedia.width}×${currentMedia.height}",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = "Resolution",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                )
                             }
                         }
                     }
                 }
             }
+        }
+    }
 
-            Spacer(Modifier.height(14.dp))
-
-            val cardBg by animateColorAsState(
-                targetValue = if (isTagsExpanded)
-                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f)
-                else
-                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.60f),
-                animationSpec = tween(220),
-                label = "tagsCardBg"
-            )
-            val chevronBg by animateColorAsState(
-                targetValue = if (isTagsExpanded)
-                    MaterialTheme.colorScheme.primaryContainer
-                else
-                    MaterialTheme.colorScheme.surfaceContainerHighest,
-                animationSpec = tween(220),
-                label = "chevronBg"
-            )
-            val chevronTint by animateColorAsState(
-                targetValue = if (isTagsExpanded)
-                    MaterialTheme.colorScheme.primary
-                else
-                    MaterialTheme.colorScheme.onSurfaceVariant,
-                animationSpec = tween(220),
-                label = "chevronTint"
-            )
-            val rotation by animateFloatAsState(
-                targetValue = if (isTagsExpanded) 180f else 0f,
-                animationSpec = tween(250, easing = FastOutSlowInEasing),
-                label = "tagsChevron"
-            )
-
-            Surface(
-                shape = RoundedCornerShape(20.dp),
-                color = cardBg,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
+    if (showWallpaperDialog) {
+        val wallpaperSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        SheetMotion {
+            ModalBottomSheet(
+                onDismissRequest = { showWallpaperDialog = false },
+                sheetState = wallpaperSheetState,
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 28.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .bouncyPress()
-                            .clickable { isTagsExpanded = !isTagsExpanded }
-                            .padding(horizontal = 16.dp, vertical = 13.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
@@ -750,198 +873,79 @@ fun MediaDetailSheet(
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        Icons.Rounded.Sell,
+                                        Icons.Rounded.Wallpaper,
                                         contentDescription = null,
                                         tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(18.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
-                            Column {
-                                Text(
-                                    text = Strings.tagsLabel(currentMedia.tagList.size, lang),
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = if (isTagsExpanded) {
-                                        if (lang == AppLanguage.RUSSIAN) "Нажмите, чтобы скрыть" else "Tap to collapse"
-                                    } else {
-                                        if (lang == AppLanguage.RUSSIAN) "Нажмите, чтобы показать" else "Tap to expand"
-                                    },
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-
-                        Surface(
-                            shape = CircleShape,
-                            color = chevronBg,
-                            modifier = Modifier.size(34.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Rounded.ExpandMore,
-                                    contentDescription = if (isTagsExpanded) "Collapse" else "Expand",
-                                    tint = chevronTint,
-                                    modifier = Modifier
-                                        .size(22.dp)
-                                        .graphicsLayer { rotationZ = rotation }
-                                )
-                            }
-                        }
-                    }
-
-                    AnimatedVisibility(
-                        visible = isTagsExpanded,
-                        enter = expandVertically(
-                            animationSpec = tween(260, easing = FastOutSlowInEasing),
-                            expandFrom = Alignment.Top
-                        ) + fadeIn(
-                            animationSpec = tween(180, easing = FastOutSlowInEasing)
-                        ),
-                        exit = shrinkVertically(
-                            animationSpec = tween(200, easing = FastOutSlowInEasing),
-                            shrinkTowards = Alignment.Top
-                        ) + fadeOut(
-                            animationSpec = tween(180, easing = FastOutSlowInEasing)
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 14.dp, end = 14.dp, bottom = 14.dp, top = 2.dp)
-                        ) {
-                            HorizontalDivider(
-                                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.20f),
-                                modifier = Modifier.padding(bottom = 12.dp)
+                            Text(
+                                text = Strings.setWallpaperTitle(lang),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
                             )
-                            OptInFlowDetailTags(
-                                tags = currentMedia.tagList,
-                                blacklistedTags = vm.tagBlacklist,
-                                lang = lang,
-                                onTagClick = { tag ->
-                                    vm.searchTag(tag, currentMedia.sourceId.ifBlank { currentMedia.source })
-                                    onDismiss()
-                                    onNavigateToExplore?.invoke()
-                                },
-                                onTagLongClick = { tag ->
-                                    selectedTagForAction = tag
+                        }
+                        IconButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    wallpaperSheetState.hide()
+                                }.invokeOnCompletion {
+                                    showWallpaperDialog = false
                                 }
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Close,
+                                contentDescription = "Close",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
-                }
-            }
-        }
-    }
-
-    if (showWallpaperDialog) {
-        val wallpaperSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = { showWallpaperDialog = false },
-            sheetState = wallpaperSheetState,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Rounded.Wallpaper,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                        WallpaperOptionItem(
+                            icon = Icons.Rounded.Smartphone,
+                            title = Strings.wallpaperHomeScreen(lang),
+                            onClick = {
+                                coroutineScope.launch {
+                                    wallpaperSheetState.hide()
+                                }.invokeOnCompletion {
+                                    showWallpaperDialog = false
+                                }
+                                applyWallpaper(1, currentMedia)
                             }
-                        }
-                        Text(
-                            text = Strings.setWallpaperTitle(lang),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
+                        )
+                        WallpaperOptionItem(
+                            icon = Icons.Rounded.Lock,
+                            title = Strings.wallpaperLockScreen(lang),
+                            onClick = {
+                                coroutineScope.launch {
+                                    wallpaperSheetState.hide()
+                                }.invokeOnCompletion {
+                                    showWallpaperDialog = false
+                                }
+                                applyWallpaper(2, currentMedia)
+                            }
+                        )
+                        WallpaperOptionItem(
+                            icon = Icons.Rounded.Wallpaper,
+                            title = Strings.wallpaperBoth(lang),
+                            onClick = {
+                                coroutineScope.launch {
+                                    wallpaperSheetState.hide()
+                                }.invokeOnCompletion {
+                                    showWallpaperDialog = false
+                                }
+                                applyWallpaper(3, currentMedia)
+                            }
                         )
                     }
-                    IconButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                wallpaperSheetState.hide()
-                            }.invokeOnCompletion {
-                                showWallpaperDialog = false
-                            }
-                        },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            Icons.Rounded.Close,
-                            contentDescription = "Close",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    WallpaperOptionItem(
-                        icon = Icons.Rounded.Smartphone,
-                        title = Strings.wallpaperHomeScreen(lang),
-                        onClick = {
-                            coroutineScope.launch {
-                                wallpaperSheetState.hide()
-                            }.invokeOnCompletion {
-                                showWallpaperDialog = false
-                            }
-                            applyWallpaper(1, currentMedia)
-                        }
-                    )
-                    WallpaperOptionItem(
-                        icon = Icons.Rounded.Lock,
-                        title = Strings.wallpaperLockScreen(lang),
-                        onClick = {
-                            coroutineScope.launch {
-                                wallpaperSheetState.hide()
-                            }.invokeOnCompletion {
-                                showWallpaperDialog = false
-                            }
-                            applyWallpaper(2, currentMedia)
-                        }
-                    )
-                    WallpaperOptionItem(
-                        icon = Icons.Rounded.Wallpaper,
-                        title = Strings.wallpaperBoth(lang),
-                        onClick = {
-                            coroutineScope.launch {
-                                wallpaperSheetState.hide()
-                            }.invokeOnCompletion {
-                                showWallpaperDialog = false
-                            }
-                            applyWallpaper(3, currentMedia)
-                        }
-                    )
                 }
             }
         }
@@ -950,56 +954,30 @@ fun MediaDetailSheet(
     if (showFolderDialog) {
         val folderSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
         val currentFolder = vm.getMediaFolder(currentMedia)
-        ModalBottomSheet(
-            onDismissRequest = { showFolderDialog = false },
-            sheetState = folderSheetState,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+        SheetMotion {
+            ModalBottomSheet(
+                onDismissRequest = { showFolderDialog = false },
+                sheetState = folderSheetState,
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             ) {
-                Text(
-                    text = Strings.addToFolder(lang),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Surface(
-                    onClick = {
-                        vm.setMediaFolder(currentMedia, null)
-                        coroutineScope.launch {
-                            folderSheetState.hide()
-                        }.invokeOnCompletion {
-                            showFolderDialog = false
-                        }
-                    },
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (currentFolder == null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
+                        .navigationBarsPadding()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 28.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Rounded.FolderOff, null, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Text(Strings.allFavoritesFolder(lang), fontWeight = FontWeight.SemiBold)
-                    }
-                }
-
-                vm.customFolders.forEach { folder ->
-                    val isSelected = currentFolder == folder
+                    Text(
+                        text = Strings.addToFolder(lang),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+    
                     Surface(
                         onClick = {
-                            vm.setMediaFolder(currentMedia, folder)
+                            vm.setMediaFolder(currentMedia, null)
                             coroutineScope.launch {
                                 folderSheetState.hide()
                             }.invokeOnCompletion {
@@ -1007,7 +985,7 @@ fun MediaDetailSheet(
                             }
                         },
                         shape = RoundedCornerShape(16.dp),
-                        color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        color = if (currentFolder == null) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(48.dp)
@@ -1016,9 +994,37 @@ fun MediaDetailSheet(
                             modifier = Modifier.padding(horizontal = 16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Rounded.Folder, null, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Rounded.FolderOff, null, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(12.dp))
-                            Text(folder, fontWeight = FontWeight.SemiBold)
+                            Text(Strings.allFavoritesFolder(lang), fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+    
+                    vm.customFolders.forEach { folder ->
+                        val isSelected = currentFolder == folder
+                        Surface(
+                            onClick = {
+                                vm.setMediaFolder(currentMedia, folder)
+                                coroutineScope.launch {
+                                    folderSheetState.hide()
+                                }.invokeOnCompletion {
+                                    showFolderDialog = false
+                                }
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Rounded.Folder, null, modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.width(12.dp))
+                                Text(folder, fontWeight = FontWeight.SemiBold)
+                            }
                         }
                     }
                 }
@@ -1030,236 +1036,238 @@ fun MediaDetailSheet(
         val currentActionTag = selectedTagForAction!!
         val isBlacklisted = vm.tagBlacklist.any { it.equals(currentActionTag, ignoreCase = true) }
         val tagSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = { selectedTagForAction = null },
-            sheetState = tagSheetState,
-            shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+        SheetMotion {
+            ModalBottomSheet(
+                onDismissRequest = { selectedTagForAction = null },
+                sheetState = tagSheetState,
+                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 28.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
                     Row(
+                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.weight(1f, fill = false)
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = if (isBlacklisted)
-                                MaterialTheme.colorScheme.errorContainer
-                            else
-                                MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = if (isBlacklisted) Icons.Rounded.Block else Icons.Rounded.Tag,
-                                    contentDescription = null,
-                                    tint = if (isBlacklisted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                        Column {
-                            Text(
-                                text = "#$currentActionTag",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            if (isBlacklisted) {
-                                Text(
-                                    text = Strings.tagBlacklistedStatus(lang),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                            }
-                        }
-                    }
-                    IconButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                tagSheetState.hide()
-                            }.invokeOnCompletion {
-                                selectedTagForAction = null
-                            }
-                        },
-                        modifier = Modifier.size(32.dp)
-                    ) {
-                        Icon(
-                            Icons.Rounded.Close,
-                            contentDescription = "Close",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .bouncyPress()
-                            .clickable {
-                                coroutineScope.launch {
-                                    tagSheetState.hide()
-                                }.invokeOnCompletion {
-                                    selectedTagForAction = null
-                                    vm.searchTag(currentActionTag, currentMedia.sourceId.ifBlank { currentMedia.source })
-                                    onDismiss()
-                                    onNavigateToExplore?.invoke()
-                                }
-                            }
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        Icons.Rounded.Search,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                text = Strings.searchPostsWithTag(lang),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .bouncyPress()
-                            .clickable {
-                                val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                cm.setPrimaryClip(ClipData.newPlainText("Tag", currentActionTag))
-                                Toast.makeText(context, Strings.tagCopied(lang), Toast.LENGTH_SHORT).show()
-                                coroutineScope.launch {
-                                    tagSheetState.hide()
-                                }.invokeOnCompletion {
-                                    selectedTagForAction = null
-                                }
-                            }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.secondaryContainer,
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        Icons.Rounded.ContentCopy,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.secondary,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                text = Strings.copyTag(lang),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = if (isBlacklisted)
-                            MaterialTheme.colorScheme.surfaceContainerHighest
-                        else
-                            MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .bouncyPress()
-                            .clickable {
-                                if (isBlacklisted) {
-                                    vm.removeBlacklistedTag(currentActionTag)
-                                    Toast.makeText(context, Strings.tagRemovedFromBlacklist(currentActionTag, lang), Toast.LENGTH_SHORT).show()
-                                    coroutineScope.launch {
-                                        tagSheetState.hide()
-                                    }.invokeOnCompletion {
-                                        selectedTagForAction = null
-                                    }
-                                } else {
-                                    vm.addBlacklistedTag(currentActionTag)
-                                    Toast.makeText(context, Strings.tagAddedToBlacklist(currentActionTag, lang), Toast.LENGTH_SHORT).show()
-                                    coroutineScope.launch {
-                                        tagSheetState.hide()
-                                    }.invokeOnCompletion {
-                                        selectedTagForAction = null
-                                        onDismiss()
-                                    }
-                                }
-                            }
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.weight(1f, fill = false)
                         ) {
                             Surface(
                                 shape = CircleShape,
                                 color = if (isBlacklisted)
-                                    MaterialTheme.colorScheme.primaryContainer
+                                    MaterialTheme.colorScheme.errorContainer
                                 else
-                                    MaterialTheme.colorScheme.errorContainer,
-                                modifier = Modifier.size(36.dp)
+                                    MaterialTheme.colorScheme.primaryContainer,
+                                modifier = Modifier.size(40.dp)
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
-                                        imageVector = if (isBlacklisted) Icons.Rounded.CheckCircle else Icons.Rounded.Block,
+                                        imageVector = if (isBlacklisted) Icons.Rounded.Block else Icons.Rounded.Tag,
                                         contentDescription = null,
-                                        tint = if (isBlacklisted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(18.dp)
+                                        tint = if (isBlacklisted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
                             }
-                            Text(
-                                text = if (isBlacklisted) Strings.removeFromBlacklist(lang) else Strings.addToBlacklist(lang),
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isBlacklisted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                            Column {
+                                Text(
+                                    text = "#$currentActionTag",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (isBlacklisted) {
+                                    Text(
+                                        text = Strings.tagBlacklistedStatus(lang),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                            }
+                        }
+                        IconButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    tagSheetState.hide()
+                                }.invokeOnCompletion {
+                                    selectedTagForAction = null
+                                }
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Close,
+                                contentDescription = "Close",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
                             )
+                        }
+                    }
+    
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bouncyPress()
+                                .clickable {
+                                    coroutineScope.launch {
+                                        tagSheetState.hide()
+                                    }.invokeOnCompletion {
+                                        selectedTagForAction = null
+                                        vm.searchTag(currentActionTag, currentMedia.sourceId.ifBlank { currentMedia.source })
+                                        onDismiss()
+                                        onNavigateToExplore?.invoke()
+                                    }
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Rounded.Search,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = Strings.searchPostsWithTag(lang),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+    
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bouncyPress()
+                                .clickable {
+                                    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                    cm.setPrimaryClip(ClipData.newPlainText("Tag", currentActionTag))
+                                    Toast.makeText(context, Strings.tagCopied(lang), Toast.LENGTH_SHORT).show()
+                                    coroutineScope.launch {
+                                        tagSheetState.hide()
+                                    }.invokeOnCompletion {
+                                        selectedTagForAction = null
+                                    }
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            Icons.Rounded.ContentCopy,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.secondary,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = Strings.copyTag(lang),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+    
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (isBlacklisted)
+                                MaterialTheme.colorScheme.surfaceContainerHighest
+                            else
+                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .bouncyPress()
+                                .clickable {
+                                    if (isBlacklisted) {
+                                        vm.removeBlacklistedTag(currentActionTag)
+                                        Toast.makeText(context, Strings.tagRemovedFromBlacklist(currentActionTag, lang), Toast.LENGTH_SHORT).show()
+                                        coroutineScope.launch {
+                                            tagSheetState.hide()
+                                        }.invokeOnCompletion {
+                                            selectedTagForAction = null
+                                        }
+                                    } else {
+                                        vm.addBlacklistedTag(currentActionTag)
+                                        Toast.makeText(context, Strings.tagAddedToBlacklist(currentActionTag, lang), Toast.LENGTH_SHORT).show()
+                                        coroutineScope.launch {
+                                            tagSheetState.hide()
+                                        }.invokeOnCompletion {
+                                            selectedTagForAction = null
+                                            onDismiss()
+                                        }
+                                    }
+                                }
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = if (isBlacklisted)
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    else
+                                        MaterialTheme.colorScheme.errorContainer,
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = if (isBlacklisted) Icons.Rounded.CheckCircle else Icons.Rounded.Block,
+                                            contentDescription = null,
+                                            tint = if (isBlacklisted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = if (isBlacklisted) Strings.removeFromBlacklist(lang) else Strings.addToBlacklist(lang),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (isBlacklisted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+                                )
+                            }
                         }
                     }
                 }

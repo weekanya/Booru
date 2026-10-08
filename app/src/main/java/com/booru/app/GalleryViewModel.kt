@@ -250,6 +250,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             prefs.imageQuality.collect { imageQuality = it }
         }
         viewModelScope.launch {
+            prefs.disabledSources.collect { disabledSources = it }
+        }
+        viewModelScope.launch {
             prefs.customSources.collect { sources ->
                 if (sources != customSources) {
                     customSources = sources
@@ -668,8 +671,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     ): List<String> {
         val blocked = blacklist.mapTo(HashSet()) { it.lowercase() }
         val tagWeights = mutableMapOf<String, Float>()
+        val docFreq = HashMap<String, Int>()
         for (fav in favorites) {
             val tags = if (fav.tagList.isNotEmpty()) fav.tagList else fav.tags.split(Regex("[\\s,]+"))
+            val seenInFav = HashSet<String>()
             for (rawTag in tags) {
                 val tag = rawTag.trim().lowercase().trim(',', ';', '.', '(', ')', '"', '\'')
                 if (!TagClassifier.isRecommendationCandidate(tag)) continue
@@ -683,6 +688,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     else -> 0.2f
                 }
                 tagWeights[tag] = (tagWeights[tag] ?: 0f) + (3f * multiplier)
+                if (seenInFav.add(tag)) docFreq[tag] = (docFreq[tag] ?: 0) + 1
+            }
+        }
+        if (favorites.size >= 8) {
+            for ((tag, df) in docFreq) {
+                val share = df.toFloat() / favorites.size
+                if (share > 0.4f) tagWeights[tag] = (tagWeights[tag] ?: 0f) * 0.3f
             }
         }
         for ((tag, count) in recorded) {
@@ -778,7 +790,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val contentTypes: Set<ContentType>,
         val blacklist: List<String>,
         val credentials: BooruCredentials,
-        val customSources: List<CustomBooruSource>
+        val customSources: List<CustomBooruSource>,
+        val disabledSourceKeys: Set<String>
     )
 
     private data class FeedBatch(
@@ -797,7 +810,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         contentTypes = selectedContentTypes,
         blacklist = tagBlacklist,
         credentials = getCredentials(),
-        customSources = customSources
+        customSources = customSources,
+        disabledSourceKeys = disabledSources
     )
 
     private val recTagPages = HashMap<String, Int>()
@@ -808,7 +822,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     private fun activeRecommendationTags(): List<String> {
         val blocked = tagBlacklist.map { it.lowercase() }.toHashSet()
-        return recommendationTags.filter { TagClassifier.isRecommendationCandidate(it) && it.lowercase() !in blocked }
+        return recommendationTags
+            .filter { TagClassifier.isRecommendationCandidate(it) && it.lowercase() !in blocked }
+            .take(REC_ACTIVE_POOL)
     }
 
     private suspend fun FeedParams.page(tags: String, page: Int, sort: SortOrder = sortOrder, limit: Int = BooruRepository.PAGE_SIZE, excludeSources: Set<String> = emptySet()): SearchPage =
@@ -824,7 +840,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             credentials = credentials,
             customSources = customSources,
             limit = limit,
-            excludeSources = excludeSources
+            excludeSources = excludeSources + disabledSourceKeys
         )
 
     private fun FeedParams.accepts(item: RemoteMedia): Boolean {
@@ -1476,6 +1492,27 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         authErrorCode = null
     }
 
+    var disabledSources by mutableStateOf<Set<String>>(emptySet()); private set
+
+    val toggleableSources: List<String>
+        get() = BooruRepository.AVAILABLE_SOURCES.filter { it in BUILT_IN_SOURCE_KEYS }
+
+    fun isSourceEnabled(source: String): Boolean =
+        BUILT_IN_SOURCE_KEYS[source]?.let { it !in disabledSources } ?: true
+
+    fun setSourceEnabled(source: String, enabled: Boolean) {
+        val key = BUILT_IN_SOURCE_KEYS[source] ?: return
+        val updated = if (enabled) disabledSources - key else disabledSources + key
+        if (updated.size >= BUILT_IN_SOURCE_KEYS.size) return
+        disabledSources = updated
+        viewModelScope.launch { prefs.setDisabledSources(updated) }
+        if (!enabled && this.source == source) {
+            selectSource(BooruRepository.SOURCE_ALL)
+        } else if (this.source == BooruRepository.SOURCE_ALL) {
+            needsFeedRefresh = true
+        }
+    }
+
     fun updateImageQuality(quality: ImageQuality) {
         imageQuality = quality
         viewModelScope.launch { prefs.setImageQuality(quality) }
@@ -1540,7 +1577,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     val availableSources: List<String>
-        get() = BooruRepository.AVAILABLE_SOURCES + customSources.filter { it.enabled }.map { it.id }
+        get() = BooruRepository.AVAILABLE_SOURCES.filter { isSourceEnabled(it) } + customSources.filter { it.enabled }.map { it.id }
 
     fun resolveMediaUrl(media: RemoteMedia): String = when (imageQuality) {
         ImageQuality.ORIGINAL -> media.url.ifBlank { media.sample.ifBlank { media.preview } }
@@ -1658,10 +1695,21 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         private const val TAG = "GalleryViewModel"
         private const val SUGGESTION_DEBOUNCE_MS = 220L
         private const val REC_TAGS_PER_PAGE = 4
+        private const val REC_ACTIVE_POOL = 24
         private const val REC_MAX_PER_TAG = 6
         private const val REC_TAG_PAGE_LIMIT = 15
         private const val FILTERED_TARGET_COUNT = 24
         private val REC_TAG_EXCLUDED_SOURCES = setOf("realbooru")
+        private val BUILT_IN_SOURCE_KEYS = mapOf(
+            BooruRepository.SOURCE_RULE34 to "rule34",
+            BooruRepository.SOURCE_GELBOORU to "gelbooru",
+            BooruRepository.SOURCE_REALBOORU to "realbooru",
+            BooruRepository.SOURCE_XBOORU to "xbooru",
+            BooruRepository.SOURCE_TBIB to "tbib",
+            BooruRepository.SOURCE_YANDE to "yande",
+            BooruRepository.SOURCE_KONACHAN to "konachan",
+            BooruRepository.SOURCE_SAFEBOORU to "safebooru"
+        )
 
         fun getRecommendationRatio(tagCount: Int): Float {
             return when (tagCount) {
