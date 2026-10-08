@@ -1,0 +1,15 @@
+name: Probe
+on:
+  push:
+    branches: [claude/mobile-vibcode-repo-16u3vc]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          for a in androidx/compose/material3/material3 androidx/compose/compose-bom com/android/tools/build/gradle; do
+            echo "== $a"
+            curl -s "https://dl.google.com/android/maven2/$a/maven-metadata.xml" | grep -o '<version>[^<]*</version>' | tail -12
+          done
+          echo "== kotlin"
+          curl -s "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugin/maven-metadata.xml" | grep -o '<version>[^<]*</version>' | tail -8
