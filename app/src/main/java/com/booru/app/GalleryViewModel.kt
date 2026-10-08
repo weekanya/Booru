@@ -800,6 +800,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         customSources = customSources
     )
 
+    private val recTagPages = HashMap<String, Int>()
+
+    private fun advanceRecTagPages(tags: List<String>) {
+        for (tag in tags) recTagPages[tag] = (recTagPages[tag] ?: 0) + 1
+    }
+
     private fun activeRecommendationTags(): List<String> {
         val blocked = tagBlacklist.map { it.lowercase() }.toHashSet()
         return recommendationTags.filter { TagClassifier.isRecommendationCandidate(it) && it.lowercase() !in blocked }
@@ -829,14 +835,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             (contentTypes.contains(ContentType.GIFS) && item.isGif)
     }
 
-    private suspend fun FeedParams.recommendationPage(page: Int, recTags: List<String>, existingKeys: Set<String>): Pair<List<RemoteMedia>, Boolean> = coroutineScope {
+    private suspend fun FeedParams.recommendationPage(page: Int, recTags: List<String>, tagPages: Map<String, Int>, existingKeys: Set<String>): Pair<List<RemoteMedia>, Boolean> = coroutineScope {
         val general = async {
             runCatching { page(tags = "", page = page, sort = if (sortOrder == SortOrder.RANDOM) SortOrder.RANDOM else SortOrder.NEWEST) }
         }
         val tagged = recTags.map { recTag ->
             async {
                 runCatching {
-                    page(tags = recTag, page = page, limit = REC_TAG_PAGE_LIMIT, excludeSources = REC_TAG_EXCLUDED_SOURCES)
+                    page(tags = recTag, page = tagPages[recTag] ?: 0, limit = REC_TAG_PAGE_LIMIT, excludeSources = REC_TAG_EXCLUDED_SOURCES)
                 }
             }
         }
@@ -845,7 +851,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         if (generalResult.isFailure && taggedResults.none { it.isSuccess }) {
             throw generalResult.exceptionOrNull() ?: BooruException("Failed to load data")
         }
-        val hideVideos = !contentTypes.contains(ContentType.VIDEOS)
+        val hideVideos = contentTypes.isNotEmpty() && !contentTypes.contains(ContentType.VIDEOS)
         val genList = generalResult.getOrNull()?.items.orEmpty().let { list -> if (hideVideos) list.filterNot { it.isVideo } else list }
         val tagLists = taggedResults.map { r -> r.getOrNull()?.items.orEmpty().let { list -> if (hideVideos) list.filterNot { it.isVideo } else list } }
         val blended = withContext(Dispatchers.Default) {
@@ -855,9 +861,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         blended to hasMore
     }
 
-    private suspend fun FeedParams.fetchFeed(startPage: Int, existingKeys: Set<String>, recTags: List<String>?): FeedBatch {
+    private suspend fun FeedParams.fetchFeed(startPage: Int, existingKeys: Set<String>, recTags: List<String>?, tagPages: Map<String, Int> = emptyMap()): FeedBatch {
         val (firstItems, firstHasMore) = if (recTags != null) {
-            recommendationPage(startPage, recTags, existingKeys)
+            recommendationPage(startPage, recTags, tagPages, existingKeys)
         } else {
             val result = page(tags = tags, page = startPage)
             result.items to (result.rawCount > 0)
@@ -924,6 +930,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         isPullRefresh: Boolean = false
     ) {
         val searchGen = ++currentSearchGeneration
+        recTagPages.clear()
         searchJob?.cancel()
         loadMoreJob?.cancel()
         loadMoreToken++
@@ -989,6 +996,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     batch = params.fetchFeed(0, emptySet(), null)
                 }
                 if (searchGen != currentSearchGeneration) return@launch
+                advanceRecTagPages(recTags)
                 currentPage = batch.lastPage
                 results = batch.items
                 hasMore = batch.hasMore
@@ -1019,18 +1027,20 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             if (active.size <= REC_TAGS_PER_PAGE) {
                 active
             } else {
-                val startIndex = (targetPage * 3) % active.size
-                (0 until 3).map { offset -> active[(startIndex + offset) % active.size] }
+                val startIndex = (targetPage * REC_TAGS_PER_PAGE) % active.size
+                (0 until REC_TAGS_PER_PAGE).map { offset -> active[(startIndex + offset) % active.size] }
             }
         } else emptyList()
         val existingKeys = results.mapTo(HashSet()) { it.mediaKey }
+        val tagPages = recTags.associateWith { recTagPages[it] ?: 0 }
 
         loadMoreJob?.cancel()
         loadingMore = true
         loadMoreJob = viewModelScope.launch {
             try {
-                val batch = params.fetchFeed(targetPage, existingKeys, recTags.ifEmpty { null })
+                val batch = params.fetchFeed(targetPage, existingKeys, recTags.ifEmpty { null }, tagPages)
                 if (searchGen != currentSearchGeneration) return@launch
+                advanceRecTagPages(recTags)
                 currentPage = batch.lastPage
                 if (batch.items.isNotEmpty()) {
                     emptyLoadMoreStreak = 0

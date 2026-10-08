@@ -2256,11 +2256,20 @@ private fun FilterSelectionBottomSheet(
                                             }
                                         }
                                         Spacer(Modifier.height(8.dp))
+                                        var draggingRatio by remember { mutableStateOf(false) }
+                                        val shownRatio by animateFloatAsState(
+                                            targetValue = tempRecRatio,
+                                            animationSpec = if (draggingRatio) snap() else spring(dampingRatio = 0.86f, stiffness = Spring.StiffnessMediumLow),
+                                            label = "recRatio"
+                                        )
                                         Slider(
-                                            value = tempRecRatio,
-                                            onValueChange = { tempRecRatio = it },
+                                            value = shownRatio,
+                                            onValueChange = {
+                                                draggingRatio = true
+                                                tempRecRatio = it
+                                            },
+                                            onValueChangeFinished = { draggingRatio = false },
                                             valueRange = 0f..1f,
-                                            steps = 3,
                                             modifier = Modifier.fillMaxWidth()
                                         )
                                     }
