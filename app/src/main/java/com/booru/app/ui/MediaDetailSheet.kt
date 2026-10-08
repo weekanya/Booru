@@ -364,7 +364,7 @@ fun MediaDetailSheet(
                         }
                     }
     
-                    AnimatedVisibility(
+                    androidx.compose.animation.AnimatedVisibility(
                         visible = !isCurrentPageZoomed,
                         enter = fadeIn(tween(180)) + scaleIn(tween(200), initialScale = 0.8f),
                         exit = fadeOut(tween(140)) + scaleOut(tween(160), targetScale = 0.8f),
