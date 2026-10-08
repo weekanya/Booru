@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Booru — Gallery client for Android</title>
+<meta name="description" content="Booru is a fast, private gallery client for Android that brings booru sources into one calm Material 3 Expressive feed.">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#FDF7FF">
+<link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto+Flex:opsz,wdth,wght@8..144,25..151,300..900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0..1,0&display=swap" rel="stylesheet">
+<script>
+(function () {
+  try {
+    var t = localStorage.getItem("booru-theme");
+    if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+  } catch (e) {}
+})();
+</script>
+<style>
+:root {
+  --md-sys-color-primary: #65558F;
+  --md-sys-color-on-primary: #FFFFFF;
+  --md-sys-color-primary-container: #E9DDFF;
+  --md-sys-color-on-primary-container: #21005D;
+  --md-sys-color-secondary: #625B71;
+  --md-sys-color-on-secondary: #FFFFFF;
+  --md-sys-color-secondary-container: #E8DEF8;
+  --md-sys-color-on-secondary-container: #1E192B;
+  --md-sys-color-tertiary: #7E5260;
+  --md-sys-color-on-tertiary: #FFFFFF;
+  --md-sys-color-tertiary-container: #FFD8E4;
+  --md-sys-color-on-tertiary-container: #31101D;
+  --md-sys-color-surface: #FDF7FF;
+  --md-sys-color-surface-container-lowest: #FFFFFF;
+  --md-sys-color-surface-container-low: #F7F2FA;
+  --md-sys-color-surface-container: #F2ECF4;
+  --md-sys-color-surface-container-high: #ECE6EE;
+  --md-sys-color-surface-container-highest: #E6E0E9;
+  --md-sys-color-on-surface: #1D1B20;
+  --md-sys-color-on-surface-variant: #49454F;
+  --md-sys-color-outline: #7A757F;
+  --md-sys-color-outline-variant: #CAC4CF;
+  --md-sys-color-inverse-surface: #322F35;
+  --md-sys-color-inverse-on-surface: #F5EFF7;
+
+  --md-ref-typeface: "Roboto Flex", Roboto, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --md-sys-typescale-display-large: 500 clamp(40px, 6vw, 72px) / 1.02 var(--md-ref-typeface);
+  --md-sys-typescale-display-small: 500 clamp(32px, 4vw, 44px) / 1.1 var(--md-ref-typeface);
+  --md-sys-typescale-headline-small: 500 24px / 32px var(--md-ref-typeface);
+  --md-sys-typescale-title-large: 500 22px / 28px var(--md-ref-typeface);
+  --md-sys-typescale-title-medium: 600 16px / 24px var(--md-ref-typeface);
+  --md-sys-typescale-body-large: 400 16px / 24px var(--md-ref-typeface);
+  --md-sys-typescale-body-medium: 400 14px / 20px var(--md-ref-typeface);
+  --md-sys-typescale-label-large: 600 14px / 20px var(--md-ref-typeface);
+  --md-sys-typescale-label-medium: 600 12px / 16px var(--md-ref-typeface);
+
+  --md-sys-shape-corner-extra-small: 4px;
+  --md-sys-shape-corner-small: 8px;
+  --md-sys-shape-corner-medium: 12px;
+  --md-sys-shape-corner-large: 16px;
+  --md-sys-shape-corner-large-increased: 20px;
+  --md-sys-shape-corner-extra-large: 28px;
+  --md-sys-shape-corner-extra-large-increased: 32px;
+  --md-sys-shape-corner-extra-extra-large: 48px;
+  --md-sys-shape-corner-full: 9999px;
+
+  --md-sys-state-hover: 8%;
+  --md-sys-state-pressed: 12%;
+
+  --spring-fast: 380ms linear(0, 0.019 1.8%, 0.084 4%, 0.415 11.6%, 0.718 19%, 0.912 26.4%, 1.026 33.9%, 1.075 40.4%, 1.087 45.7%, 1.077 52.1%, 1.018 69.2%, 0.999 79.7%, 1);
+  --spring-default: 560ms linear(0, 0.006, 0.025 2.8%, 0.101 6.1%, 0.539 18.9%, 0.721 25.3%, 0.849 31.5%, 0.937 38.1%, 0.968 41.8%, 0.991 45.7%, 1.006 50.1%, 1.015 55%, 1.017 63.9%, 1.001 85.9%, 1);
+  --effects: 200ms cubic-bezier(.2, 0, 0, 1);
+  --emph-decel: cubic-bezier(.05, .7, .1, 1);
+  --emph-accel: cubic-bezier(.3, 0, .8, .15);
+
+  --rail-w: 96px;
+  --card: var(--md-sys-color-surface-container-low);
+  --card-hover: var(--md-sys-color-surface-container);
+  --item: var(--md-sys-color-surface-container);
+  --appbar-h: 64px;
+  --navbar-h: 72px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --md-sys-color-primary: #CFBDFE; --md-sys-color-on-primary: #36265D; --md-sys-color-primary-container: #4D3D75; --md-sys-color-on-primary-container: #E9DDFF;
+    --md-sys-color-secondary: #CBC2DB; --md-sys-color-on-secondary: #332D41; --md-sys-color-secondary-container: #4A4458; --md-sys-color-on-secondary-container: #E8DEF8;
+    --md-sys-color-tertiary: #EFB8C8; --md-sys-color-on-tertiary: #4A2532; --md-sys-color-tertiary-container: #633B48; --md-sys-color-on-tertiary-container: #FFD8E4;
+    --md-sys-color-surface: #141218; --md-sys-color-surface-container-lowest: #0F0D13; --md-sys-color-surface-container-low: #1D1B20; --md-sys-color-surface-container: #211F26;
+    --md-sys-color-surface-container-high: #2B2930; --md-sys-color-surface-container-highest: #36343B;
+    --md-sys-color-on-surface: #E6E0E9; --md-sys-color-on-surface-variant: #CAC4CF; --md-sys-color-outline: #948F99; --md-sys-color-outline-variant: #49454E;
+    --md-sys-color-inverse-surface: #E6E0E9; --md-sys-color-inverse-on-surface: #322F35;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --md-sys-color-primary: #CFBDFE; --md-sys-color-on-primary: #36265D; --md-sys-color-primary-container: #4D3D75; --md-sys-color-on-primary-container: #E9DDFF;
+  --md-sys-color-secondary: #CBC2DB; --md-sys-color-on-secondary: #332D41; --md-sys-color-secondary-container: #4A4458; --md-sys-color-on-secondary-container: #E8DEF8;
+  --md-sys-color-tertiary: #EFB8C8; --md-sys-color-on-tertiary: #4A2532; --md-sys-color-tertiary-container: #633B48; --md-sys-color-on-tertiary-container: #FFD8E4;
+  --md-sys-color-surface: #141218; --md-sys-color-surface-container-lowest: #0F0D13; --md-sys-color-surface-container-low: #1D1B20; --md-sys-color-surface-container: #211F26;
+  --md-sys-color-surface-container-high: #2B2930; --md-sys-color-surface-container-highest: #36343B;
+  --md-sys-color-on-surface: #E6E0E9; --md-sys-color-on-surface-variant: #CAC4CF; --md-sys-color-outline: #948F99; --md-sys-color-outline-variant: #49454E;
+  --md-sys-color-inverse-surface: #E6E0E9; --md-sys-color-inverse-on-surface: #322F35;
+}
+@media (prefers-contrast: more) {
+  :root { --md-sys-color-on-surface-variant: var(--md-sys-color-on-surface); --md-sys-color-outline-variant: var(--md-sys-color-outline); }
+}
+@supports not (transition-timing-function: linear(0, 1)) {
+  :root { --spring-fast: 380ms cubic-bezier(.34, 1.3, .64, 1); --spring-default: 560ms cubic-bezier(.22, 1, .36, 1); }
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; overflow: hidden;
+  background: var(--md-sys-color-surface); color: var(--md-sys-color-on-surface);
+  font: var(--md-sys-typescale-body-large);
+  -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%;
+}
+img { display: block; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; }
+h1, h2, h3, p { margin: 0; }
+code { font-family: ui-monospace, "Roboto Mono", monospace; font-size: .92em; padding: 1px 6px; border-radius: var(--md-sys-shape-corner-extra-small); background: var(--md-sys-color-surface-container-highest); }
+::selection { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
+:focus-visible { outline: 3px solid var(--md-sys-color-secondary); outline-offset: 2px; }
+:focus:not(:focus-visible) { outline: none; }
+
+.ms {
+  font-family: "Material Symbols Rounded"; font-size: 24px; line-height: 1; font-weight: normal; font-style: normal;
+  display: inline-block; white-space: nowrap; letter-spacing: normal; text-transform: none; flex: none;
+  font-feature-settings: "liga"; -webkit-font-feature-settings: "liga";
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; user-select: none;
+}
+.ms.fill { font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24; }
+.muted { color: var(--md-sys-color-on-surface-variant); }
+
+.state {
+  --bg: transparent; --fg: var(--md-sys-color-on-surface-variant);
+  background-color: var(--bg); color: var(--fg); -webkit-tap-highlight-color: transparent;
+}
+@media (hover: hover) { .state:not(:disabled):hover { background-color: color-mix(in srgb, var(--fg) var(--md-sys-state-hover), var(--bg)); } }
+.state:not(:disabled):active { background-color: color-mix(in srgb, var(--fg) var(--md-sys-state-pressed), var(--bg)); }
+
+.icon-btn {
+  --h: 48px; width: var(--h); height: var(--h); border: 0; padding: 0; cursor: pointer;
+  display: grid; place-items: center; border-radius: calc(var(--h) / 2);
+  transition: border-radius var(--spring-fast), background-color var(--effects);
+}
+.icon-btn.tonal { --bg: var(--md-sys-color-secondary-container); --fg: var(--md-sys-color-on-secondary-container); }
+.icon-btn:not(:disabled):active { border-radius: var(--md-sys-shape-corner-large); }
+.icon-btn:disabled { --bg: color-mix(in srgb, var(--md-sys-color-on-surface) 10%, transparent); --fg: color-mix(in srgb, var(--md-sys-color-on-surface) 38%, transparent); cursor: default; }
+
+.btn {
+  --bg: var(--md-sys-color-primary); --fg: var(--md-sys-color-on-primary);
+  --h: 56px; height: var(--h); padding: 0 24px; border: 0; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font: var(--md-sys-typescale-title-medium); letter-spacing: .15px; white-space: nowrap;
+  border-radius: calc(var(--h) / 2);
+  transition: border-radius var(--spring-fast), background-color var(--effects);
+}
+.btn:active { border-radius: var(--md-sys-shape-corner-large); }
+.btn.tonal { --bg: var(--md-sys-color-secondary-container); --fg: var(--md-sys-color-on-secondary-container); }
+.btn.outlined { --bg: transparent; --fg: var(--md-sys-color-primary); box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant); }
+
+.rail {
+  position: fixed; inset: 0 auto 0 0; width: var(--rail-w); z-index: 20;
+  display: none; flex-direction: column; align-items: center; gap: 12px;
+  padding: 24px 0 24px; background: var(--md-sys-color-surface);
+}
+.rail-mark { width: 48px; height: 48px; border-radius: var(--md-sys-shape-corner-large); overflow: hidden; margin-bottom: 28px; transition: border-radius var(--spring-fast); }
+.rail-mark:active { border-radius: 24px; }
+.rail-items { display: flex; flex-direction: column; gap: 12px; }
+.rail .theme { margin-top: auto; }
+
+.dest {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; width: 80px; padding: 0;
+  color: var(--md-sys-color-on-surface-variant); font: var(--md-sys-typescale-label-medium); letter-spacing: .5px;
+  -webkit-tap-highlight-color: transparent;
+}
+.dest .ind {
+  width: 56px; height: 32px; display: grid; place-items: center; border-radius: 16px;
+  transition: background-color var(--effects), width var(--spring-fast);
+}
+@media (hover: hover) { .dest:hover .ind { background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent); } }
+.dest[aria-current="page"] { color: var(--md-sys-color-on-surface); }
+.dest[aria-current="page"] .ind { background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); }
+.dest[aria-current="page"] .ms { font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24; }
+.dest:focus-visible { outline: none; }
+.dest:focus-visible .ind { outline: 3px solid var(--md-sys-color-secondary); outline-offset: 2px; }
+
+.appbar {
+  position: fixed; inset: 0 0 auto 0; z-index: 20;
+  height: calc(var(--appbar-h) + env(safe-area-inset-top, 0px)); padding: env(safe-area-inset-top, 0px) 8px 0 16px;
+  display: flex; align-items: center; gap: 12px;
+  background: color-mix(in srgb, var(--md-sys-color-surface) 88%, transparent);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  font: var(--md-sys-typescale-title-large);
+}
+.appbar img { width: 36px; height: 36px; border-radius: var(--md-sys-shape-corner-medium); }
+.appbar .theme { margin-left: auto; }
+
+.navbar {
+  position: fixed; left: 16px; right: 16px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 20;
+  height: var(--navbar-h); max-width: 480px; margin-inline: auto; padding: 0 8px;
+  display: flex; align-items: center; justify-content: space-around;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-surface-container-high);
+}
+.navbar .dest { width: auto; flex: 1; }
+.navbar .dest .ind { width: 56px; }
+.navbar .dest[aria-current="page"] .ind { width: 64px; }
+
+.pages { position: fixed; inset: 0; }
+.page {
+  position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain;
+  padding: calc(var(--appbar-h) + env(safe-area-inset-top, 0px) + 8px) 16px calc(var(--navbar-h) + 40px + env(safe-area-inset-bottom, 0px));
+  scrollbar-width: thin;
+}
+.page[hidden] { display: none; }
+.page.enter { animation: page-in 420ms var(--emph-decel) both; }
+.page.leave { animation: page-out 110ms var(--emph-accel) both; }
+@keyframes page-in { from { opacity: 0; transform: translateY(16px) scale(.985); } }
+@keyframes page-out { to { opacity: 0; transform: scale(.99); } }
+.inner { width: 100%; max-width: 1080px; min-height: 100%; margin-inline: auto; display: flex; flex-direction: column; justify-content: center; gap: 32px; }
+.page-head .over { display: block; margin-bottom: 8px; color: var(--md-sys-color-primary); font: var(--md-sys-typescale-label-large); letter-spacing: .1px; }
+.page-head h2 { font: var(--md-sys-typescale-display-small); letter-spacing: -0.02em; }
+.page-head p { margin-top: 12px; max-width: 36em; }
+em { font-style: normal; color: var(--md-sys-color-primary); font-weight: 700; font-variation-settings: "wdth" 112; }
+
+.hero { display: grid; grid-template-columns: 1fr; gap: 32px; align-items: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.chip {
+  height: 32px; padding: 0 12px; display: inline-flex; align-items: center; gap: 6px;
+  border-radius: var(--md-sys-shape-corner-small);
+  box-shadow: inset 0 0 0 1px var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface-variant); font: var(--md-sys-typescale-label-large);
+}
+.chip .ms { font-size: 18px; color: var(--md-sys-color-primary); }
+.chip.accent { box-shadow: none; background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); }
+.chip.accent .ms { color: inherit; }
+.hero h1 { font: var(--md-sys-typescale-display-large); letter-spacing: -0.035em; font-variation-settings: "opsz" 144; }
+.hero h1 em { font-weight: 750; }
+.lede { margin: 20px 0 32px; max-width: 30em; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.visual { --ph: min(44dvh, 420px); position: relative; height: var(--ph); display: grid; place-items: center; }
+.blob { position: absolute; width: calc(var(--ph) * .92); aspect-ratio: 1; color: var(--md-sys-color-primary-container); animation: spin 90s linear infinite; }
+.blob svg { width: 100%; height: 100%; display: block; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.phone {
+  position: relative; aspect-ratio: 1224 / 2580; padding: 4px;
+  border-radius: 30px; background: linear-gradient(150deg, #3A393F, #141316 55%, #2A292E);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--md-sys-color-outline) 35%, transparent), 0 24px 48px -20px color-mix(in srgb, #000 55%, transparent);
+}
+.phone::after {
+  content: ""; position: absolute; top: 9px; left: 50%; width: 9px; height: 9px; margin-left: -4.5px; border-radius: 50%;
+  background: #08080A; box-shadow: 0 0 0 1.5px #1E1D22; z-index: 1;
+}
+.phone img { width: 100%; height: 100%; object-fit: cover; object-position: top; border-radius: 26px; background: #0F0F10; }
+.visual .phone.front { height: var(--ph); }
+.visual .phone.back { position: absolute; height: calc(var(--ph) * .86); transform: translateX(-46%) rotate(-7deg); opacity: .92; display: none; }
+.visual .phone.front { z-index: 1; animation: float 7s ease-in-out infinite alternate; }
+@keyframes float { from { transform: translateY(-6px); } to { transform: translateY(6px); } }
+
+.connected { display: inline-flex; gap: 2px; max-width: 100%; overflow-x: auto; scrollbar-width: none; padding: 3px; margin: -3px; }
+.connected::-webkit-scrollbar { display: none; }
+.seg {
+  --bg: var(--md-sys-color-surface-container-high); --fg: var(--md-sys-color-on-surface-variant);
+  --h: 44px; height: var(--h); padding: 0 18px; border: 0; cursor: pointer; flex: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  font: var(--md-sys-typescale-label-large); letter-spacing: .1px;
+  border-radius: var(--md-sys-shape-corner-small);
+  transition: border-radius var(--spring-fast), background-color var(--effects), color var(--effects);
+}
+.seg:first-child { border-radius: 22px 8px 8px 22px; }
+.seg:last-child { border-radius: 8px 22px 22px 8px; }
+.seg .ms { font-size: 18px; width: 0; margin-right: -6px; opacity: 0; overflow: hidden; transition: width var(--spring-fast), margin var(--spring-fast), opacity var(--effects); }
+.seg[aria-pressed="true"], .seg[aria-selected="true"] { --bg: var(--md-sys-color-primary); --fg: var(--md-sys-color-on-primary); border-radius: 22px; }
+.seg[aria-pressed="true"] .ms, .seg[aria-selected="true"] .ms { width: 18px; margin-right: 0; opacity: 1; }
+.seg:active { border-radius: var(--md-sys-shape-corner-medium); }
+
+.features-top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 20px; }
+.cards { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.card {
+  position: relative; display: flex; gap: 16px; align-items: flex-start; padding: 20px;
+  border-radius: var(--md-sys-shape-corner-extra-large);
+  background: var(--card);
+  transition: background-color var(--effects), border-radius var(--spring-default);
+}
+@media (hover: hover) { .card:hover { background: var(--card-hover); border-radius: var(--md-sys-shape-corner-extra-extra-large); } }
+.card .ic {
+  width: 48px; height: 48px; flex: none; display: grid; place-items: center;
+  border-radius: var(--md-sys-shape-corner-large);
+  background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container);
+}
+.card.is-new .ic { background: var(--md-sys-color-tertiary-container); color: var(--md-sys-color-on-tertiary-container); }
+.card h3 { font: var(--md-sys-typescale-title-medium); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card p { margin-top: 4px; font: var(--md-sys-typescale-body-medium); color: var(--md-sys-color-on-surface-variant); }
+.new-badge {
+  height: 20px; padding: 0 8px; display: inline-flex; align-items: center; border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-tertiary); color: var(--md-sys-color-on-tertiary); font: var(--md-sys-typescale-label-medium);
+}
+.card[hidden] { display: none; }
+.cards { transition: opacity 160ms cubic-bezier(.2, 0, 0, 1), transform 360ms var(--emph-decel); }
+.cards.swap { opacity: 0; transform: translateY(10px); transition-duration: 140ms; }
+
+.screens { display: grid; grid-template-columns: 1fr; justify-items: center; gap: 24px; }
+.viewer { display: flex; align-items: center; gap: 24px; }
+.viewer .phone { height: min(62dvh, 640px); overflow: hidden; touch-action: pan-y; user-select: none; }
+.viewer .phone img { transition: opacity 180ms cubic-bezier(.2, 0, 0, 1), transform var(--spring-default); }
+.viewer .phone img.out-left { opacity: 0; transform: translateX(-24px) scale(.98); }
+.viewer .phone img.out-right { opacity: 0; transform: translateX(24px) scale(.98); }
+.viewer .side { display: none; }
+.screen-caption { text-align: center; max-width: 28em; }
+.screen-caption h3 { font: var(--md-sys-typescale-title-large); }
+.screen-caption p { margin-top: 4px; }
+.pager { display: flex; align-items: center; gap: 16px; }
+.dots { display: flex; gap: 8px; }
+.dots span { width: 8px; height: 8px; border-radius: 4px; background: var(--md-sys-color-outline-variant); transition: width var(--spring-fast), background-color var(--effects); }
+.dots span.on { width: 24px; background: var(--md-sys-color-primary); }
+
+.dl { display: grid; grid-template-columns: 1fr; gap: 12px; }
+.panel { border-radius: var(--md-sys-shape-corner-extra-large); background: var(--card); padding: 24px; }
+.panel.main { background: var(--md-sys-color-primary-container); color: var(--md-sys-color-on-primary-container); padding: clamp(24px, 4vw, 40px); display: flex; flex-direction: column; gap: 20px; }
+.panel.main .top { display: flex; align-items: center; gap: 16px; }
+.panel.main .top img { width: 64px; height: 64px; border-radius: var(--md-sys-shape-corner-large-increased); }
+.panel.main h2 { font: var(--md-sys-typescale-display-small); letter-spacing: -0.02em; }
+.panel.main .ver { font: var(--md-sys-typescale-label-large); opacity: .8; }
+.panel.main .btn.outlined { --fg: var(--md-sys-color-on-primary-container); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--md-sys-color-on-primary-container) 40%, transparent); }
+.specs { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+.specs li { display: flex; gap: 10px; align-items: center; font: var(--md-sys-typescale-body-medium); font-weight: 500; }
+.specs .ms { font-size: 20px; }
+.panel h3 { font: var(--md-sys-typescale-title-medium); margin-bottom: 12px; }
+.sources { display: flex; flex-wrap: wrap; gap: 8px; }
+.sources .chip { background: var(--item); box-shadow: none; color: var(--md-sys-color-on-surface); }
+.sources .chip small { font: var(--md-sys-typescale-label-medium); color: var(--md-sys-color-on-tertiary-container); background: var(--md-sys-color-tertiary-container); padding: 1px 6px; border-radius: var(--md-sys-shape-corner-full); }
+.side-col { display: flex; flex-direction: column; gap: 12px; }
+.faq { display: flex; flex-direction: column; gap: 2px; }
+.qa { background: var(--card); border-radius: var(--md-sys-shape-corner-extra-small); transition: border-radius var(--spring-fast), background-color var(--effects); }
+.qa:first-child { border-top-left-radius: var(--md-sys-shape-corner-large-increased); border-top-right-radius: var(--md-sys-shape-corner-large-increased); }
+.qa:last-child { border-bottom-left-radius: var(--md-sys-shape-corner-large-increased); border-bottom-right-radius: var(--md-sys-shape-corner-large-increased); }
+.qa.open { border-radius: var(--md-sys-shape-corner-large-increased); background: var(--card-hover); }
+.q {
+  --fg: var(--md-sys-color-on-surface);
+  width: 100%; min-height: 56px; padding: 8px 8px 8px 20px; border: 0; cursor: pointer; text-align: left;
+  display: flex; align-items: center; gap: 12px; border-radius: inherit;
+  font: var(--md-sys-typescale-title-medium); font-size: 15px;
+}
+.q .ms { margin-left: auto; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 20px; transition: transform var(--spring-default), background-color var(--effects), color var(--effects); }
+.qa.open .q .ms { transform: rotate(45deg); background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); }
+.a { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 420ms cubic-bezier(.2, 0, 0, 1); }
+.a > div { min-height: 0; overflow: hidden; opacity: 0; transition: opacity 200ms cubic-bezier(.2, 0, 0, 1); }
+.a > div > p { padding: 0 20px 20px; font: var(--md-sys-typescale-body-medium); color: var(--md-sys-color-on-surface-variant); }
+.qa.open .a { grid-template-rows: 1fr; }
+.qa.open .a > div { opacity: 1; transition-delay: 80ms; }
+.fine { display: flex; gap: 10px; align-items: flex-start; font: var(--md-sys-typescale-body-medium); color: var(--md-sys-color-on-surface-variant); }
+.fine .ms { font-size: 20px; }
+
+@media (min-width: 600px) {
+  :root { --card: var(--md-sys-color-surface-container); --card-hover: var(--md-sys-color-surface-container-high); --item: var(--md-sys-color-surface-container-high); }
+  .visual { --ph: min(56dvh, 520px); }
+  .appbar, .navbar { display: none; }
+  .rail { display: flex; }
+  .pages {
+    left: var(--rail-w); top: 12px; right: 12px; bottom: 12px;
+    border-radius: var(--md-sys-shape-corner-extra-large-increased);
+    background: var(--md-sys-color-surface-container-low); overflow: hidden;
+  }
+  .page { padding: 40px; }
+  .cards { grid-template-columns: 1fr 1fr; }
+  .viewer .side { display: grid; }
+  .pager .icon-btn { display: none; }
+  .visual .phone.back { display: block; }
+}
+@media (min-width: 1040px) {
+  .hero { grid-template-columns: 1.1fr .9fr; gap: 48px; }
+  .visual { --ph: min(72dvh, 620px); }
+  .cards { grid-template-columns: repeat(3, 1fr); }
+  .dl { grid-template-columns: 1fr 1fr; align-items: start; }
+}
+@media (max-width: 599px) {
+  .actions .btn { flex: 1 1 auto; }
+  .viewer .phone { height: min(50dvh, 520px); }
+  .screens { gap: 16px; }
+  .cards { grid-template-columns: 1fr 1fr; }
+  .card { flex-direction: column; gap: 12px; padding: 16px; border-radius: var(--md-sys-shape-corner-large-increased); }
+  .card .ic { width: 40px; height: 40px; border-radius: var(--md-sys-shape-corner-medium); }
+  .card .ic .ms { font-size: 20px; }
+  .card h3 { font-size: 15px; line-height: 20px; }
+  .card p { font-size: 13px; line-height: 18px; }
+  .features-top { gap: 16px; }
+  .page-head h2 { font-size: 30px; }
+}
+.theming, .theming *, .theming *::before, .theming *::after {
+  transition: background-color 360ms cubic-bezier(.2, 0, 0, 1), color 360ms cubic-bezier(.2, 0, 0, 1), border-color 360ms cubic-bezier(.2, 0, 0, 1), box-shadow 360ms cubic-bezier(.2, 0, 0, 1), fill 360ms cubic-bezier(.2, 0, 0, 1) !important;
+}
+.theme .ms { transition: transform var(--spring-default), opacity 150ms; }
+.theme.spin .ms { transform: rotate(-90deg) scale(.6); opacity: 0; transition: transform 150ms var(--emph-accel), opacity 150ms; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition-duration: 1ms !important; }
+}
+</style>
+</head>
+<body>
+
+<nav class="rail" aria-label="Main">
+  <a class="rail-mark" href="#home" aria-label="Booru home"><img src="assets/icon.svg" alt="" width="48" height="48"></a>
+  <div class="rail-items">
+    <a class="dest" href="#home" data-to="home"><span class="ind"><span class="ms">home</span></span>Home</a>
+    <a class="dest" href="#features" data-to="features"><span class="ind"><span class="ms">auto_awesome</span></span>Features</a>
+    <a class="dest" href="#screens" data-to="screens"><span class="ind"><span class="ms">smartphone</span></span>Screens</a>
+    <a class="dest" href="#download" data-to="download"><span class="ind"><span class="ms">download</span></span>Download</a>
+  </div>
+  <button class="icon-btn state theme" aria-label="Switch to dark theme"><span class="ms">dark_mode</span></button>
+</nav>
+
+<header class="appbar">
+  <img src="assets/icon.svg" alt="" width="36" height="36">
+  <span>Booru</span>
+  <button class="icon-btn state theme" aria-label="Switch to dark theme"><span class="ms">dark_mode</span></button>
+</header>
+
+<main class="pages">
+  <section class="page" data-page="home" aria-label="Home">
+    <div class="inner">
+      <div class="hero">
+        <div>
+          <div class="chips">
+            <span class="chip accent"><span class="ms">new_releases</span>Version 6.0</span>
+            <span class="chip"><span class="ms">android</span>Android 12+</span>
+            <span class="chip"><span class="ms">lock_open</span>Open source</span>
+          </div>
+          <h1>Every booru,<br><em>one calm feed.</em></h1>
+          <p class="lede muted">Seven sources and your own boorus in one fast gallery. Recommendations from what you love, offline favorites in folders, and nothing tracking you.</p>
+          <div class="actions">
+            <a class="btn state" href="https://github.com/weekanya/Booru/releases/latest" target="_blank" rel="noopener" data-apk><span class="ms">download</span><span data-apk-label>Download APK</span></a>
+            <a class="btn tonal state" href="#features">See features<span class="ms">arrow_forward</span></a>
+          </div>
+        </div>
+        <div class="visual" aria-hidden="true">
+          <div class="blob"><svg viewBox="0 0 200 200"><path fill="currentColor" d="M100 4c11 0 17 13 27 16s24-3 31 6 2 22 7 31 19 13 19 25-13 16-17 25 2 23-6 31-21 4-30 8-15 18-26 18-17-13-27-17-23 1-30-7-2-22-7-31-18-13-18-25 13-16 17-25-1-23 7-31 22-3 31-7 14-18 25-18Z"/></svg></div>
+          <div class="phone back"><img src="screenshots/2.png" alt=""></div>
+          <div class="phone front"><img src="screenshots/1.png" alt=""></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" data-page="features" aria-label="Features" hidden>
+    <div class="inner">
+      <div class="features-top">
+        <div class="page-head">
+          <span class="over">Features</span>
+          <h2>Quietly <em>powerful.</em></h2>
+        </div>
+        <div class="connected" role="group" aria-label="Show features">
+          <button class="seg state" aria-pressed="true" data-filter="all"><span class="ms">check</span>All</button>
+          <button class="seg state" aria-pressed="false" data-filter="new"><span class="ms">check</span>New in 6.0</button>
+        </div>
+      </div>
+      <div class="cards" id="cards">
+        <div class="card is-new"><span class="ic"><span class="ms">folder_open</span></span><div><h3>Folders <span class="new-badge">New</span></h3><p>Sort favorites into folders and swipe between them. Everything stays available offline.</p></div></div>
+        <div class="card is-new"><span class="ic"><span class="ms">fast_forward</span></span><div><h3>Instant video seeking <span class="new-badge">New</span></h3><p>Videos load in parallel chunks into a 512 MB cache, so jumping ahead is immediate.</p></div></div>
+        <div class="card is-new"><span class="ic"><span class="ms">tune</span></span><div><h3>Your feed, your mix <span class="new-badge">New</span></h3><p>Choose how much of the feed is recommendations and turn sources on or off.</p></div></div>
+        <div class="card is-new"><span class="ic"><span class="ms">favorite</span></span><div><h3>Double-tap to like <span class="new-badge">New</span></h3><p>Like right from the grid and pinch to switch between one, two and three columns.</p></div></div>
+        <div class="card is-new"><span class="ic"><span class="ms">fingerprint</span></span><div><h3>App lock and incognito <span class="new-badge">New</span></h3><p>Biometric lock with a timeout, and a mode that pauses history and learning.</p></div></div>
+        <div class="card is-new"><span class="ic"><span class="ms">devices</span></span><div><h3>Tablets and foldables <span class="new-badge">New</span></h3><p>A navigation rail and an adaptive grid on larger screens.</p></div></div>
+        <div class="card"><span class="ic"><span class="ms">auto_awesome</span></span><div><h3>A feed that learns</h3><p>Recommendations built on the device from your favorites, mixed evenly across sources.</p></div></div>
+        <div class="card"><span class="ic"><span class="ms">search</span></span><div><h3>Smart tag search</h3><p>Suggestions with categories and post counts, negative tags and search history.</p></div></div>
+        <div class="card"><span class="ic"><span class="ms">filter_alt</span></span><div><h3>Filters and blacklist</h3><p>Photos, videos or GIFs, ratings, AI filter, sorting and a blacklist for every source.</p></div></div>
+        <div class="card"><span class="ic"><span class="ms">palette</span></span><div><h3>Material You</h3><p>Dynamic color, eight palettes, light, dark and AMOLED themes.</p></div></div>
+        <div class="card"><span class="ic"><span class="ms">shield_lock</span></span><div><h3>Private by design</h3><p>No accounts or analytics. API keys are encrypted and never leave the device.</p></div></div>
+        <div class="card"><span class="ic"><span class="ms">system_update</span></span><div><h3>Verified updates</h3><p>Updates come from GitHub Releases and are checked against the app signature.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" data-page="screens" aria-label="Screens" hidden>
+    <div class="inner">
+      <div class="screens">
+        <div class="connected" role="tablist" aria-label="Screens">
+          <button class="seg state" role="tab" aria-selected="true" data-shot="0"><span class="ms">check</span>Explore</button>
+          <button class="seg state" role="tab" aria-selected="false" data-shot="1" tabindex="-1"><span class="ms">check</span>Favorites</button>
+          <button class="seg state" role="tab" aria-selected="false" data-shot="2" tabindex="-1"><span class="ms">check</span>Settings</button>
+        </div>
+        <div class="viewer">
+          <button class="icon-btn tonal state side" data-step="-1" aria-label="Previous screen"><span class="ms">arrow_back</span></button>
+          <div class="phone" id="shotPhone"><img id="shotImg" src="screenshots/1.png" alt="Explore screen"></div>
+          <button class="icon-btn tonal state side" data-step="1" aria-label="Next screen"><span class="ms">arrow_forward</span></button>
+        </div>
+        <div class="screen-caption" aria-live="polite">
+          <h3 id="shotTitle">Explore</h3>
+          <p class="muted" id="shotText">One feed from every source, with search, filters and recommendations.</p>
+        </div>
+        <div class="pager">
+          <button class="icon-btn tonal state" data-step="-1" aria-label="Previous screen"><span class="ms">arrow_back</span></button>
+          <div class="dots" id="dots"><span class="on"></span><span></span><span></span></div>
+          <button class="icon-btn tonal state" data-step="1" aria-label="Next screen"><span class="ms">arrow_forward</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page" data-page="download" aria-label="Download" hidden>
+    <div class="inner">
+      <div class="dl">
+        <div class="panel main">
+          <div class="top">
+            <img src="assets/icon.svg" alt="" width="64" height="64">
+            <div><h2>Booru</h2><span class="ver" id="verLabel">Latest release</span></div>
+          </div>
+          <p>A signed APK from GitHub Releases. After the first install, updates arrive inside the app.</p>
+          <div class="actions">
+            <a class="btn state" href="https://github.com/weekanya/Booru/releases/latest" target="_blank" rel="noopener" data-apk><span class="ms">download</span><span data-apk-label>Download APK</span></a>
+            <a class="btn outlined state" href="https://github.com/weekanya/Booru" target="_blank" rel="noopener"><span class="ms">code</span>Source code</a>
+          </div>
+          <ul class="specs">
+            <li><span class="ms">android</span>Android 12+</li>
+            <li><span class="ms">verified_user</span>Signed updates</li>
+            <li><span class="ms">translate</span>6 languages</li>
+            <li><span class="ms">money_off</span>Free, no ads</li>
+          </ul>
+        </div>
+        <div class="side-col">
+          <div class="panel">
+            <h3>Sources</h3>
+            <div class="sources">
+              <span class="chip">Gelbooru <small>key</small></span>
+              <span class="chip">Rule34 <small>key</small></span>
+              <span class="chip">Realbooru</span>
+              <span class="chip">TBIB</span>
+              <span class="chip">Yande.re</span>
+              <span class="chip">Konachan</span>
+              <span class="chip">Safebooru</span>
+              <span class="chip"><span class="ms">add</span>Custom</span>
+            </div>
+          </div>
+          <div class="faq">
+            <div class="qa">
+              <button class="q state" id="q1" aria-expanded="false" aria-controls="a1">How do I install it?<span class="ms" aria-hidden="true">add</span></button>
+              <div class="a" id="a1" role="region" aria-labelledby="q1"><div><p>Download the APK and open it. Android asks once to allow installs from your browser or file manager.</p></div></div>
+            </div>
+            <div class="qa">
+              <button class="q state" id="q2" aria-expanded="false" aria-controls="a2">Why do some sources need a key?<span class="ms" aria-hidden="true">add</span></button>
+              <div class="a" id="a2" role="region" aria-labelledby="q2"><div><p>Rule34 and Gelbooru require an API key. Copy the User ID and key from your account options into Settings. Until then they are skipped in the combined feed.</p></div></div>
+            </div>
+            <div class="qa">
+              <button class="q state" id="q3" aria-expanded="false" aria-controls="a3">Can I add my own booru?<span class="ms" aria-hidden="true">add</span></button>
+              <div class="a" id="a3" role="region" aria-labelledby="q3"><div><p>Yes. Any HTTPS site on Gelbooru, Moebooru or Danbooru engines works, e621 included.</p></div></div>
+            </div>
+            <div class="qa">
+              <button class="q state" id="q4" aria-expanded="false" aria-controls="a4">My search shows nothing.<span class="ms" aria-hidden="true">add</span></button>
+              <div class="a" id="a4" role="region" aria-labelledby="q4"><div><p>Tags use underscores, so try <code>long_hair</code> instead of <code>long hair</code>. Put <code>-</code> before a tag to exclude it.</p></div></div>
+            </div>
+          </div>
+          <p class="fine"><span class="ms">info</span>Some supported sites host adult content, so Booru is meant for adults. It is not affiliated with any supported site.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav class="navbar" aria-label="Main">
+  <a class="dest" href="#home" data-to="home"><span class="ind"><span class="ms">home</span></span>Home</a>
+  <a class="dest" href="#features" data-to="features"><span class="ind"><span class="ms">auto_awesome</span></span>Features</a>
+  <a class="dest" href="#screens" data-to="screens"><span class="ind"><span class="ms">smartphone</span></span>Screens</a>
+  <a class="dest" href="#download" data-to="download"><span class="ind"><span class="ms">download</span></span>Download</a>
+</nav>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  var media = window.matchMedia("(prefers-color-scheme: dark)");
+  var themeButtons = Array.prototype.slice.call(document.querySelectorAll(".theme"));
+  var meta = document.querySelector('meta[name="theme-color"]');
+
+  function isDark() {
+    var t = root.getAttribute("data-theme");
+    return t ? t === "dark" : media.matches;
+  }
+  function syncTheme() {
+    var dark = isDark();
+    themeButtons.forEach(function (b) {
+      b.firstElementChild.textContent = dark ? "light_mode" : "dark_mode";
+      b.setAttribute("aria-label", dark ? "Switch to light theme" : "Switch to dark theme");
+    });
+    meta.setAttribute("content", getComputedStyle(root).getPropertyValue("--md-sys-color-surface").trim());
+  }
+  syncTheme();
+  media.addEventListener("change", syncTheme);
+  var themeTimer = null;
+  themeButtons.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var next = isDark() ? "light" : "dark";
+      var apply = function () {
+        if ((next === "dark") === media.matches) root.removeAttribute("data-theme"); else root.setAttribute("data-theme", next);
+        try {
+          var t = root.getAttribute("data-theme");
+          if (t) localStorage.setItem("booru-theme", t); else localStorage.removeItem("booru-theme");
+        } catch (err) {}
+        syncTheme();
+      };
+      if (reduceMotion.matches) { apply(); return; }
+      clearTimeout(themeTimer);
+      root.classList.add("theming");
+      themeButtons.forEach(function (b) { b.classList.add("spin"); });
+      setTimeout(function () {
+        apply();
+        themeButtons.forEach(function (b) { b.classList.remove("spin"); });
+      }, 150);
+      themeTimer = setTimeout(function () { root.classList.remove("theming"); }, 560);
+    });
+  });
+
+  var pages = {};
+  Array.prototype.forEach.call(document.querySelectorAll("[data-page]"), function (p) { pages[p.dataset.page] = p; });
+  var dests = Array.prototype.slice.call(document.querySelectorAll(".dest"));
+  var currentPage = null;
+  var leaveTimer = null;
+
+  function route() {
+    var name = location.hash.replace("#", "");
+    if (!pages[name]) name = "home";
+    if (name === currentPage) return;
+    dests.forEach(function (d) {
+      if (d.dataset.to === name) d.setAttribute("aria-current", "page"); else d.removeAttribute("aria-current");
+    });
+    var prev = currentPage ? pages[currentPage] : null;
+    var next = pages[name];
+    currentPage = name;
+    document.title = name === "home" ? "Booru — Gallery client for Android" : next.getAttribute("aria-label") + " · Booru";
+    clearTimeout(leaveTimer);
+    Object.keys(pages).forEach(function (k) {
+      if (pages[k] !== prev && pages[k] !== next) { pages[k].hidden = true; pages[k].classList.remove("enter", "leave"); }
+    });
+    var show = function () {
+      if (prev) { prev.hidden = true; prev.classList.remove("leave", "enter"); }
+      next.hidden = false;
+      next.scrollTop = 0;
+      next.classList.remove("enter");
+      void next.offsetWidth;
+      next.classList.add("enter");
+    };
+    if (prev && !reduceMotion.matches) {
+      prev.classList.remove("enter");
+      prev.classList.add("leave");
+      leaveTimer = setTimeout(show, 110);
+    } else show();
+  }
+  window.addEventListener("hashchange", route);
+  route();
+
+  document.addEventListener("keydown", function (e) {
+    if (e.target.closest("input, textarea, [role=tablist], .connected")) return;
+    var order = ["home", "features", "screens", "download"];
+    var i = order.indexOf(currentPage);
+    if (e.key === "PageDown") { e.preventDefault(); location.hash = order[Math.min(i + 1, order.length - 1)]; }
+    if (e.key === "PageUp") { e.preventDefault(); location.hash = order[Math.max(i - 1, 0)]; }
+  });
+
+  var filterBtns = Array.prototype.slice.call(document.querySelectorAll("[data-filter]"));
+  var cards = Array.prototype.slice.call(document.querySelectorAll(".card"));
+  var cardsBox = document.getElementById("cards");
+  var filterTimer = null;
+  filterBtns.forEach(function (b) {
+    b.addEventListener("click", function () {
+      if (b.getAttribute("aria-pressed") === "true") return;
+      var onlyNew = b.dataset.filter === "new";
+      filterBtns.forEach(function (o) { o.setAttribute("aria-pressed", String(o === b)); });
+      var apply = function () {
+        cards.forEach(function (c) { c.hidden = onlyNew && !c.classList.contains("is-new"); });
+        cardsBox.classList.remove("swap");
+      };
+      clearTimeout(filterTimer);
+      if (reduceMotion.matches) { apply(); return; }
+      cardsBox.classList.add("swap");
+      filterTimer = setTimeout(apply, 150);
+    });
+  });
+
+  var shots = [
+    { src: "screenshots/1.png", title: "Explore", text: "One feed from every source, with search, filters and recommendations." },
+    { src: "screenshots/2.png", title: "Favorites", text: "Folders, search by tag and offline storage for everything you like." },
+    { src: "screenshots/3.png", title: "Settings", text: "Themes, palettes, sources and privacy in one place." }
+  ];
+  shots.forEach(function (s) { var im = new Image(); im.src = s.src; });
+  var shotIndex = 0;
+  var shotImg = document.getElementById("shotImg");
+  var shotTitle = document.getElementById("shotTitle");
+  var shotText = document.getElementById("shotText");
+  var shotTabs = Array.prototype.slice.call(document.querySelectorAll("[data-shot]"));
+  var dots = Array.prototype.slice.call(document.querySelectorAll("#dots span"));
+  var swapTimer = null;
+  function showShot(i, dir) {
+    i = (i + shots.length) % shots.length;
+    if (i === shotIndex) return;
+    if (dir === undefined) dir = i > shotIndex ? 1 : -1;
+    shotIndex = i;
+    shotTabs.forEach(function (t, k) { t.setAttribute("aria-selected", String(k === i)); t.tabIndex = k === i ? 0 : -1; });
+    dots.forEach(function (d, k) { d.classList.toggle("on", k === i); });
+    shotTitle.textContent = shots[i].title;
+    shotText.textContent = shots[i].text;
+    var set = function () {
+      shotImg.src = shots[i].src;
+      shotImg.alt = shots[i].title + " screen";
+      shotImg.classList.remove("out-left", "out-right");
+    };
+    clearTimeout(swapTimer);
+    if (reduceMotion.matches) { set(); return; }
+    shotImg.classList.add(dir > 0 ? "out-left" : "out-right");
+    swapTimer = setTimeout(set, 160);
+  }
+  shotTabs.forEach(function (t, k) {
+    t.addEventListener("click", function () { showShot(k); });
+    t.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowRight") { e.preventDefault(); showShot(k + 1, 1); shotTabs[shotIndex].focus(); }
+      if (e.key === "ArrowLeft") { e.preventDefault(); showShot(k - 1, -1); shotTabs[shotIndex].focus(); }
+    });
+  });
+  Array.prototype.forEach.call(document.querySelectorAll("[data-step]"), function (b) {
+    b.addEventListener("click", function () { var s = Number(b.dataset.step); showShot(shotIndex + s, s); });
+  });
+  var phone = document.getElementById("shotPhone");
+  var sx = null, sy = null;
+  phone.addEventListener("pointerdown", function (e) { sx = e.clientX; sy = e.clientY; });
+  phone.addEventListener("pointerup", function (e) {
+    if (sx === null) return;
+    var dx = e.clientX - sx, dy = e.clientY - sy;
+    sx = sy = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) showShot(shotIndex + (dx < 0 ? 1 : -1), dx < 0 ? 1 : -1);
+  });
+  phone.addEventListener("pointercancel", function () { sx = sy = null; });
+  document.addEventListener("keydown", function (e) {
+    if (currentPage !== "screens" || e.target.closest("[role=tablist]")) return;
+    if (e.key === "ArrowRight") showShot(shotIndex + 1, 1);
+    if (e.key === "ArrowLeft") showShot(shotIndex - 1, -1);
+  });
+
+  var qas = Array.prototype.slice.call(document.querySelectorAll(".qa"));
+  qas.forEach(function (qa) {
+    var btn = qa.querySelector(".q");
+    btn.addEventListener("click", function () {
+      var open = !qa.classList.contains("open");
+      qas.forEach(function (o) {
+        var on = o === qa && open;
+        o.classList.toggle("open", on);
+        o.querySelector(".q").setAttribute("aria-expanded", String(on));
+      });
+    });
+  });
+
+  fetch("https://api.github.com/repos/weekanya/Booru/releases/latest")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (rel) {
+      if (!rel || !rel.tag_name) return;
+      document.querySelectorAll("[data-apk-label]").forEach(function (el) { el.textContent = "Download " + rel.tag_name; });
+      document.getElementById("verLabel").textContent = "Version " + rel.tag_name;
+      var apk = (rel.assets || []).filter(function (a) { return /\.apk$/i.test(a.name); })[0];
+      if (apk) document.querySelectorAll("[data-apk]").forEach(function (a) { a.href = apk.browser_download_url; });
+    })
+    .catch(function () {});
+})();
+</script>
+</body>
+</html>

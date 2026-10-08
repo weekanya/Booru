@@ -6,6 +6,7 @@
   <a href="https://github.com/weekanya/Booru/releases/latest"><img src="https://img.shields.io/github/v/release/weekanya/Booru?style=flat-square&color=7B5BEA&label=release" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/Android-12%2B-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android 12+">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-blue?style=flat-square" alt="GPL-3.0"></a>
+  <a href="https://booru.weebio.ru"><img src="https://img.shields.io/badge/website-booru.weebio.ru-7B5BEA?style=flat-square" alt="Website"></a>
 </p>
 
 <table>
@@ -38,3 +39,11 @@
   - incognito mode;
   - content hidden from recents and screenshots.
 - **Updates:** built-in updater from GitHub Releases that checks the APK signature before installing.
+
+## Links
+
+| | |
+| --- | --- |
+| Website | [booru.weebio.ru](https://booru.weebio.ru) |
+| Download | [Latest release](https://github.com/weekanya/Booru/releases/latest) |
+| License | [GPL-3.0](LICENSE) |
