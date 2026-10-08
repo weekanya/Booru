@@ -7,9 +7,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          for a in androidx/compose/material3/material3 androidx/compose/compose-bom com/android/tools/build/gradle; do
-            echo "== $a"
-            curl -s "https://dl.google.com/android/maven2/$a/maven-metadata.xml" | grep -o '<version>[^<]*</version>' | tail -12
-          done
-          echo "== kotlin"
-          curl -s "https://repo1.maven.org/maven2/org/jetbrains/kotlin/kotlin-gradle-plugin/maven-metadata.xml" | grep -o '<version>[^<]*</version>' | tail -8
+          G=https://dl.google.com/android/maven2
+          M=https://repo1.maven.org/maven2
+          echo "== agp 8"; curl -s $G/com/android/tools/build/gradle/maven-metadata.xml | grep -o '<version>8\.[0-9.]*</version>' | tail -5
+          echo "== kotlin 2.2/2.3"; curl -s $M/org/jetbrains/kotlin/kotlin-gradle-plugin/maven-metadata.xml | grep -oE '<version>2\.[23]\.[0-9]+</version>' | tail -8
+          echo "== ksp"; curl -s $M/com/google/devtools/ksp/com.google.devtools.ksp.gradle.plugin/maven-metadata.xml | grep -o '<version>[^<]*</version>' | tail -15
+          echo "== bom 2026.09.00"; curl -s $G/androidx/compose/compose-bom/2026.09.00/compose-bom-2026.09.00.pom | grep -A1 -E '<artifactId>(material3|ui|runtime)</artifactId>' | grep -oE '(artifactId|version)>[^<]*' 
+          echo "== m3 1.5.0-beta01 pom"; curl -s $G/androidx/compose/material3/material3-android/1.5.0-beta01/material3-android-1.5.0-beta01.pom | grep -B1 -A2 '<artifactId>' | grep -oE '(artifactId|version)>[^<]*' | head -40
+          echo "== m3 1.5.0-beta01 aar metadata"; curl -s -o m3.aar $G/androidx/compose/material3/material3-android/1.5.0-beta01/material3-android-1.5.0-beta01.aar && unzip -p m3.aar META-INF/com/android/build/gradle/aar-metadata.properties
+          echo "== runtime kotlin"; curl -s $G/androidx/compose/runtime/runtime-android/maven-metadata.xml | grep -o '<version>[^<]*</version>' | tail -3
