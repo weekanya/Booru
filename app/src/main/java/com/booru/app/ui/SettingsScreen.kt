@@ -98,9 +98,6 @@ fun SettingsScreen(
     val context = LocalContext.current
     val lang = vm.language
     val scope = rememberCoroutineScope()
-    val appVersionName = remember(context) {
-        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
-    }
 
     LaunchedEffect(Unit) {
         vm.updateCacheSize()
@@ -1423,17 +1420,11 @@ fun SettingsScreen(
             beyondViewportPageCount = 1,
             modifier = Modifier.fillMaxSize()
         ) { page ->
-            BoxWithConstraints(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surface)
-            ) {
-            val pageMinHeight = maxHeight
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.surface)
                     .verticalScroll(rememberScrollState())
-                    .heightIn(min = pageMinHeight)
                     .padding(horizontal = 16.dp)
                     .padding(top = 8.dp, bottom = 88.dp)
             ) {
@@ -1863,48 +1854,8 @@ fun SettingsScreen(
                         }
                     }
                 }
-                Spacer(Modifier.weight(1f))
-                SettingsFooter(versionName = appVersionName)
-            }
             }
         }
-    }
-}
-
-@Composable
-private fun SettingsFooter(versionName: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 28.dp, bottom = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.primaryContainer,
-            modifier = Modifier.size(48.dp)
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                Icon(
-                    imageVector = Icons.Rounded.PhotoLibrary,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    modifier = Modifier.size(26.dp)
-                )
-            }
-        }
-        Spacer(Modifier.height(10.dp))
-        Text(
-            text = "Booru",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        Text(
-            text = if (versionName.isNotBlank()) "v$versionName · GPL-3.0" else "GPL-3.0",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 
