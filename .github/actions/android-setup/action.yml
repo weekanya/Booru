@@ -12,6 +12,7 @@ runs:
     - name: Install Android SDK platform 37
       shell: bash
       run: |
+        set +o pipefail
         SDKMANAGER="$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
         yes | "$SDKMANAGER" --licenses --channel=3 > /dev/null || true
         "$SDKMANAGER" --list --channel=3 2>/dev/null | grep -o 'platforms;android-[0-9A-Za-z.\-]*' | sort -u | tail -n 15

@@ -1,8 +1,6 @@
 name: Release APK (R8)
 
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 concurrency:
