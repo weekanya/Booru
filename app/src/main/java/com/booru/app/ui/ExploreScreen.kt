@@ -1936,6 +1936,7 @@ private fun FilterSelectionBottomSheet(
     var tempExcludeSafe by remember { mutableStateOf(vm.excludeSafe) }
     var tempNoAi by remember { mutableStateOf(vm.noAi) }
     var tempRecRatio by remember { mutableFloatStateOf(vm.recommendationRatio) }
+    val filterPagerState = rememberPagerState(initialPage = 0) { 2 }
 
     SheetMotion {
         ModalBottomSheet(
@@ -1973,161 +1974,15 @@ private fun FilterSelectionBottomSheet(
                             }
                         }
                         Spacer(Modifier.width(12.dp))
-                        Column {
-                            Text(
-                                text = Strings.filtersAndSorting(lang),
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            val activeCount = (if (tempContentTypes.isNotEmpty()) 1 else 0) +
-                                (if (tempSafeMode || tempExcludeSafe) 1 else 0) +
-                                (if (tempNoAi) 1 else 0) +
-                                (if (tempSortOrder != SortOrder.NEWEST) 1 else 0)
-                            AnimatedContent(
-                                targetState = activeCount,
-                                transitionSpec = { fadeIn(tween(160)) togetherWith fadeOut(tween(120)) },
-                                label = "activeFilterSummary"
-                            ) { count ->
-                                Text(
-                                    text = when {
-                                        count == 0 && lang == AppLanguage.RUSSIAN -> "Без фильтров"
-                                        count == 0 -> "No filters applied"
-                                        lang == AppLanguage.RUSSIAN -> "Активных фильтров: $count"
-                                        else -> "$count active"
-                                    },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                        Text(
+                            text = Strings.filtersAndSorting(lang),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
-
-                }
     
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false)
-                        .verticalScroll(rememberScrollState())
-                ) {
-                    val ru = lang == AppLanguage.RUSSIAN
-                    SegmentedGroupTitle(if (ru) "Контент и рейтинг" else "Content & rating")
-
-                    SegmentedSectionHeader(Strings.contentTypeTitle(lang), Icons.Rounded.PermMedia)
-                    val typeOptions = listOf(
-                        Triple<ContentType?, String, ImageVector>(null, Strings.favFilterAll(lang), Icons.Rounded.Apps),
-                        Triple(ContentType.PHOTOS, Strings.contentTypePhotos(lang), Icons.Rounded.Image),
-                        Triple(ContentType.VIDEOS, Strings.contentTypeVideos(lang), Icons.Rounded.Videocam),
-                        Triple(ContentType.GIFS, Strings.contentTypeGifs(lang), Icons.Rounded.Gif)
-                    )
-                    typeOptions.forEachIndexed { index, (type, label, icon) ->
-                        SegmentedOptionItem(
-                            title = label,
-                            selected = if (type == null) tempContentTypes.isEmpty() else tempContentTypes.contains(type),
-                            index = index,
-                            count = typeOptions.size,
-                            icon = icon,
-                            control = if (type == null) OptionControl.Radio else OptionControl.Checkbox,
-                            onClick = {
-                                tempContentTypes = if (type == null) {
-                                    emptySet()
-                                } else {
-                                    val updated = if (tempContentTypes.contains(type)) tempContentTypes - type else tempContentTypes + type
-                                    if (updated.size == typeOptions.size - 1) emptySet() else updated
-                                }
-                            }
-                        )
-                    }
-
-                    SegmentedSectionHeader(if (ru) "Рейтинг" else "Rating", Icons.Rounded.Shield)
-                    val ratingOptions = listOf(
-                        Triple(0, Strings.allRatings(lang), Icons.Rounded.AllInclusive),
-                        Triple(1, Strings.only18Badge(lang), Icons.Rounded.Explicit),
-                        Triple(2, Strings.safeModeBadge(lang), Icons.Rounded.Shield)
-                    )
-                    val currentRating = when {
-                        tempExcludeSafe -> 1
-                        tempSafeMode -> 2
-                        else -> 0
-                    }
-                    ratingOptions.forEachIndexed { index, (value, label, icon) ->
-                        SegmentedOptionItem(
-                            title = label,
-                            selected = currentRating == value,
-                            index = index,
-                            count = ratingOptions.size,
-                            icon = icon,
-                            onClick = {
-                                tempExcludeSafe = value == 1
-                                tempSafeMode = value == 2
-                            }
-                        )
-                    }
-
-                    SegmentedSectionHeader(if (ru) "Нейросети" else "AI content", Icons.Rounded.AutoAwesome)
-                    SegmentedOptionItem(
-                        title = Strings.noAiBadge(lang),
-                        selected = tempNoAi,
-                        index = 0,
-                        count = 1,
-                        icon = Icons.Rounded.HideImage,
-                        control = OptionControl.Switch,
-                        onClick = { tempNoAi = !tempNoAi }
-                    )
-
-                    Spacer(Modifier.height(12.dp))
-                    SegmentedGroupTitle(if (ru) "Сортировка и лента" else "Sorting & feed")
-
-                    SegmentedSectionHeader(if (ru) "Сортировка" else "Sort by", Icons.AutoMirrored.Rounded.Sort)
-                    val sortOrders = listOfNotNull(
-                        Triple(SortOrder.NEWEST, Strings.sortNewest(lang), Icons.Rounded.Schedule),
-                        if (!isRealbooru) Triple(SortOrder.SCORE, Strings.sortScore(lang), Icons.Rounded.Star) else null,
-                        Triple(SortOrder.RANDOM, Strings.sortRandom(lang), Icons.Rounded.Shuffle)
-                    )
-                    sortOrders.forEachIndexed { index, (order, label, icon) ->
-                        SegmentedOptionItem(
-                            title = label,
-                            selected = tempSortOrder == order,
-                            index = index,
-                            count = sortOrders.size,
-                            icon = icon,
-                            onClick = { tempSortOrder = order }
-                        )
-                    }
-
-                    if (vm.query.isBlank()) {
-                        SegmentedSectionHeader(Strings.feedMixTitle(lang), Icons.Rounded.AutoAwesome)
-                        val mixOptions = listOf(
-                            Triple(0.0f, Strings.feedNewestOnly(lang), Icons.Rounded.Schedule),
-                            Triple(0.5f, Strings.feedBalanced(lang), Icons.Rounded.Tune),
-                            Triple(1.0f, Strings.feedRecommendedOnly(lang), Icons.Rounded.AutoAwesome)
-                        )
-                        val currentMix = when {
-                            tempRecRatio < 0.25f -> 0.0f
-                            tempRecRatio > 0.75f -> 1.0f
-                            else -> 0.5f
-                        }
-                        mixOptions.forEachIndexed { index, (value, label, icon) ->
-                            SegmentedOptionItem(
-                                title = label,
-                                selected = currentMix == value,
-                                index = index,
-                                count = mixOptions.size,
-                                icon = icon,
-                                onClick = { tempRecRatio = value }
-                            )
-                        }
-                    }
-                }
-    
-                Spacer(Modifier.height(16.dp))
-    
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedButton(
+                    TextButton(
                         onClick = {
                             tempContentTypes = emptySet()
                             tempSortOrder = SortOrder.NEWEST
@@ -2136,53 +1991,385 @@ private fun FilterSelectionBottomSheet(
                             tempNoAi = false
                             tempRecRatio = 0.5f
                         },
-                        shape = CircleShape,
-                        modifier = Modifier.height(52.dp)
+                        shape = CircleShape
                     ) {
-                        Icon(Icons.Rounded.RestartAlt, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
                         Text(
                             text = Strings.resetFilters(lang),
-                            style = MaterialTheme.typography.labelLarge
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
-                    Button(
-                        onClick = {
-                            val ratioChanged = kotlin.math.abs(tempRecRatio - vm.recommendationRatio) > 0.01f
-                            val filtersChanged = tempContentTypes != vm.selectedContentTypes || tempSortOrder != vm.sortOrder ||
-                                tempSafeMode != vm.safeMode || tempExcludeSafe != vm.excludeSafe || tempNoAi != vm.noAi
-                            vm.updateRecommendationRatio(tempRecRatio)
-                            if (ratioChanged && !filtersChanged && vm.query.isBlank()) vm.refresh(isPull = false)
-                            vm.applyAllFilters(
-                                contentTypes = tempContentTypes,
-                                sortOrder = tempSortOrder,
-                                safeMode = tempSafeMode,
-                                excludeSafe = tempExcludeSafe,
-                                noAi = tempNoAi
-                            )
-                            scope.launch {
-                                sheetState.hide()
-                            }.invokeOnCompletion {
-                                onDismiss()
-                            }
-                        },
-                        shape = CircleShape,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary
-                        ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(52.dp)
+                }
+    
+                ToggleGroupColors {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
                     ) {
-                        Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = Strings.applyFilters(lang),
-                            fontWeight = FontWeight.Bold,
-                            style = MaterialTheme.typography.labelLarge
+                        val tabs = listOf(
+                            Pair(if (lang == AppLanguage.RUSSIAN) "Контент и рейтинг" else "Content & Rating", Icons.Rounded.Category),
+                            Pair(if (lang == AppLanguage.RUSSIAN) "Сортировка и лента" else "Sorting & Feed", Icons.Rounded.AutoAwesome)
                         )
+                        val targetFilterIndex = if (filterPagerState.isScrollInProgress) filterPagerState.targetPage else filterPagerState.currentPage
+                        tabs.forEachIndexed { index, (title, icon) ->
+                            ToggleButton(
+                                checked = targetFilterIndex == index,
+                                onCheckedChange = {
+                                    scope.launch {
+                                        filterPagerState.animateScrollToPage(
+                                            page = index,
+                                            animationSpec = Motion.spatialDefault()
+                                        )
+                                    }
+                                },
+                                shapes = groupPosition(index, tabs.size).toggleShapes(),
+                                contentPadding = PaddingValues(horizontal = 8.dp),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                            ) {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = title,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
                     }
+                }
+
+                Spacer(Modifier.height(10.dp))
+    
+                HorizontalPager(
+                    state = filterPagerState,
+                    beyondViewportPageCount = 1,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(310.dp)
+                ) { page ->
+                    if (page == 0) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                                Card(
+                                    shape = ShapeTokens.ExtraLarge,
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            FilterSectionIcon(Icons.Rounded.PermMedia)
+                                            Spacer(Modifier.width(12.dp))
+                                            Text(
+                                                text = Strings.contentTypeTitle(lang),
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                        Spacer(Modifier.height(8.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
+                                        ) {
+                                            val types = listOf(
+                                                Triple(ContentType.PHOTOS, Strings.contentTypePhotos(lang), Icons.Rounded.Image),
+                                                Triple(ContentType.VIDEOS, Strings.contentTypeVideos(lang), Icons.Rounded.Videocam),
+                                                Triple(ContentType.GIFS, Strings.contentTypeGifs(lang), Icons.Rounded.Gif)
+                                            )
+                                            FilterOptionButton(
+                                                selected = tempContentTypes.isEmpty(),
+                                                onClick = { tempContentTypes = emptySet() },
+                                                label = Strings.favFilterAll(lang),
+                                                position = GroupPosition.Leading,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            types.forEachIndexed { typeIndex, (type, label, icon) ->
+                                                val selected = tempContentTypes.contains(type)
+                                                FilterOptionButton(
+                                                    selected = selected,
+                                                    onClick = {
+                                                        val updated = if (selected) tempContentTypes - type else tempContentTypes + type
+                                                        tempContentTypes = if (updated.size == types.size) emptySet() else updated
+                                                    },
+                                                    position = groupPosition(typeIndex + 1, types.size + 1),
+                                                    label = label,
+                                                    icon = icon,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+    
+                                Card(
+                                    shape = ShapeTokens.ExtraLarge,
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            FilterSectionIcon(Icons.Rounded.Shield)
+                                            Spacer(Modifier.width(12.dp))
+                                            Text(
+                                                text = Strings.allRatings(lang),
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                        Spacer(Modifier.height(8.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
+                                        ) {
+                                            val isAllRating = !tempSafeMode && !tempExcludeSafe
+                                            FilterOptionButton(
+                                                selected = isAllRating,
+                                                onClick = {
+                                                    tempSafeMode = false
+                                                    tempExcludeSafe = false
+                                                },
+                                                label = Strings.allRatings(lang),
+                                                position = GroupPosition.Leading,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            FilterOptionButton(
+                                                selected = tempExcludeSafe,
+                                                onClick = {
+                                                    tempExcludeSafe = !tempExcludeSafe
+                                                    if (tempExcludeSafe) tempSafeMode = false
+                                                },
+                                                label = Strings.only18Badge(lang),
+                                                icon = Icons.Rounded.Explicit,
+                                                position = GroupPosition.Middle,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            FilterOptionButton(
+                                                selected = tempSafeMode,
+                                                onClick = {
+                                                    tempSafeMode = !tempSafeMode
+                                                    if (tempSafeMode) tempExcludeSafe = false
+                                                },
+                                                label = Strings.safeModeBadge(lang),
+                                                icon = Icons.Rounded.Shield,
+                                                position = GroupPosition.Trailing,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                    }
+                                }
+    
+                                Card(
+                                    shape = ShapeTokens.ExtraLarge,
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { tempNoAi = !tempNoAi }
+                                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = if (tempNoAi) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        Icons.Rounded.AutoAwesome,
+                                                        contentDescription = null,
+                                                        tint = if (tempNoAi) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
+                                            Spacer(Modifier.width(12.dp))
+                                            Text(
+                                                text = Strings.noAiBadge(lang),
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                        Switch(
+                                            checked = tempNoAi,
+                                            onCheckedChange = { tempNoAi = it },
+                                            thumbContent = {
+                                                Icon(
+                                                    imageVector = if (tempNoAi) Icons.Rounded.Check else Icons.Rounded.Close,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState()),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Card(
+                                    shape = ShapeTokens.ExtraLarge,
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            FilterSectionIcon(Icons.Rounded.Sort)
+                                            Spacer(Modifier.width(12.dp))
+                                            Text(
+                                                text = if (lang == AppLanguage.RUSSIAN) "Сортировка" else "Sort by",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                fontWeight = FontWeight.Bold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
+                                        }
+                                        Spacer(Modifier.height(8.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
+                                        ) {
+                                            val sortOrders = listOfNotNull(
+                                                Triple(SortOrder.NEWEST, Strings.sortNewest(lang), Icons.Rounded.Schedule),
+                                                if (!isRealbooru) Triple(SortOrder.SCORE, Strings.sortScore(lang), Icons.Rounded.Star) else null,
+                                                Triple(SortOrder.RANDOM, Strings.sortRandom(lang), Icons.Rounded.Shuffle)
+                                            )
+                                            sortOrders.forEachIndexed { orderIndex, (order, label, icon) ->
+                                                val selected = (tempSortOrder == order)
+                                                FilterOptionButton(
+                                                    selected = selected,
+                                                    onClick = { tempSortOrder = order },
+                                                    position = groupPosition(orderIndex, sortOrders.size),
+                                                    label = label,
+                                                    icon = icon,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+    
+                                if (vm.query.isBlank()) {
+                                    Card(
+                                        shape = ShapeTokens.ExtraLarge,
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                FilterSectionIcon(Icons.Rounded.AutoAwesome)
+                                                Spacer(Modifier.width(12.dp))
+                                                Text(
+                                                    text = Strings.feedMixTitle(lang),
+                                                    style = MaterialTheme.typography.titleSmall,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                            }
+                                            Spacer(Modifier.height(10.dp))
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
+                                            ) {
+                                                listOf(
+                                                    Triple(0.0f, Strings.feedNewestOnly(lang), tempRecRatio < 0.25f),
+                                                    Triple(0.5f, Strings.feedBalanced(lang), tempRecRatio >= 0.25f && tempRecRatio <= 0.75f),
+                                                    Triple(1.0f, Strings.feedRecommendedOnly(lang), tempRecRatio > 0.75f)
+                                                ).forEachIndexed { presetIndex, (presetVal, label, active) ->
+                                                    FilterOptionButton(
+                                                        selected = active,
+                                                        onClick = { tempRecRatio = presetVal },
+                                                        position = groupPosition(presetIndex, 3),
+                                                        label = label,
+                                                        modifier = Modifier.weight(1f)
+                                                    )
+                                                }
+                                            }
+                                            Spacer(Modifier.height(8.dp))
+                                            var draggingRatio by remember { mutableStateOf(false) }
+                                            val shownRatio by animateFloatAsState(
+                                                targetValue = tempRecRatio,
+                                                animationSpec = if (draggingRatio) snap() else Motion.spatialDefault(),
+                                                label = "recRatio"
+                                            )
+                                            Slider(
+                                                value = shownRatio,
+                                                onValueChange = {
+                                                    draggingRatio = true
+                                                    tempRecRatio = it
+                                                },
+                                                onValueChangeFinished = { draggingRatio = false },
+                                                valueRange = 0f..1f,
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+    
+                Spacer(Modifier.height(16.dp))
+    
+                Button(
+                    onClick = {
+                        val ratioChanged = kotlin.math.abs(tempRecRatio - vm.recommendationRatio) > 0.01f
+                        val filtersChanged = tempContentTypes != vm.selectedContentTypes || tempSortOrder != vm.sortOrder ||
+                            tempSafeMode != vm.safeMode || tempExcludeSafe != vm.excludeSafe || tempNoAi != vm.noAi
+                        vm.updateRecommendationRatio(tempRecRatio)
+                        if (ratioChanged && !filtersChanged && vm.query.isBlank()) vm.refresh(isPull = false)
+                        vm.applyAllFilters(
+                            contentTypes = tempContentTypes,
+                            sortOrder = tempSortOrder,
+                            safeMode = tempSafeMode,
+                            excludeSafe = tempExcludeSafe,
+                            noAi = tempNoAi
+                        )
+                        scope.launch {
+                            sheetState.hide()
+                        }.invokeOnCompletion {
+                            onDismiss()
+                        }
+                    },
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                ) {
+                    Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = Strings.applyFilters(lang),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.labelLarge
+                    )
                 }
             }
         }

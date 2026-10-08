@@ -27,6 +27,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.core.spring
@@ -399,70 +400,82 @@ fun MediaDetailSheet(
                 var showMoreSheet by remember { mutableStateOf(false) }
                 val isFav = vm.isFavorite(currentMedia)
                 val inFolder = vm.getMediaFolder(currentMedia) != null
-                Column(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Button(
                         onClick = { downloadCurrentMedia(currentMedia) },
                         enabled = !isDownloading,
                         shape = CircleShape,
-                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        contentPadding = PaddingValues(horizontal = 18.dp),
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp)
+                            .weight(1f)
+                            .height(48.dp)
                     ) {
                         if (isDownloading) {
                             LoadingIndicator(
-                                modifier = Modifier.size(28.dp),
+                                modifier = Modifier.size(24.dp),
                                 color = MaterialTheme.colorScheme.onPrimary
                             )
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 text = Strings.loadingOriginal(lang),
-                                style = MaterialTheme.typography.titleSmall
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         } else {
-                            Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(22.dp))
+                            Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 text = Strings.downloadBtn(lang),
-                                style = MaterialTheme.typography.titleSmall
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
 
-                    ToggleGroupColors {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
-                        ) {
-                            ToggleButton(
-                                checked = isFav,
-                                onCheckedChange = { vm.toggleFavorite(currentMedia) },
-                                shapes = groupPosition(0, 5).toggleShapes(),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(52.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                    contentDescription = "Favorite",
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                            ToggleButton(
-                                checked = inFolder,
-                                onCheckedChange = {
-                                    if (!isFav) vm.toggleFavorite(currentMedia)
-                                    showFolderDialog = true
-                                },
-                                shapes = groupPosition(1, 5).toggleShapes(),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(52.dp)
+                    Spacer(Modifier.width(8.dp))
+                    val favCorner by animateDpAsState(
+                        targetValue = if (isFav) 16.dp else 24.dp,
+                        animationSpec = Motion.spatialDefault(),
+                        label = "favCorner"
+                    )
+                    FilledIconToggleButton(
+                        checked = isFav,
+                        onCheckedChange = { vm.toggleFavorite(currentMedia) },
+                        shape = RoundedCornerShape(favCorner),
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                            contentDescription = "Favorite",
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    AnimatedVisibility(
+                        visible = isFav,
+                        enter = expandHorizontally(Motion.spatialDefault(), expandFrom = Alignment.Start) +
+                            fadeIn(tween(200, delayMillis = 60)) +
+                            scaleIn(Motion.spatialDefault(), initialScale = 0.6f),
+                        exit = shrinkHorizontally(tween(180), shrinkTowards = Alignment.Start) +
+                            fadeOut(tween(120)) +
+                            scaleOut(tween(150), targetScale = 0.6f)
+                    ) {
+                        Row {
+                            Spacer(Modifier.width(8.dp))
+                            FilledTonalIconButton(
+                                onClick = { showFolderDialog = true },
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = if (inFolder) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = if (inFolder) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+                                ),
+                                modifier = Modifier.size(48.dp)
                             ) {
                                 Icon(
                                     imageVector = if (inFolder) Icons.Rounded.Folder else Icons.Rounded.CreateNewFolder,
@@ -470,56 +483,19 @@ fun MediaDetailSheet(
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
-                            ToggleButton(
-                                checked = false,
-                                onCheckedChange = { showTrueFullscreen = true },
-                                shapes = groupPosition(2, 5).toggleShapes(),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(52.dp)
-                            ) {
-                                Icon(
-                                    Icons.Rounded.Fullscreen,
-                                    contentDescription = Strings.fullscreen(lang),
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                            ToggleButton(
-                                checked = false,
-                                onCheckedChange = {
-                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                        type = "text/plain"
-                                        val shareUrl = currentMedia.postWebUrl.ifBlank { currentMedia.url.ifBlank { currentMedia.sample } }
-                                        putExtra(Intent.EXTRA_TEXT, shareUrl)
-                                    }
-                                    context.startActivity(Intent.createChooser(shareIntent, Strings.share(lang)))
-                                },
-                                shapes = groupPosition(3, 5).toggleShapes(),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(52.dp)
-                            ) {
-                                Icon(
-                                    Icons.Rounded.Share,
-                                    contentDescription = Strings.share(lang),
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                            ToggleButton(
-                                checked = showMoreSheet,
-                                onCheckedChange = { showMoreSheet = true },
-                                shapes = groupPosition(4, 5).toggleShapes(),
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(52.dp)
-                            ) {
-                                Icon(
-                                    Icons.Rounded.MoreHoriz,
-                                    contentDescription = "More",
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
                         }
+                    }
+
+                    Spacer(Modifier.width(8.dp))
+                    FilledTonalIconButton(
+                        onClick = { showMoreSheet = true },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.MoreVert,
+                            contentDescription = "More",
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
                 }
 
@@ -539,17 +515,32 @@ fun MediaDetailSheet(
                                     .padding(horizontal = 16.dp)
                                     .padding(bottom = 24.dp)
                             ) {
-                                val actions = if (currentMedia.isVideo) listOf(1) else listOf(0, 1)
+                                val actions = if (currentMedia.isVideo) listOf(2, 1) else listOf(2, 0, 1)
                                 actions.forEachIndexed { index, action ->
                                     TagActionItem(
-                                        icon = if (action == 0) Icons.Rounded.Wallpaper else Icons.AutoMirrored.Rounded.OpenInNew,
-                                        title = if (action == 0) Strings.setWallpaperTitle(lang) else if (lang == AppLanguage.RUSSIAN) "Открыть в браузере" else "Open in browser",
+                                        icon = when (action) {
+                                            0 -> Icons.Rounded.Wallpaper
+                                            2 -> Icons.Rounded.Share
+                                            else -> Icons.AutoMirrored.Rounded.OpenInNew
+                                        },
+                                        title = when (action) {
+                                            0 -> Strings.setWallpaperTitle(lang)
+                                            2 -> Strings.share(lang)
+                                            else -> if (lang == AppLanguage.RUSSIAN) "Открыть в браузере" else "Open in browser"
+                                        },
                                         shape = segmentedListShape(index, actions.size),
                                         onClick = {
                                             coroutineScope.launch { moreSheetState.hide() }.invokeOnCompletion {
                                                 showMoreSheet = false
                                                 if (action == 0) {
                                                     showWallpaperDialog = true
+                                                } else if (action == 2) {
+                                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                                        type = "text/plain"
+                                                        val shareUrl = currentMedia.postWebUrl.ifBlank { currentMedia.url.ifBlank { currentMedia.sample } }
+                                                        putExtra(Intent.EXTRA_TEXT, shareUrl)
+                                                    }
+                                                    context.startActivity(Intent.createChooser(shareIntent, Strings.share(lang)))
                                                 } else {
                                                     val browserUrl = currentMedia.postWebUrl.ifBlank { currentMedia.url.ifBlank { currentMedia.sample } }
                                                     runCatching {
@@ -572,94 +563,60 @@ fun MediaDetailSheet(
                 val showResolution = currentMedia.width > 0 && currentMedia.height > 0
     
                 if (showScore || showResolution) {
-                    Spacer(Modifier.height(14.dp))
-    
+                    Spacer(Modifier.height(12.dp))
+                    val ru = lang == AppLanguage.RUSSIAN
+                    val stats = buildList {
+                        if (showScore) add(Triple(Icons.Rounded.Star, currentMedia.score.toString(), if (ru) "Рейтинг" else "Score"))
+                        if (showResolution) add(Triple(Icons.Rounded.AspectRatio, "${currentMedia.width}×${currentMedia.height}", if (ru) "Разрешение" else "Resolution"))
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
-                        if (showScore) {
+                        stats.forEachIndexed { index, (icon, value, label) ->
+                            val outer = 20.dp
+                            val inner = 4.dp
                             Surface(
-                                shape = ShapeTokens.LargeIncreased,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                shape = RoundedCornerShape(
+                                    topStart = if (index == 0) outer else inner,
+                                    bottomStart = if (index == 0) outer else inner,
+                                    topEnd = if (index == stats.lastIndex) outer else inner,
+                                    bottomEnd = if (index == stats.lastIndex) outer else inner
+                                ),
+                                color = MaterialTheme.colorScheme.surfaceContainer,
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                                 ) {
                                     Surface(
-                                        shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.primaryContainer,
-                                        modifier = Modifier.size(36.dp)
+                                        shape = ShapeTokens.Medium,
+                                        color = if (index == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = if (index == 0) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                                        modifier = Modifier.size(40.dp)
                                     ) {
                                         Box(contentAlignment = Alignment.Center) {
-                                            Icon(
-                                                Icons.Rounded.Star,
-                                                null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(20.dp)
-                                            )
+                                            Icon(icon, null, modifier = Modifier.size(20.dp))
                                         }
                                     }
                                     Column {
                                         Text(
-                                            text = Strings.scoreLabel(currentMedia.score, lang),
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = "Score",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                }
-                            }
-                        }
-    
-                        if (showResolution) {
-                            Surface(
-                                shape = ShapeTokens.LargeIncreased,
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.secondaryContainer,
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Icon(
-                                                Icons.Rounded.AspectRatio,
-                                                null,
-                                                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
-                                    }
-                                    Column {
-                                        Text(
-                                            text = "${currentMedia.width}×${currentMedia.height}",
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Bold,
+                                            text = value,
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
                                             color = MaterialTheme.colorScheme.onSurface,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
                                         Text(
-                                            text = "Resolution",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            text = label,
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1
                                         )
                                     }
                                 }
@@ -672,10 +629,10 @@ fun MediaDetailSheet(
     
                 val cardBg by animateColorAsState(
                     targetValue = if (isTagsExpanded)
-                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.85f)
+                        MaterialTheme.colorScheme.surfaceContainerHigh
                     else
-                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.60f),
-                    animationSpec = tween(220),
+                        MaterialTheme.colorScheme.surfaceContainer,
+                    animationSpec = Motion.effectsDefault(),
                     label = "tagsCardBg"
                 )
                 val chevronBg by animateColorAsState(
@@ -703,6 +660,7 @@ fun MediaDetailSheet(
                 Surface(
                     shape = ShapeTokens.LargeIncreased,
                     color = cardBg,
+                    tonalElevation = 0.dp,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
@@ -711,45 +669,45 @@ fun MediaDetailSheet(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .bouncyPress()
                                 .clickable { isTagsExpanded = !isTagsExpanded }
-                                .padding(horizontal = 16.dp, vertical = 13.dp),
+                                .padding(horizontal = 12.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                    modifier = Modifier.size(36.dp)
+                                    shape = ShapeTokens.Medium,
+                                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    modifier = Modifier.size(40.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             Icons.Rounded.Sell,
                                             contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(20.dp)
                                         )
                                     }
                                 }
-                                Column {
+                                Text(
+                                    text = if (lang == AppLanguage.RUSSIAN) "Теги" else "Tags",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Surface(
+                                    shape = CircleShape,
+                                    color = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                ) {
                                     Text(
-                                        text = Strings.tagsLabel(currentMedia.tagList.size, lang),
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = if (isTagsExpanded) {
-                                            if (lang == AppLanguage.RUSSIAN) "Нажмите, чтобы скрыть" else "Tap to collapse"
-                                        } else {
-                                            if (lang == AppLanguage.RUSSIAN) "Нажмите, чтобы показать" else "Tap to expand"
-                                        },
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        text = currentMedia.tagList.size.toString(),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        fontWeight = FontWeight.SemiBold,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                     )
                                 }
                             }
