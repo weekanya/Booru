@@ -626,6 +626,13 @@ fun FullscreenZoomableImage(
             }
         }
     } else {
+        val baseViewConfiguration = androidx.compose.ui.platform.LocalViewConfiguration.current
+        val snappyViewConfiguration = remember(baseViewConfiguration) {
+            object : androidx.compose.ui.platform.ViewConfiguration by baseViewConfiguration {
+                override val doubleTapTimeoutMillis: Long = 200L
+            }
+        }
+        androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalViewConfiguration provides snappyViewConfiguration) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -656,6 +663,8 @@ fun FullscreenZoomableImage(
                 .pointerInput(Unit) {
                     awaitEachGesture {
                         awaitFirstDown(requireUnconsumed = false)
+                        var pastSlop = false
+                        var accumulatedPan = Offset.Zero
                         do {
                             val event = awaitPointerEvent()
                             val canceled = event.changes.any { it.isConsumed }
@@ -665,6 +674,11 @@ fun FullscreenZoomableImage(
                             if (pointerCount >= 2 || rawScale > 1.05f) {
                                 val zoomChange = event.calculateZoom()
                                 val panChange = event.calculatePan()
+                                if (!pastSlop) {
+                                    accumulatedPan += panChange
+                                    pastSlop = pointerCount >= 2 || zoomChange != 1f || accumulatedPan.getDistance() > viewConfiguration.touchSlop
+                                }
+                                if (!pastSlop) continue
                                 val newScale = (rawScale * zoomChange).coerceIn(1f, 5f)
                                 rawScale = newScale
                                 val zoomed = newScale > 1.05f
@@ -740,6 +754,7 @@ fun FullscreenZoomableImage(
                     SubcomposeAsyncImageContent()
                 }
             }
+        }
         }
     }
 }

@@ -871,7 +871,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val genList = generalResult.getOrNull()?.items.orEmpty().let { list -> if (hideVideos) list.filterNot { it.isVideo } else list }
         val tagLists = taggedResults.map { r -> r.getOrNull()?.items.orEmpty().let { list -> if (hideVideos) list.filterNot { it.isVideo } else list } }
         val blended = withContext(Dispatchers.Default) {
-            blendRecommendationFeed(genList, tagLists, recommendationRatio, existingKeys, maxPerTag = REC_MAX_PER_TAG)
+            blendRecommendationFeed(
+                genList,
+                tagLists,
+                recommendationRatio,
+                existingKeys,
+                maxPerTag = (REC_MAX_PER_TAG * (0.5f + recommendationRatio)).toInt().coerceIn(3, REC_TAG_PAGE_LIMIT)
+            )
         }
         val hasMore = (generalResult.getOrNull()?.rawCount ?: 0) > 0 || taggedResults.any { (it.getOrNull()?.rawCount ?: 0) > 0 }
         blended to hasMore
@@ -1771,6 +1777,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             val result = mutableListOf<RemoteMedia>()
             var recAcc = 0f
             val clampedRatio = ratio.coerceIn(0.1f, 0.9f)
+            if (recQueue.size >= 6) {
+                val maxGeneral = kotlin.math.ceil(recQueue.size * (1f - clampedRatio) / clampedRatio).toInt()
+                while (genQueue.size > maxGeneral) genQueue.removeLast()
+            }
 
             while (genQueue.isNotEmpty() || recQueue.isNotEmpty()) {
                 recAcc += clampedRatio

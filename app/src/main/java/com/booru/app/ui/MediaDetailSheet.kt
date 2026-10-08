@@ -69,6 +69,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -363,23 +364,30 @@ fun MediaDetailSheet(
                         }
                     }
     
-                    Surface(
-                        onClick = { showTrueFullscreen = true },
-                        shape = CircleShape,
-                        color = Color.Black.copy(alpha = 0.55f),
-                        contentColor = Color.White,
+                    AnimatedVisibility(
+                        visible = !isCurrentPageZoomed,
+                        enter = fadeIn(tween(180)) + scaleIn(tween(200), initialScale = 0.8f),
+                        exit = fadeOut(tween(140)) + scaleOut(tween(160), targetScale = 0.8f),
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(12.dp)
-                            .size(38.dp)
-                            .bouncyPress()
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Rounded.Fullscreen,
-                                contentDescription = Strings.fullscreen(lang),
-                                modifier = Modifier.size(20.dp)
-                            )
+                        Surface(
+                            onClick = { showTrueFullscreen = true },
+                            shape = CircleShape,
+                            color = Color.Black.copy(alpha = 0.55f),
+                            contentColor = Color.White,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .bouncyPress()
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    Icons.Rounded.Fullscreen,
+                                    contentDescription = Strings.fullscreen(lang),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -437,7 +445,7 @@ fun MediaDetailSheet(
                         }
     
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(0.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             val isFav = vm.isFavorite(currentMedia)
@@ -469,9 +477,15 @@ fun MediaDetailSheet(
     
                             AnimatedVisibility(
                                 visible = isFav,
-                                enter = fadeIn(tween(180)) + expandHorizontally(tween(200)),
-                                exit = fadeOut(tween(140)) + shrinkHorizontally(tween(180))
+                                enter = expandHorizontally(spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow), expandFrom = Alignment.Start) +
+                                    fadeIn(tween(220, delayMillis = 60)) +
+                                    scaleIn(spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessMediumLow), initialScale = 0.6f),
+                                exit = shrinkHorizontally(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium), shrinkTowards = Alignment.Start) +
+                                    fadeOut(tween(120)) +
+                                    scaleOut(tween(150), targetScale = 0.6f)
                             ) {
+                                Row {
+                                Spacer(Modifier.width(6.dp))
                                 FilledTonalIconButton(
                                     onClick = { showFolderDialog = true },
                                     modifier = Modifier
@@ -489,8 +503,10 @@ fun MediaDetailSheet(
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
+                                }
                             }
     
+                            Spacer(Modifier.width(6.dp))
                             FilledTonalIconButton(
                                 onClick = { showTrueFullscreen = true },
                                 modifier = Modifier
@@ -509,6 +525,7 @@ fun MediaDetailSheet(
                                 )
                             }
     
+                            Spacer(Modifier.width(6.dp))
                             FilledTonalIconButton(
                                 onClick = {
                                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -534,6 +551,7 @@ fun MediaDetailSheet(
                                 )
                             }
     
+                            Spacer(Modifier.width(6.dp))
                             Box {
                                 FilledTonalIconButton(
                                     onClick = { showMoreMenu = true },
@@ -1702,18 +1720,20 @@ private fun OptInFlowDetailTags(
                     it.equals(item.rawTag, ignoreCase = true) || (it.contains(":") && it.substringAfter(":") == item.rawTag)
                 }
                 val cat = item.category
+                val scheme = MaterialTheme.colorScheme
+                val tone = cat.contentColor(isDark)?.let { androidx.compose.ui.graphics.lerp(it, scheme.primary, 0.3f) }
                 val chipBg = when {
-                    isBlacklisted -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f)
-                    cat.containerColor(isDark) != null -> cat.containerColor(isDark)!!
-                    else -> MaterialTheme.colorScheme.surfaceContainerHighest
+                    isBlacklisted -> scheme.errorContainer.copy(alpha = 0.25f)
+                    tone != null -> tone.copy(alpha = if (isDark) 0.2f else 0.13f).compositeOver(scheme.surfaceContainerLow)
+                    else -> scheme.surfaceContainerHighest
                 }
                 val chipContent = when {
-                    isBlacklisted -> MaterialTheme.colorScheme.error
-                    cat.contentColor(isDark) != null -> cat.contentColor(isDark)!!
-                    else -> MaterialTheme.colorScheme.onSurface
+                    isBlacklisted -> scheme.error
+                    tone != null -> tone
+                    else -> scheme.onSurface
                 }
                 val chipIcon = if (isBlacklisted) Icons.Rounded.Block else cat.icon
-                val iconTint = if (isBlacklisted) MaterialTheme.colorScheme.error else (cat.contentColor(isDark) ?: MaterialTheme.colorScheme.primary)
+                val iconTint = if (isBlacklisted) scheme.error else (tone ?: scheme.primary)
 
                 Surface(
                     shape = CircleShape,

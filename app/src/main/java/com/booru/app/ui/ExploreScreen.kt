@@ -80,6 +80,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import com.booru.app.BooruRepository
 import com.booru.app.ContentType
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.border
 import com.booru.app.GalleryViewModel
 import com.booru.app.RemoteMedia
 import com.booru.app.SortOrder
@@ -258,13 +259,23 @@ fun ExploreScreen(
                         (if (vm.sortOrder != SortOrder.NEWEST) 1 else 0) +
                         (if (vm.selectedContentTypes.isNotEmpty()) 1 else 0)
 
+                val filterBtnContainer by animateColorAsState(
+                    targetValue = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    animationSpec = tween(220, easing = FastOutSlowInEasing),
+                    label = "filterBtnContainer"
+                )
+                val filterBtnContent by animateColorAsState(
+                    targetValue = if (activeFilterCount > 0) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                    animationSpec = tween(220, easing = FastOutSlowInEasing),
+                    label = "filterBtnContent"
+                )
                 FilledTonalButton(
                     onClick = { showFilterSheet = true },
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
                     shape = CircleShape,
                     colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
+                        containerColor = filterBtnContainer,
+                        contentColor = filterBtnContent
                     ),
                     modifier = Modifier
                         .height(38.dp)
@@ -282,7 +293,12 @@ fun ExploreScreen(
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    if (activeFilterCount > 0) {
+                    AnimatedVisibility(
+                        visible = activeFilterCount > 0,
+                        enter = fadeIn(tween(180)) + expandHorizontally(spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow)) + scaleIn(spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMedium), initialScale = 0.4f),
+                        exit = fadeOut(tween(140)) + shrinkHorizontally(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMedium)) + scaleOut(tween(140), targetScale = 0.4f)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                         Spacer(Modifier.width(6.dp))
                         Surface(
                             shape = CircleShape,
@@ -290,13 +306,24 @@ fun ExploreScreen(
                             modifier = Modifier.size(20.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = "$activeFilterCount",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
+                                AnimatedContent(
+                                    targetState = activeFilterCount,
+                                    transitionSpec = {
+                                        val up = targetState > initialState
+                                        (slideInVertically(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium)) { if (up) it else -it } + fadeIn(tween(150)))
+                                            .togetherWith(slideOutVertically(tween(150)) { if (up) -it else it } + fadeOut(tween(120)))
+                                    },
+                                    label = "filterCount"
+                                ) { count ->
+                                    Text(
+                                        text = "${count.coerceAtLeast(1)}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
                             }
+                        }
                         }
                     }
                 }
@@ -785,10 +812,8 @@ fun ExploreScreen(
 
         AnimatedVisibility(
             visible = searchExpanded,
-            enter = fadeIn(tween(200, easing = Motion.EmphasizedDecelerate)) +
-                slideInVertically(tween(260, easing = Motion.EmphasizedDecelerate)) { -it / 16 },
-            exit = fadeOut(tween(160, easing = Motion.EmphasizedAccelerate)) +
-                slideOutVertically(tween(160, easing = Motion.EmphasizedAccelerate)) { -it / 24 },
+            enter = fadeIn(tween(200, easing = Motion.EmphasizedDecelerate)),
+            exit = fadeOut(tween(170, easing = Motion.EmphasizedAccelerate)),
             modifier = Modifier.fillMaxSize()
         ) {
             Surface(
@@ -1167,36 +1192,53 @@ fun HeartBurstOverlay(
     onAnimationEnd: () -> Unit = {}
 ) {
     if (!visible) return
-    val animScale = remember { Animatable(0.2f) }
-    val animAlpha = remember { Animatable(1f) }
+    val heartScale = remember { Animatable(0f) }
+    val heartAlpha = remember { Animatable(1f) }
+    val heartLift = remember { Animatable(0f) }
+    val ringScale = remember { Animatable(0.5f) }
+    val ringAlpha = remember { Animatable(0.55f) }
+    val tilt = remember { (-14..14).random().toFloat() }
+    val ringColor = MaterialTheme.colorScheme.primary
     LaunchedEffect(visible) {
-        animScale.animateTo(
-            targetValue = 1.35f,
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessLow
-            )
-        )
-        animAlpha.animateTo(
-            targetValue = 0f,
-            animationSpec = tween(durationMillis = 220)
-        )
+        launch {
+            ringScale.animateTo(1.9f, tween(420, easing = Motion.EmphasizedDecelerate))
+        }
+        launch {
+            ringAlpha.animateTo(0f, tween(420, easing = LinearOutSlowInEasing))
+        }
+        heartScale.animateTo(1f, spring(dampingRatio = 0.42f, stiffness = 520f))
+        kotlinx.coroutines.delay(140)
+        launch { heartLift.animateTo(-36f, tween(300, easing = Motion.EmphasizedAccelerate)) }
+        launch { heartScale.animateTo(1.18f, tween(300, easing = Motion.EmphasizedAccelerate)) }
+        heartAlpha.animateTo(0f, tween(300, easing = Motion.EmphasizedAccelerate))
         onAnimationEnd()
     }
     Box(
         modifier = modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
+        Box(
+            modifier = Modifier
+                .size(76.dp)
+                .graphicsLayer {
+                    scaleX = ringScale.value
+                    scaleY = ringScale.value
+                    alpha = ringAlpha.value
+                }
+                .border(3.dp, ringColor, CircleShape)
+        )
         Icon(
             imageVector = Icons.Rounded.Favorite,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier
-                .size(72.dp)
+                .size(76.dp)
                 .graphicsLayer {
-                    scaleX = animScale.value
-                    scaleY = animScale.value
-                    alpha = animAlpha.value
+                    scaleX = heartScale.value
+                    scaleY = heartScale.value
+                    alpha = heartAlpha.value
+                    rotationZ = tilt * (1f - heartScale.value.coerceIn(0f, 1f) * 0.6f)
+                    translationY = heartLift.value.dp.toPx()
                 }
         )
     }
@@ -2061,12 +2103,19 @@ private fun FilterSelectionBottomSheet(
                                                 Triple(ContentType.VIDEOS, Strings.contentTypeVideos(lang), Icons.Rounded.Videocam),
                                                 Triple(ContentType.GIFS, Strings.contentTypeGifs(lang), Icons.Rounded.Gif)
                                             )
+                                            FilterOptionButton(
+                                                selected = tempContentTypes.isEmpty(),
+                                                onClick = { tempContentTypes = emptySet() },
+                                                label = Strings.favFilterAll(lang),
+                                                modifier = Modifier.weight(1f)
+                                            )
                                             types.forEach { (type, label, icon) ->
                                                 val selected = tempContentTypes.contains(type)
                                                 FilterOptionButton(
                                                     selected = selected,
                                                     onClick = {
-                                                        tempContentTypes = if (selected) tempContentTypes - type else tempContentTypes + type
+                                                        val updated = if (selected) tempContentTypes - type else tempContentTypes + type
+                                                        tempContentTypes = if (updated.size == types.size) emptySet() else updated
                                                     },
                                                     label = label,
                                                     icon = icon,
@@ -2116,8 +2165,6 @@ private fun FilterSelectionBottomSheet(
                                                 },
                                                 label = Strings.only18Badge(lang),
                                                 icon = Icons.Rounded.Explicit,
-                                                selectedContainerColor = MaterialTheme.colorScheme.error,
-                                                selectedContentColor = MaterialTheme.colorScheme.onError,
                                                 modifier = Modifier.weight(1f)
                                             )
                                             FilterOptionButton(
@@ -2166,19 +2213,12 @@ private fun FilterSelectionBottomSheet(
                                                 }
                                             }
                                             Spacer(Modifier.width(12.dp))
-                                            Column {
-                                                Text(
-                                                    text = Strings.noAiBadge(lang),
-                                                    style = MaterialTheme.typography.bodyLarge,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = MaterialTheme.colorScheme.onSurface
-                                                )
-                                                Text(
-                                                    text = if (lang == AppLanguage.RUSSIAN) "Скрывать арты, созданные нейросетями" else "Hide AI-generated artworks",
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
+                                            Text(
+                                                text = Strings.noAiBadge(lang),
+                                                style = MaterialTheme.typography.bodyLarge,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = MaterialTheme.colorScheme.onSurface
+                                            )
                                         }
                                         Switch(
                                             checked = tempNoAi,

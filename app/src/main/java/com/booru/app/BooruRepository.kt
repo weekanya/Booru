@@ -279,16 +279,26 @@ class BooruRepository(
         val filteredResults = filterMediaList(allResults, safeMode, excludeSafe, noAi)
 
         if (targets.size > 1 && filteredResults.isNotEmpty()) {
-            when (sortOrder) {
-                SortOrder.NEWEST -> {
-                    filteredResults.sortWith(
-                        compareByDescending<RemoteMedia> { it.createdAt > 0 }
-                            .thenByDescending { it.createdAt }
-                            .thenByDescending { it.score }
-                    )
+            if (sortOrder == SortOrder.RANDOM) {
+                filteredResults.shuffle()
+            } else {
+                val comparator = if (sortOrder == SortOrder.SCORE) {
+                    compareByDescending<RemoteMedia> { it.score }
+                } else {
+                    compareByDescending<RemoteMedia> { it.createdAt > 0 }
+                        .thenByDescending { it.createdAt }
+                        .thenByDescending { it.score }
                 }
-                SortOrder.SCORE -> filteredResults.sortByDescending { it.score }
-                SortOrder.RANDOM -> filteredResults.shuffle()
+                val queues = filteredResults
+                    .groupBy { it.source }
+                    .values
+                    .map { ArrayDeque(it.sortedWith(comparator)) }
+                val merged = ArrayList<RemoteMedia>(filteredResults.size)
+                while (queues.any { it.isNotEmpty() }) {
+                    for (queue in queues) queue.removeFirstOrNull()?.let { merged.add(it) }
+                }
+                filteredResults.clear()
+                filteredResults.addAll(merged)
             }
         }
         SearchPage(

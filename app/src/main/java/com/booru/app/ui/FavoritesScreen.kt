@@ -455,10 +455,10 @@ fun FavoritesScreen(
                             isSelected = isAllSelected,
                             onClick = {
                                 scope.launch {
-                                    if (kotlin.math.abs(pagerState.currentPage - 0) > 1) {
-                                        pagerState.scrollToPage(1)
+                                    if (pagerState.currentPage > 3) {
+                                        pagerState.scrollToPage(2)
                                     }
-                                    pagerState.animateScrollToPage(0)
+                                    pagerState.animateScrollToPage(0, animationSpec = spring(dampingRatio = 1f, stiffness = 320f))
                                 }
                             },
                             icon = Icons.Rounded.FolderSpecial
@@ -476,16 +476,23 @@ fun FavoritesScreen(
                             }
                         }
                         val isSelected = targetFolderPage == pageIndex
+                        Box(
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = tween(260, easing = FastOutSlowInEasing),
+                                placementSpec = spring(dampingRatio = 0.85f, stiffness = Spring.StiffnessMediumLow),
+                                fadeOutSpec = tween(180)
+                            )
+                        ) {
                         FolderTabPill(
                             title = folder,
                             count = count,
                             isSelected = isSelected,
                             onClick = {
                                 scope.launch {
-                                    if (kotlin.math.abs(pagerState.currentPage - pageIndex) > 1) {
-                                        pagerState.scrollToPage(if (pageIndex > pagerState.currentPage) pageIndex - 1 else pageIndex + 1)
+                                    if (kotlin.math.abs(pagerState.currentPage - pageIndex) > 3) {
+                                        pagerState.scrollToPage(if (pageIndex > pagerState.currentPage) pageIndex - 2 else pageIndex + 2)
                                     }
-                                    pagerState.animateScrollToPage(pageIndex)
+                                    pagerState.animateScrollToPage(pageIndex, animationSpec = spring(dampingRatio = 1f, stiffness = 320f))
                                 }
                             },
                             onDelete = {
@@ -493,6 +500,7 @@ fun FavoritesScreen(
                             },
                             icon = Icons.Rounded.Folder
                         )
+                        }
                     }
 
                     item(key = "add_folder_pill") {

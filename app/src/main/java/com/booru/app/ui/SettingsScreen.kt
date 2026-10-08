@@ -177,7 +177,7 @@ fun SettingsScreen(
                             val enabled = vm.isSourceEnabled(src)
                             SettingSwitchItem(
                                 title = BooruRepository.getSourceDisplayName(src),
-                                subtitle = Strings.sourceToggleDesc(enabled, lang),
+                                subtitle = null,
                                 icon = feedSourceIcon(src),
                                 checked = enabled,
                                 onCheckedChange = { vm.setSourceEnabled(src, it) }
@@ -1343,106 +1343,33 @@ fun SettingsScreen(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
         )
 
-        Surface(
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 6.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val targetCategoryIndex = if (pagerState.isScrollInProgress) pagerState.targetPage else pagerState.currentPage
-                categories.forEachIndexed { index, cat ->
-                    val isSelected = targetCategoryIndex == index
-                    val animBg by animateColorAsState(
-                        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        animationSpec = tween(160, easing = FastOutSlowInEasing),
-                        label = "settingsTabBg"
+        SettingsTabBar(
+            titles = categories.map { cat ->
+                when (cat) {
+                    SettingsCategory.APPEARANCE -> if (lang == AppLanguage.RUSSIAN) "Вид" else "Style"
+                    SettingsCategory.SOURCES -> if (lang == AppLanguage.RUSSIAN) "Источники" else "Sources"
+                    SettingsCategory.CONTENT -> if (lang == AppLanguage.RUSSIAN) "Контент" else "Content"
+                    SettingsCategory.SYSTEM -> if (lang == AppLanguage.RUSSIAN) "Система" else "System"
+                }
+            },
+            icons = categories.map { cat ->
+                when (cat) {
+                    SettingsCategory.APPEARANCE -> Icons.Rounded.Palette
+                    SettingsCategory.SOURCES -> Icons.Rounded.Public
+                    SettingsCategory.CONTENT -> Icons.Rounded.Tune
+                    SettingsCategory.SYSTEM -> Icons.Rounded.Settings
+                }
+            },
+            pagerState = pagerState,
+            onSelect = { index ->
+                scope.launch {
+                    pagerState.animateScrollToPage(
+                        page = index,
+                        animationSpec = spring(dampingRatio = 0.9f, stiffness = Spring.StiffnessMediumLow)
                     )
-                    val animFg by animateColorAsState(
-                        targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        animationSpec = tween(160, easing = FastOutSlowInEasing),
-                        label = "settingsTabFg"
-                    )
-
-                    Surface(
-                        onClick = {
-                            scope.launch {
-                                if (kotlin.math.abs(pagerState.currentPage - index) > 1) {
-                                    pagerState.scrollToPage(if (index > pagerState.currentPage) index - 1 else index + 1)
-                                }
-                                pagerState.animateScrollToPage(
-                                    page = index,
-                                    animationSpec = spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow)
-                                )
-                            }
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        color = animBg,
-                        contentColor = animFg,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                            .bouncyPress()
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            AnimatedVisibility(
-                                visible = isSelected,
-                                enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
-                                    expandHorizontally(
-                                        animationSpec = spring(
-                                            dampingRatio = 0.78f,
-                                            stiffness = Spring.StiffnessMediumLow
-                                        ),
-                                        expandFrom = Alignment.Start
-                                    ),
-                                exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
-                                    shrinkHorizontally(
-                                        animationSpec = spring(
-                                            dampingRatio = 0.88f,
-                                            stiffness = Spring.StiffnessMediumLow
-                                        ),
-                                        shrinkTowards = Alignment.Start
-                                    )
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Rounded.Check,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(15.dp)
-                                    )
-                                    Spacer(Modifier.width(3.dp))
-                                }
-                            }
-                            Text(
-                                text = when (cat) {
-                                    SettingsCategory.APPEARANCE -> if (lang == AppLanguage.RUSSIAN) "Вид" else "Style"
-                                    SettingsCategory.SOURCES -> if (lang == AppLanguage.RUSSIAN) "Источники" else "Sources"
-                                    SettingsCategory.CONTENT -> if (lang == AppLanguage.RUSSIAN) "Контент" else "Content"
-                                    SettingsCategory.SYSTEM -> if (lang == AppLanguage.RUSSIAN) "Система" else "System"
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    }
                 }
             }
-        }
+        )
 
         HorizontalPager(
             state = pagerState,
@@ -1560,11 +1487,19 @@ fun SettingsScreen(
                                     ) {
                                         Box(
                                             modifier = Modifier
-                                                .size(24.dp)
-                                                .clip(CircleShape)
-                                                .background(currentSwatchBrush)
-                                                .border(1.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
-                                        )
+                                                .size(width = 40.dp, height = 24.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(currentSwatchBrush),
+                                            contentAlignment = Alignment.CenterEnd
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .padding(end = 4.dp)
+                                                    .size(16.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color.White.copy(alpha = 0.85f))
+                                            )
+                                        }
                                         Icon(
                                             Icons.Rounded.ChevronRight,
                                             contentDescription = null,
@@ -1902,6 +1837,80 @@ fun SettingsScreen(
     }
 }
 
+@Composable
+private fun SettingsTabBar(
+    titles: List<String>,
+    icons: List<ImageVector>,
+    pagerState: androidx.compose.foundation.pager.PagerState,
+    onSelect: (Int) -> Unit
+) {
+    val isRtl = androidx.compose.ui.platform.LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl
+    Surface(
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+    ) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp)
+        ) {
+            val count = titles.size
+            val tabWidth = maxWidth / count
+            Box(
+                modifier = Modifier
+                    .width(tabWidth)
+                    .height(56.dp)
+                    .graphicsLayer {
+                        val position = (pagerState.currentPage + pagerState.currentPageOffsetFraction)
+                            .coerceIn(0f, (count - 1).toFloat())
+                        val offset = position * tabWidth.toPx()
+                        translationX = if (isRtl) -offset else offset
+                    }
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(MaterialTheme.colorScheme.primary)
+            )
+            Row(modifier = Modifier.fillMaxWidth()) {
+                titles.forEachIndexed { index, title ->
+                    val selected = (if (pagerState.isScrollInProgress) pagerState.targetPage else pagerState.currentPage) == index
+                    val contentColor by animateColorAsState(
+                        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        animationSpec = tween(160, easing = FastOutSlowInEasing),
+                        label = "settingsTabContent"
+                    )
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .clickable { onSelect(index) },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = icons[index],
+                            contentDescription = null,
+                            tint = contentColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = title,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            color = contentColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 private fun feedSourceIcon(source: String): ImageVector = when (source) {
     BooruRepository.SOURCE_RULE34 -> Icons.Rounded.Explicit
     BooruRepository.SOURCE_GELBOORU -> Icons.Rounded.Image
@@ -2022,7 +2031,7 @@ private fun SettingRowItem(
 @Composable
 private fun SettingSwitchItem(
     title: String,
-    subtitle: String,
+    subtitle: String?,
     icon: ImageVector,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
@@ -2061,12 +2070,14 @@ private fun SettingSwitchItem(
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (subtitle != null) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
