@@ -38,7 +38,3 @@
   - incognito mode;
   - content hidden from recents and screenshots.
 - **Updates:** built-in updater from GitHub Releases that checks the APK signature before installing.
-
-## License
-
-[GPL-3.0](LICENSE)
