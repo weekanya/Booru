@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.booru.app.ui
 
 import android.os.Build
@@ -153,10 +155,10 @@ private val AmoledDark = darkColorScheme(
 
 val BooruShapes = Shapes(
     extraSmall = RoundedCornerShape(4.dp),
-    small      = RoundedCornerShape(8.dp),
-    medium     = RoundedCornerShape(16.dp),
-    large      = RoundedCornerShape(24.dp),
-    extraLarge = RoundedCornerShape(32.dp)
+    small      = RoundedCornerShape(12.dp),
+    medium     = RoundedCornerShape(20.dp),
+    large      = RoundedCornerShape(28.dp),
+    extraLarge = RoundedCornerShape(36.dp)
 )
 
 val BooruTypography = Typography(
@@ -287,8 +289,9 @@ fun BooruTheme(
         }
     }
 
-    MaterialTheme(
+    MaterialExpressiveTheme(
         colorScheme = colorScheme,
+        motionScheme = MotionScheme.expressive(),
         shapes = BooruShapes,
         typography = BooruTypography
     ) {

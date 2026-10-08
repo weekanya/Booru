@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.booru.app.ui
 
 import androidx.activity.compose.BackHandler
@@ -1530,10 +1532,7 @@ private fun FeedFooter(
             contentAlignment = Alignment.Center
         ) {
             when (state) {
-                1 -> CircularProgressIndicator(
-                    modifier = Modifier.size(28.dp),
-                    strokeWidth = 3.dp
-                )
+                1 -> LoadingIndicator(modifier = Modifier.size(36.dp))
                 2 -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = Strings.loadMoreFailed(lang),

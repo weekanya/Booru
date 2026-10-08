@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.booru.app.ui
 
 import android.app.Activity
@@ -45,6 +47,7 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.ZoomOutMap
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -601,11 +604,7 @@ fun FullscreenZoomableImage(
                             .fillMaxHeight(),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(40.dp),
-                            strokeWidth = 3.dp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        LoadingIndicator(modifier = Modifier.size(48.dp), color = MaterialTheme.colorScheme.primary)
                     }
                 } else if (state is coil.compose.AsyncImagePainter.State.Error) {
                     Box(
@@ -728,12 +727,7 @@ fun FullscreenZoomableImage(
                     val scope = this
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         scope.SubcomposeAsyncImageContent()
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(36.dp),
-                            strokeWidth = 3.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = Color.Black.copy(alpha = 0.3f)
-                        )
+                        LoadingIndicator(modifier = Modifier.size(44.dp), color = MaterialTheme.colorScheme.primary)
                     }
                 } else if (state is coil.compose.AsyncImagePainter.State.Error) {
                     Icon(

@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package com.booru.app.ui
 
 import android.app.Activity
@@ -1377,11 +1379,7 @@ fun DetailZoomableImage(
                             .height(420.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(36.dp),
-                            strokeWidth = 3.dp,
-                            color = MaterialTheme.colorScheme.primary
-                        )
+                        LoadingIndicator(modifier = Modifier.size(44.dp), color = MaterialTheme.colorScheme.primary)
                     }
                 } else if (state is coil.compose.AsyncImagePainter.State.Error) {
                     Box(
@@ -1550,12 +1548,7 @@ fun DetailZoomableImage(
                     val scope = this
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         scope.SubcomposeAsyncImageContent()
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(32.dp),
-                            strokeWidth = 3.dp,
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.6f)
-                        )
+                        LoadingIndicator(modifier = Modifier.size(40.dp), color = MaterialTheme.colorScheme.primary)
                     }
                 } else if (state is coil.compose.AsyncImagePainter.State.Error) {
                     Column(
@@ -2036,11 +2029,7 @@ fun BooruVideoPlayer(
                 }
             }
         } else if (!isReady) {
-            CircularProgressIndicator(
-                color = MaterialTheme.colorScheme.primary,
-                strokeWidth = 3.dp,
-                modifier = Modifier.size(36.dp)
-            )
+            LoadingIndicator(modifier = Modifier.size(44.dp), color = MaterialTheme.colorScheme.primary)
         }
 
         AnimatedVisibility(
