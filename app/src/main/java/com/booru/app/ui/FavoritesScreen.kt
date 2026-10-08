@@ -3,6 +3,7 @@
 package com.booru.app.ui
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
@@ -481,7 +482,7 @@ fun FavoritesScreen(
                         Box(
                             modifier = Modifier.animateItem(
                                 fadeInSpec = tween(260, easing = FastOutSlowInEasing),
-                                placementSpec = Motion.spatialDefault(),
+                                placementSpec = null,
                                 fadeOutSpec = tween(180)
                             )
                         ) {
@@ -881,43 +882,25 @@ private fun FolderTabPill(
                 .padding(start = 12.dp, end = if (onDelete != null) 6.dp else 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            AnimatedVisibility(
-                visible = isSelected,
-                enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
-                    expandHorizontally(
-                        animationSpec = Motion.spatialDefault(),
-                        expandFrom = Alignment.Start
-                    ),
-                exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
-                    shrinkHorizontally(
-                        animationSpec = Motion.spatialDefault(),
-                        shrinkTowards = Alignment.Start
-                    )
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Rounded.Check,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                }
-            }
-
-            if (!isSelected) {
+            Crossfade(
+                targetState = isSelected,
+                animationSpec = tween(180, easing = FastOutSlowInEasing),
+                label = "folderPillIcon",
+                modifier = Modifier.size(18.dp)
+            ) { selected ->
                 Icon(
-                    imageVector = icon,
+                    imageVector = if (selected) Icons.Rounded.Check else icon,
                     contentDescription = null,
-                    modifier = Modifier.size(17.dp),
-                    tint = contentColor.copy(alpha = 0.8f)
+                    modifier = Modifier.size(18.dp),
+                    tint = if (selected) contentColor else contentColor.copy(alpha = 0.8f)
                 )
-                Spacer(Modifier.width(6.dp))
             }
+            Spacer(Modifier.width(6.dp))
 
             Text(
                 text = title,
                 style = MaterialTheme.typography.labelLarge,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
@@ -1048,8 +1031,8 @@ private fun FavoritesFilterBottomSheet(
                 }
     
                 Surface(
-                    shape = ShapeTokens.LargeIncreased,
-                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    shape = ShapeTokens.ExtraLarge,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -1057,13 +1040,8 @@ private fun FavoritesFilterBottomSheet(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(bottom = 12.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.Sort,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
+                            FilterSectionIcon(Icons.AutoMirrored.Rounded.Sort)
+                            Spacer(Modifier.width(12.dp))
                             Text(
                                 text = Strings.favSortTitle(lang),
                                 style = MaterialTheme.typography.titleSmall,
@@ -1097,8 +1075,8 @@ private fun FavoritesFilterBottomSheet(
                 Spacer(Modifier.height(14.dp))
     
                 Surface(
-                    shape = ShapeTokens.LargeIncreased,
-                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    shape = ShapeTokens.ExtraLarge,
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -1106,13 +1084,8 @@ private fun FavoritesFilterBottomSheet(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(bottom = 12.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Category,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(Modifier.width(8.dp))
+                            FilterSectionIcon(Icons.Rounded.Category)
+                            Spacer(Modifier.width(12.dp))
                             Text(
                                 text = Strings.contentTypeTitle(lang),
                                 style = MaterialTheme.typography.titleSmall,
@@ -1176,15 +1149,14 @@ private fun FavoritesFilterBottomSheet(
                         onTypeSelected(draftType)
                         scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                     },
-                    shape = ShapeTokens.LargeIncreased,
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(48.dp)
-                        .bouncyPress()
+                        .height(56.dp)
                 ) {
                     Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))

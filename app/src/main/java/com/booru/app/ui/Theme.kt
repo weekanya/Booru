@@ -166,6 +166,12 @@ object ShapeTokens {
     val ExtraLargeIncreasedTop = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
 }
 
+fun segmentedListShape(index: Int, count: Int): RoundedCornerShape {
+    val top = if (index == 0) 20.dp else 4.dp
+    val bottom = if (index == count - 1) 20.dp else 4.dp
+    return RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
+}
+
 val BooruShapes = Shapes(
     extraSmall = ShapeTokens.ExtraSmall,
     small = ShapeTokens.Small,

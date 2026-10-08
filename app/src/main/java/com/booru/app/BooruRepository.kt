@@ -216,14 +216,22 @@ class BooruRepository(
             source == SOURCE_TBIB      -> if (wantsOnlyVideos) emptyList() else listOf("tbib")
             source == SOURCE_KONACHAN  -> if (wantsOnlyVideos) emptyList() else listOf("konachan")
             else -> {
-                if (wantsOnlyVideos || excludeSafe) {
+                if (wantsOnlyVideos) {
                     listOf("rule34", "gelbooru", "realbooru", "xbooru")
+                } else if (excludeSafe) {
+                    listOf("rule34", "gelbooru", "realbooru", "xbooru", "tbib", "yande", "konachan")
                 } else {
                     listOf("rule34", "gelbooru", "realbooru", "xbooru", "tbib", "yande", "konachan", "safebooru")
                 }
             }
         }
-        val targets = allTargets.filterNot { it in excludeSources }.ifEmpty { allTargets }
+        val keyless = buildSet {
+            if (allTargets.size > 1) {
+                if (credentials.rule34ApiKey.isBlank()) add("rule34")
+                if (credentials.gelbooruApiKey.isBlank()) add("gelbooru")
+            }
+        }
+        val targets = allTargets.filterNot { it in excludeSources || it in keyless }.ifEmpty { allTargets }
 
         if (targets.isEmpty()) {
             return@withContext SearchPage(emptyList(), 0)

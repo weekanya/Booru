@@ -1722,12 +1722,22 @@ fun SourceSelectionSheet(
                     )
                 }
     
-                sources.forEach { src ->
+                sources.forEachIndexed { index, src ->
                     val isSelected = pendingSource?.let { it == src } ?: (currentSource == src || (customSources.find { it.key == src || it.id == src }?.let { it.key == currentSource || it.id == currentSource } ?: false))
                     val itemColor by animateColorAsState(
-                        targetValue = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer,
-                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        targetValue = if (isSelected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+                        animationSpec = tween(160, easing = FastOutSlowInEasing),
                         label = "sourceItemColor"
+                    )
+                    val badgeColor by animateColorAsState(
+                        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+                        animationSpec = tween(160, easing = FastOutSlowInEasing),
+                        label = "sourceBadgeColor"
+                    )
+                    val badgeContent by animateColorAsState(
+                        targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        animationSpec = tween(160, easing = FastOutSlowInEasing),
+                        label = "sourceBadgeContent"
                     )
                     val icon = when (src) {
                         BooruRepository.SOURCE_ALL -> Icons.Rounded.AutoAwesome
@@ -1741,53 +1751,51 @@ fun SourceSelectionSheet(
                         BooruRepository.SOURCE_SAFEBOORU -> Icons.Rounded.Shield
                         else -> Icons.Rounded.Language
                     }
-    
+
                     Surface(
                         onClick = {
                             if (pendingSource == null) {
                                 pendingSource = src
-                                scope.launch {
-                                    kotlinx.coroutines.delay(140)
-                                    sheetState.hide()
-                                }.invokeOnCompletion {
-                                    onSelect(src)
-                                    onDismiss()
-                                }
+                                onSelect(src)
+                                scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                             }
                         },
-                        shape = ShapeTokens.Large,
+                        shape = segmentedListShape(index, sources.size),
                         color = itemColor,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .bouncyPress(0.97f)
+                            .padding(bottom = 2.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(22.dp)
-                            )
-                            Spacer(Modifier.width(14.dp))
+                            Surface(
+                                shape = CircleShape,
+                                color = badgeColor,
+                                contentColor = badgeContent,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.width(16.dp))
                             Text(
                                 text = if (src == BooruRepository.SOURCE_ALL) Strings.sourceRecommendations(lang) else BooruRepository.getSourceDisplayName(src, customSources),
                                 style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                                fontWeight = FontWeight.Medium,
+                                color = if (isSelected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.weight(1f)
                             )
-                            if (isSelected) {
-                                Icon(
-                                    Icons.Rounded.CheckCircle,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                            RadioButton(
+                                selected = isSelected,
+                                onClick = null
+                            )
                         }
                     }
                 }
@@ -1809,6 +1817,20 @@ fun GroupPosition.toggleShapes(): ToggleButtonShapes = when (this) {
     GroupPosition.Leading -> ButtonGroupDefaults.connectedLeadingButtonShapes()
     GroupPosition.Middle -> ButtonGroupDefaults.connectedMiddleButtonShapes()
     GroupPosition.Trailing -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+}
+
+@Composable
+fun FilterSectionIcon(icon: ImageVector) {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+        modifier = Modifier.size(32.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
+        }
+    }
 }
 
 @Composable
@@ -1977,95 +1999,48 @@ private fun FilterSelectionBottomSheet(
                     }
                 }
     
-                Surface(
-                    shape = ShapeTokens.Large,
-                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        val tabs = listOf(
-                            Pair(if (lang == AppLanguage.RUSSIAN) "Контент и рейтинг" else "Content & Rating", Icons.Rounded.Category),
-                            Pair(if (lang == AppLanguage.RUSSIAN) "Сортировка и лента" else "Sorting & Feed", Icons.Rounded.AutoAwesome)
-                        )
-                        val targetFilterIndex = if (filterPagerState.isScrollInProgress) filterPagerState.targetPage else filterPagerState.currentPage
-                        tabs.forEachIndexed { index, (title, icon) ->
-                            val isSelected = targetFilterIndex == index
-                            val bg by animateColorAsState(
-                                targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
-                                animationSpec = tween(160, easing = FastOutSlowInEasing),
-                                label = "filterTabBg"
-                            )
-                            val fg by animateColorAsState(
-                                targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                animationSpec = tween(160, easing = FastOutSlowInEasing),
-                                label = "filterTabFg"
-                            )
-                            Surface(
-                                onClick = {
-                                    scope.launch {
-                                        filterPagerState.animateScrollToPage(
-                                            page = index,
-                                            animationSpec = Motion.spatialDefault()
-                                        )
-                                    }
-                                },
-                                shape = ShapeTokens.Medium,
-                                color = bg,
-                                contentColor = fg,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(44.dp)
-                                    .bouncyPress()
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .padding(horizontal = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
-                                    AnimatedVisibility(
-                                        visible = isSelected,
-                                        enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
-                                            expandHorizontally(
-                                                animationSpec = Motion.spatialDefault(),
-                                                expandFrom = Alignment.Start
-                                            ),
-                                        exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
-                                            shrinkHorizontally(
-                                                animationSpec = Motion.spatialDefault(),
-                                                shrinkTowards = Alignment.Start
-                                            )
-                                    ) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(
-                                                imageVector = Icons.Rounded.Check,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(17.dp)
-                                            )
-                                            Spacer(Modifier.width(5.dp))
-                                        }
-                                    }
-                                    Text(
-                                        text = title,
-                                        style = MaterialTheme.typography.labelMedium,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                    val tabs = listOf(
+                        Pair(if (lang == AppLanguage.RUSSIAN) "Контент и рейтинг" else "Content & Rating", Icons.Rounded.Category),
+                        Pair(if (lang == AppLanguage.RUSSIAN) "Сортировка и лента" else "Sorting & Feed", Icons.Rounded.AutoAwesome)
+                    )
+                    val targetFilterIndex = if (filterPagerState.isScrollInProgress) filterPagerState.targetPage else filterPagerState.currentPage
+                    tabs.forEachIndexed { index, (title, icon) ->
+                        ToggleButton(
+                            checked = targetFilterIndex == index,
+                            onCheckedChange = {
+                                scope.launch {
+                                    filterPagerState.animateScrollToPage(
+                                        page = index,
+                                        animationSpec = Motion.spatialDefault()
                                     )
                                 }
-                            }
+                            },
+                            shapes = groupPosition(index, tabs.size).toggleShapes(),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.labelLarge,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
                         }
                     }
                 }
-    
+
                 Spacer(Modifier.height(10.dp))
     
                 HorizontalPager(
@@ -2083,17 +2058,17 @@ private fun FilterSelectionBottomSheet(
                             verticalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
                                 Card(
-                                    shape = ShapeTokens.LargeIncreased,
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                                    shape = ShapeTokens.ExtraLarge,
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Rounded.PermMedia, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                                            Spacer(Modifier.width(8.dp))
+                                            FilterSectionIcon(Icons.Rounded.PermMedia)
+                                            Spacer(Modifier.width(12.dp))
                                             Text(
                                                 text = Strings.contentTypeTitle(lang),
-                                                style = MaterialTheme.typography.labelLarge,
+                                                style = MaterialTheme.typography.titleSmall,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
@@ -2134,17 +2109,17 @@ private fun FilterSelectionBottomSheet(
                                 }
     
                                 Card(
-                                    shape = ShapeTokens.LargeIncreased,
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                                    shape = ShapeTokens.ExtraLarge,
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Rounded.Shield, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                                            Spacer(Modifier.width(8.dp))
+                                            FilterSectionIcon(Icons.Rounded.Shield)
+                                            Spacer(Modifier.width(12.dp))
                                             Text(
                                                 text = Strings.allRatings(lang),
-                                                style = MaterialTheme.typography.labelLarge,
+                                                style = MaterialTheme.typography.titleSmall,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
@@ -2192,8 +2167,8 @@ private fun FilterSelectionBottomSheet(
                                 }
     
                                 Card(
-                                    shape = ShapeTokens.LargeIncreased,
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                                    shape = ShapeTokens.ExtraLarge,
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Row(
@@ -2232,7 +2207,14 @@ private fun FilterSelectionBottomSheet(
                                         }
                                         Switch(
                                             checked = tempNoAi,
-                                            onCheckedChange = { tempNoAi = it }
+                                            onCheckedChange = { tempNoAi = it },
+                                            thumbContent = {
+                                                Icon(
+                                                    imageVector = if (tempNoAi) Icons.Rounded.Check else Icons.Rounded.Close,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                                )
+                                            }
                                         )
                                     }
                                 }
@@ -2245,17 +2227,17 @@ private fun FilterSelectionBottomSheet(
                                 verticalArrangement = Arrangement.spacedBy(14.dp)
                             ) {
                                 Card(
-                                    shape = ShapeTokens.LargeIncreased,
-                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                                    shape = ShapeTokens.ExtraLarge,
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Column(modifier = Modifier.padding(16.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Icon(Icons.Rounded.Sort, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                                            Spacer(Modifier.width(8.dp))
+                                            FilterSectionIcon(Icons.Rounded.Sort)
+                                            Spacer(Modifier.width(12.dp))
                                             Text(
                                                 text = if (lang == AppLanguage.RUSSIAN) "Сортировка" else "Sort by",
-                                                style = MaterialTheme.typography.labelLarge,
+                                                style = MaterialTheme.typography.titleSmall,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
@@ -2287,17 +2269,17 @@ private fun FilterSelectionBottomSheet(
     
                                 if (vm.query.isBlank()) {
                                     Card(
-                                        shape = ShapeTokens.LargeIncreased,
-                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                                        shape = ShapeTokens.ExtraLarge,
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
                                         Column(modifier = Modifier.padding(16.dp)) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(Icons.Rounded.AutoAwesome, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-                                                Spacer(Modifier.width(8.dp))
+                                                FilterSectionIcon(Icons.Rounded.AutoAwesome)
+                                                Spacer(Modifier.width(12.dp))
                                                 Text(
                                                     text = Strings.feedMixTitle(lang),
-                                                    style = MaterialTheme.typography.labelLarge,
+                                                    style = MaterialTheme.typography.titleSmall,
                                                     fontWeight = FontWeight.Bold,
                                                     color = MaterialTheme.colorScheme.onSurface
                                                 )
@@ -2367,15 +2349,14 @@ private fun FilterSelectionBottomSheet(
                             onDismiss()
                         }
                     },
-                    shape = ShapeTokens.LargeIncreased,
+                    shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp)
-                        .bouncyPress()
+                        .height(56.dp)
                 ) {
                     Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
