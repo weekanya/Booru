@@ -1,111 +1,44 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400">
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="360" viewBox="0 0 1280 360">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="400" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#2E2640"/>
-      <stop offset="0.55" stop-color="#211B2E"/>
-      <stop offset="1" stop-color="#16121F"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2B2339"/>
+      <stop offset="1" stop-color="#16121E"/>
     </linearGradient>
-    <radialGradient id="glowA" cx="1060" cy="40" r="420" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#A68BFF" stop-opacity="0.42"/>
-      <stop offset="1" stop-color="#A68BFF" stop-opacity="0"/>
+    <radialGradient id="glow" cx="640" cy="180" r="520" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9F84FF" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#9F84FF" stop-opacity="0"/>
     </radialGradient>
-    <radialGradient id="glowB" cx="150" cy="430" r="340" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FF86B0" stop-opacity="0.20"/>
-      <stop offset="1" stop-color="#FF86B0" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="iconBg" x1="96" y1="116" x2="264" y2="284" gradientUnits="userSpaceOnUse">
+    <linearGradient id="shapeA" x1="950" y1="130" x2="1290" y2="470" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#C9B6FF" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#C9B6FF" stop-opacity="0.02"/>
+    </linearGradient>
+    <linearGradient id="shapeB" x1="88" y1="-4" x2="212" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFB8D0" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#FFB8D0" stop-opacity="0.02"/>
+    </linearGradient>
+    <linearGradient id="iconBg" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0" stop-color="#40355A"/>
       <stop offset="1" stop-color="#2A2339"/>
     </linearGradient>
-    <linearGradient id="fadeGrad" x1="870" y1="0" x2="1040" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#000"/>
-      <stop offset="1" stop-color="#fff"/>
-    </linearGradient>
-    <mask id="fade">
-      <rect width="1280" height="400" fill="url(#fadeGrad)"/>
-    </mask>
     <clipPath id="frame">
-      <rect width="1280" height="400" rx="36"/>
+      <rect width="1280" height="360" rx="32"/>
     </clipPath>
-    <linearGradient id="tLavender" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#C9B6FF"/>
-      <stop offset="1" stop-color="#7B5BEA"/>
-    </linearGradient>
-    <linearGradient id="tPink" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#FFC2D6"/>
-      <stop offset="1" stop-color="#D9507C"/>
-    </linearGradient>
-    <linearGradient id="tTeal" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#9BEBDD"/>
-      <stop offset="1" stop-color="#2A9483"/>
-    </linearGradient>
-    <linearGradient id="tAmber" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#FFD9A0"/>
-      <stop offset="1" stop-color="#E0812C"/>
-    </linearGradient>
-    <linearGradient id="tBlue" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#AFD2FF"/>
-      <stop offset="1" stop-color="#3A73DA"/>
-    </linearGradient>
-    <linearGradient id="tGraphite" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#D9D8DE"/>
-      <stop offset="1" stop-color="#6C6B73"/>
-    </linearGradient>
   </defs>
-
   <g clip-path="url(#frame)">
-    <rect width="1280" height="400" fill="url(#bg)"/>
-    <rect width="1280" height="400" fill="url(#glowA)"/>
-    <rect width="1280" height="400" fill="url(#glowB)"/>
+    <rect width="1280" height="360" fill="url(#bg)"/>
+    <rect width="1280" height="360" fill="url(#glow)"/>
+    <path d="M1301.0 300.0 L1300.8 303.2 L1300.4 306.3 L1299.6 309.4 L1298.5 312.5 L1297.1 315.5 L1295.5 318.4 L1293.7 321.3 L1291.7 324.1 L1289.6 326.9 L1287.4 329.5 L1285.2 332.1 L1283.0 334.6 L1280.8 337.1 L1278.7 339.6 L1276.7 342.0 L1274.9 344.4 L1273.2 346.8 L1271.7 349.3 L1270.5 351.8 L1269.4 354.4 L1268.6 357.0 L1267.9 359.8 L1267.5 362.6 L1267.2 365.5 L1267.0 368.6 L1267.0 371.7 L1267.0 374.9 L1267.1 378.2 L1267.2 381.6 L1267.2 385.0 L1267.2 388.4 L1267.1 391.9 L1266.8 395.3 L1266.3 398.7 L1265.6 402.0 L1264.7 405.2 L1263.6 408.2 L1262.2 411.1 L1260.6 413.8 L1258.7 416.3 L1256.5 418.7 L1254.1 420.8 L1251.5 422.6 L1248.7 424.3 L1245.7 425.7 L1242.6 426.9 L1239.3 428.0 L1236.0 428.9 L1232.7 429.6 L1229.3 430.2 L1225.9 430.8 L1222.6 431.3 L1219.3 431.8 L1216.1 432.3 L1213.0 432.9 L1210.1 433.6 L1207.3 434.4 L1204.5 435.3 L1202.0 436.4 L1199.5 437.7 L1197.2 439.2 L1194.9 440.9 L1192.7 442.7 L1190.6 444.8 L1188.6 447.0 L1186.5 449.4 L1184.5 451.9 L1182.4 454.5 L1180.3 457.1 L1178.1 459.7 L1175.9 462.4 L1173.6 464.9 L1171.2 467.3 L1168.6 469.6 L1166.0 471.7 L1163.3 473.6 L1160.4 475.2 L1157.5 476.5 L1154.5 477.5 L1151.4 478.3 L1148.3 478.6 L1145.1 478.7 L1141.9 478.5 L1138.7 477.9 L1135.5 477.1 L1132.3 476.0 L1129.2 474.8 L1126.1 473.3 L1123.0 471.7 L1120.0 470.0 L1117.1 468.3 L1114.2 466.5 L1111.4 464.8 L1108.6 463.1 L1105.9 461.6 L1103.2 460.2 L1100.5 459.0 L1097.8 458.0 L1095.1 457.2 L1092.4 456.6 L1089.6 456.2 L1086.8 456.1 L1084.0 456.1 L1081.0 456.3 L1078.0 456.7 L1074.9 457.2 L1071.8 457.8 L1068.5 458.4 L1065.2 459.1 L1061.9 459.7 L1058.5 460.3 L1055.0 460.8 L1051.6 461.1 L1048.2 461.2 L1044.9 461.1 L1041.6 460.8 L1038.4 460.2 L1035.3 459.3 L1032.3 458.2 L1029.5 456.8 L1026.8 455.0 L1024.4 453.0 L1022.1 450.8 L1020.0 448.3 L1018.0 445.6 L1016.3 442.8 L1014.7 439.8 L1013.2 436.6 L1011.9 433.5 L1010.7 430.2 L1009.6 427.0 L1008.5 423.8 L1007.5 420.7 L1006.4 417.6 L1005.3 414.7 L1004.1 411.9 L1002.8 409.3 L1001.4 406.8 L999.9 404.4 L998.2 402.2 L996.3 400.1 L994.3 398.2 L992.1 396.4 L989.7 394.7 L987.1 393.0 L984.4 391.4 L981.6 389.9 L978.7 388.3 L975.8 386.7 L972.8 385.0 L969.8 383.3 L966.9 381.4 L964.1 379.4 L961.4 377.4 L958.9 375.1 L956.6 372.8 L954.5 370.3 L952.7 367.6 L951.1 364.8 L949.9 361.9 L949.0 358.9 L948.4 355.8 L948.1 352.6 L948.0 349.3 L948.3 346.0 L948.8 342.7 L949.5 339.4 L950.4 336.1 L951.4 332.8 L952.6 329.5 L953.8 326.3 L955.0 323.2 L956.2 320.1 L957.4 317.1 L958.4 314.1 L959.3 311.2 L960.0 308.4 L960.6 305.6 L960.9 302.8 L961.0 300.0 L960.9 297.2 L960.6 294.4 L960.0 291.6 L959.3 288.8 L958.4 285.9 L957.4 282.9 L956.2 279.9 L955.0 276.8 L953.8 273.7 L952.6 270.5 L951.4 267.2 L950.4 263.9 L949.5 260.6 L948.8 257.3 L948.3 254.0 L948.0 250.7 L948.1 247.4 L948.4 244.2 L949.0 241.1 L949.9 238.1 L951.1 235.2 L952.7 232.4 L954.5 229.7 L956.6 227.2 L958.9 224.9 L961.4 222.6 L964.1 220.6 L966.9 218.6 L969.8 216.7 L972.8 215.0 L975.8 213.3 L978.7 211.7 L981.6 210.1 L984.4 208.6 L987.1 207.0 L989.7 205.3 L992.1 203.6 L994.3 201.8 L996.3 199.9 L998.2 197.8 L999.9 195.6 L1001.4 193.2 L1002.8 190.7 L1004.1 188.1 L1005.3 185.3 L1006.4 182.4 L1007.5 179.3 L1008.5 176.2 L1009.6 173.0 L1010.7 169.8 L1011.9 166.5 L1013.2 163.4 L1014.7 160.2 L1016.3 157.2 L1018.0 154.4 L1020.0 151.7 L1022.1 149.2 L1024.4 147.0 L1026.8 145.0 L1029.5 143.2 L1032.3 141.8 L1035.3 140.7 L1038.4 139.8 L1041.6 139.2 L1044.9 138.9 L1048.2 138.8 L1051.6 138.9 L1055.0 139.2 L1058.5 139.7 L1061.9 140.3 L1065.2 140.9 L1068.5 141.6 L1071.8 142.2 L1074.9 142.8 L1078.0 143.3 L1081.0 143.7 L1084.0 143.9 L1086.8 143.9 L1089.6 143.8 L1092.4 143.4 L1095.1 142.8 L1097.8 142.0 L1100.5 141.0 L1103.2 139.8 L1105.9 138.4 L1108.6 136.9 L1111.4 135.2 L1114.2 133.5 L1117.1 131.7 L1120.0 130.0 L1123.0 128.3 L1126.1 126.7 L1129.2 125.2 L1132.3 124.0 L1135.5 122.9 L1138.7 122.1 L1141.9 121.5 L1145.1 121.3 L1148.3 121.4 L1151.4 121.7 L1154.5 122.5 L1157.5 123.5 L1160.4 124.8 L1163.3 126.4 L1166.0 128.3 L1168.6 130.4 L1171.2 132.7 L1173.6 135.1 L1175.9 137.6 L1178.1 140.3 L1180.3 142.9 L1182.4 145.5 L1184.5 148.1 L1186.5 150.6 L1188.6 153.0 L1190.6 155.2 L1192.7 157.3 L1194.9 159.1 L1197.2 160.8 L1199.5 162.3 L1202.0 163.6 L1204.5 164.7 L1207.3 165.6 L1210.1 166.4 L1213.0 167.1 L1216.1 167.7 L1219.3 168.2 L1222.6 168.7 L1225.9 169.2 L1229.3 169.8 L1232.7 170.4 L1236.0 171.1 L1239.3 172.0 L1242.6 173.1 L1245.7 174.3 L1248.7 175.7 L1251.5 177.4 L1254.1 179.2 L1256.5 181.3 L1258.7 183.7 L1260.6 186.2 L1262.2 188.9 L1263.6 191.8 L1264.7 194.8 L1265.6 198.0 L1266.3 201.3 L1266.8 204.7 L1267.1 208.1 L1267.2 211.6 L1267.2 215.0 L1267.2 218.4 L1267.1 221.8 L1267.0 225.1 L1267.0 228.3 L1267.0 231.4 L1267.2 234.5 L1267.5 237.4 L1267.9 240.2 L1268.6 243.0 L1269.4 245.6 L1270.5 248.2 L1271.7 250.7 L1273.2 253.2 L1274.9 255.6 L1276.7 258.0 L1278.7 260.4 L1280.8 262.9 L1283.0 265.4 L1285.2 267.9 L1287.4 270.5 L1289.6 273.1 L1291.7 275.9 L1293.7 278.7 L1295.5 281.6 L1297.1 284.5 L1298.5 287.5 L1299.6 290.6 L1300.4 293.7 L1300.8 296.8Z" fill="url(#shapeA)"/>
+    <path d="M218.0 58.0 L217.9 59.2 L217.8 60.4 L217.5 61.5 L217.1 62.7 L216.7 63.8 L216.1 64.9 L215.4 66.0 L214.7 67.1 L213.9 68.1 L213.1 69.1 L212.2 70.1 L211.3 71.0 L210.3 71.9 L209.3 72.8 L208.4 73.6 L207.4 74.5 L206.5 75.3 L205.6 76.1 L204.8 76.9 L203.9 77.6 L203.2 78.4 L202.5 79.2 L201.8 80.0 L201.3 80.8 L200.8 81.7 L200.3 82.6 L200.0 83.5 L199.7 84.4 L199.4 85.4 L199.2 86.4 L199.0 87.5 L198.9 88.6 L198.8 89.7 L198.8 90.9 L198.7 92.1 L198.7 93.4 L198.6 94.6 L198.5 95.9 L198.4 97.2 L198.3 98.5 L198.1 99.8 L197.9 101.1 L197.6 102.4 L197.3 103.6 L196.8 104.8 L196.4 106.0 L195.8 107.1 L195.2 108.1 L194.4 109.1 L193.7 110.0 L192.8 110.8 L191.9 111.6 L190.9 112.2 L189.8 112.8 L188.7 113.2 L187.5 113.6 L186.3 113.9 L185.1 114.1 L183.8 114.2 L182.5 114.3 L181.2 114.3 L179.9 114.2 L178.6 114.1 L177.3 113.9 L176.0 113.7 L174.7 113.5 L173.5 113.3 L172.2 113.0 L171.0 112.8 L169.9 112.6 L168.8 112.5 L167.7 112.3 L166.6 112.3 L165.6 112.3 L164.5 112.3 L163.6 112.4 L162.6 112.6 L161.6 112.8 L160.7 113.1 L159.8 113.5 L158.9 114.0 L157.9 114.5 L157.0 115.0 L156.1 115.7 L155.1 116.3 L154.1 117.0 L153.1 117.8 L152.1 118.5 L151.1 119.3 L150.0 120.0 L148.9 120.7 L147.8 121.4 L146.6 122.1 L145.5 122.7 L144.3 123.2 L143.1 123.7 L141.9 124.0 L140.7 124.3 L139.5 124.5 L138.3 124.6 L137.1 124.6 L135.9 124.5 L134.7 124.3 L133.6 123.9 L132.5 123.5 L131.4 122.9 L130.3 122.3 L129.3 121.6 L128.4 120.8 L127.5 119.9 L126.6 118.9 L125.8 117.9 L125.0 116.9 L124.3 115.8 L123.6 114.7 L122.9 113.5 L122.3 112.4 L121.7 111.3 L121.1 110.2 L120.5 109.1 L119.9 108.0 L119.4 107.0 L118.8 106.1 L118.2 105.2 L117.6 104.3 L116.9 103.5 L116.2 102.8 L115.5 102.1 L114.8 101.5 L113.9 101.0 L113.1 100.5 L112.2 100.0 L111.2 99.6 L110.2 99.2 L109.2 98.8 L108.1 98.5 L106.9 98.2 L105.7 97.9 L104.5 97.5 L103.3 97.2 L102.1 96.8 L100.8 96.4 L99.6 96.0 L98.3 95.5 L97.1 95.0 L96.0 94.4 L94.8 93.8 L93.8 93.1 L92.7 92.4 L91.8 91.6 L90.9 90.7 L90.2 89.8 L89.5 88.8 L88.9 87.8 L88.4 86.7 L88.0 85.6 L87.7 84.4 L87.5 83.2 L87.4 82.0 L87.4 80.8 L87.5 79.5 L87.7 78.2 L87.9 77.0 L88.2 75.7 L88.6 74.4 L89.0 73.2 L89.5 72.0 L90.0 70.8 L90.5 69.6 L91.0 68.4 L91.5 67.3 L91.9 66.2 L92.4 65.1 L92.8 64.0 L93.1 63.0 L93.4 62.0 L93.7 61.0 L93.9 60.0 L94.0 59.0 L94.0 58.0 L94.0 57.0 L93.9 56.0 L93.7 55.0 L93.4 54.0 L93.1 53.0 L92.8 52.0 L92.4 50.9 L91.9 49.8 L91.5 48.7 L91.0 47.6 L90.5 46.4 L90.0 45.2 L89.5 44.0 L89.0 42.8 L88.6 41.6 L88.2 40.3 L87.9 39.0 L87.7 37.8 L87.5 36.5 L87.4 35.2 L87.4 34.0 L87.5 32.8 L87.7 31.6 L88.0 30.4 L88.4 29.3 L88.9 28.2 L89.5 27.2 L90.2 26.2 L90.9 25.3 L91.8 24.4 L92.7 23.6 L93.8 22.9 L94.8 22.2 L96.0 21.6 L97.1 21.0 L98.3 20.5 L99.6 20.0 L100.8 19.6 L102.1 19.2 L103.3 18.8 L104.5 18.5 L105.7 18.1 L106.9 17.8 L108.1 17.5 L109.2 17.2 L110.2 16.8 L111.2 16.4 L112.2 16.0 L113.1 15.5 L113.9 15.0 L114.8 14.5 L115.5 13.9 L116.2 13.2 L116.9 12.5 L117.6 11.7 L118.2 10.8 L118.8 9.9 L119.4 9.0 L119.9 8.0 L120.5 6.9 L121.1 5.8 L121.7 4.7 L122.3 3.6 L122.9 2.5 L123.6 1.3 L124.3 0.2 L125.0 -0.9 L125.8 -1.9 L126.6 -2.9 L127.5 -3.9 L128.4 -4.8 L129.3 -5.6 L130.3 -6.3 L131.4 -6.9 L132.5 -7.5 L133.6 -7.9 L134.7 -8.3 L135.9 -8.5 L137.1 -8.6 L138.3 -8.6 L139.5 -8.5 L140.7 -8.3 L141.9 -8.0 L143.1 -7.7 L144.3 -7.2 L145.5 -6.7 L146.6 -6.1 L147.8 -5.4 L148.9 -4.7 L150.0 -4.0 L151.1 -3.3 L152.1 -2.5 L153.1 -1.8 L154.1 -1.0 L155.1 -0.3 L156.1 0.3 L157.0 1.0 L157.9 1.5 L158.9 2.0 L159.8 2.5 L160.7 2.9 L161.6 3.2 L162.6 3.4 L163.6 3.6 L164.5 3.7 L165.6 3.7 L166.6 3.7 L167.7 3.7 L168.8 3.5 L169.9 3.4 L171.0 3.2 L172.2 3.0 L173.5 2.7 L174.7 2.5 L176.0 2.3 L177.3 2.1 L178.6 1.9 L179.9 1.8 L181.2 1.7 L182.5 1.7 L183.8 1.8 L185.1 1.9 L186.3 2.1 L187.5 2.4 L188.7 2.8 L189.8 3.2 L190.9 3.8 L191.9 4.4 L192.8 5.2 L193.7 6.0 L194.4 6.9 L195.2 7.9 L195.8 8.9 L196.4 10.0 L196.8 11.2 L197.3 12.4 L197.6 13.6 L197.9 14.9 L198.1 16.2 L198.3 17.5 L198.4 18.8 L198.5 20.1 L198.6 21.4 L198.7 22.6 L198.7 23.9 L198.8 25.1 L198.8 26.3 L198.9 27.4 L199.0 28.5 L199.2 29.6 L199.4 30.6 L199.7 31.6 L200.0 32.5 L200.3 33.4 L200.8 34.3 L201.3 35.2 L201.8 36.0 L202.5 36.8 L203.2 37.6 L203.9 38.4 L204.8 39.1 L205.6 39.9 L206.5 40.7 L207.4 41.5 L208.4 42.4 L209.3 43.2 L210.3 44.1 L211.3 45.0 L212.2 45.9 L213.1 46.9 L213.9 47.9 L214.7 48.9 L215.4 50.0 L216.1 51.1 L216.7 52.2 L217.1 53.3 L217.5 54.5 L217.8 55.6 L217.9 56.8Z" fill="url(#shapeB)"/>
+    <path transform="translate(236 300)" fill="#E3D7FE" fill-opacity="0.14" d="M0 -18C2.4 -5 5 -2.4 18 0C5 2.4 2.4 5 0 18C-2.4 5 -5 2.4 -18 0C-5 -2.4 -2.4 -5 0 -18Z"/>
 
-    <g mask="url(#fade)">
-      <rect x="904" y="-30" width="104" height="150" rx="26" fill="url(#tLavender)"/>
-      <rect x="904" y="132" width="104" height="120" rx="26" fill="url(#tPink)"/>
-      <rect x="904" y="264" width="104" height="170" rx="26" fill="url(#tTeal)"/>
-
-      <rect x="1020" y="-80" width="104" height="120" rx="26" fill="url(#tAmber)"/>
-      <rect x="1020" y="52" width="104" height="180" rx="26" fill="url(#tBlue)"/>
-      <rect x="1020" y="244" width="104" height="130" rx="26" fill="url(#tLavender)"/>
-      <rect x="1020" y="386" width="104" height="120" rx="26" fill="url(#tPink)"/>
-
-      <rect x="1136" y="-10" width="104" height="130" rx="26" fill="url(#tPink)"/>
-      <rect x="1136" y="132" width="104" height="150" rx="26" fill="url(#tTeal)"/>
-      <rect x="1136" y="294" width="104" height="140" rx="26" fill="url(#tAmber)"/>
-
-      <rect x="1252" y="-50" width="104" height="170" rx="26" fill="url(#tGraphite)"/>
-      <rect x="1252" y="132" width="104" height="130" rx="26" fill="url(#tLavender)"/>
-      <rect x="1252" y="274" width="104" height="160" rx="26" fill="url(#tBlue)"/>
-
-      <path transform="translate(932 168) scale(2)" fill="#FFFFFF" fill-opacity="0.92" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-
-      <circle cx="1072" cy="142" r="28" fill="#FFFFFF" fill-opacity="0.92"/>
-      <path d="M1064 129L1086 142L1064 155Z" fill="#3A73DA"/>
-
-      <rect x="1160" y="41" width="56" height="28" rx="14" fill="#000000" fill-opacity="0.32"/>
-      <text x="1188" y="60" text-anchor="middle" font-family="'Google Sans', 'Product Sans', Roboto, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="700" fill="#FFFFFF" letter-spacing="1">GIF</text>
-
-      <path transform="translate(1188 207)" fill="#FFFFFF" fill-opacity="0.92" d="M0 -26C3.5 -7 7 -3.5 26 0C7 3.5 3.5 7 0 26C-3.5 7 -7 3.5 -26 0C-7 -3.5 -3.5 -7 0 -26Z"/>
-    </g>
-
-    <rect x="96" y="116" width="168" height="168" rx="52" fill="url(#iconBg)"/>
-    <rect x="97" y="117" width="166" height="166" rx="51" fill="none" stroke="#E3D7FE" stroke-opacity="0.16" stroke-width="2"/>
-    <g transform="translate(53.35 73.64) scale(0.585)" fill="#E3D7FE">
+    <rect x="340" y="114" width="132" height="132" rx="40" fill="url(#iconBg)"/>
+    <rect x="341" y="115" width="130" height="130" rx="39" fill="none" stroke="#E3D7FE" stroke-opacity="0.16" stroke-width="2"/>
+    <g transform="translate(406 180) scale(0.46) translate(-216.5 -216)" fill="#E3D7FE">
       <path d="M131 132H302V153H131Z M204 153H227V169H204Z M136 166H159V300H136Z M274 166H296V300H274Z M136 267H296V289H136Z"/>
       <path fill-rule="evenodd" d="M171 169H261V256H171Z M189 187H206V204H189Z M225 187H242V204H225Z M189 221H206V237H189Z M225 221H242V237H225Z"/>
     </g>
 
-    <text x="300" y="190" font-family="'Google Sans', 'Product Sans', Roboto, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="92" font-weight="700" fill="#F4EEFF" letter-spacing="-2">Booru</text>
-    <text x="303" y="236" font-family="'Google Sans', 'Product Sans', Roboto, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="27" font-weight="400" fill="#CEC1EB">Private, fast booru client for Android</text>
-
-    <g font-family="'Google Sans', 'Product Sans', Roboto, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="600" text-anchor="middle">
-      <rect x="302" y="262" width="236" height="38" rx="19" fill="#E3D7FE"/>
-      <text x="420" y="287" fill="#2B243A">Material 3 Expressive</text>
-      <rect x="550" y="262" width="180" height="38" rx="19" fill="#E3D7FE" fill-opacity="0.12" stroke="#E3D7FE" stroke-opacity="0.35"/>
-      <text x="640" y="287" fill="#E3D7FE">Jetpack Compose</text>
-      <rect x="742" y="262" width="132" height="38" rx="19" fill="#E3D7FE" fill-opacity="0.12" stroke="#E3D7FE" stroke-opacity="0.35"/>
-      <text x="808" y="287" fill="#E3D7FE">Android 12+</text>
-    </g>
-
-    <text x="98" y="350" font-family="'Google Sans', 'Product Sans', Roboto, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="500" fill="#9C8FBC" letter-spacing="0.4">RULE34  ·  GELBOORU  ·  REALBOORU  ·  XBOORU  ·  TBIB  ·  YANDE.RE  ·  KONACHAN  ·  SAFEBOORU  ·  CUSTOM</text>
+    <text x="504" y="184" font-family="'Google Sans', 'Product Sans', Roboto, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="84" font-weight="700" fill="#F4EEFF" letter-spacing="-1.5">Booru</text>
+    <text x="507" y="228" font-family="'Google Sans', 'Product Sans', Roboto, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="24" font-weight="400" fill="#BFB2DC">Private, fast booru client for Android</text>
   </g>
 </svg>

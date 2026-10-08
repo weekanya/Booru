@@ -10,10 +10,9 @@
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/explore.png" width="200" alt="Explore"></td>
-    <td><img src="docs/screenshots/details.png" width="200" alt="Post details"></td>
-    <td><img src="docs/screenshots/favorites.png" width="200" alt="Favorites"></td>
-    <td><img src="docs/screenshots/settings.png" width="200" alt="Settings"></td>
+    <td><img src="docs/screenshots/1.png" width="260" alt="Screenshot 1"></td>
+    <td><img src="docs/screenshots/2.png" width="260" alt="Screenshot 2"></td>
+    <td><img src="docs/screenshots/3.png" width="260" alt="Screenshot 3"></td>
   </tr>
 </table>
 
