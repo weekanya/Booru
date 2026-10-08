@@ -1825,10 +1825,10 @@ fun FilterSectionIcon(icon: ImageVector) {
         shape = CircleShape,
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        modifier = Modifier.size(32.dp)
+        modifier = Modifier.size(28.dp)
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(16.dp))
         }
     }
 }
@@ -1862,7 +1862,7 @@ fun FilterOptionButton(
         onCheckedChange = { onClick() },
         shapes = position.toggleShapes(),
         contentPadding = PaddingValues(horizontal = 6.dp),
-        modifier = modifier.height(46.dp)
+        modifier = modifier.height(40.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
@@ -2048,21 +2048,21 @@ private fun FilterSelectionBottomSheet(
                     beyondViewportPageCount = 1,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(350.dp)
+                        .height(310.dp)
                 ) { page ->
                     if (page == 0) {
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                                 Card(
                                     shape = ShapeTokens.ExtraLarge,
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
+                                    Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             FilterSectionIcon(Icons.Rounded.PermMedia)
                                             Spacer(Modifier.width(12.dp))
@@ -2073,7 +2073,7 @@ private fun FilterSelectionBottomSheet(
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
                                         }
-                                        Spacer(Modifier.height(12.dp))
+                                        Spacer(Modifier.height(8.dp))
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
@@ -2113,7 +2113,7 @@ private fun FilterSelectionBottomSheet(
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
+                                    Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             FilterSectionIcon(Icons.Rounded.Shield)
                                             Spacer(Modifier.width(12.dp))
@@ -2124,7 +2124,7 @@ private fun FilterSelectionBottomSheet(
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
                                         }
-                                        Spacer(Modifier.height(12.dp))
+                                        Spacer(Modifier.height(8.dp))
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
@@ -2175,7 +2175,7 @@ private fun FilterSelectionBottomSheet(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .clickable { tempNoAi = !tempNoAi }
-                                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                                            .padding(horizontal = 14.dp, vertical = 8.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
@@ -2224,14 +2224,14 @@ private fun FilterSelectionBottomSheet(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .verticalScroll(rememberScrollState()),
-                                verticalArrangement = Arrangement.spacedBy(14.dp)
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Card(
                                     shape = ShapeTokens.ExtraLarge,
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Column(modifier = Modifier.padding(16.dp)) {
+                                    Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             FilterSectionIcon(Icons.Rounded.Sort)
                                             Spacer(Modifier.width(12.dp))
@@ -2242,7 +2242,7 @@ private fun FilterSelectionBottomSheet(
                                                 color = MaterialTheme.colorScheme.onSurface
                                             )
                                         }
-                                        Spacer(Modifier.height(12.dp))
+                                        Spacer(Modifier.height(8.dp))
                                         Row(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
@@ -2273,7 +2273,7 @@ private fun FilterSelectionBottomSheet(
                                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Column(modifier = Modifier.padding(16.dp)) {
+                                        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
                                                 FilterSectionIcon(Icons.Rounded.AutoAwesome)
                                                 Spacer(Modifier.width(12.dp))
@@ -2356,7 +2356,7 @@ private fun FilterSelectionBottomSheet(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
+                        .height(52.dp)
                 ) {
                     Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))

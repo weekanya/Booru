@@ -20,7 +20,9 @@ import android.widget.Toast
 import androidx.core.graphics.drawable.toBitmap
 import java.util.Locale
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -1065,229 +1067,112 @@ fun MediaDetailSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .navigationBarsPadding()
-                        .padding(horizontal = 20.dp)
-                        .padding(bottom = 28.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 24.dp)
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 16.dp)
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            modifier = Modifier.weight(1f, fill = false)
+                        val headerColor by animateColorAsState(
+                            targetValue = if (isBlacklisted) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+                            animationSpec = tween(200, easing = FastOutSlowInEasing),
+                            label = "tagHeaderColor"
+                        )
+                        Surface(
+                            shape = CircleShape,
+                            color = headerColor,
+                            contentColor = if (isBlacklisted) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer,
+                            modifier = Modifier.size(44.dp)
                         ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = if (isBlacklisted)
-                                    MaterialTheme.colorScheme.errorContainer
-                                else
-                                    MaterialTheme.colorScheme.primaryContainer,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = if (isBlacklisted) Icons.Rounded.Block else Icons.Rounded.Tag,
-                                        contentDescription = null,
-                                        tint = if (isBlacklisted) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                            Column {
-                                Text(
-                                    text = "#$currentActionTag",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = if (isBlacklisted) Icons.Rounded.Block else Icons.Rounded.Tag,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(22.dp)
                                 )
-                                if (isBlacklisted) {
-                                    Text(
-                                        text = Strings.tagBlacklistedStatus(lang),
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
                             }
                         }
-                        IconButton(
-                            onClick = {
-                                coroutineScope.launch {
-                                    tagSheetState.hide()
-                                }.invokeOnCompletion {
-                                    selectedTagForAction = null
-                                }
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                Icons.Rounded.Close,
-                                contentDescription = "Close",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = currentActionTag.replace('_', ' '),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
                             )
-                        }
-                    }
-    
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Surface(
-                            shape = ShapeTokens.Large,
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .bouncyPress()
-                                .clickable {
-                                    coroutineScope.launch {
-                                        tagSheetState.hide()
-                                    }.invokeOnCompletion {
-                                        selectedTagForAction = null
-                                        vm.searchTag(currentActionTag, currentMedia.sourceId.ifBlank { currentMedia.source })
-                                        onDismiss()
-                                        onNavigateToExplore?.invoke()
-                                    }
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = isBlacklisted,
+                                enter = fadeIn(tween(200)) + expandVertically(Motion.spatialDefault()),
+                                exit = fadeOut(tween(150)) + shrinkVertically(Motion.spatialDefault())
                             ) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.primaryContainer,
-                                    modifier = Modifier.size(36.dp)
+                                    color = MaterialTheme.colorScheme.errorContainer,
+                                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                    modifier = Modifier.padding(top = 6.dp)
                                 ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            Icons.Rounded.Search,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(18.dp)
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                    ) {
+                                        Icon(Icons.Rounded.Block, contentDescription = null, modifier = Modifier.size(14.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = Strings.tagBlacklistedStatus(lang),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.SemiBold
                                         )
                                     }
                                 }
-                                Text(
-                                    text = Strings.searchPostsWithTag(lang),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-    
-                        Surface(
-                            shape = ShapeTokens.Large,
-                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .bouncyPress()
-                                .clickable {
-                                    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    cm.setPrimaryClip(ClipData.newPlainText("Tag", currentActionTag))
-                                    Toast.makeText(context, Strings.tagCopied(lang), Toast.LENGTH_SHORT).show()
-                                    coroutineScope.launch {
-                                        tagSheetState.hide()
-                                    }.invokeOnCompletion {
-                                        selectedTagForAction = null
-                                    }
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(14.dp)
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.secondaryContainer,
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            Icons.Rounded.ContentCopy,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.secondary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                                Text(
-                                    text = Strings.copyTag(lang),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-    
-                        Surface(
-                            shape = ShapeTokens.Large,
-                            color = if (isBlacklisted)
-                                MaterialTheme.colorScheme.surfaceContainerHighest
-                            else
-                                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.25f),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .bouncyPress()
-                                .clickable {
-                                    if (isBlacklisted) {
-                                        vm.removeBlacklistedTag(currentActionTag)
-                                        Toast.makeText(context, Strings.tagRemovedFromBlacklist(currentActionTag, lang), Toast.LENGTH_SHORT).show()
-                                        coroutineScope.launch {
-                                            tagSheetState.hide()
-                                        }.invokeOnCompletion {
-                                            selectedTagForAction = null
-                                        }
-                                    } else {
-                                        vm.addBlacklistedTag(currentActionTag)
-                                        Toast.makeText(context, Strings.tagAddedToBlacklist(currentActionTag, lang), Toast.LENGTH_SHORT).show()
-                                        coroutineScope.launch {
-                                            tagSheetState.hide()
-                                        }.invokeOnCompletion {
-                                            selectedTagForAction = null
-                                            onDismiss()
-                                        }
-                                    }
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(14.dp)
-                            ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = if (isBlacklisted)
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    else
-                                        MaterialTheme.colorScheme.errorContainer,
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = if (isBlacklisted) Icons.Rounded.CheckCircle else Icons.Rounded.Block,
-                                            contentDescription = null,
-                                            tint = if (isBlacklisted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                                Text(
-                                    text = if (isBlacklisted) Strings.removeFromBlacklist(lang) else Strings.addToBlacklist(lang),
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (isBlacklisted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                                )
                             }
                         }
                     }
+
+                    TagActionItem(
+                        icon = Icons.Rounded.Search,
+                        title = Strings.searchPostsWithTag(lang),
+                        shape = segmentedListShape(0, 3),
+                        onClick = {
+                            coroutineScope.launch {
+                                tagSheetState.hide()
+                            }.invokeOnCompletion {
+                                selectedTagForAction = null
+                                vm.searchTag(currentActionTag, currentMedia.sourceId.ifBlank { currentMedia.source })
+                                onDismiss()
+                                onNavigateToExplore?.invoke()
+                            }
+                        }
+                    )
+                    TagActionItem(
+                        icon = Icons.Rounded.ContentCopy,
+                        title = Strings.copyTag(lang),
+                        shape = segmentedListShape(1, 3),
+                        onClick = {
+                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            cm.setPrimaryClip(ClipData.newPlainText("Tag", currentActionTag))
+                            Toast.makeText(context, Strings.tagCopied(lang), Toast.LENGTH_SHORT).show()
+                            coroutineScope.launch {
+                                tagSheetState.hide()
+                            }.invokeOnCompletion {
+                                selectedTagForAction = null
+                            }
+                        }
+                    )
+                    TagActionItem(
+                        icon = if (isBlacklisted) Icons.Rounded.RemoveCircleOutline else Icons.Rounded.Block,
+                        title = if (isBlacklisted) Strings.removeFromBlacklist(lang) else Strings.addToBlacklist(lang),
+                        shape = segmentedListShape(2, 3),
+                        destructive = !isBlacklisted,
+                        onClick = {
+                            if (isBlacklisted) {
+                                vm.removeBlacklistedTag(currentActionTag)
+                            } else {
+                                vm.addBlacklistedTag(currentActionTag)
+                            }
+                        }
+                    )
                 }
             }
         }
@@ -1310,6 +1195,70 @@ fun MediaDetailSheet(
             onDownload = { downloadCurrentMedia(it) },
             onLoadMore = onLoadMore
         )
+    }
+}
+
+@Composable
+private fun TagActionItem(
+    icon: ImageVector,
+    title: String,
+    shape: androidx.compose.ui.graphics.Shape,
+    onClick: () -> Unit,
+    destructive: Boolean = false
+) {
+    val badgeColor by animateColorAsState(
+        targetValue = if (destructive) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
+        animationSpec = tween(200, easing = FastOutSlowInEasing),
+        label = "tagActionBadge"
+    )
+    val badgeContent by animateColorAsState(
+        targetValue = if (destructive) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+        animationSpec = tween(200, easing = FastOutSlowInEasing),
+        label = "tagActionBadgeContent"
+    )
+    Surface(
+        onClick = onClick,
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                shape = CircleShape,
+                color = badgeColor,
+                contentColor = badgeContent,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    AnimatedContent(
+                        targetState = icon,
+                        transitionSpec = { (fadeIn(tween(160)) + scaleIn(tween(200), initialScale = 0.7f)) togetherWith fadeOut(tween(120)) },
+                        label = "tagActionIcon"
+                    ) { target ->
+                        Icon(target, contentDescription = null, modifier = Modifier.size(20.dp))
+                    }
+                }
+            }
+            Spacer(Modifier.width(16.dp))
+            AnimatedContent(
+                targetState = title,
+                transitionSpec = { fadeIn(tween(160)) togetherWith fadeOut(tween(120)) },
+                label = "tagActionTitle",
+                modifier = Modifier.weight(1f)
+            ) { target ->
+                Text(
+                    text = target,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = if (destructive) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
     }
 }
 

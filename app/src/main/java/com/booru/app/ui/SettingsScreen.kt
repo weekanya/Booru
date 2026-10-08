@@ -1485,21 +1485,12 @@ fun SettingsScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                                     ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(width = 40.dp, height = 24.dp)
-                                                .clip(ShapeTokens.Medium)
-                                                .background(currentSwatchBrush),
-                                            contentAlignment = Alignment.CenterEnd
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .padding(end = 4.dp)
-                                                    .size(16.dp)
-                                                    .clip(CircleShape)
-                                                    .background(Color.White.copy(alpha = 0.85f))
-                                            )
-                                        }
+                                        ThemeSwatch(
+                                            primary = MaterialTheme.colorScheme.primary,
+                                            secondary = MaterialTheme.colorScheme.secondaryContainer,
+                                            tertiary = MaterialTheme.colorScheme.tertiary,
+                                            modifier = Modifier.size(32.dp)
+                                        )
                                         Icon(
                                             Icons.Rounded.ChevronRight,
                                             contentDescription = null,
@@ -1882,6 +1873,20 @@ private fun SettingsTabBar(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ThemeSwatch(
+    primary: Color,
+    secondary: Color,
+    tertiary: Color,
+    modifier: Modifier = Modifier
+) {
+    androidx.compose.foundation.Canvas(modifier = modifier.clip(CircleShape)) {
+        drawArc(color = primary, startAngle = 180f, sweepAngle = 180f, useCenter = true)
+        drawArc(color = secondary, startAngle = 90f, sweepAngle = 90f, useCenter = true)
+        drawArc(color = tertiary, startAngle = 0f, sweepAngle = 90f, useCenter = true)
     }
 }
 
