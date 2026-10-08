@@ -31,3 +31,5 @@ fun Modifier.readableContentWidth(): Modifier = widthIn(max = ReadableContentMax
 
 @Composable
 fun adaptiveColumns(base: Int): Int = base + LocalWindowWidthClass.current.extraGridColumns
+
+val LocalShowMessage = androidx.compose.runtime.staticCompositionLocalOf<(String) -> Unit> { {} }

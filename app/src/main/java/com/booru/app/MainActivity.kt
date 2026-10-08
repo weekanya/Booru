@@ -87,6 +87,7 @@ import com.booru.app.ui.SheetMotion
 import com.booru.app.ui.ShapeTokens
 import com.booru.app.ui.LocalWindowWidthClass
 import com.booru.app.ui.WindowWidthClass
+import com.booru.app.ui.LocalShowMessage
 
 class MainActivity : ComponentActivity() {
     private val isAppLocked = mutableStateOf(false)
@@ -351,6 +352,16 @@ fun BooruApp(
 
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
+    val appSnackbarHostState = remember { SnackbarHostState() }
+    val messageScope = rememberCoroutineScope()
+    val showMessage: (String) -> Unit = remember(appSnackbarHostState, messageScope) {
+        { message ->
+            messageScope.launch {
+                appSnackbarHostState.currentSnackbarData?.dismiss()
+                appSnackbarHostState.showSnackbar(message)
+            }
+        }
+    }
     var lastBackPressTime by remember { mutableLongStateOf(0L) }
 
     BackHandler(enabled = vm.fullscreenState == null) {
@@ -364,7 +375,7 @@ fun BooruApp(
                 (context as? Activity)?.finish()
             } else {
                 lastBackPressTime = now
-                Toast.makeText(context, Strings.pressBackAgainToExit(lang), Toast.LENGTH_SHORT).show()
+                showMessage(Strings.pressBackAgainToExit(lang))
             }
         }
     }
@@ -377,7 +388,7 @@ fun BooruApp(
 
     val layoutDirection = if (lang == AppLanguage.ARABIC) LayoutDirection.Rtl else LayoutDirection.Ltr
 
-    CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
+    CompositionLocalProvider(LocalLayoutDirection provides layoutDirection, LocalShowMessage provides showMessage) {
         BooruTheme(
             themeMode = vm.themeMode,
             palette = vm.palette,
@@ -485,7 +496,7 @@ fun BooruApp(
                                                     MaterialTheme.colorScheme.primaryContainer
                                                 else
                                                     MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0f),
-                                                animationSpec = Motion.spatialFast(),
+                                                animationSpec = Motion.effectsDefault(),
                                                 label = "navItemBg"
                                             )
                                             val contentColor by animateColorAsState(
@@ -493,7 +504,7 @@ fun BooruApp(
                                                     MaterialTheme.colorScheme.onPrimaryContainer
                                                 else
                                                     MaterialTheme.colorScheme.onSurfaceVariant,
-                                                animationSpec = Motion.spatialFast(),
+                                                animationSpec = Motion.effectsDefault(),
                                                 label = "navItemColor"
                                             )
 
@@ -639,6 +650,14 @@ fun BooruApp(
                             }
                         }
                     }
+                
+                    SnackbarHost(
+                        hostState = appSnackbarHostState,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .navigationBarsPadding()
+                            .padding(bottom = if (widthClass.usesNavigationRail) 16.dp else 88.dp)
+                    )
                 }
             }
 
@@ -805,17 +824,6 @@ private fun UpdateBottomSheet(
                     }
     
                     if (!vm.isDownloadingUpdate) {
-                        IconButton(
-                            onClick = onDismiss,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                Icons.Rounded.Close,
-                                contentDescription = Strings.closeBtn(lang),
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
                     }
                 }
     

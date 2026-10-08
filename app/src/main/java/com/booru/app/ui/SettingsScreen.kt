@@ -101,6 +101,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val showMessage = LocalShowMessage.current
     val lang = vm.language
     val scope = rememberCoroutineScope()
 
@@ -248,19 +249,6 @@ fun SettingsScreen(
                                 )
                             }
                         }
-                        IconButton(
-                            onClick = {
-                                scope.launch { sheetState.hide() }.invokeOnCompletion { showRule34Dialog = false }
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                Icons.Rounded.Close,
-                                contentDescription = "Close",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
                     }
     
                     OutlinedTextField(
@@ -320,7 +308,7 @@ fun SettingsScreen(
                         onClick = {
                             vm.saveRule34Keys(rule34User, rule34Key)
                             scope.launch { sheetState.hide() }.invokeOnCompletion { showRule34Dialog = false }
-                            Toast.makeText(context, Strings.keysSavedToast(lang), Toast.LENGTH_SHORT).show()
+                            showMessage(Strings.keysSavedToast(lang))
                         },
                         shape = ShapeTokens.Medium,
                         modifier = Modifier.fillMaxWidth().height(48.dp)
@@ -389,19 +377,6 @@ fun SettingsScreen(
                                 )
                             }
                         }
-                        IconButton(
-                            onClick = {
-                                scope.launch { sheetState.hide() }.invokeOnCompletion { showGelbooruDialog = false }
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                Icons.Rounded.Close,
-                                contentDescription = "Close",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
                     }
     
                     OutlinedTextField(
@@ -461,7 +436,7 @@ fun SettingsScreen(
                         onClick = {
                             vm.saveGelbooruKeys(gelbooruUser, gelbooruKey)
                             scope.launch { sheetState.hide() }.invokeOnCompletion { showGelbooruDialog = false }
-                            Toast.makeText(context, Strings.keysSavedToast(lang), Toast.LENGTH_SHORT).show()
+                            showMessage(Strings.keysSavedToast(lang))
                         },
                         shape = ShapeTokens.Medium,
                         modifier = Modifier.fillMaxWidth().height(48.dp)
@@ -524,96 +499,22 @@ fun SettingsScreen(
                         Pair(ImageQuality.SAVER, Strings.qualitySaver(lang))
                     )
     
-                    options.forEach { (q, title) ->
-                        val isSelected = (vm.imageQuality == q)
-                        val icon = when (q) {
-                            ImageQuality.SAMPLE -> Icons.Rounded.Speed
-                            ImageQuality.ORIGINAL -> Icons.Rounded.HighQuality
-                            ImageQuality.SAVER -> Icons.Rounded.DataSaverOn
-                        }
-    
-                        val containerColor by animateColorAsState(
-                            targetValue = if (isSelected)
-                                MaterialTheme.colorScheme.primaryContainer
-                            else
-                                MaterialTheme.colorScheme.surfaceContainerHigh,
-                            animationSpec = Motion.spatialDefault(),
-                            label = "qualityBg"
-                        )
-    
-                        val contentColor by animateColorAsState(
-                            targetValue = if (isSelected)
-                                MaterialTheme.colorScheme.onPrimaryContainer
-                            else
-                                MaterialTheme.colorScheme.onSurface,
-                            animationSpec = Motion.spatialDefault(),
-                            label = "qualityContent"
-                        )
-    
-                        val iconTint by animateColorAsState(
-                            targetValue = if (isSelected)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurfaceVariant,
-                            animationSpec = Motion.spatialDefault(),
-                            label = "qualityIcon"
-                        )
-    
-                        Surface(
+                    options.forEachIndexed { index, (q, title) ->
+                        SegmentedOptionItem(
+                            title = title,
+                            selected = vm.imageQuality == q,
+                            index = index,
+                            count = options.size,
+                            icon = when (q) {
+                                ImageQuality.SAMPLE -> Icons.Rounded.Speed
+                                ImageQuality.ORIGINAL -> Icons.Rounded.HighQuality
+                                ImageQuality.SAVER -> Icons.Rounded.DataSaverOn
+                            },
                             onClick = {
                                 vm.updateImageQuality(q)
                                 scope.launch { sheetState.hide() }.invokeOnCompletion { showQualityDialog = false }
-                            },
-                            shape = ShapeTokens.Large,
-                            color = containerColor,
-                            contentColor = contentColor,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .bouncyPress()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = null,
-                                    tint = iconTint,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(Modifier.width(14.dp))
-                                Text(
-                                    text = title,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = contentColor,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                AnimatedVisibility(
-                                    visible = isSelected,
-                                    enter = fadeIn(animationSpec = tween(240, easing = LinearOutSlowInEasing)) +
-                                        expandHorizontally(
-                                            animationSpec = Motion.spatialDefault(),
-                                            expandFrom = Alignment.Start
-                                        ),
-                                    exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
-                                        shrinkHorizontally(
-                                            animationSpec = Motion.spatialDefault(),
-                                            shrinkTowards = Alignment.Start
-                                        )
-                                ) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            Icons.Rounded.CheckCircle,
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.primary,
-                                            modifier = Modifier.size(22.dp)
-                                        )
-                                    }
-                                }
                             }
-                        }
+                        )
                     }
                 }
             }
@@ -671,22 +572,6 @@ fun SettingsScreen(
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        IconButton(
-                            onClick = {
-                                scope.launch { sheetState.hide() }.invokeOnCompletion {
-                                    showAddCustomSourceDialog = false
-                                    editingCustomSource = null
-                                }
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                Icons.Rounded.Close,
-                                contentDescription = "Close",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
@@ -804,11 +689,7 @@ fun SettingsScreen(
                                 if (wasActiveSource) {
                                     vm.selectSource(newSource.id)
                                 }
-                                Toast.makeText(
-                                    context,
-                                    if (isEditing) Strings.sourceUpdatedSuccess(lang) else Strings.sourceAddedSuccess(lang),
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                showMessage(if (isEditing) Strings.sourceUpdatedSuccess(lang) else Strings.sourceAddedSuccess(lang))
                                 customName = ""
                                 customUrl = ""
                                 customApiKey = ""
@@ -1261,8 +1142,7 @@ fun SettingsScreen(
                         )
                     }
     
-                    AppPalette.entries.forEach { pal ->
-                        val isSelected = vm.palette == pal
+                    AppPalette.entries.forEachIndexed { index, pal ->
                         val swatchBrush = remember(pal, monetDynamicPrimary, monetDynamicSecondary) {
                             if (pal == AppPalette.MONET) {
                                 androidx.compose.ui.graphics.Brush.linearGradient(
@@ -1272,47 +1152,24 @@ fun SettingsScreen(
                                 androidx.compose.ui.graphics.SolidColor(pal.primaryColor)
                             }
                         }
-    
-                        Surface(
-                            onClick = {
-                                vm.updatePalette(pal)
-                                scope.launch { sheetState.hide() }.invokeOnCompletion { showPaletteDialog = false }
-                            },
-                            shape = ShapeTokens.LargeIncreased,
-                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .bouncyPress()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
+                        SegmentedOptionItem(
+                            title = pal.title,
+                            selected = vm.palette == pal,
+                            index = index,
+                            count = AppPalette.entries.size,
+                            leading = {
                                 Box(
                                     modifier = Modifier
-                                        .size(32.dp)
+                                        .size(36.dp)
                                         .clip(CircleShape)
                                         .background(swatchBrush)
                                 )
-                                Spacer(Modifier.width(14.dp))
-                                Text(
-                                    text = pal.title,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                if (isSelected) {
-                                    Icon(
-                                        Icons.Rounded.CheckCircle,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
+                            },
+                            onClick = {
+                                vm.updatePalette(pal)
+                                scope.launch { sheetState.hide() }.invokeOnCompletion { showPaletteDialog = false }
                             }
-                        }
+                        )
                     }
                 }
             }
@@ -1623,7 +1480,7 @@ fun SettingsScreen(
                                         AnimatedConfirmDeleteButton(
                                             onConfirmed = {
                                                 vm.removeCustomSource(customSource.id)
-                                                Toast.makeText(context, Strings.sourceRemovedSuccess(lang), Toast.LENGTH_SHORT).show()
+                                                showMessage(Strings.sourceRemovedSuccess(lang))
                                             },
                                             lang = lang,
                                             initialIcon = Icons.Rounded.DeleteOutline,
@@ -1684,7 +1541,7 @@ fun SettingsScreen(
                                     FilledTonalButton(
                                         onClick = {
                                             vm.clearRecommendationMemory {
-                                                Toast.makeText(context, Strings.clearRecommendationsSuccess(lang), Toast.LENGTH_SHORT).show()
+                                                showMessage(Strings.clearRecommendationsSuccess(lang))
                                             }
                                         },
                                         shape = ShapeTokens.Large,
@@ -2112,7 +1969,7 @@ fun <T> MD3SegmentedChoiceRow(
                     MaterialTheme.colorScheme.primary
                 else
                     MaterialTheme.colorScheme.surfaceContainerHighest,
-                animationSpec = Motion.spatialDefault(),
+                animationSpec = Motion.effectsDefault(),
                 label = "segmentedBg"
             )
 
@@ -2121,7 +1978,7 @@ fun <T> MD3SegmentedChoiceRow(
                     MaterialTheme.colorScheme.onPrimary
                 else
                     MaterialTheme.colorScheme.onSurfaceVariant,
-                animationSpec = Motion.spatialDefault(),
+                animationSpec = Motion.effectsDefault(),
                 label = "segmentedContent"
             )
 
@@ -2236,11 +2093,15 @@ private fun LanguageSelectionBottomSheet(
                     }
                 }
     
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    AppLanguage.entries.forEach { langOption ->
-                        val isSelected = langOption == currentLanguage
-    
-                        Surface(
+                Column {
+                    AppLanguage.entries.forEachIndexed { index, langOption ->
+                        SegmentedOptionItem(
+                            title = langOption.displayName,
+                            supporting = langOption.englishName,
+                            selected = langOption == currentLanguage,
+                            index = index,
+                            count = AppLanguage.entries.size,
+                            icon = Icons.Rounded.Translate,
                             onClick = {
                                 onLanguageSelected(langOption)
                                 scope.launch {
@@ -2248,52 +2109,8 @@ private fun LanguageSelectionBottomSheet(
                                 }.invokeOnCompletion {
                                     onDismiss()
                                 }
-                            },
-                            shape = ShapeTokens.LargeIncreased,
-                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            contentColor = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .bouncyPress()
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column {
-                                    Text(
-                                        text = langOption.displayName,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold
-                                    )
-                                    Spacer(Modifier.height(2.dp))
-                                    Text(
-                                        text = langOption.englishName,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                if (isSelected) {
-                                    Surface(
-                                        shape = CircleShape,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Box(contentAlignment = Alignment.Center) {
-                                            Icon(
-                                                imageVector = Icons.Rounded.Check,
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.onPrimary,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    }
-                                }
                             }
-                        }
+                        )
                     }
                 }
             }

@@ -148,6 +148,7 @@ fun MediaDetailSheet(
     }
 
     val context = LocalContext.current
+    val showMessage = LocalShowMessage.current
     val lang = vm.language
     val coroutineScope = rememberCoroutineScope()
 
@@ -600,7 +601,7 @@ fun MediaDetailSheet(
                                             runCatching {
                                                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(browserUrl)))
                                             }.onFailure {
-                                                Toast.makeText(context, "Could not open browser", Toast.LENGTH_SHORT).show()
+                                                showMessage("Could not open browser")
                                             }
                                         }
                                     )
@@ -906,23 +907,6 @@ fun MediaDetailSheet(
                                 fontWeight = FontWeight.Bold
                             )
                         }
-                        IconButton(
-                            onClick = {
-                                coroutineScope.launch {
-                                    wallpaperSheetState.hide()
-                                }.invokeOnCompletion {
-                                    showWallpaperDialog = false
-                                }
-                            },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                Icons.Rounded.Close,
-                                contentDescription = "Close",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
                     }
     
                     Column(
@@ -1152,7 +1136,7 @@ fun MediaDetailSheet(
                         onClick = {
                             val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             cm.setPrimaryClip(ClipData.newPlainText("Tag", currentActionTag))
-                            Toast.makeText(context, Strings.tagCopied(lang), Toast.LENGTH_SHORT).show()
+                            showMessage(Strings.tagCopied(lang))
                             coroutineScope.launch {
                                 tagSheetState.hide()
                             }.invokeOnCompletion {
