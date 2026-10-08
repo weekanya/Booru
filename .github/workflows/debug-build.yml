@@ -25,15 +25,13 @@ jobs:
         id: sdk-cache
         uses: actions/cache@v4
         with:
-          path: /usr/local/lib/android/sdk/platforms/android-37
+          path: /usr/local/lib/android/sdk/platforms/android-37*
           key: android-sdk-platform-37
 
-      - name: Install Android SDK packages
-        if: steps.sdk-cache.outputs.cache-hit != 'true'
+      - name: Accept Android SDK licenses
         run: |
           SDKMANAGER="$(ls -d "$ANDROID_HOME"/cmdline-tools/*/bin/sdkmanager | sort -V | tail -1)"
           yes | "$SDKMANAGER" --licenses > /dev/null || true
-          "$SDKMANAGER" --install "platforms;android-37"
 
       - uses: gradle/actions/setup-gradle@v5
         with:
