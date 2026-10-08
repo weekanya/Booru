@@ -7,12 +7,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - run: |
-          G=https://dl.google.com/android/maven2
-          M=https://repo1.maven.org/maven2
-          echo "== agp 8"; curl -s $G/com/android/tools/build/gradle/maven-metadata.xml | grep -o '<version>8\.[0-9.]*</version>' | tail -5
-          echo "== kotlin 2.2/2.3"; curl -s $M/org/jetbrains/kotlin/kotlin-gradle-plugin/maven-metadata.xml | grep -oE '<version>2\.[23]\.[0-9]+</version>' | tail -8
-          echo "== ksp"; curl -s $M/com/google/devtools/ksp/com.google.devtools.ksp.gradle.plugin/maven-metadata.xml | grep -o '<version>[^<]*</version>' | tail -15
-          echo "== bom 2026.09.00"; curl -s $G/androidx/compose/compose-bom/2026.09.00/compose-bom-2026.09.00.pom | grep -A1 -E '<artifactId>(material3|ui|runtime)</artifactId>' | grep -oE '(artifactId|version)>[^<]*' 
-          echo "== m3 1.5.0-beta01 pom"; curl -s $G/androidx/compose/material3/material3-android/1.5.0-beta01/material3-android-1.5.0-beta01.pom | grep -B1 -A2 '<artifactId>' | grep -oE '(artifactId|version)>[^<]*' | head -40
-          echo "== m3 1.5.0-beta01 aar metadata"; curl -s -o m3.aar $G/androidx/compose/material3/material3-android/1.5.0-beta01/material3-android-1.5.0-beta01.aar && unzip -p m3.aar META-INF/com/android/build/gradle/aar-metadata.properties
-          echo "== runtime kotlin"; curl -s $G/androidx/compose/runtime/runtime-android/maven-metadata.xml | grep -o '<version>[^<]*</version>' | tail -3
+          G=https://dl.google.com/android/maven2/androidx/compose/material3/material3-android
+          for v in 01 03 05 07 09 11 13 15 17 19 21 23 25; do
+            V=1.5.0-alpha$v
+            curl -s -o m.aar $G/$V/material3-android-$V.aar || continue
+            META=$(unzip -p m.aar META-INF/com/android/build/gradle/aar-metadata.properties 2>/dev/null | grep -E 'minCompileSdk=|minAndroidGradle' | tr '\n' ' ')
+            KT=$(curl -s $G/$V/material3-android-$V.pom | grep -A1 '<artifactId>kotlin-stdlib</artifactId>' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+            FND=$(curl -s $G/$V/material3-android-$V.pom | grep -A1 '<artifactId>foundation-android</artifactId>' | grep -oE '1\.[0-9]+\.[0-9a-z-]+')
+            echo "$V | $META| kotlin $KT | foundation $FND"
+          done
+          echo "== ksp"; curl -s https://repo1.maven.org/maven2/com/google/devtools/ksp/com.google.devtools.ksp.gradle.plugin/maven-metadata.xml | grep -oE '<version>2\.(1|2)\.[0-9]+-[0-9.]+</version>' | tail -12
+          echo "== agp 8"; curl -s https://dl.google.com/android/maven2/com/android/tools/build/gradle/maven-metadata.xml | grep -oE '<version>8\.[0-9]+\.[0-9]+</version>' | tail -4
