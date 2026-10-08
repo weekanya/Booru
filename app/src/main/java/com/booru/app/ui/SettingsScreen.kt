@@ -98,6 +98,9 @@ fun SettingsScreen(
     val context = LocalContext.current
     val lang = vm.language
     val scope = rememberCoroutineScope()
+    val appVersionName = remember(context) {
+        runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull().orEmpty()
+    }
 
     LaunchedEffect(Unit) {
         vm.updateCacheSize()
@@ -1417,14 +1420,20 @@ fun SettingsScreen(
 
         HorizontalPager(
             state = pagerState,
-            beyondViewportPageCount = categories.size - 1,
+            beyondViewportPageCount = 1,
             modifier = Modifier.fillMaxSize()
         ) { page ->
-            Column(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(MaterialTheme.colorScheme.surface)
+            ) {
+            val pageMinHeight = maxHeight
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
                     .verticalScroll(rememberScrollState())
+                    .heightIn(min = pageMinHeight)
                     .padding(horizontal = 16.dp)
                     .padding(top = 8.dp, bottom = 88.dp)
             ) {
@@ -1854,7 +1863,69 @@ fun SettingsScreen(
                         }
                     }
                 }
+                Spacer(Modifier.weight(1f))
+                SettingsFooter(versionName = appVersionName)
             }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingsFooter(versionName: String) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 28.dp, bottom = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Surface(
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.primaryContainer,
+            modifier = Modifier.size(48.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = Icons.Rounded.PhotoLibrary,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = "Booru",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = if (versionName.isNotBlank()) "v$versionName · GPL-3.0" else "GPL-3.0",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun SettingIconBadge(
+    icon: ImageVector,
+    containerColor: Color,
+    contentColor: Color
+) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = containerColor,
+        modifier = Modifier.size(40.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(22.dp)
+            )
         }
     }
 }
@@ -1863,10 +1934,10 @@ fun SettingsScreen(
 private fun SectionLabel(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.labelMedium,
+        style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(start = 12.dp, bottom = 8.dp)
+        modifier = Modifier.padding(start = 8.dp, top = 4.dp, bottom = 10.dp)
     )
 }
 
@@ -1905,11 +1976,10 @@ private fun SettingRowItem(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
+            SettingIconBadge(
+                icon = icon,
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
             )
             Spacer(Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f, fill = false)) {
@@ -1972,14 +2042,13 @@ private fun SettingSwitchItem(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.weight(1f)
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isDangerous && checked) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(24.dp)
+            SettingIconBadge(
+                icon = icon,
+                containerColor = if (isDangerous && checked) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = if (isDangerous && checked) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSecondaryContainer
             )
-            Spacer(Modifier.width(18.dp))
-            Column {
+            Spacer(Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f, fill = false)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge,
@@ -2022,7 +2091,7 @@ private fun SettingSwitchItem(
 @Composable
 private fun SettingsDivider() {
     HorizontalDivider(
-        modifier = Modifier.padding(start = 62.dp, end = 20.dp),
+        modifier = Modifier.padding(start = 76.dp, end = 20.dp),
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
     )
 }

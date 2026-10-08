@@ -152,7 +152,9 @@ fun ExploreScreen(
             val visible = info.visibleItemsInfo
             val lastVisible = visible.lastOrNull()?.index ?: 0
             val total = info.totalItemsCount
-            val lanes = visible.map { it.lane }.distinct().size.coerceAtLeast(1)
+            var maxLane = 0
+            for (item in visible) if (item.lane > maxLane) maxLane = item.lane
+            val lanes = maxLane + 1
             val notEnoughItemsToScroll = visible.size == total
             total > 0 && (lastVisible >= total - maxOf(12, lanes * 6) || notEnoughItemsToScroll) &&
                 !vm.loading && !vm.isRefreshing && !vm.loadingMore && !vm.loadMoreError && vm.hasMore
@@ -629,7 +631,7 @@ fun ExploreScreen(
                                 onClick = { vm.openFullscreen(vm.results, index) },
                                 modifier = Modifier.animateItem(
                                     fadeInSpec = tween(220, easing = Motion.EmphasizedDecelerate),
-                                    placementSpec = Motion.spatialDefault(),
+                                    placementSpec = null,
                                     fadeOutSpec = null
                                 )
                             )
@@ -2324,22 +2326,62 @@ private fun SleekTopProgressIndicator(
     LaunchedEffect(Unit) {
         snapshotFlow { currentPullFraction().coerceIn(0f, 1f) }.collectLatest { target ->
             if (target == 0f) {
-                pull.animateTo(0f, tween(320, easing = FastOutSlowInEasing))
+                if (pull.value != 0f) pull.animateTo(0f, tween(280, easing = FastOutSlowInEasing))
             } else {
                 pull.snapTo(target)
             }
         }
     }
-    val refreshAlpha by animateFloatAsState(
-        targetValue = if (isRefreshing) 1f else 0f,
-        animationSpec = tween(if (isRefreshing) 260 else 420, easing = FastOutSlowInEasing),
-        label = "refreshAlpha"
-    )
-    val isVisible by remember { derivedStateOf { pull.value > 0.005f || refreshAlpha > 0.005f } }
-    if (!isVisible) return
+    val refresh = remember { Animatable(0f) }
+    LaunchedEffect(isRefreshing) {
+        refresh.animateTo(
+            targetValue = if (isRefreshing) 1f else 0f,
+            animationSpec = tween(if (isRefreshing) 220 else 360, easing = FastOutSlowInEasing)
+        )
+    }
+    val showSweep by remember { derivedStateOf { refresh.value > 0f } }
 
-    val sweepEasing = remember { CubicBezierEasing(0.65f, 0f, 0.35f, 1f) }
-    val sweep = rememberInfiniteTransition(label = "refreshSweep").animateFloat(
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 3.dp)
+            .height(2.dp)
+            .graphicsLayer {}
+    ) {
+        Box(
+            Modifier
+                .matchParentSize()
+                .drawBehind {
+                    val p = pull.value
+                    val alpha = (1f - refresh.value) * (0.25f + 0.75f * p)
+                    if (p <= 0f || alpha <= 0f) return@drawBehind
+                    val activeWidth = (size.width * LinearOutSlowInEasing.transform(p)).coerceAtLeast(size.height)
+                    drawRoundRect(
+                        color = primary.copy(alpha = alpha),
+                        topLeft = Offset((size.width - activeWidth) / 2f, 0f),
+                        size = Size(activeWidth, size.height),
+                        cornerRadius = CornerRadius(size.height / 2f, size.height / 2f)
+                    )
+                }
+        )
+        if (showSweep) {
+            RefreshSweep(
+                color = primary,
+                alpha = { refresh.value },
+                modifier = Modifier.matchParentSize()
+            )
+        }
+    }
+}
+
+@Composable
+private fun RefreshSweep(
+    color: Color,
+    alpha: () -> Float,
+    modifier: Modifier = Modifier
+) {
+    val easing = remember { CubicBezierEasing(0.65f, 0f, 0.35f, 1f) }
+    val phase = rememberInfiniteTransition(label = "refreshSweep").animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -2348,48 +2390,27 @@ private fun SleekTopProgressIndicator(
         ),
         label = "sweepPhase"
     )
-
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 3.dp)
-            .height(2.dp)
-            .drawBehind {
-                val width = size.width
-                val height = size.height
-                val cornerRadius = CornerRadius(height / 2f, height / 2f)
-
-                val p = pull.value
-                val pullAlpha = (1f - refreshAlpha) * (0.25f + 0.75f * p)
-                if (p > 0f && pullAlpha > 0f) {
-                    val activeWidth = (width * LinearOutSlowInEasing.transform(p)).coerceAtLeast(height)
-                    drawRoundRect(
-                        color = primary.copy(alpha = pullAlpha),
-                        topLeft = Offset((width - activeWidth) / 2f, 0f),
-                        size = Size(activeWidth, height),
-                        cornerRadius = cornerRadius
-                    )
-                }
-
-                if (refreshAlpha > 0f) {
-                    drawRoundRect(
-                        color = primary.copy(alpha = 0.12f * refreshAlpha),
-                        cornerRadius = cornerRadius
-                    )
-                    val t = sweep.value
-                    val segment = 0.18f + 0.22f * kotlin.math.sin(t * Math.PI.toFloat())
-                    val start = sweepEasing.transform(t) * (1f + segment) - segment
-                    val left = (start * width).coerceIn(0f, width)
-                    val right = ((start + segment) * width).coerceIn(0f, width)
-                    if (right - left > 0.5f) {
-                        drawRoundRect(
-                            color = primary.copy(alpha = refreshAlpha),
-                            topLeft = Offset(left, 0f),
-                            size = Size(right - left, height),
-                            cornerRadius = cornerRadius
-                        )
-                    }
-                }
+        modifier.drawBehind {
+            val a = alpha()
+            if (a <= 0f) return@drawBehind
+            val width = size.width
+            val height = size.height
+            val cornerRadius = CornerRadius(height / 2f, height / 2f)
+            drawRoundRect(color = color.copy(alpha = 0.12f * a), cornerRadius = cornerRadius)
+            val t = phase.value
+            val segment = 0.18f + 0.22f * kotlin.math.sin(t * Math.PI.toFloat())
+            val start = easing.transform(t) * (1f + segment) - segment
+            val left = (start * width).coerceIn(0f, width)
+            val right = ((start + segment) * width).coerceIn(0f, width)
+            if (right - left > 0.5f) {
+                drawRoundRect(
+                    color = color.copy(alpha = a),
+                    topLeft = Offset(left, 0f),
+                    size = Size(right - left, height),
+                    cornerRadius = cornerRadius
+                )
             }
+        }
     )
 }
