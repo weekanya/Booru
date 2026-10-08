@@ -1120,17 +1120,6 @@ private fun UpdateBottomSheet(
                                         icon = Icons.Rounded.InstallMobile,
                                         onClick = { vm.downloadedApkFile?.let { vm.installApk(context, it) } }
                                     )
-                                    TextButton(
-                                        onClick = {
-                                            vm.deleteDownloadedApk()
-                                            vm.downloadAndInstallUpdate(context, info)
-                                        },
-                                        shapes = ButtonDefaults.shapes()
-                                    ) {
-                                        Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                                        Spacer(Modifier.width(8.dp))
-                                        Text(Strings.downloadAgain(lang), style = MaterialTheme.typography.labelLarge)
-                                    }
                                 }
                                 UpdateStage.Failed -> {
                                     UpdatePrimaryButton(
@@ -1164,26 +1153,29 @@ private fun UpdateBottomSheet(
                             }
 
                             if (target != UpdateStage.Downloading) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    TextButton(
-                                        onClick = {
+                                Spacer(Modifier.height(4.dp))
+                                if (target == UpdateStage.Ready) {
+                                    UpdateSecondaryActions(
+                                        leadingText = Strings.downloadAgain(lang),
+                                        leadingIcon = Icons.Rounded.Refresh,
+                                        onLeading = {
+                                            vm.deleteDownloadedApk()
+                                            vm.downloadAndInstallUpdate(context, info)
+                                        },
+                                        trailingText = Strings.closeBtn(lang),
+                                        onTrailing = close
+                                    )
+                                } else {
+                                    UpdateSecondaryActions(
+                                        leadingText = Strings.dontRemindAgain(lang),
+                                        leadingIcon = Icons.Rounded.NotificationsOff,
+                                        onLeading = {
                                             vm.ignoreUpdate(info.latestVersion)
                                             close()
                                         },
-                                        shapes = ButtonDefaults.shapes(),
-                                        colors = ButtonDefaults.textButtonColors(contentColor = scheme.onSurfaceVariant)
-                                    ) {
-                                        Text(Strings.dontRemindAgain(lang), style = MaterialTheme.typography.labelLarge)
-                                    }
-                                    TextButton(
-                                        onClick = close,
-                                        shapes = ButtonDefaults.shapes()
-                                    ) {
-                                        Text(Strings.closeBtn(lang), style = MaterialTheme.typography.labelLarge)
-                                    }
+                                        trailingText = Strings.closeBtn(lang),
+                                        onTrailing = close
+                                    )
                                 }
                             }
                         }
@@ -1208,5 +1200,61 @@ private fun UpdatePrimaryButton(text: String, icon: ImageVector, onClick: () -> 
         Icon(icon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.MediumIconSize))
         Spacer(Modifier.width(ButtonDefaults.MediumIconSpacing))
         Text(text, style = MaterialTheme.typography.titleMedium)
+    }
+}
+
+@Composable
+private fun UpdateSecondaryActions(
+    leadingText: String,
+    leadingIcon: ImageVector,
+    onLeading: () -> Unit,
+    trailingText: String,
+    onTrailing: () -> Unit
+) {
+    val colors = ButtonDefaults.filledTonalButtonColors(
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface
+    )
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+    ) {
+        FilledTonalButton(
+            onClick = onLeading,
+            shapes = ButtonDefaults.shapes(
+                shape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp, topEnd = 8.dp, bottomEnd = 8.dp),
+                pressedShape = RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp, topEnd = 4.dp, bottomEnd = 4.dp)
+            ),
+            colors = colors,
+            contentPadding = PaddingValues(horizontal = 16.dp),
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+        ) {
+            Icon(leadingIcon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(
+                leadingText,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        FilledTonalButton(
+            onClick = onTrailing,
+            shapes = ButtonDefaults.shapes(
+                shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 24.dp, bottomEnd = 24.dp),
+                pressedShape = RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp, topEnd = 12.dp, bottomEnd = 12.dp)
+            ),
+            colors = colors,
+            contentPadding = PaddingValues(horizontal = 20.dp),
+            modifier = Modifier
+                .widthIn(min = 96.dp)
+                .fillMaxHeight()
+        ) {
+            Text(trailingText, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+        }
     }
 }
