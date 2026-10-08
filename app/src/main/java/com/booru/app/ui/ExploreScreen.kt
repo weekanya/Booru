@@ -1933,7 +1933,6 @@ private fun FilterSelectionBottomSheet(
     var tempExcludeSafe by remember { mutableStateOf(vm.excludeSafe) }
     var tempNoAi by remember { mutableStateOf(vm.noAi) }
     var tempRecRatio by remember { mutableFloatStateOf(vm.recommendationRatio) }
-    val filterPagerState = rememberPagerState(initialPage = 0) { 2 }
 
     SheetMotion {
         ModalBottomSheet(
@@ -1971,92 +1970,45 @@ private fun FilterSelectionBottomSheet(
                             }
                         }
                         Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = Strings.filtersAndSorting(lang),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-    
-                    TextButton(
-                        onClick = {
-                            tempContentTypes = emptySet()
-                            tempSortOrder = SortOrder.NEWEST
-                            tempSafeMode = false
-                            tempExcludeSafe = false
-                            tempNoAi = false
-                            tempRecRatio = 0.5f
-                        },
-                        shape = CircleShape
-                    ) {
-                        Text(
-                            text = Strings.resetFilters(lang),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-    
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
-                ) {
-                    val tabs = listOf(
-                        Pair(if (lang == AppLanguage.RUSSIAN) "Контент и рейтинг" else "Content & Rating", Icons.Rounded.Category),
-                        Pair(if (lang == AppLanguage.RUSSIAN) "Сортировка и лента" else "Sorting & Feed", Icons.Rounded.AutoAwesome)
-                    )
-                    val targetFilterIndex = if (filterPagerState.isScrollInProgress) filterPagerState.targetPage else filterPagerState.currentPage
-                    tabs.forEachIndexed { index, (title, icon) ->
-                        ToggleButton(
-                            checked = targetFilterIndex == index,
-                            onCheckedChange = {
-                                scope.launch {
-                                    filterPagerState.animateScrollToPage(
-                                        page = index,
-                                        animationSpec = Motion.spatialDefault()
-                                    )
-                                }
-                            },
-                            shapes = groupPosition(index, tabs.size).toggleShapes(),
-                            contentPadding = PaddingValues(horizontal = 8.dp),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                        ) {
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(Modifier.width(6.dp))
+                        Column {
                             Text(
-                                text = title,
-                                style = MaterialTheme.typography.labelLarge,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
+                                text = Strings.filtersAndSorting(lang),
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
                             )
+                            val activeCount = (if (tempContentTypes.isNotEmpty()) 1 else 0) +
+                                (if (tempSafeMode || tempExcludeSafe) 1 else 0) +
+                                (if (tempNoAi) 1 else 0) +
+                                (if (tempSortOrder != SortOrder.NEWEST) 1 else 0)
+                            AnimatedContent(
+                                targetState = activeCount,
+                                transitionSpec = { fadeIn(tween(160)) togetherWith fadeOut(tween(120)) },
+                                label = "activeFilterSummary"
+                            ) { count ->
+                                Text(
+                                    text = when {
+                                        count == 0 && lang == AppLanguage.RUSSIAN -> "Без фильтров"
+                                        count == 0 -> "No filters applied"
+                                        lang == AppLanguage.RUSSIAN -> "Активных фильтров: $count"
+                                        else -> "$count active"
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
                     }
-                }
 
-                Spacer(Modifier.height(10.dp))
+                }
     
-                HorizontalPager(
-                    state = filterPagerState,
-                    beyondViewportPageCount = 1,
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(310.dp)
-                ) { page ->
-                    if (page == 0) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
+                        .weight(1f, fill = false)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                                 Card(
                                     shape = ShapeTokens.ExtraLarge,
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -2218,14 +2170,7 @@ private fun FilterSelectionBottomSheet(
                                         )
                                     }
                                 }
-                            }
-                        } else {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(rememberScrollState()),
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
+                            
                                 Card(
                                     shape = ShapeTokens.ExtraLarge,
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
@@ -2324,47 +2269,69 @@ private fun FilterSelectionBottomSheet(
                                     }
                                 }
                             }
-                        }
-                    }
     
                 Spacer(Modifier.height(16.dp))
     
-                Button(
-                    onClick = {
-                        val ratioChanged = kotlin.math.abs(tempRecRatio - vm.recommendationRatio) > 0.01f
-                        val filtersChanged = tempContentTypes != vm.selectedContentTypes || tempSortOrder != vm.sortOrder ||
-                            tempSafeMode != vm.safeMode || tempExcludeSafe != vm.excludeSafe || tempNoAi != vm.noAi
-                        vm.updateRecommendationRatio(tempRecRatio)
-                        if (ratioChanged && !filtersChanged && vm.query.isBlank()) vm.refresh(isPull = false)
-                        vm.applyAllFilters(
-                            contentTypes = tempContentTypes,
-                            sortOrder = tempSortOrder,
-                            safeMode = tempSafeMode,
-                            excludeSafe = tempExcludeSafe,
-                            noAi = tempNoAi
-                        )
-                        scope.launch {
-                            sheetState.hide()
-                        }.invokeOnCompletion {
-                            onDismiss()
-                        }
-                    },
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = Strings.applyFilters(lang),
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.labelLarge
-                    )
+                    OutlinedButton(
+                        onClick = {
+                            tempContentTypes = emptySet()
+                            tempSortOrder = SortOrder.NEWEST
+                            tempSafeMode = false
+                            tempExcludeSafe = false
+                            tempNoAi = false
+                            tempRecRatio = 0.5f
+                        },
+                        shape = CircleShape,
+                        modifier = Modifier.height(52.dp)
+                    ) {
+                        Icon(Icons.Rounded.RestartAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = Strings.resetFilters(lang),
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            val ratioChanged = kotlin.math.abs(tempRecRatio - vm.recommendationRatio) > 0.01f
+                            val filtersChanged = tempContentTypes != vm.selectedContentTypes || tempSortOrder != vm.sortOrder ||
+                                tempSafeMode != vm.safeMode || tempExcludeSafe != vm.excludeSafe || tempNoAi != vm.noAi
+                            vm.updateRecommendationRatio(tempRecRatio)
+                            if (ratioChanged && !filtersChanged && vm.query.isBlank()) vm.refresh(isPull = false)
+                            vm.applyAllFilters(
+                                contentTypes = tempContentTypes,
+                                sortOrder = tempSortOrder,
+                                safeMode = tempSafeMode,
+                                excludeSafe = tempExcludeSafe,
+                                noAi = tempNoAi
+                            )
+                            scope.launch {
+                                sheetState.hide()
+                            }.invokeOnCompletion {
+                                onDismiss()
+                            }
+                        },
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp)
+                    ) {
+                        Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = Strings.applyFilters(lang),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
                 }
             }
         }

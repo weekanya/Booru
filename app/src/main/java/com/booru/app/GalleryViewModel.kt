@@ -199,6 +199,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             customFolders = prefs.customFolders.first()
             gridColumnsCount = prefs.gridColumnsCount.first()
             imageQuality = prefs.imageQuality.first()
+            disabledSources = prefs.disabledSources.first()
 
             search(source, "", safeMode)
 
@@ -248,9 +249,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
         viewModelScope.launch {
             prefs.imageQuality.collect { imageQuality = it }
-        }
-        viewModelScope.launch {
-            prefs.disabledSources.collect { disabledSources = it }
         }
         viewModelScope.launch {
             prefs.customSources.collect { sources ->

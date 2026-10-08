@@ -1252,15 +1252,14 @@ fun SettingsScreen(
                                     .padding(horizontal = 20.dp, vertical = 16.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = when (vm.themeMode) {
+                                    SettingIconBadge(
+                                        icon = when (vm.themeMode) {
                                             ThemeMode.DARK -> Icons.Rounded.DarkMode
                                             ThemeMode.LIGHT -> Icons.Rounded.LightMode
                                             ThemeMode.SYSTEM -> Icons.Rounded.BrightnessAuto
                                         },
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                                     )
                                     Spacer(Modifier.width(16.dp))
                                     Column {
@@ -1289,6 +1288,13 @@ fun SettingsScreen(
                                     options = ThemeMode.entries,
                                     selectedOption = vm.themeMode,
                                     onOptionSelected = { vm.updateThemeMode(it) },
+                                    iconProvider = { mode ->
+                                        when (mode) {
+                                            ThemeMode.SYSTEM -> Icons.Rounded.BrightnessAuto
+                                            ThemeMode.DARK -> Icons.Rounded.DarkMode
+                                            ThemeMode.LIGHT -> Icons.Rounded.LightMode
+                                        }
+                                    },
                                     labelProvider = { mode ->
                                         when (mode) {
                                             ThemeMode.SYSTEM -> if (lang == AppLanguage.RUSSIAN) "Авто" else "Auto"
@@ -1955,80 +1961,36 @@ fun <T> MD3SegmentedChoiceRow(
     selectedOption: T,
     onOptionSelected: (T) -> Unit,
     modifier: Modifier = Modifier,
+    iconProvider: (T) -> ImageVector? = { null },
     labelProvider: (T) -> String
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
     ) {
-        options.forEach { option ->
+        options.forEachIndexed { index, option ->
             val isSelected = option == selectedOption
-
-            val containerColor by animateColorAsState(
-                targetValue = if (isSelected)
-                    MaterialTheme.colorScheme.primary
-                else
-                    MaterialTheme.colorScheme.surfaceContainerHighest,
-                animationSpec = Motion.effectsDefault(),
-                label = "segmentedBg"
-            )
-
-            val contentColor by animateColorAsState(
-                targetValue = if (isSelected)
-                    MaterialTheme.colorScheme.onPrimary
-                else
-                    MaterialTheme.colorScheme.onSurfaceVariant,
-                animationSpec = Motion.effectsDefault(),
-                label = "segmentedContent"
-            )
-
-            Surface(
-                onClick = { onOptionSelected(option) },
-                shape = ShapeTokens.Large,
-                color = containerColor,
-                contentColor = contentColor,
+            ToggleButton(
+                checked = isSelected,
+                onCheckedChange = { onOptionSelected(option) },
+                shapes = groupPosition(index, options.size).toggleShapes(),
+                contentPadding = PaddingValues(horizontal = 6.dp),
                 modifier = Modifier
                     .weight(1f)
-                    .height(46.dp)
-                    .bouncyPress()
+                    .height(44.dp)
+                    .semantics { role = Role.RadioButton }
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = if (options.size >= 4) 4.dp else 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    AnimatedVisibility(
-                        visible = isSelected,
-                        enter = fadeIn(animationSpec = tween(260, easing = LinearOutSlowInEasing)) +
-                            expandHorizontally(
-                                animationSpec = Motion.spatialDefault(),
-                                expandFrom = Alignment.Start
-                            ),
-                        exit = fadeOut(animationSpec = tween(180, easing = FastOutLinearInEasing)) +
-                            shrinkHorizontally(
-                                animationSpec = Motion.spatialDefault(),
-                                shrinkTowards = Alignment.Start
-                            )
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Rounded.Check,
-                                contentDescription = null,
-                                modifier = Modifier.size(if (options.size >= 4) 15.dp else 18.dp)
-                            )
-                            Spacer(Modifier.width(if (options.size >= 4) 3.dp else 6.dp))
-                        }
-                    }
-                    Text(
-                        text = labelProvider(option),
-                        style = if (options.size >= 4) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                val icon = iconProvider(option)
+                if (icon != null) {
+                    Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
                 }
+                Text(
+                    text = labelProvider(option),
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
         }
     }
