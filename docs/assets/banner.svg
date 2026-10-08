@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="400" viewBox="0 0 1280 400">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2E2640"/>
+      <stop offset="0.55" stop-color="#211B2E"/>
+      <stop offset="1" stop-color="#16121F"/>
+    </linearGradient>
+    <radialGradient id="glowA" cx="1060" cy="40" r="420" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#A68BFF" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#A68BFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowB" cx="150" cy="430" r="340" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FF86B0" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#FF86B0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="iconBg" x1="96" y1="116" x2="264" y2="284" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#40355A"/>
+      <stop offset="1" stop-color="#2A2339"/>
+    </linearGradient>
+    <linearGradient id="fadeGrad" x1="870" y1="0" x2="1040" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#000"/>
+      <stop offset="1" stop-color="#fff"/>
+    </linearGradient>
+    <mask id="fade">
+      <rect width="1280" height="400" fill="url(#fadeGrad)"/>
+    </mask>
+    <clipPath id="frame">
+      <rect width="1280" height="400" rx="36"/>
+    </clipPath>
+    <linearGradient id="tLavender" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#C9B6FF"/>
+      <stop offset="1" stop-color="#7B5BEA"/>
+    </linearGradient>
+    <linearGradient id="tPink" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFC2D6"/>
+      <stop offset="1" stop-color="#D9507C"/>
+    </linearGradient>
+    <linearGradient id="tTeal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9BEBDD"/>
+      <stop offset="1" stop-color="#2A9483"/>
+    </linearGradient>
+    <linearGradient id="tAmber" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFD9A0"/>
+      <stop offset="1" stop-color="#E0812C"/>
+    </linearGradient>
+    <linearGradient id="tBlue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#AFD2FF"/>
+      <stop offset="1" stop-color="#3A73DA"/>
+    </linearGradient>
+    <linearGradient id="tGraphite" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#D9D8DE"/>
+      <stop offset="1" stop-color="#6C6B73"/>
+    </linearGradient>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <rect width="1280" height="400" fill="url(#bg)"/>
+    <rect width="1280" height="400" fill="url(#glowA)"/>
+    <rect width="1280" height="400" fill="url(#glowB)"/>
+
+    <g mask="url(#fade)">
+      <rect x="904" y="-30" width="104" height="150" rx="26" fill="url(#tLavender)"/>
+      <rect x="904" y="132" width="104" height="120" rx="26" fill="url(#tPink)"/>
+      <rect x="904" y="264" width="104" height="170" rx="26" fill="url(#tTeal)"/>
+
+      <rect x="1020" y="-80" width="104" height="120" rx="26" fill="url(#tAmber)"/>
+      <rect x="1020" y="52" width="104" height="180" rx="26" fill="url(#tBlue)"/>
+      <rect x="1020" y="244" width="104" height="130" rx="26" fill="url(#tLavender)"/>
+      <rect x="1020" y="386" width="104" height="120" rx="26" fill="url(#tPink)"/>
+
+      <rect x="1136" y="-10" width="104" height="130" rx="26" fill="url(#tPink)"/>
+      <rect x="1136" y="132" width="104" height="150" rx="26" fill="url(#tTeal)"/>
+      <rect x="1136" y="294" width="104" height="140" rx="26" fill="url(#tAmber)"/>
+
+      <rect x="1252" y="-50" width="104" height="170" rx="26" fill="url(#tGraphite)"/>
+      <rect x="1252" y="132" width="104" height="130" rx="26" fill="url(#tLavender)"/>
+      <rect x="1252" y="274" width="104" height="160" rx="26" fill="url(#tBlue)"/>
+
+      <path transform="translate(932 168) scale(2)" fill="#FFFFFF" fill-opacity="0.92" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+
+      <circle cx="1072" cy="142" r="28" fill="#FFFFFF" fill-opacity="0.92"/>
+      <path d="M1064 129L1086 142L1064 155Z" fill="#3A73DA"/>
+
+      <rect x="1160" y="41" width="56" height="28" rx="14" fill="#000000" fill-opacity="0.32"/>
+      <text x="1188" y="60" text-anchor="middle" font-family="'Google Sans', 'Product Sans', Roboto, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="700" fill="#FFFFFF" letter-spacing="1">GIF</text>
+
+      <path transform="translate(1188 207)" fill="#FFFFFF" fill-opacity="0.92" d="M0 -26C3.5 -7 7 -3.5 26 0C7 3.5 3.5 7 0 26C-3.5 7 -7 3.5 -26 0C-7 -3.5 -3.5 -7 0 -26Z"/>
+    </g>
+
+    <rect x="96" y="116" width="168" height="168" rx="52" fill="url(#iconBg)"/>
+    <rect x="97" y="117" width="166" height="166" rx="51" fill="none" stroke="#E3D7FE" stroke-opacity="0.16" stroke-width="2"/>
+    <g transform="translate(53.35 73.64) scale(0.585)" fill="#E3D7FE">
+      <path d="M131 132H302V153H131Z M204 153H227V169H204Z M136 166H159V300H136Z M274 166H296V300H274Z M136 267H296V289H136Z"/>
+      <path fill-rule="evenodd" d="M171 169H261V256H171Z M189 187H206V204H189Z M225 187H242V204H225Z M189 221H206V237H189Z M225 221H242V237H225Z"/>
+    </g>
+
+    <text x="300" y="190" font-family="'Google Sans', 'Product Sans', Roboto, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="92" font-weight="700" fill="#F4EEFF" letter-spacing="-2">Booru</text>
+    <text x="303" y="236" font-family="'Google Sans', 'Product Sans', Roboto, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="27" font-weight="400" fill="#CEC1EB">Private, fast booru client for Android</text>
+
+    <g font-family="'Google Sans', 'Product Sans', Roboto, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="17" font-weight="600" text-anchor="middle">
+      <rect x="302" y="262" width="236" height="38" rx="19" fill="#E3D7FE"/>
+      <text x="420" y="287" fill="#2B243A">Material 3 Expressive</text>
+      <rect x="550" y="262" width="180" height="38" rx="19" fill="#E3D7FE" fill-opacity="0.12" stroke="#E3D7FE" stroke-opacity="0.35"/>
+      <text x="640" y="287" fill="#E3D7FE">Jetpack Compose</text>
+      <rect x="742" y="262" width="132" height="38" rx="19" fill="#E3D7FE" fill-opacity="0.12" stroke="#E3D7FE" stroke-opacity="0.35"/>
+      <text x="808" y="287" fill="#E3D7FE">Android 12+</text>
+    </g>
+
+    <text x="98" y="350" font-family="'Google Sans', 'Product Sans', Roboto, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="14" font-weight="500" fill="#9C8FBC" letter-spacing="0.4">RULE34  ·  GELBOORU  ·  REALBOORU  ·  XBOORU  ·  TBIB  ·  YANDE.RE  ·  KONACHAN  ·  SAFEBOORU  ·  CUSTOM</text>
+  </g>
+</svg>
