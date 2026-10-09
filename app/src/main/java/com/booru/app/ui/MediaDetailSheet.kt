@@ -79,6 +79,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.graphics.compositeOver
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import androidx.compose.ui.layout.onSizeChanged
@@ -1698,14 +1699,13 @@ private fun OptInFlowDetailTags(
                         val raw = item.rawTag.lowercase()
                         val isBlacklisted = raw in blacklist || blacklist.any { it.contains(":") && it.substringAfter(":") == raw }
                         val bg = when {
-                            isBlacklisted -> scheme.errorContainer
+                            isBlacklisted -> scheme.error.copy(alpha = 0.10f).compositeOver(scheme.surfaceContainerLowest)
                             isGeneral -> scheme.surfaceContainerLowest
-                            else -> roles.container
+                            else -> roles.accent.copy(alpha = 0.10f).compositeOver(scheme.surfaceContainerLowest)
                         }
                         val fg = when {
-                            isBlacklisted -> scheme.onErrorContainer
-                            isGeneral -> scheme.onSurface
-                            else -> roles.onContainer
+                            isBlacklisted -> scheme.error
+                            else -> scheme.onSurface
                         }
                         Box(
                             contentAlignment = Alignment.Center,
@@ -1722,7 +1722,7 @@ private fun OptInFlowDetailTags(
                             Text(
                                 text = item.displayTag,
                                 style = MaterialTheme.typography.labelLarge,
-                                fontWeight = if (isGeneral) FontWeight.Medium else FontWeight.SemiBold,
+                                fontWeight = FontWeight.Medium,
                                 color = fg,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
