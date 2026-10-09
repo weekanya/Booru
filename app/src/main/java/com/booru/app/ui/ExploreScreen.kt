@@ -114,9 +114,14 @@ fun ExploreScreen(
 
     val focusRequester = remember { FocusRequester() }
 
+    val keyboardController = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val searchFocusManager = androidx.compose.ui.platform.LocalFocusManager.current
     LaunchedEffect(searchExpanded) {
         if (searchExpanded) {
             focusRequester.requestFocus()
+        } else {
+            searchFocusManager.clearFocus(force = true)
+            keyboardController?.hide()
         }
     }
 
@@ -997,7 +1002,7 @@ fun ExploreScreen(
                                     iconTint = catColor,
                                     title = suggestion.value,
                                     titleColor = catColor,
-                                    supporting = if (suggestion.count > 0) "${category.displayName} · ${formatCompactCount(suggestion.count)}" else category.displayName
+                                    supporting = if (suggestion.count > 0) "${category.localizedName(lang)} · ${formatCompactCount(suggestion.count)}" else category.localizedName(lang)
                                 ) {
                                     IconButton(
                                         onClick = { applySuggestion(suggestion.value, submit = true) },

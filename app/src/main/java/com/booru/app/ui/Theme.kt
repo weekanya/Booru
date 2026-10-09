@@ -409,3 +409,14 @@ fun ExpressiveSlider(
         modifier = modifier
     )
 }
+
+fun AppPalette.localizedTitle(lang: com.booru.app.data.AppLanguage): String = when (this) {
+    AppPalette.MONET -> com.booru.app.data.Strings.tr(lang, "Monet", "Моне", "モネ", "莫奈", "모네", "مونيه")
+    AppPalette.VIOLET -> com.booru.app.data.Strings.tr(lang, "Violet Dream", "Фиолетовый сон", "バイオレット", "紫梦", "바이올렛 드림", "حلم بنفسجي")
+    AppPalette.SAKURA -> com.booru.app.data.Strings.tr(lang, "Sakura Pink", "Розовая сакура", "サクラピンク", "樱花粉", "사쿠라 핑크", "وردي ساكورا")
+    AppPalette.OCEAN -> com.booru.app.data.Strings.tr(lang, "Ocean Blue", "Синий океан", "オーシャンブルー", "海洋蓝", "오션 블루", "أزرق المحيط")
+    AppPalette.EMERALD -> com.booru.app.data.Strings.tr(lang, "Emerald Green", "Изумрудный", "エメラルド", "翡翠绿", "에메랄드 그린", "أخضر زمردي")
+    AppPalette.SUNSET -> com.booru.app.data.Strings.tr(lang, "Sunset Amber", "Янтарный закат", "サンセット", "日落琥珀", "선셋 앰버", "كهرماني الغروب")
+    AppPalette.GRAPHITE -> com.booru.app.data.Strings.tr(lang, "Graphite Mono", "Графит", "グラファイト", "石墨", "그래파이트", "جرافيت")
+    AppPalette.AMOLED -> com.booru.app.data.Strings.tr(lang, "Midnight AMOLED", "Полночь AMOLED", "ミッドナイト AMOLED", "午夜 AMOLED", "미드나잇 AMOLED", "منتصف الليل AMOLED")
+}

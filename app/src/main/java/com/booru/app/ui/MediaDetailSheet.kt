@@ -559,7 +559,6 @@ fun MediaDetailSheet(
     
                 if (showScore || showResolution) {
                     Spacer(Modifier.height(12.dp))
-                    val ru = lang == AppLanguage.RUSSIAN
                     val stats = buildList {
                         if (showScore) add(Triple(Icons.Rounded.Star, currentMedia.score.toString(), Strings.tr(lang, "Score", "Рейтинг", "スコア", "评分", "점수", "النقاط")))
                         if (showResolution) add(Triple(Icons.Rounded.AspectRatio, "${currentMedia.width}×${currentMedia.height}", Strings.tr(lang, "Resolution", "Разрешение", "解像度", "分辨率", "해상도", "الدقة")))
@@ -876,6 +875,7 @@ fun MediaDetailSheet(
                 shape = ShapeTokens.ExtraLargeTop,
                 containerColor = MaterialTheme.colorScheme.surfaceContainer
             ) {
+                DismissKeyboardOnHide(folderSheetState)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -883,7 +883,6 @@ fun MediaDetailSheet(
                         .padding(horizontal = 16.dp)
                         .padding(bottom = 24.dp)
                 ) {
-                    val ru = lang == AppLanguage.RUSSIAN
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(start = 4.dp, bottom = 16.dp)
@@ -1674,7 +1673,7 @@ private fun OptInFlowDetailTags(
                     ) {
                         Icon(
                             imageVector = chipIcon,
-                            contentDescription = cat.displayName,
+                            contentDescription = cat.localizedName(lang),
                             modifier = Modifier.size(13.dp),
                             tint = iconTint
                         )

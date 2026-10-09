@@ -54,6 +54,14 @@ enum class TagCategory(
         icon = Icons.Rounded.Tag
     );
 
+    fun localizedName(lang: AppLanguage): String = when (this) {
+        ARTIST -> Strings.tr(lang, "Artist", "Автор", "アーティスト", "画师", "작가", "الفنان")
+        CHARACTER -> Strings.tr(lang, "Character", "Персонаж", "キャラクター", "角色", "캐릭터", "الشخصية")
+        COPYRIGHT -> Strings.tr(lang, "Copyright", "Франшиза", "作品", "作品", "작품", "العمل")
+        META -> Strings.tr(lang, "Meta", "Мета", "メタ", "元数据", "메타", "بيانات وصفية")
+        GENERAL -> Strings.tr(lang, "General", "Общие", "一般", "常规", "일반", "عام")
+    }
+
     fun containerColor(isDark: Boolean): Color? {
         val c = if (isDark) darkContainer else lightContainer
         return if (c == Color.Unspecified) null else c

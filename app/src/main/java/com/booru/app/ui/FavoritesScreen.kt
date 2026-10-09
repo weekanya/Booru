@@ -16,6 +16,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -1190,84 +1192,156 @@ private fun CreateFolderBottomSheet(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             shape = ShapeTokens.ExtraLargeTop
         ) {
+            DismissKeyboardOnHide(sheetState)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp)
+                    .imePadding()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 24.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(start = 4.dp, bottom = 16.dp)
                 ) {
                     Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(42.dp)
+                        shape = ShapeTokens.Medium,
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Rounded.CreateNewFolder,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(22.dp)
-                            )
+                            Icon(Icons.Rounded.CreateNewFolder, contentDescription = null, modifier = Modifier.size(22.dp))
                         }
                     }
                     Spacer(Modifier.width(12.dp))
-                    Text(
-                        text = Strings.newFolder(lang),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = Strings.newFolder(lang),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = Strings.tr(
+                                lang,
+                                "${existingNames.size} collections",
+                                "Коллекций: ${existingNames.size}",
+                                "コレクション: ${existingNames.size}",
+                                "收藏夹：${existingNames.size}",
+                                "컬렉션 ${existingNames.size}개",
+                                "المجموعات: ${existingNames.size}"
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
-    
-                OutlinedTextField(
-                    value = folderName,
-                    onValueChange = { folderName = it.take(40) },
-                    placeholder = { Text(Strings.folderNamePlaceholder(lang)) },
-                    singleLine = true,
-                    isError = isDuplicate,
-                    supportingText = if (isDuplicate) {
-                        { Text(Strings.folderNameExists(lang)) }
-                    } else null,
-                    shape = ShapeTokens.Large,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { submit() }),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focusRequester)
+
+                val fieldColor by animateColorAsState(
+                    targetValue = if (isDuplicate) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                    animationSpec = Motion.effectsDefault(),
+                    label = "folderFieldColor"
                 )
-    
-                Spacer(Modifier.height(20.dp))
-    
+                val createCorner by animateDpAsState(
+                    targetValue = if (canCreate) 28.dp else 6.dp,
+                    animationSpec = Motion.spatialDefault(),
+                    label = "folderCreateCorner"
+                )
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    OutlinedButton(
-                        onClick = {
-                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-                        },
-                        shapes = ButtonDefaults.shapes(shape = ShapeTokens.Large, pressedShape = ButtonDefaults.pressedShape),
+                    Surface(
+                        shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 6.dp, bottomEnd = 6.dp),
+                        color = fieldColor,
                         modifier = Modifier
                             .weight(1f)
-                            .height(48.dp)
+                            .height(56.dp)
                     ) {
-                        Text(Strings.cancelBtn(lang))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(start = 18.dp, end = 6.dp)
+                        ) {
+                            Icon(
+                                Icons.Rounded.Folder,
+                                contentDescription = null,
+                                tint = if (isDuplicate) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                if (folderName.isEmpty()) {
+                                    Text(
+                                        text = Strings.folderNamePlaceholder(lang),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1
+                                    )
+                                }
+                                BasicTextField(
+                                    value = folderName,
+                                    onValueChange = { folderName = it.take(40) },
+                                    singleLine = true,
+                                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                                        color = if (isDuplicate) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurface
+                                    ),
+                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                    keyboardActions = KeyboardActions(onDone = { submit() }),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .focusRequester(focusRequester)
+                                )
+                            }
+                            AnimatedVisibility(
+                                visible = folderName.isNotEmpty(),
+                                enter = fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialFast()),
+                                exit = fadeOut(Motion.effectsFast()) + scaleOut(Motion.spatialFast())
+                            ) {
+                                IconButton(onClick = { folderName = "" }) {
+                                    Icon(
+                                        Icons.Rounded.Close,
+                                        contentDescription = Strings.tr(lang, "Clear", "Очистить", "クリア", "清除", "지우기", "مسح"),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
-    
-                    Button(
+                    FilledIconButton(
                         onClick = submit,
                         enabled = canCreate,
-                        shapes = ButtonDefaults.shapes(shape = ShapeTokens.Large, pressedShape = ButtonDefaults.pressedShape),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
+                        shape = RoundedCornerShape(topStart = createCorner, bottomStart = createCorner, topEnd = 28.dp, bottomEnd = 28.dp),
+                        modifier = Modifier.size(56.dp)
                     ) {
-                        Text(Strings.create(lang))
+                        Icon(Icons.Rounded.Check, contentDescription = Strings.create(lang), modifier = Modifier.size(24.dp))
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = isDuplicate,
+                    enter = fadeIn(Motion.effectsDefault()) + expandVertically(Motion.spatialDefault()),
+                    exit = fadeOut(Motion.effectsFast()) + shrinkVertically(Motion.spatialDefault())
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(start = 18.dp, top = 8.dp)
+                    ) {
+                        Icon(
+                            Icons.Rounded.ErrorOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = Strings.folderNameExists(lang),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
                     }
                 }
             }

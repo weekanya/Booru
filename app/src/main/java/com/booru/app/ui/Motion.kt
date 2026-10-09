@@ -157,3 +157,19 @@ class MorphShape(
         return androidx.compose.ui.graphics.Outline.Generic(path)
     }
 }
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@androidx.compose.runtime.Composable
+fun DismissKeyboardOnHide(sheetState: androidx.compose.material3.SheetState) {
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+    androidx.compose.runtime.LaunchedEffect(sheetState) {
+        androidx.compose.runtime.snapshotFlow { sheetState.targetValue }
+            .collect { target ->
+                if (target == androidx.compose.material3.SheetValue.Hidden && sheetState.currentValue != androidx.compose.material3.SheetValue.Hidden) {
+                    focusManager.clearFocus(force = true)
+                    keyboard?.hide()
+                }
+            }
+    }
+}

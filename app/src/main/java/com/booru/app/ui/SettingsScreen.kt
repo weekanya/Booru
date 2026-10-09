@@ -214,6 +214,7 @@ fun SettingsScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 shape = ShapeTokens.ExtraLargeTop
             ) {
+                DismissKeyboardOnHide(sheetState)
                 ApiKeyForm(
                     title = "Rule34 API",
                     description = Strings.rule34DialogDesc(lang),
@@ -252,6 +253,7 @@ fun SettingsScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 shape = ShapeTokens.ExtraLargeTop
             ) {
+                DismissKeyboardOnHide(sheetState)
                 ApiKeyForm(
                     title = "Gelbooru API",
                     description = Strings.gelbooruDialogDesc(lang),
@@ -361,6 +363,7 @@ fun SettingsScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 shape = ShapeTokens.ExtraLargeTop
             ) {
+                DismissKeyboardOnHide(sheetState)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -432,14 +435,14 @@ fun SettingsScreen(
                             GroupedField(
                                 value = customUserId,
                                 onValueChange = { customUserId = it; customAccessError = null },
-                                label = "User ID / Login",
+                                label = Strings.tr(lang, "User ID / Login", "ID / Логин", "ユーザーID / ログイン", "用户 ID / 登录名", "사용자 ID / 로그인", "المعرّف / اسم الدخول"),
                                 icon = Icons.Rounded.Person,
                                 shape = segmentedListShape(0, 2)
                             )
                             GroupedField(
                                 value = customApiKey,
                                 onValueChange = { customApiKey = it; customAccessError = null },
-                                label = "API Key",
+                                label = Strings.tr(lang, "API key", "API-ключ", "APIキー", "API 密钥", "API 키", "مفتاح API"),
                                 icon = Icons.Rounded.Key,
                                 shape = segmentedListShape(1, 2),
                                 secret = true,
@@ -532,6 +535,7 @@ fun SettingsScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 shape = ShapeTokens.ExtraLargeTop
             ) {
+                DismissKeyboardOnHide(sheetState)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -839,7 +843,7 @@ fun SettingsScreen(
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
-                                text = vm.palette.title,
+                                text = vm.palette.localizedTitle(lang),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -861,6 +865,7 @@ fun SettingsScreen(
                                     rowItems.forEach { pal ->
                                         PaletteTile(
                                             palette = pal,
+                                            lang = lang,
                                             isDark = isDark,
                                             selected = vm.palette == pal,
                                             onClick = { vm.updatePalette(pal) },
@@ -1029,7 +1034,7 @@ fun SettingsScreen(
 
                             SettingRowItem(
                                 title = Strings.colorPaletteTitle(lang),
-                                subtitle = vm.palette.title,
+                                subtitle = vm.palette.localizedTitle(lang),
                                 icon = Icons.Rounded.Palette,
                                 onClick = { showPaletteDialog = true },
                                 trailing = {
@@ -1429,6 +1434,7 @@ private fun SettingsTabBar(
 @Composable
 private fun PaletteTile(
     palette: AppPalette,
+    lang: AppLanguage,
     isDark: Boolean,
     selected: Boolean,
     onClick: () -> Unit,
@@ -1492,7 +1498,7 @@ private fun PaletteTile(
         }
         Spacer(Modifier.height(6.dp))
         Text(
-            text = palette.title,
+            text = palette.localizedTitle(lang),
             style = MaterialTheme.typography.labelMedium,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -2137,7 +2143,6 @@ private fun ApiKeyForm(
     onSave: () -> Unit,
     onRemove: () -> Unit
 ) {
-    val ru = lang == AppLanguage.RUSSIAN
     val userTrim = user.trim()
     val keyTrim = key.trim()
     val bothEmpty = userTrim.isEmpty() && keyTrim.isEmpty()
@@ -2168,7 +2173,7 @@ private fun ApiKeyForm(
             GroupedField(
                 value = user,
                 onValueChange = { onUserChange(it.trim()) },
-                label = "User ID",
+                label = Strings.tr(lang, "User ID", "ID пользователя", "ユーザーID", "用户 ID", "사용자 ID", "معرّف المستخدم"),
                 icon = Icons.Rounded.Person,
                 shape = segmentedListShape(0, 2),
                 error = userError,
@@ -2177,7 +2182,7 @@ private fun ApiKeyForm(
             GroupedField(
                 value = key,
                 onValueChange = { onKeyChange(it.trim()) },
-                label = "API Key",
+                label = Strings.tr(lang, "API key", "API-ключ", "APIキー", "API 密钥", "API 키", "مفتاح API"),
                 icon = Icons.Rounded.VpnKey,
                 shape = segmentedListShape(1, 2),
                 error = keyError,
