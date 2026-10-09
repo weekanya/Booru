@@ -178,16 +178,23 @@ fun SettingsScreen(
                         }
                     }
                     val toggleableSources = vm.toggleableSources
-                    toggleableSources.forEachIndexed { index, src ->
-                        SegmentedOptionItem(
+                    ChoiceGrid(count = toggleableSources.size) { index, corners, modifier ->
+                        val src = toggleableSources[index]
+                        ChoiceGridTile(
                             title = BooruRepository.getSourceDisplayName(src),
+                            supporting = null,
                             selected = vm.isSourceEnabled(src),
-                            index = index,
-                            count = toggleableSources.size,
-                            icon = feedSourceIcon(src),
-                            control = OptionControl.Switch,
-                            onClick = { vm.setSourceEnabled(src, !vm.isSourceEnabled(src)) }
-                        )
+                            corners = corners,
+                            onClick = { vm.setSourceEnabled(src, !vm.isSourceEnabled(src)) },
+                            modifier = modifier
+                        ) { selected ->
+                            Icon(
+                                imageVector = feedSourceIcon(src),
+                                contentDescription = null,
+                                tint = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -196,6 +203,10 @@ fun SettingsScreen(
 
     if (showRule34Dialog) {
         val sheetState = rememberExpandedSheetState()
+        LaunchedEffect(Unit) {
+            rule34User = vm.rule34UserId
+            rule34Key = vm.rule34ApiKey
+        }
         SheetMotion {
             ModalBottomSheet(
                 onDismissRequest = { showRule34Dialog = false },
@@ -216,6 +227,12 @@ fun SettingsScreen(
                     onSave = {
                         vm.saveRule34Keys(rule34User.trim(), rule34Key.trim())
                         scope.launch { sheetState.hide() }.invokeOnCompletion { showRule34Dialog = false }
+                    },
+                    onRemove = {
+                        rule34User = ""
+                        rule34Key = ""
+                        vm.saveRule34Keys("", "")
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { showRule34Dialog = false }
                     }
                 )
             }
@@ -224,6 +241,10 @@ fun SettingsScreen(
 
     if (showGelbooruDialog) {
         val sheetState = rememberExpandedSheetState()
+        LaunchedEffect(Unit) {
+            gelbooruUser = vm.gelbooruUserId
+            gelbooruKey = vm.gelbooruApiKey
+        }
         SheetMotion {
             ModalBottomSheet(
                 onDismissRequest = { showGelbooruDialog = false },
@@ -243,6 +264,12 @@ fun SettingsScreen(
                     onGetKey = { context.openUrlSafely("https://gelbooru.com/index.php?page=account&s=options", lang, showMessage) },
                     onSave = {
                         vm.saveGelbooruKeys(gelbooruUser.trim(), gelbooruKey.trim())
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { showGelbooruDialog = false }
+                    },
+                    onRemove = {
+                        gelbooruUser = ""
+                        gelbooruKey = ""
+                        vm.saveGelbooruKeys("", "")
                         scope.launch { sheetState.hide() }.invokeOnCompletion { showGelbooruDialog = false }
                     }
                 )
@@ -1043,7 +1070,7 @@ fun SettingsScreen(
                         SettingsGroupCard {
                             SettingRowItem(
                                 title = "Rule34.xxx API",
-                                subtitle = if (vm.rule34ApiKey.isNotBlank()) (if (lang == AppLanguage.RUSSIAN) "Подключено · ID ${vm.rule34UserId}" else "Connected · ID ${vm.rule34UserId}") else Strings.tapToEnterKeys(lang),
+                                subtitle = if (vm.rule34ApiKey.isNotBlank() && vm.rule34UserId.isNotBlank()) (if (lang == AppLanguage.RUSSIAN) "Подключено · ID ${vm.rule34UserId}" else "Connected · ID ${vm.rule34UserId}") else Strings.tapToEnterKeys(lang),
                                 icon = Icons.Rounded.Key,
                                 onClick = { showRule34Dialog = true }
                             )
@@ -1052,7 +1079,7 @@ fun SettingsScreen(
 
                             SettingRowItem(
                                 title = "Gelbooru API",
-                                subtitle = if (vm.gelbooruApiKey.isNotBlank()) (if (lang == AppLanguage.RUSSIAN) "Подключено · ID ${vm.gelbooruUserId}" else "Connected · ID ${vm.gelbooruUserId}") else Strings.tapToEnterKeys(lang),
+                                subtitle = if (vm.gelbooruApiKey.isNotBlank() && vm.gelbooruUserId.isNotBlank()) (if (lang == AppLanguage.RUSSIAN) "Подключено · ID ${vm.gelbooruUserId}" else "Connected · ID ${vm.gelbooruUserId}") else Strings.tapToEnterKeys(lang),
                                 icon = Icons.Rounded.VpnKey,
                                 onClick = { showGelbooruDialog = true }
                             )
@@ -1795,26 +1822,127 @@ private fun LanguageSelectionBottomSheet(
                     }
                 }
     
-                Column {
-                    AppLanguage.entries.forEachIndexed { index, langOption ->
-                        SegmentedOptionItem(
-                            title = langOption.displayName,
-                            supporting = langOption.englishName,
-                            selected = langOption == currentLanguage,
-                            index = index,
-                            count = AppLanguage.entries.size,
-                            icon = Icons.Rounded.Translate,
-                            onClick = {
-                                onLanguageSelected(langOption)
-                                scope.launch {
-                                    sheetState.hide()
-                                }.invokeOnCompletion {
-                                    onDismiss()
-                                }
-                            }
+                ChoiceGrid(count = AppLanguage.entries.size) { index, corners, modifier ->
+                    val langOption = AppLanguage.entries[index]
+                    ChoiceGridTile(
+                        title = langOption.displayName,
+                        supporting = langOption.englishName,
+                        selected = langOption == currentLanguage,
+                        corners = corners,
+                        onClick = {
+                            onLanguageSelected(langOption)
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                        },
+                        modifier = modifier
+                    ) { selected ->
+                        Text(
+                            text = langOption.code.uppercase(),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
+            }
+        }
+    }
+}
+
+private fun gridCorners(index: Int, count: Int): BooleanArray {
+    val rows = (count + 1) / 2
+    val row = index / 2
+    val col = index % 2
+    val rowSize = minOf(2, count - row * 2)
+    val lastRowSize = count - (rows - 1) * 2
+    return booleanArrayOf(
+        row == 0 && col == 0,
+        row == 0 && col == rowSize - 1,
+        row == rows - 1 && col == 0,
+        (row == rows - 1 && col == rowSize - 1) || (row == rows - 2 && col == 1 && lastRowSize == 1)
+    )
+}
+
+@Composable
+private fun ChoiceGrid(
+    count: Int,
+    content: @Composable (index: Int, corners: BooleanArray, modifier: Modifier) -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        (0 until count).chunked(2).forEach { rowIndices ->
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                rowIndices.forEach { i -> content(i, gridCorners(i, count), Modifier.weight(1f)) }
+                if (rowIndices.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChoiceGridTile(
+    title: String,
+    supporting: String?,
+    selected: Boolean,
+    corners: BooleanArray,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    badge: @Composable (selected: Boolean) -> Unit
+) {
+    val container by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+        animationSpec = Motion.effectsDefault(),
+        label = "gridTileColor"
+    )
+    val badgeColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+        animationSpec = Motion.effectsDefault(),
+        label = "gridTileBadge"
+    )
+    @Composable
+    fun corner(outer: Boolean, label: String): androidx.compose.ui.unit.Dp {
+        val v by androidx.compose.animation.core.animateDpAsState(
+            targetValue = if (selected) 28.dp else if (outer) 24.dp else 6.dp,
+            animationSpec = Motion.spatialDefault(),
+            label = label
+        )
+        return v
+    }
+    val shape = RoundedCornerShape(
+        topStart = corner(corners[0], "gTS"),
+        topEnd = corner(corners[1], "gTE"),
+        bottomStart = corner(corners[2], "gBS"),
+        bottomEnd = corner(corners[3], "gBE")
+    )
+    Surface(onClick = onClick, shape = shape, color = container, modifier = modifier.height(60.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 10.dp, end = 12.dp)) {
+            Surface(shape = CircleShape, color = badgeColor, modifier = Modifier.size(40.dp)) {
+                Box(contentAlignment = Alignment.Center) { badge(selected) }
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (supporting != null) {
+                    Text(
+                        text = supporting,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            AnimatedVisibility(
+                visible = selected,
+                enter = fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialFast(), initialScale = 0.5f),
+                exit = fadeOut(Motion.effectsFast()) + scaleOut(Motion.effectsFast(), targetScale = 0.5f)
+            ) {
+                Icon(Icons.Rounded.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -2006,7 +2134,8 @@ private fun ApiKeyForm(
     lang: AppLanguage,
     hasSavedKeys: Boolean,
     onGetKey: () -> Unit,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+    onRemove: () -> Unit
 ) {
     val ru = lang == AppLanguage.RUSSIAN
     val userTrim = user.trim()
@@ -2023,8 +2152,7 @@ private fun ApiKeyForm(
         keyTrim.any { it.isWhitespace() } -> if (ru) "Ключ без пробелов" else "Key can't contain spaces"
         else -> null
     }
-    val removing = bothEmpty && hasSavedKeys
-    val canSave = removing || (!bothEmpty && userError == null && keyError == null)
+    val canSave = !bothEmpty && userError == null && keyError == null
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -2072,23 +2200,27 @@ private fun ApiKeyForm(
             Button(
                 onClick = onSave,
                 enabled = canSave,
-                shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 28.dp, bottomEnd = 28.dp),
-                colors = if (removing) ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer
-                ) else ButtonDefaults.buttonColors(),
+                shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = if (hasSavedKeys) 8.dp else 28.dp, bottomEnd = if (hasSavedKeys) 8.dp else 28.dp),
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp)
             ) {
-                Icon(if (removing) Icons.Rounded.DeleteOutline else Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(
-                    text = if (removing) (if (ru) "Удалить ключи" else "Remove keys") else Strings.saveBtn(lang),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1
+                Text(Strings.saveBtn(lang), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            }
+            if (hasSavedKeys) {
+                AnimatedConfirmDeleteButton(
+                    onConfirmed = onRemove,
+                    lang = lang,
+                    initialIcon = Icons.Rounded.DeleteOutline,
+                    confirmText = Strings.confirmDeleteAction(lang),
+                    height = 56.dp,
+                    contentPadding = 16.dp,
+                    idleContainerColor = MaterialTheme.colorScheme.errorContainer,
+                    idleContentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 28.dp, bottomEnd = 28.dp)
                 )
             }
         }

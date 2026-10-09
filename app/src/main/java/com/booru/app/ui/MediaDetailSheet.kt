@@ -233,7 +233,7 @@ fun MediaDetailSheet(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(rememberScrollState(), flingBehavior = rememberCrispFlingBehavior())
                     .padding(bottom = 36.dp)
             ) {
                 Box(
@@ -1428,7 +1428,7 @@ fun DetailZoomableImage(
                                     val zoomMotion = abs(1 - zoom) * centroidSize
                                     val panMotion = pan.getDistance()
 
-                                    if (zoomMotion > touchSlop || panMotion > touchSlop || rawScale > 1.05f) {
+                                    if (zoomMotion > touchSlop || panMotion > touchSlop) {
                                         pastTouchSlop = true
                                     }
                                 }

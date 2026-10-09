@@ -959,20 +959,20 @@ private fun FavoritesFilterBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 24.dp)
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 20.dp)
                     .verticalScroll(rememberScrollState())
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp),
+                        .padding(bottom = 12.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Surface(
-                            shape = CircleShape,
+                            shape = ShapeTokens.Medium,
                             color = MaterialTheme.colorScheme.primaryContainer,
                             modifier = Modifier.size(38.dp)
                         ) {
@@ -1012,14 +1012,14 @@ private fun FavoritesFilterBottomSheet(
                 }
     
                 Surface(
-                    shape = ShapeTokens.LargeIncreased,
+                    shape = segmentedListShape(0, 2),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = 12.dp)
+                            modifier = Modifier.padding(bottom = 8.dp)
                         ) {
                             FilterSectionIcon(Icons.AutoMirrored.Rounded.Sort)
                             Spacer(Modifier.width(12.dp))
@@ -1053,17 +1053,17 @@ private fun FavoritesFilterBottomSheet(
                     }
                 }
     
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(2.dp))
     
                 Surface(
-                    shape = ShapeTokens.LargeIncreased,
+                    shape = segmentedListShape(1, 2),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(bottom = 12.dp)
+                            modifier = Modifier.padding(bottom = 8.dp)
                         ) {
                             FilterSectionIcon(Icons.Rounded.Category)
                             Spacer(Modifier.width(12.dp))
@@ -1122,7 +1122,7 @@ private fun FavoritesFilterBottomSheet(
                     }
                 }
     
-                Spacer(Modifier.height(20.dp))
+                Spacer(Modifier.height(14.dp))
     
                 Button(
                     onClick = {
