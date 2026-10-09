@@ -1824,7 +1824,7 @@ object Strings {
         AppLanguage.RUSSIAN -> "$min мин."
         AppLanguage.JAPANESE -> "$min 分"
         AppLanguage.CHINESE -> "$min 分钟"
-        AppLanguage.KOREAN -> "$min분"
+        AppLanguage.KOREAN -> "${min}분"
         AppLanguage.ARABIC -> "$min د"
         else -> "$min min"
     }
