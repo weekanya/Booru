@@ -202,121 +202,21 @@ fun SettingsScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 shape = ShapeTokens.ExtraLargeTop
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .imePadding()
-                        .padding(horizontal = 20.dp)
-                        .padding(bottom = 24.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        Icons.Rounded.Key,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                            Column {
-                                Text(
-                                    text = "Rule34.xxx API Keys",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = Strings.rule34DialogDesc(lang),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                ApiKeyForm(
+                    title = "Rule34 API",
+                    description = Strings.rule34DialogDesc(lang),
+                    user = rule34User,
+                    onUserChange = { rule34User = it },
+                    key = rule34Key,
+                    onKeyChange = { rule34Key = it },
+                    lang = lang,
+                    onGetKey = { context.openUrlSafely("https://rule34.xxx/index.php?page=account&s=options", lang, showMessage) },
+                    onSave = {
+                        vm.saveRule34Keys(rule34User, rule34Key)
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { showRule34Dialog = false }
+                        showMessage(Strings.keysSavedToast(lang))
                     }
-    
-                    OutlinedTextField(
-                        value = rule34User,
-                        onValueChange = { rule34User = it },
-                        label = { Text("User ID") },
-                        placeholder = { Text("123456") },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Person, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                        },
-                        trailingIcon = {
-                            if (rule34User.isNotEmpty()) {
-                                IconButton(onClick = { rule34User = "" }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Rounded.Close, Strings.closeBtn(lang), modifier = Modifier.size(16.dp))
-                                }
-                            }
-                        },
-                        singleLine = true,
-                        shape = ShapeTokens.Medium,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-    
-                    OutlinedTextField(
-                        value = rule34Key,
-                        onValueChange = { rule34Key = it },
-                        label = { Text("API Key") },
-                        placeholder = { Text("API Key") },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.VpnKey, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                        },
-                        trailingIcon = {
-                            if (rule34Key.isNotEmpty()) {
-                                IconButton(onClick = { rule34Key = "" }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Rounded.Close, Strings.closeBtn(lang), modifier = Modifier.size(16.dp))
-                                }
-                            }
-                        },
-                        singleLine = true,
-                        shape = ShapeTokens.Medium,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-    
-                    FilledTonalButton(
-                        onClick = {
-                            val url = "https://rule34.xxx/index.php?page=account&s=options"
-                            context.openUrlSafely(url, lang, showMessage)
-                        },
-                        shape = ShapeTokens.Medium,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(Strings.getKeyFromSite(lang), style = MaterialTheme.typography.labelLarge)
-                    }
-    
-                    Button(
-                        onClick = {
-                            vm.saveRule34Keys(rule34User, rule34Key)
-                            scope.launch { sheetState.hide() }.invokeOnCompletion { showRule34Dialog = false }
-                            showMessage(Strings.keysSavedToast(lang))
-                        },
-                        shape = ShapeTokens.Medium,
-                        modifier = Modifier.fillMaxWidth().height(48.dp)
-                    ) {
-                        Icon(Icons.Rounded.Check, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(Strings.saveBtn(lang), fontWeight = FontWeight.Bold)
-                    }
-                }
+                )
             }
         }
     }
@@ -330,121 +230,21 @@ fun SettingsScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 shape = ShapeTokens.ExtraLargeTop
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .imePadding()
-                        .padding(horizontal = 20.dp)
-                        .padding(bottom = 24.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        Icons.Rounded.VpnKey,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                            Column {
-                                Text(
-                                    text = "Gelbooru API Keys",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = Strings.gelbooruDialogDesc(lang),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
+                ApiKeyForm(
+                    title = "Gelbooru API",
+                    description = Strings.gelbooruDialogDesc(lang),
+                    user = gelbooruUser,
+                    onUserChange = { gelbooruUser = it },
+                    key = gelbooruKey,
+                    onKeyChange = { gelbooruKey = it },
+                    lang = lang,
+                    onGetKey = { context.openUrlSafely("https://gelbooru.com/index.php?page=account&s=options", lang, showMessage) },
+                    onSave = {
+                        vm.saveGelbooruKeys(gelbooruUser, gelbooruKey)
+                        scope.launch { sheetState.hide() }.invokeOnCompletion { showGelbooruDialog = false }
+                        showMessage(Strings.keysSavedToast(lang))
                     }
-    
-                    OutlinedTextField(
-                        value = gelbooruUser,
-                        onValueChange = { gelbooruUser = it },
-                        label = { Text("User ID") },
-                        placeholder = { Text("User ID") },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Person, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                        },
-                        trailingIcon = {
-                            if (gelbooruUser.isNotEmpty()) {
-                                IconButton(onClick = { gelbooruUser = "" }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Rounded.Close, Strings.closeBtn(lang), modifier = Modifier.size(16.dp))
-                                }
-                            }
-                        },
-                        singleLine = true,
-                        shape = ShapeTokens.Medium,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-    
-                    OutlinedTextField(
-                        value = gelbooruKey,
-                        onValueChange = { gelbooruKey = it },
-                        label = { Text("API Key") },
-                        placeholder = { Text("API Key") },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Key, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                        },
-                        trailingIcon = {
-                            if (gelbooruKey.isNotEmpty()) {
-                                IconButton(onClick = { gelbooruKey = "" }, modifier = Modifier.size(24.dp)) {
-                                    Icon(Icons.Rounded.Close, Strings.closeBtn(lang), modifier = Modifier.size(16.dp))
-                                }
-                            }
-                        },
-                        singleLine = true,
-                        shape = ShapeTokens.Medium,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-    
-                    FilledTonalButton(
-                        onClick = {
-                            val url = "https://gelbooru.com/index.php?page=account&s=options"
-                            context.openUrlSafely(url, lang, showMessage)
-                        },
-                        shape = ShapeTokens.Medium,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.AutoMirrored.Rounded.OpenInNew, null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(Strings.getKeyFromSite(lang), style = MaterialTheme.typography.labelLarge)
-                    }
-    
-                    Button(
-                        onClick = {
-                            vm.saveGelbooruKeys(gelbooruUser, gelbooruKey)
-                            scope.launch { sheetState.hide() }.invokeOnCompletion { showGelbooruDialog = false }
-                            showMessage(Strings.keysSavedToast(lang))
-                        },
-                        shape = ShapeTokens.Medium,
-                        modifier = Modifier.fillMaxWidth().height(48.dp)
-                    ) {
-                        Icon(Icons.Rounded.Check, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(Strings.saveBtn(lang), fontWeight = FontWeight.Bold)
-                    }
-                }
+                )
             }
         }
     }
@@ -543,127 +343,82 @@ fun SettingsScreen(
                         .verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        if (isEditing) Icons.Rounded.Edit else Icons.Rounded.AddCircleOutline,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.size(20.dp)
-                                    )
+                    SheetHeader(
+                        icon = if (isEditing) Icons.Rounded.Edit else Icons.Rounded.AddLink,
+                        title = if (isEditing) Strings.editSourceTitle(lang) else Strings.addSourceTitle(lang),
+                        subtitle = if (lang == AppLanguage.RUSSIAN) "Только HTTPS" else "HTTPS only"
+                    )
+
+                    Column {
+                        GroupedField(
+                            value = customName,
+                            onValueChange = { customName = it; customNameError = null },
+                            label = Strings.sourceNameHint(lang),
+                            icon = Icons.Rounded.Badge,
+                            shape = segmentedListShape(0, 2),
+                            error = customNameError
+                        )
+                        GroupedField(
+                            value = customUrl,
+                            onValueChange = { customUrl = it; customUrlError = null },
+                            label = Strings.sourceUrlHint(lang),
+                            icon = Icons.Rounded.Link,
+                            shape = segmentedListShape(1, 2),
+                            placeholder = "https://example.booru.org",
+                            error = customUrlError,
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = Strings.sourceEngineLabel(lang),
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                        MD3SegmentedChoiceRow(
+                            options = BooruEngine.entries,
+                            selectedOption = customEngine,
+                            onOptionSelected = { customEngine = it },
+                            labelProvider = { engine ->
+                                when (engine) {
+                                    BooruEngine.GELBOORU -> "Gelbooru"
+                                    BooruEngine.MOEBOORU -> "Moebooru"
+                                    BooruEngine.DANBOORU -> "Danbooru"
                                 }
                             }
-                            Text(
-                                text = if (isEditing) Strings.editSourceTitle(lang) else Strings.addSourceTitle(lang),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = if (lang == AppLanguage.RUSSIAN) "Доступ (необязательно)" else "Access (optional)",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+                        Column {
+                            GroupedField(
+                                value = customUserId,
+                                onValueChange = { customUserId = it },
+                                label = "User ID / Login",
+                                icon = Icons.Rounded.Person,
+                                shape = segmentedListShape(0, 2)
+                            )
+                            GroupedField(
+                                value = customApiKey,
+                                onValueChange = { customApiKey = it },
+                                label = "API Key",
+                                icon = Icons.Rounded.Key,
+                                shape = segmentedListShape(1, 2),
+                                secret = true
                             )
                         }
                     }
-    
-                    OutlinedTextField(
-                        value = customName,
-                        onValueChange = {
-                            customName = it
-                            customNameError = null
-                        },
-                        label = { Text(Strings.sourceNameHint(lang)) },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Badge, null, tint = MaterialTheme.colorScheme.primary)
-                        },
-                        isError = customNameError != null,
-                        supportingText = customNameError?.let { msg -> { Text(msg) } },
-                        singleLine = true,
-                        shape = ShapeTokens.Large,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-    
-                    OutlinedTextField(
-                        value = customUrl,
-                        onValueChange = {
-                            customUrl = it
-                            customUrlError = null
-                        },
-                        label = { Text(Strings.sourceUrlHint(lang)) },
-                        placeholder = { Text("https://example.booru.org") },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Link, null, tint = MaterialTheme.colorScheme.primary)
-                        },
-                        isError = customUrlError != null,
-                        supportingText = customUrlError?.let { msg -> { Text(msg) } },
-                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri),
-                        singleLine = true,
-                        shape = ShapeTokens.Large,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-    
-                    Text(
-                        text = Strings.sourceEngineLabel(lang),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-    
-                    MD3SegmentedChoiceRow(
-                        options = BooruEngine.entries,
-                        selectedOption = customEngine,
-                        onOptionSelected = { customEngine = it },
-                        labelProvider = { engine ->
-                            when (engine) {
-                                BooruEngine.GELBOORU -> "Gelbooru"
-                                BooruEngine.MOEBOORU -> "Moebooru"
-                                BooruEngine.DANBOORU -> "Danbooru"
-                            }
-                        }
-                    )
-    
-                    OutlinedTextField(
-                        value = customUserId,
-                        onValueChange = { customUserId = it },
-                        label = { Text("User ID / Login (Optional)") },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Person, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        },
-                        singleLine = true,
-                        shape = ShapeTokens.Large,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-    
-                    OutlinedTextField(
-                        value = customApiKey,
-                        onValueChange = { customApiKey = it },
-                        label = { Text("API Key (Optional)") },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Key, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                        },
-                        trailingIcon = {
-                            IconButton(onClick = { showCustomApiKey = !showCustomApiKey }) {
-                                Icon(
-                                    if (showCustomApiKey) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                                    contentDescription = if (showCustomApiKey) "Hide API key" else "Show API key"
-                                )
-                            }
-                        },
-                        visualTransformation = if (showCustomApiKey) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                        singleLine = true,
-                        shape = ShapeTokens.Large,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-    
+
                     Button(
                         onClick = {
                             val cleanName = customName.trim()
@@ -697,10 +452,10 @@ fun SettingsScreen(
                                 scope.launch { sheetState.hide() }.invokeOnCompletion { showAddCustomSourceDialog = false }
                             }
                         },
-                        shapes = ButtonDefaults.shapes(shape = ShapeTokens.LargeIncreased, pressedShape = ButtonDefaults.pressedShape),
+                        shapes = ButtonDefaults.shapes(shape = CircleShape, pressedShape = ButtonDefaults.pressedShape),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp)
+                            .height(56.dp)
                     ) {
                         Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
@@ -751,39 +506,25 @@ fun SettingsScreen(
                         .fillMaxWidth()
                         .navigationBarsPadding()
                         .imePadding()
-                        .padding(horizontal = 20.dp)
+                        .padding(horizontal = 16.dp)
                         .padding(bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        SettingIconBadge(
-                            icon = Icons.Rounded.Block,
-                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                            contentColor = MaterialTheme.colorScheme.onErrorContainer
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = Strings.tagBlacklistTitle(lang),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = Strings.tagBlacklistDesc(lang),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    SheetHeader(
+                        icon = Icons.Rounded.Block,
+                        title = Strings.tagBlacklistTitle(lang),
+                        subtitle = Strings.tagBlacklistDesc(lang),
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    )
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Surface(
-                            shape = CircleShape,
+                            shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 6.dp, bottomEnd = 6.dp),
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             modifier = Modifier
                                 .weight(1f)
@@ -795,17 +536,9 @@ fun SettingsScreen(
                                     .padding(start = 18.dp, end = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    Icons.Rounded.Tag,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                                Icon(Icons.Rounded.Tag, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                                 Spacer(Modifier.width(12.dp))
-                                Box(
-                                    modifier = Modifier.weight(1f),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
                                     if (newBlacklistTag.isEmpty()) {
                                         Text(
                                             text = Strings.addTagPlaceholder(lang),
@@ -819,9 +552,7 @@ fun SettingsScreen(
                                         value = newBlacklistTag,
                                         onValueChange = { newBlacklistTag = it },
                                         singleLine = true,
-                                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        ),
+                                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
                                         cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                                         keyboardActions = KeyboardActions(onDone = { addTagAction() }),
@@ -833,202 +564,189 @@ fun SettingsScreen(
                                     enter = fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialDefault()),
                                     exit = fadeOut(Motion.effectsFast()) + scaleOut(Motion.effectsFast())
                                 ) {
-                                    IconButton(
-                                        onClick = { newBlacklistTag = "" },
-                                        modifier = Modifier.size(36.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Rounded.Close,
-                                            contentDescription = "Clear",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(18.dp)
-                                        )
+                                    IconButton(onClick = { newBlacklistTag = "" }, modifier = Modifier.size(36.dp)) {
+                                        Icon(Icons.Rounded.Close, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                                     }
                                 }
                             }
                         }
-
                         val isAddActive = newBlacklistTag.isNotBlank()
-                        val addCorner by androidx.compose.animation.core.animateDpAsState(
-                            targetValue = if (isAddActive) 16.dp else 28.dp,
+                        val addLead by androidx.compose.animation.core.animateDpAsState(
+                            targetValue = if (isAddActive) 28.dp else 6.dp,
                             animationSpec = Motion.spatialDefault(),
-                            label = "addCorner"
+                            label = "addLead"
                         )
                         FilledIconButton(
                             onClick = addTagAction,
                             enabled = isAddActive,
-                            shape = RoundedCornerShape(addCorner),
+                            shape = RoundedCornerShape(topStart = addLead, bottomStart = addLead, topEnd = 28.dp, bottomEnd = 28.dp),
                             modifier = Modifier.size(56.dp)
                         ) {
-                            Icon(
-                                Icons.Rounded.Add,
-                                contentDescription = Strings.addTagBtn(lang),
-                                modifier = Modifier.size(24.dp)
-                            )
+                            Icon(Icons.Rounded.Add, contentDescription = Strings.addTagBtn(lang), modifier = Modifier.size(24.dp))
                         }
                     }
 
                     AnimatedVisibility(
-                        visible = vm.tagBlacklist.size > 4,
-                        enter = fadeIn(Motion.effectsDefault()) + expandVertically(animationSpec = Motion.spatialSlow()),
-                        exit = fadeOut(Motion.effectsFast()) + shrinkVertically(animationSpec = Motion.spatialSlow())
+                        visible = vm.tagBlacklist.isNotEmpty(),
+                        enter = fadeIn(Motion.effectsDefault()) + expandVertically(Motion.spatialDefault()),
+                        exit = fadeOut(Motion.effectsFast()) + shrinkVertically(Motion.spatialDefault())
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            Row(
+                            Surface(
+                                shape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp, topEnd = 6.dp, bottomEnd = 6.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainer,
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(start = 18.dp, end = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    .weight(1f)
+                                    .height(48.dp)
                             ) {
-                                Icon(
-                                    Icons.Rounded.Search,
-                                    contentDescription = null,
-                                    tint = if (blacklistFilterQuery.isNotEmpty()) MaterialTheme.colorScheme.primary
-                                           else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Box(
-                                    modifier = Modifier.weight(1f),
-                                    contentAlignment = Alignment.CenterStart
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(start = 16.dp, end = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    if (blacklistFilterQuery.isEmpty()) {
-                                        Text(
-                                            text = Strings.searchBlacklistPlaceholder(lang),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
+                                    Icon(
+                                        Icons.Rounded.Search,
+                                        contentDescription = null,
+                                        tint = if (blacklistFilterQuery.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Spacer(Modifier.width(10.dp))
+                                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                        if (blacklistFilterQuery.isEmpty()) {
+                                            Text(
+                                                text = Strings.searchBlacklistPlaceholder(lang),
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                        BasicTextField(
+                                            value = blacklistFilterQuery,
+                                            onValueChange = { blacklistFilterQuery = it },
+                                            singleLine = true,
+                                            textStyle = MaterialTheme.typography.bodyMedium.copy(color = MaterialTheme.colorScheme.onSurface),
+                                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                            modifier = Modifier.fillMaxWidth()
                                         )
                                     }
-                                    BasicTextField(
-                                        value = blacklistFilterQuery,
-                                        onValueChange = { blacklistFilterQuery = it },
-                                        textStyle = MaterialTheme.typography.bodyMedium.copy(
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        ),
-                                        singleLine = true,
-                                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-                                if (blacklistFilterQuery.isNotEmpty()) {
-                                    IconButton(
-                                        onClick = { blacklistFilterQuery = "" },
-                                        modifier = Modifier.size(32.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Rounded.Close,
-                                            contentDescription = "Clear",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(16.dp)
-                                        )
+                                    if (blacklistFilterQuery.isNotEmpty()) {
+                                        IconButton(onClick = { blacklistFilterQuery = "" }, modifier = Modifier.size(32.dp)) {
+                                            Icon(Icons.Rounded.Close, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                                        }
                                     }
                                 }
                             }
+                            AnimatedConfirmDeleteButton(
+                                onConfirmed = {
+                                    vm.clearBlacklist()
+                                    blacklistFilterQuery = ""
+                                },
+                                lang = lang,
+                                initialIcon = Icons.Rounded.DeleteSweep,
+                                initialText = if (lang == AppLanguage.RUSSIAN) "Очистить" else "Clear all",
+                                confirmText = if (lang == AppLanguage.RUSSIAN) "Удалить всё?" else Strings.confirmDeleteAction(lang),
+                                height = 48.dp,
+                                contentPadding = 16.dp,
+                                idleContainerColor = MaterialTheme.colorScheme.errorContainer,
+                                idleContentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                shape = RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 24.dp, bottomEnd = 24.dp)
+                            )
                         }
                     }
 
-                    AnimatedContent(
-                        targetState = vm.tagBlacklist.isEmpty(),
-                        transitionSpec = {
-                            fadeIn(Motion.effectsDefault())
-                                .togetherWith(fadeOut(Motion.effectsFast()))
-                        },
-                        label = "blacklistContentTransition"
-                    ) { isEmpty ->
-                        Surface(
-                            shape = ShapeTokens.LargeIncreased,
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            if (isEmpty) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 24.dp, horizontal = 16.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally,
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    Surface(
+                        shape = ShapeTokens.LargeIncreased,
+                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .animateContentSize(Motion.spatialDefault())
+                    ) {
+                        if (vm.tagBlacklist.isEmpty()) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 24.dp, horizontal = 16.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                SettingIconBadge(
+                                    icon = Icons.Rounded.Shield,
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
+                                Text(
+                                    text = Strings.noBlacklistedTags(lang),
+                                    style = MaterialTheme.typography.titleSmall,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = Strings.emptyBlacklistHint(lang),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        } else {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(start = 4.dp, bottom = 10.dp)
                                 ) {
-                                    SettingIconBadge(
-                                        icon = Icons.Rounded.Shield,
-                                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                                    )
                                     Text(
-                                        text = Strings.noBlacklistedTags(lang),
-                                        style = MaterialTheme.typography.titleSmall,
+                                        text = if (lang == AppLanguage.RUSSIAN) "Скрытые теги" else "Hidden tags",
+                                        style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = Strings.emptyBlacklistHint(lang),
-                                        style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                        modifier = Modifier.weight(1f)
                                     )
-                                }
-                            } else {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(start = 4.dp, bottom = 10.dp)
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.errorContainer,
+                                        contentColor = MaterialTheme.colorScheme.onErrorContainer
                                     ) {
                                         Text(
-                                            text = if (lang == AppLanguage.RUSSIAN) "Скрытые теги" else "Hidden tags",
-                                            style = MaterialTheme.typography.labelLarge,
+                                            text = vm.tagBlacklist.size.toString(),
+                                            style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.weight(1f)
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                         )
-                                        Surface(
-                                            shape = CircleShape,
-                                            color = MaterialTheme.colorScheme.secondaryContainer,
-                                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                                        ) {
-                                            Text(
-                                                text = vm.tagBlacklist.size.toString(),
-                                                style = MaterialTheme.typography.labelMedium,
-                                                fontWeight = FontWeight.SemiBold,
-                                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                            )
-                                        }
                                     }
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .heightIn(min = 40.dp, max = 220.dp)
-                                            .verticalScroll(rememberScrollState())
-                                    ) {
-                                        if (filteredBlacklist.isEmpty()) {
-                                            Text(
-                                                text = if (lang == AppLanguage.RUSSIAN) "Ничего не найдено" else "No matching tags",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier
-                                                    .align(Alignment.Center)
-                                                    .padding(vertical = 12.dp)
-                                            )
-                                        } else {
-                                            FlowRow(
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                                verticalArrangement = Arrangement.spacedBy(6.dp),
-                                                modifier = Modifier.fillMaxWidth()
-                                            ) {
-                                                filteredBlacklist.forEach { tag ->
-                                                    key(tag) {
-                                                        BlacklistTagChip(
-                                                            tag = tag,
-                                                            animateEnter = tag !in initialBlacklistTags,
-                                                            onRemove = { vm.removeBlacklistedTag(tag) }
-                                                        )
-                                                    }
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 40.dp, max = 220.dp)
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    if (filteredBlacklist.isEmpty()) {
+                                        Text(
+                                            text = if (lang == AppLanguage.RUSSIAN) "Ничего не найдено" else "No matching tags",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier
+                                                .align(Alignment.Center)
+                                                .padding(vertical = 12.dp)
+                                        )
+                                    } else {
+                                        FlowRow(
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            filteredBlacklist.forEach { tag ->
+                                                key(tag) {
+                                                    BlacklistTagChip(
+                                                        tag = tag,
+                                                        animateEnter = tag !in initialBlacklistTags,
+                                                        onRemove = { vm.removeBlacklistedTag(tag) }
+                                                    )
                                                 }
                                             }
                                         }
@@ -1038,45 +756,23 @@ fun SettingsScreen(
                         }
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Button(
+                        onClick = {
+                            scope.launch { sheetState.hide() }.invokeOnCompletion {
+                                showBlacklistDialog = false
+                                blacklistFilterQuery = ""
+                            }
+                        },
+                        shapes = ButtonDefaults.shapes(shape = CircleShape, pressedShape = ButtonDefaults.pressedShape),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
                     ) {
-                        AnimatedVisibility(
-                            visible = vm.tagBlacklist.isNotEmpty(),
-                            enter = fadeIn(Motion.effectsDefault()) + expandHorizontally(animationSpec = Motion.spatialSlow()),
-                            exit = fadeOut(Motion.effectsFast()) + shrinkHorizontally(animationSpec = Motion.spatialSlow())
-                        ) {
-                            AnimatedConfirmDeleteButton(
-                                onConfirmed = {
-                                    vm.clearBlacklist()
-                                    blacklistFilterQuery = ""
-                                },
-                                lang = lang,
-                                initialIcon = Icons.Rounded.DeleteSweep,
-                                initialText = Strings.clearAllBlacklist(lang),
-                                confirmText = if (lang == AppLanguage.RUSSIAN) "Удалить всё?" else Strings.confirmDeleteAction(lang)
-                            )
-                        }
-                        Button(
-                            onClick = {
-                                scope.launch { sheetState.hide() }.invokeOnCompletion {
-                                    showBlacklistDialog = false
-                                    blacklistFilterQuery = ""
-                                }
-                            },
-                            shape = CircleShape,
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp)
-                        ) {
-                            Text(
-                                text = if (lang == AppLanguage.RUSSIAN) "Готово" else "Done",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
+                        Text(
+                            text = if (lang == AppLanguage.RUSSIAN) "Готово" else "Done",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }
@@ -2209,4 +1905,166 @@ private fun android.content.Context.openUrlSafely(url: String, lang: AppLanguage
         startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
     }.isSuccess
     if (!opened) showMessage(Strings.noBrowserFound(lang))
+}
+
+@Composable
+private fun SheetHeader(
+    icon: ImageVector,
+    title: String,
+    subtitle: String? = null,
+    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer
+) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp)) {
+        SettingIconBadge(icon = icon, containerColor = containerColor, contentColor = contentColor)
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroupedField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    icon: ImageVector,
+    shape: androidx.compose.ui.graphics.Shape,
+    placeholder: String? = null,
+    error: String? = null,
+    secret: Boolean = false,
+    keyboardType: androidx.compose.ui.text.input.KeyboardType = androidx.compose.ui.text.input.KeyboardType.Text
+) {
+    var reveal by remember { mutableStateOf(false) }
+    TextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        placeholder = placeholder?.let { p -> { Text(p) } },
+        leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp)) },
+        trailingIcon = when {
+            secret -> {
+                {
+                    IconButton(onClick = { reveal = !reveal }) {
+                        Icon(
+                            if (reveal) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                            contentDescription = if (reveal) "Hide" else "Show",
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+            value.isNotEmpty() -> {
+                {
+                    IconButton(onClick = { onValueChange("") }) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Clear", modifier = Modifier.size(18.dp))
+                    }
+                }
+            }
+            else -> null
+        },
+        isError = error != null,
+        supportingText = error?.let { msg -> { Text(msg) } },
+        visualTransformation = if (secret && !reveal) androidx.compose.ui.text.input.PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        keyboardOptions = KeyboardOptions(keyboardType = if (secret) androidx.compose.ui.text.input.KeyboardType.Password else keyboardType),
+        singleLine = true,
+        shape = shape,
+        colors = TextFieldDefaults.colors(
+            focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            errorContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            focusedIndicatorColor = Color.Transparent,
+            unfocusedIndicatorColor = Color.Transparent,
+            errorIndicatorColor = Color.Transparent,
+            disabledIndicatorColor = Color.Transparent,
+            focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
+            unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 2.dp)
+    )
+}
+
+@Composable
+private fun ApiKeyForm(
+    title: String,
+    description: String,
+    user: String,
+    onUserChange: (String) -> Unit,
+    key: String,
+    onKeyChange: (String) -> Unit,
+    lang: AppLanguage,
+    onGetKey: () -> Unit,
+    onSave: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .imePadding()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 24.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        SheetHeader(icon = Icons.Rounded.Key, title = title, subtitle = description)
+        Column {
+            GroupedField(
+                value = user,
+                onValueChange = onUserChange,
+                label = "User ID",
+                icon = Icons.Rounded.Person,
+                shape = segmentedListShape(0, 2),
+                keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
+            )
+            GroupedField(
+                value = key,
+                onValueChange = onKeyChange,
+                label = "API Key",
+                icon = Icons.Rounded.VpnKey,
+                shape = segmentedListShape(1, 2),
+                secret = true
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
+            FilledTonalButton(
+                onClick = onGetKey,
+                shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 8.dp, bottomEnd = 8.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp)
+            ) {
+                Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(Strings.getKeyFromSite(lang), style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Button(
+                onClick = onSave,
+                shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 28.dp, bottomEnd = 28.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(56.dp)
+            ) {
+                Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(Strings.saveBtn(lang), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
 }

@@ -1908,7 +1908,7 @@ private fun SourceTile(
 }
 
 @Composable
-private fun ConnectedBarButton(
+internal fun ConnectedBarButton(
     position: GroupPosition,
     onClick: () -> Unit,
     containerColor: Color,

@@ -224,7 +224,7 @@ fun MediaDetailSheet(
         ModalBottomSheet(
             onDismissRequest = onDismiss,
             modifier = Modifier.statusBarsPadding(),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             dragHandle = null,
             sheetState = sheetState,
             shape = ShapeTokens.ExtraLargeIncreasedTop
@@ -507,7 +507,7 @@ fun MediaDetailSheet(
                             onDismissRequest = { showMoreSheet = false },
                             sheetState = moreSheetState,
                             shape = ShapeTokens.ExtraLargeTop,
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer
                         ) {
                             Column(
                                 modifier = Modifier
@@ -586,7 +586,7 @@ fun MediaDetailSheet(
                                     topEnd = if (index == stats.lastIndex) outer else inner,
                                     bottomEnd = if (index == stats.lastIndex) outer else inner
                                 ),
-                                color = MaterialTheme.colorScheme.surfaceContainer,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Row(
@@ -630,9 +630,9 @@ fun MediaDetailSheet(
     
                 val cardBg by animateColorAsState(
                     targetValue = if (isTagsExpanded)
-                        MaterialTheme.colorScheme.surfaceContainerHigh
+                        MaterialTheme.colorScheme.surfaceContainerHighest
                     else
-                        MaterialTheme.colorScheme.surfaceContainer,
+                        MaterialTheme.colorScheme.surfaceContainerHigh,
                     animationSpec = Motion.effectsDefault(),
                     label = "tagsCardBg"
                 )
@@ -760,7 +760,7 @@ fun MediaDetailSheet(
                                     blacklistedTags = vm.tagBlacklist,
                                     lang = lang,
                                     onTagClick = { tag ->
-                                        vm.searchTag(tag, currentMedia.sourceId.ifBlank { currentMedia.source })
+                                        vm.searchTag(tag)
                                         onDismiss()
                                         onNavigateToExplore?.invoke()
                                     },
@@ -785,7 +785,7 @@ fun MediaDetailSheet(
                 onDismissRequest = { showWallpaperDialog = false },
                 sheetState = wallpaperSheetState,
                 shape = ShapeTokens.ExtraLargeTop,
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
             ) {
                 Column(
                     modifier = Modifier
@@ -880,7 +880,7 @@ fun MediaDetailSheet(
                 onDismissRequest = { showFolderDialog = false },
                 sheetState = folderSheetState,
                 shape = ShapeTokens.ExtraLargeTop,
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
             ) {
                 Column(
                     modifier = Modifier
@@ -889,29 +889,130 @@ fun MediaDetailSheet(
                         .padding(horizontal = 16.dp)
                         .padding(bottom = 24.dp)
                 ) {
-                    Text(
-                        text = Strings.addToFolder(lang),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
+                    val ru = lang == AppLanguage.RUSSIAN
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(start = 4.dp, bottom = 16.dp)
-                    )
+                    ) {
+                        Surface(
+                            shape = ShapeTokens.Medium,
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                            modifier = Modifier.size(40.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(Icons.Rounded.CreateNewFolder, contentDescription = null, modifier = Modifier.size(22.dp))
+                            }
+                        }
+                        Spacer(Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = Strings.addToFolder(lang),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = currentFolder ?: Strings.allFavoritesFolder(lang),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+
                     val folderOptions = listOf<String?>(null) + vm.customFolders.toList()
-                    folderOptions.forEachIndexed { index, folder ->
-                        SegmentedOptionItem(
-                            title = folder ?: Strings.allFavoritesFolder(lang),
-                            selected = currentFolder == folder,
-                            index = index,
-                            count = folderOptions.size,
-                            icon = if (folder == null) Icons.Rounded.FolderSpecial else Icons.Rounded.Folder,
-                            onClick = {
-                                vm.setMediaFolder(currentMedia, folder)
-                                coroutineScope.launch {
-                                    folderSheetState.hide()
-                                }.invokeOnCompletion {
-                                    showFolderDialog = false
+                    val folderCounts = remember(vm.favoritesList, vm.favoriteFolders, vm.customFolders) {
+                        folderOptions.associateWith { f -> vm.favoritesList.count { vm.getMediaFolder(it) == f } }
+                    }
+                    fun pick(folder: String?) {
+                        vm.setMediaFolder(currentMedia, folder)
+                        coroutineScope.launch { folderSheetState.hide() }.invokeOnCompletion { showFolderDialog = false }
+                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        folderOptions.chunked(2).forEach { rowItems ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                rowItems.forEach { folder ->
+                                    FolderPickTile(
+                                        title = folder ?: Strings.allFavoritesFolder(lang),
+                                        count = folderCounts[folder] ?: 0,
+                                        icon = if (folder == null) Icons.Rounded.FolderSpecial else Icons.Rounded.Folder,
+                                        selected = currentFolder == folder,
+                                        onClick = { pick(folder) },
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                                if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+                    var newFolderName by remember { mutableStateOf("") }
+                    val canCreate = newFolderName.isNotBlank() &&
+                        vm.customFolders.none { it.equals(newFolderName.trim(), ignoreCase = true) }
+                    fun create() {
+                        if (!canCreate) return
+                        val name = newFolderName.trim()
+                        vm.addCustomFolder(name)
+                        pick(name)
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 6.dp, bottomEnd = 6.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(56.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(start = 18.dp, end = 12.dp)
+                            ) {
+                                Icon(
+                                    Icons.Rounded.CreateNewFolder,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                    if (newFolderName.isEmpty()) {
+                                        Text(
+                                            text = Strings.newFolder(lang),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1
+                                        )
+                                    }
+                                    androidx.compose.foundation.text.BasicTextField(
+                                        value = newFolderName,
+                                        onValueChange = { newFolderName = it.take(32) },
+                                        singleLine = true,
+                                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                                        cursorBrush = androidx.compose.ui.graphics.SolidColor(MaterialTheme.colorScheme.primary),
+                                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { create() }),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
                                 }
                             }
+                        }
+                        val createCorner by animateDpAsState(
+                            targetValue = if (canCreate) 28.dp else 6.dp,
+                            animationSpec = Motion.spatialDefault(),
+                            label = "createFolderCorner"
                         )
+                        FilledIconButton(
+                            onClick = { create() },
+                            enabled = canCreate,
+                            shape = RoundedCornerShape(topStart = createCorner, bottomStart = createCorner, topEnd = 28.dp, bottomEnd = 28.dp),
+                            modifier = Modifier.size(56.dp)
+                        ) {
+                            Icon(Icons.Rounded.Add, contentDescription = Strings.create(lang), modifier = Modifier.size(24.dp))
+                        }
                     }
                 }
             }
@@ -927,7 +1028,7 @@ fun MediaDetailSheet(
                 onDismissRequest = { selectedTagForAction = null },
                 sheetState = tagSheetState,
                 shape = ShapeTokens.ExtraLargeTop,
-                containerColor = MaterialTheme.colorScheme.surfaceContainerLow
+                containerColor = MaterialTheme.colorScheme.surfaceContainer
             ) {
                 Column(
                     modifier = Modifier
@@ -1005,7 +1106,7 @@ fun MediaDetailSheet(
                                 tagSheetState.hide()
                             }.invokeOnCompletion {
                                 selectedTagForAction = null
-                                vm.searchTag(currentActionTag, currentMedia.sourceId.ifBlank { currentMedia.source })
+                                vm.searchTag(currentActionTag)
                                 onDismiss()
                                 onNavigateToExplore?.invoke()
                             }
@@ -1085,7 +1186,7 @@ private fun TagActionItem(
     Surface(
         onClick = onClick,
         shape = shape,
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = Modifier
             .fillMaxWidth()
             .padding(bottom = 2.dp)
@@ -2088,4 +2189,68 @@ private fun formatVideoTime(ms: Long): String {
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
     return String.format(Locale.US, "%02d:%02d", minutes, seconds)
+}
+
+@Composable
+private fun FolderPickTile(
+    title: String,
+    count: Int,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val container by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+        animationSpec = Motion.effectsDefault(),
+        label = "folderTileColor"
+    )
+    val badge by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
+        animationSpec = Motion.effectsDefault(),
+        label = "folderTileBadge"
+    )
+    val badgeContent by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = Motion.effectsDefault(),
+        label = "folderTileBadgeContent"
+    )
+    val corner by animateDpAsState(
+        targetValue = if (selected) 16.dp else 28.dp,
+        animationSpec = Motion.spatialDefault(),
+        label = "folderTileCorner"
+    )
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(corner),
+        color = container,
+        modifier = modifier.height(64.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 12.dp, end = 14.dp)
+        ) {
+            Surface(shape = CircleShape, color = badge, contentColor = badgeContent, modifier = Modifier.size(40.dp)) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(if (selected) Icons.Rounded.Check else icon, contentDescription = null, modifier = Modifier.size(20.dp))
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = count.toString(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f) else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
 }

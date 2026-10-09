@@ -81,7 +81,7 @@ fun SegmentedOptionItem(
     leading: (@Composable () -> Unit)? = null
 ) {
     val containerColor by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainer,
+        targetValue = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
         animationSpec = Motion.effectsDefault(),
         label = "segmentedItemColor"
     )

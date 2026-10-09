@@ -59,7 +59,9 @@ fun AnimatedConfirmDeleteButton(
     height: Dp = 38.dp,
     compact: Boolean = false,
     idleContainerColor: Color = if (compact) Color.Transparent else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
-    idleContentColor: Color = MaterialTheme.colorScheme.error
+    idleContentColor: Color = MaterialTheme.colorScheme.error,
+    shape: androidx.compose.ui.graphics.Shape? = null,
+    contentPadding: Dp? = null
 ) {
     var isConfirming by remember { mutableStateOf(false) }
 
@@ -92,7 +94,7 @@ fun AnimatedConfirmDeleteButton(
                 isConfirming = true
             }
         },
-        shape = pressMorphShape(pressSource),
+        shape = shape ?: pressMorphShape(pressSource),
         interactionSource = pressSource,
         color = animatedContainerColor,
         contentColor = animatedContentColor,
@@ -119,7 +121,7 @@ fun AnimatedConfirmDeleteButton(
         ) { confirming ->
             if (confirming) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp),
+                    modifier = Modifier.padding(horizontal = contentPadding ?: 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
@@ -141,7 +143,7 @@ fun AnimatedConfirmDeleteButton(
                 }
             } else {
                 Row(
-                    modifier = Modifier.padding(horizontal = if (initialText != null) 12.dp else if (compact) 8.dp else 10.dp),
+                    modifier = Modifier.padding(horizontal = contentPadding ?: if (initialText != null) 12.dp else if (compact) 8.dp else 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.Center
                 ) {
