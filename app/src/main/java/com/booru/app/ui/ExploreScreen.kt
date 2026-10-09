@@ -1175,6 +1175,7 @@ private fun SearchListItem(
 fun HeartBurstOverlay(
     visible: Boolean,
     modifier: Modifier = Modifier,
+    liked: Boolean = true,
     onAnimationEnd: () -> Unit = {}
 ) {
     if (!visible) return
@@ -1185,7 +1186,22 @@ fun HeartBurstOverlay(
     val ringAlpha = remember { Animatable(0.55f) }
     val tilt = remember { (-14..14).random().toFloat() }
     val ringColor = MaterialTheme.colorScheme.primary
-    LaunchedEffect(visible) {
+    LaunchedEffect(visible, liked) {
+        heartScale.snapTo(0f)
+        heartAlpha.snapTo(1f)
+        heartLift.snapTo(0f)
+        if (!liked) {
+            ringAlpha.snapTo(0f)
+            heartScale.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = 700f))
+            kotlinx.coroutines.delay(160)
+            launch { heartLift.animateTo(44f, tween(320, easing = Motion.EmphasizedAccelerate)) }
+            launch { heartScale.animateTo(0.7f, tween(320, easing = Motion.EmphasizedAccelerate)) }
+            heartAlpha.animateTo(0f, tween(320, easing = Motion.EmphasizedAccelerate))
+            onAnimationEnd()
+            return@LaunchedEffect
+        }
+        ringScale.snapTo(0.5f)
+        ringAlpha.snapTo(0.55f)
         launch {
             ringScale.animateTo(1.9f, tween(420, easing = Motion.EmphasizedDecelerate))
         }
@@ -1214,7 +1230,7 @@ fun HeartBurstOverlay(
                 .border(3.dp, ringColor, CircleShape)
         )
         Icon(
-            imageVector = Icons.Rounded.Favorite,
+            imageVector = if (liked) Icons.Rounded.Favorite else Icons.Rounded.HeartBroken,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier
@@ -1244,6 +1260,7 @@ private fun MediaCard(
     val context = LocalContext.current
     val haptic = LocalHapticFeedback.current
     var showHeartBurst by remember { mutableStateOf(false) }
+    var burstLiked by remember { mutableStateOf(true) }
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val animatedScale by animateFloatAsState(
@@ -1299,9 +1316,8 @@ private fun MediaCard(
                 },
                 onDoubleClick = {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    if (!isFavorite) {
-                        onFavoriteClick()
-                    }
+                    burstLiked = !isFavorite
+                    onFavoriteClick()
                     showHeartBurst = true
                 }
             )
@@ -1492,6 +1508,7 @@ private fun MediaCard(
 
             HeartBurstOverlay(
                 visible = showHeartBurst,
+                liked = burstLiked,
                 onAnimationEnd = { showHeartBurst = false }
             )
         }
