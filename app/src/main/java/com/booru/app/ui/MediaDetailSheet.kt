@@ -79,6 +79,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import kotlin.math.roundToInt
+import androidx.compose.ui.layout.layout
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import androidx.compose.ui.layout.onSizeChanged
@@ -679,9 +682,19 @@ fun MediaDetailSheet(
                 )
                 val rotation by animateFloatAsState(
                     targetValue = if (isTagsExpanded) 180f else 0f,
-                    animationSpec = Motion.effectsDefault(),
+                    animationSpec = Motion.spatialDefault(),
                     label = "tagsChevron"
                 )
+                val tagsReveal = animateFloatAsState(
+                    targetValue = if (isTagsExpanded) 1f else 0f,
+                    animationSpec = spring(dampingRatio = 1f, stiffness = 420f, visibilityThreshold = 0.001f),
+                    label = "tagsReveal"
+                )
+                var tagsComposed by remember(currentMedia) { mutableStateOf(false) }
+                LaunchedEffect(currentMedia) {
+                    delay(350)
+                    tagsComposed = true
+                }
     
                 Surface(
                     shape = ShapeTokens.LargeIncreased,
@@ -756,24 +769,22 @@ fun MediaDetailSheet(
                             }
                         }
     
-                        AnimatedVisibility(
-                            visible = isTagsExpanded,
-                            enter = expandVertically(
-                                animationSpec = Motion.effectsDefault(),
-                                expandFrom = Alignment.Top
-                            ) + fadeIn(
-                                animationSpec = Motion.effectsDefault()
-                            ),
-                            exit = shrinkVertically(
-                                animationSpec = Motion.effectsDefault(),
-                                shrinkTowards = Alignment.Top
-                            ) + fadeOut(
-                                animationSpec = Motion.effectsDefault()
-                            )
-                        ) {
+                        if (tagsComposed || isTagsExpanded || tagsReveal.value > 0f) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .then(if (isTagsExpanded) Modifier else Modifier.clearAndSetSemantics {})
+                                    .clipToBounds()
+                                    .layout { measurable, constraints ->
+                                        val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = androidx.compose.ui.unit.Constraints.Infinity))
+                                        val height = (placeable.height * tagsReveal.value.coerceIn(0f, 1f)).roundToInt()
+                                        layout(placeable.width, height) { placeable.placeRelative(0, 0) }
+                                    }
+                                    .graphicsLayer {
+                                        val p = tagsReveal.value.coerceIn(0f, 1f)
+                                        alpha = ((p - 0.2f) / 0.8f).coerceIn(0f, 1f)
+                                        translationY = (1f - p) * -12.dp.toPx()
+                                    }
                                     .padding(start = 14.dp, end = 14.dp, bottom = 14.dp, top = 2.dp)
                             ) {
                                 HorizontalDivider(
