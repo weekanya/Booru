@@ -2028,8 +2028,8 @@ private fun BlacklistTagChip(
         ) {
             Row(
                 modifier = Modifier
-                    .heightIn(min = 32.dp)
-                    .padding(start = 10.dp, end = 4.dp),
+                    .heightIn(min = 36.dp)
+                    .padding(start = 12.dp, end = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
@@ -2047,7 +2047,7 @@ private fun BlacklistTagChip(
                 )
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                         .clickable {
                             if (visibleState.targetState) {
@@ -2063,7 +2063,7 @@ private fun BlacklistTagChip(
                     Icon(
                         Icons.Rounded.Close,
                         contentDescription = "Remove",
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }

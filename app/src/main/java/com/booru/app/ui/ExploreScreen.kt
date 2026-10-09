@@ -991,15 +991,14 @@ fun ExploreScreen(
                             vm.tagSuggestions.forEachIndexed { index, suggestion ->
                                 val classified = remember(suggestion.value, suggestion.type) { TagClassifier.classify(suggestion.value, suggestion.type) }
                                 val category = classified.category
-                                val isDark = LocalIsDarkTheme.current
-                                val catColor = category.contentColor(isDark) ?: MaterialTheme.colorScheme.primary
-                                val catBg = category.containerColor(isDark) ?: MaterialTheme.colorScheme.secondaryContainer
+                                val catRoles = category.roles()
+                                val catColor = catRoles.accent
                                 SearchListItem(
                                     shape = segmentedListShape(index, suggestionCount),
                                     onClick = { applySuggestion(suggestion.value, submit = false) },
                                     icon = category.icon,
-                                    iconContainer = catBg,
-                                    iconTint = catColor,
+                                    iconContainer = catRoles.container,
+                                    iconTint = catRoles.onContainer,
                                     title = suggestion.value,
                                     titleColor = catColor,
                                     supporting = if (suggestion.count > 0) "${category.localizedName(lang)} · ${formatCompactCount(suggestion.count)}" else category.localizedName(lang)

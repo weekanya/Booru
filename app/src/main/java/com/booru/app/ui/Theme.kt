@@ -15,6 +15,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -419,4 +420,18 @@ fun AppPalette.localizedTitle(lang: com.booru.app.data.AppLanguage): String = wh
     AppPalette.SUNSET -> com.booru.app.data.Strings.tr(lang, "Sunset Amber", "Янтарный закат", "サンセット", "日落琥珀", "선셋 앰버", "كهرماني الغروب")
     AppPalette.GRAPHITE -> com.booru.app.data.Strings.tr(lang, "Graphite Mono", "Графит", "グラファイト", "石墨", "그래파이트", "جرافيت")
     AppPalette.AMOLED -> com.booru.app.data.Strings.tr(lang, "Midnight AMOLED", "Полночь AMOLED", "ミッドナイト AMOLED", "午夜 AMOLED", "미드나잇 AMOLED", "منتصف الليل AMOLED")
+}
+
+@androidx.compose.runtime.Immutable
+data class TagRoles(val accent: Color, val container: Color, val onContainer: Color)
+
+@Composable
+fun com.booru.app.data.TagCategory.roles(): TagRoles {
+    val primary = MaterialTheme.colorScheme.primary
+    val isDark = LocalIsDarkTheme.current
+    return androidx.compose.runtime.remember(this, primary, isDark) {
+        val harmonized = com.google.android.material.color.MaterialColors.harmonize(seed.toArgb(), primary.toArgb())
+        val r = com.google.android.material.color.MaterialColors.getColorRoles(harmonized, !isDark)
+        TagRoles(Color(r.accent), Color(r.accentContainer), Color(r.onAccentContainer))
+    }
 }

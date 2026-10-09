@@ -74,7 +74,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -106,7 +105,6 @@ import androidx.compose.ui.text.style.TextAlign
 import com.booru.app.data.Strings
 import com.booru.app.data.TagClassifier
 import com.booru.app.data.TagCategory
-import androidx.compose.ui.graphics.luminance
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
@@ -930,7 +928,7 @@ fun MediaDetailSheet(
                                     val firstRow = rowIndex == 0
                                     val lastRow = rowIndex == folderRows.lastIndex
                                     val firstCol = colIndex == 0
-                                    val lastCol = colIndex == rowItems.lastIndex && (rowItems.size == 2 || folderRows.size == 1)
+                                    val lastCol = colIndex == rowItems.lastIndex
                                     FolderPickTile(
                                         title = folder ?: Strings.allFavoritesFolder(lang),
                                         count = folderCounts[folder] ?: 0,
@@ -938,13 +936,12 @@ fun MediaDetailSheet(
                                         selected = currentFolder == folder,
                                         onClick = { pick(folder) },
                                         outerTopStart = firstRow && firstCol,
-                                        outerTopEnd = firstRow && (lastCol || rowItems.size == 1),
+                                        outerTopEnd = firstRow && lastCol,
                                         outerBottomStart = lastRow && firstCol,
-                                        outerBottomEnd = (lastRow && colIndex == rowItems.lastIndex) || (rowIndex == folderRows.lastIndex - 1 && colIndex == 1 && folderRows.last().size == 1),
+                                        outerBottomEnd = lastRow && lastCol,
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
-                                if (rowItems.size == 1) Spacer(Modifier.weight(1f))
                             }
                         }
                     }
@@ -1626,8 +1623,6 @@ private fun OptInFlowDetailTags(
         val classifiedTags = remember(tags) {
             tags.map { TagClassifier.classify(it) }
         }
-        val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
-
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -1639,19 +1634,24 @@ private fun OptInFlowDetailTags(
                 }
                 val cat = item.category
                 val scheme = MaterialTheme.colorScheme
-                val tone = cat.contentColor(isDark)?.let { androidx.compose.ui.graphics.lerp(it, scheme.primary, 0.3f) }
+                val roles = cat.roles()
+                val isGeneral = cat == TagCategory.GENERAL
                 val chipBg = when {
                     isBlacklisted -> scheme.errorContainer.copy(alpha = 0.25f)
-                    tone != null -> tone.copy(alpha = if (isDark) 0.2f else 0.13f).compositeOver(scheme.surfaceContainerLow)
-                    else -> scheme.surfaceContainerHighest
+                    isGeneral -> scheme.surfaceContainerHigh
+                    else -> roles.container
                 }
                 val chipContent = when {
                     isBlacklisted -> scheme.error
-                    tone != null -> tone
-                    else -> scheme.onSurface
+                    isGeneral -> scheme.onSurface
+                    else -> roles.onContainer
                 }
                 val chipIcon = if (isBlacklisted) Icons.Rounded.Block else cat.icon
-                val iconTint = if (isBlacklisted) scheme.error else (tone ?: scheme.primary)
+                val iconTint = when {
+                    isBlacklisted -> scheme.error
+                    isGeneral -> roles.accent
+                    else -> roles.onContainer
+                }
 
                 val chipPress = remember { MutableInteractionSource() }
                 val chipShape = pressMorphShape(chipPress, pressedFraction = 0.3f)

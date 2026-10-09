@@ -862,7 +862,7 @@ private fun FolderTabPill(
     ) {
         Row(
             modifier = Modifier
-                .padding(start = 12.dp, end = if (onDelete != null) 6.dp else 12.dp),
+                .padding(start = 12.dp, end = if (onDelete != null) 5.dp else 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Crossfade(
@@ -910,19 +910,18 @@ private fun FolderTabPill(
             }
 
             if (onDelete != null) {
-                Spacer(Modifier.width(4.dp))
+                Spacer(Modifier.width(2.dp))
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
-                        .clickable { onDelete() }
-                        .padding(3.dp),
+                        .clickable { onDelete() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
                         contentDescription = "Delete",
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(16.dp),
                         tint = contentColor.copy(alpha = 0.75f)
                     )
                 }

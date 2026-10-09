@@ -7,50 +7,32 @@ import androidx.compose.ui.graphics.vector.ImageVector
 
 enum class TagCategory(
     val displayName: String,
-    val lightContainer: Color,
-    val darkContainer: Color,
-    val lightContent: Color,
-    val darkContent: Color,
+    val seed: Color,
     val icon: ImageVector
 ) {
     ARTIST(
         displayName = "Artist",
-        lightContainer = Color(0xFFFFEBEE),
-        darkContainer = Color(0xFF3C1F22),
-        lightContent = Color(0xFFD32F2F),
-        darkContent = Color(0xFFFF8A80),
+        seed = Color(0xFFD32F2F),
         icon = Icons.Rounded.Palette
     ),
     CHARACTER(
         displayName = "Character",
-        lightContainer = Color(0xFFE8F5E9),
-        darkContainer = Color(0xFF1B3420),
-        lightContent = Color(0xFF2E7D32),
-        darkContent = Color(0xFFA5D6A7),
+        seed = Color(0xFF2E7D32),
         icon = Icons.Rounded.Person
     ),
     COPYRIGHT(
         displayName = "Copyright",
-        lightContainer = Color(0xFFF3E5F5),
-        darkContainer = Color(0xFF341A3E),
-        lightContent = Color(0xFF7B1FA2),
-        darkContent = Color(0xFFCE93D8),
+        seed = Color(0xFF7B1FA2),
         icon = Icons.Rounded.AutoStories
     ),
     META(
         displayName = "Meta",
-        lightContainer = Color(0xFFFFF3E0),
-        darkContainer = Color(0xFF3A2B14),
-        lightContent = Color(0xFFE65100),
-        darkContent = Color(0xFFFFCC80),
+        seed = Color(0xFFE65100),
         icon = Icons.Rounded.Info
     ),
     GENERAL(
         displayName = "General",
-        lightContainer = Color(0xFFE3F2FD),
-        darkContainer = Color(0xFF152A3D),
-        lightContent = Color(0xFF1976D2),
-        darkContent = Color(0xFF90CAF9),
+        seed = Color(0xFF1976D2),
         icon = Icons.Rounded.Tag
     );
 
@@ -60,16 +42,6 @@ enum class TagCategory(
         COPYRIGHT -> Strings.tr(lang, "Copyright", "Франшиза", "作品", "作品", "작품", "العمل")
         META -> Strings.tr(lang, "Meta", "Мета", "メタ", "元数据", "메타", "بيانات وصفية")
         GENERAL -> Strings.tr(lang, "General", "Общие", "一般", "常规", "일반", "عام")
-    }
-
-    fun containerColor(isDark: Boolean): Color? {
-        val c = if (isDark) darkContainer else lightContainer
-        return if (c == Color.Unspecified) null else c
-    }
-
-    fun contentColor(isDark: Boolean): Color? {
-        val c = if (isDark) darkContent else lightContent
-        return if (c == Color.Unspecified) null else c
     }
 }
 
