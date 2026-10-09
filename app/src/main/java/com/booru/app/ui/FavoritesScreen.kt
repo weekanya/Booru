@@ -1162,7 +1162,8 @@ private fun CreateFolderBottomSheet(
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val sheetState = rememberExpandedSheetState()
+    val keyboardSheet = rememberKeyboardSheetState()
+    val sheetState = keyboardSheet.state
     val scope = rememberCoroutineScope()
     var folderName by remember { mutableStateOf("") }
     val trimmedName = folderName.trim()
@@ -1173,7 +1174,7 @@ private fun CreateFolderBottomSheet(
     val submit: () -> Unit = {
         if (canCreate) {
             onConfirm(trimmedName)
-            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+            scope.launch { keyboardSheet.hide() }.invokeOnCompletion { onDismiss() }
         }
     }
     val focusRequester = remember { FocusRequester() }
@@ -1192,7 +1193,7 @@ private fun CreateFolderBottomSheet(
             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
             shape = ShapeTokens.ExtraLargeTop
         ) {
-            DismissKeyboardOnHide(sheetState)
+            KeyboardSheetEffects(keyboardSheet, onDismiss = onDismiss)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()

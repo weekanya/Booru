@@ -13,13 +13,17 @@ import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 object Motion {
@@ -159,16 +163,66 @@ class MorphShape(
 }
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-@androidx.compose.runtime.Composable
-fun DismissKeyboardOnHide(sheetState: androidx.compose.material3.SheetState) {
+@androidx.compose.runtime.Stable
+class KeyboardSheetState internal constructor() {
+    lateinit var state: androidx.compose.material3.SheetState
+        internal set
+    internal var imeBottom by androidx.compose.runtime.mutableIntStateOf(0)
+    internal var dismissRequested by androidx.compose.runtime.mutableStateOf(false)
+    internal var closeKeyboard: () -> Unit = {}
+    private var keyboardClosed = false
+
+    internal fun gate(target: androidx.compose.material3.SheetValue): Boolean {
+        if (target != androidx.compose.material3.SheetValue.Hidden || keyboardClosed || imeBottom == 0) return true
+        dismissRequested = true
+        return false
+    }
+
+    suspend fun hide() {
+        if (imeBottom > 0) {
+            closeKeyboard()
+            kotlinx.coroutines.withTimeoutOrNull(600) {
+                androidx.compose.runtime.snapshotFlow { imeBottom }.first { it == 0 }
+            }
+        }
+        keyboardClosed = true
+        try {
+            state.hide()
+        } finally {
+            keyboardClosed = false
+        }
+    }
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun rememberKeyboardSheetState(): KeyboardSheetState {
+    val sheet = remember { KeyboardSheetState() }
+    sheet.state = rememberExpandedSheetState(confirmValueChange = sheet::gate)
+    return sheet
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun KeyboardSheetEffects(sheet: KeyboardSheetState, onDismiss: () -> Unit) {
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
-    androidx.compose.runtime.LaunchedEffect(sheetState) {
-        androidx.compose.runtime.snapshotFlow { sheetState.targetValue }
-            .collect { target ->
-                if (target == androidx.compose.material3.SheetValue.Hidden && sheetState.currentValue != androidx.compose.material3.SheetValue.Hidden) {
-                    focusManager.clearFocus(force = true)
-                    keyboard?.hide()
+    val imeBottom = WindowInsets.ime.getBottom(androidx.compose.ui.platform.LocalDensity.current)
+    val latestOnDismiss = androidx.compose.runtime.rememberUpdatedState(onDismiss)
+    androidx.compose.runtime.SideEffect {
+        sheet.imeBottom = imeBottom
+        sheet.closeKeyboard = {
+            focusManager.clearFocus(force = true)
+            keyboard?.hide()
+        }
+    }
+    androidx.compose.runtime.LaunchedEffect(sheet) {
+        androidx.compose.runtime.snapshotFlow { sheet.dismissRequested }
+            .collect { requested ->
+                if (requested) {
+                    sheet.dismissRequested = false
+                    sheet.hide()
+                    latestOnDismiss.value()
                 }
             }
     }

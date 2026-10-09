@@ -866,7 +866,8 @@ fun MediaDetailSheet(
     }
 
     if (showFolderDialog) {
-        val folderSheetState = rememberExpandedSheetState()
+        val folderKeyboardSheet = rememberKeyboardSheetState()
+        val folderSheetState = folderKeyboardSheet.state
         val currentFolder = vm.getMediaFolder(currentMedia)
         SheetMotion {
             ModalBottomSheet(
@@ -875,7 +876,7 @@ fun MediaDetailSheet(
                 shape = ShapeTokens.ExtraLargeTop,
                 containerColor = MaterialTheme.colorScheme.surfaceContainer
             ) {
-                DismissKeyboardOnHide(folderSheetState)
+                KeyboardSheetEffects(folderKeyboardSheet, onDismiss = { showFolderDialog = false })
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -919,7 +920,7 @@ fun MediaDetailSheet(
                     }
                     fun pick(folder: String?) {
                         vm.setMediaFolder(currentMedia, folder)
-                        coroutineScope.launch { folderSheetState.hide() }.invokeOnCompletion { showFolderDialog = false }
+                        coroutineScope.launch { folderKeyboardSheet.hide() }.invokeOnCompletion { showFolderDialog = false }
                     }
                     val folderRows = folderOptions.chunked(2)
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {

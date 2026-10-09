@@ -202,7 +202,8 @@ fun SettingsScreen(
     }
 
     if (showRule34Dialog) {
-        val sheetState = rememberExpandedSheetState()
+        val keyboardSheet = rememberKeyboardSheetState()
+        val sheetState = keyboardSheet.state
         LaunchedEffect(Unit) {
             rule34User = vm.rule34UserId
             rule34Key = vm.rule34ApiKey
@@ -214,7 +215,7 @@ fun SettingsScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 shape = ShapeTokens.ExtraLargeTop
             ) {
-                DismissKeyboardOnHide(sheetState)
+                KeyboardSheetEffects(keyboardSheet, onDismiss = { showRule34Dialog = false })
                 ApiKeyForm(
                     title = "Rule34 API",
                     description = Strings.rule34DialogDesc(lang),
@@ -227,13 +228,13 @@ fun SettingsScreen(
                     onGetKey = { context.openUrlSafely("https://rule34.xxx/index.php?page=account&s=options", lang, showMessage) },
                     onSave = {
                         vm.saveRule34Keys(rule34User.trim(), rule34Key.trim())
-                        scope.launch { sheetState.hide() }.invokeOnCompletion { showRule34Dialog = false }
+                        scope.launch { keyboardSheet.hide() }.invokeOnCompletion { showRule34Dialog = false }
                     },
                     onRemove = {
                         rule34User = ""
                         rule34Key = ""
                         vm.saveRule34Keys("", "")
-                        scope.launch { sheetState.hide() }.invokeOnCompletion { showRule34Dialog = false }
+                        scope.launch { keyboardSheet.hide() }.invokeOnCompletion { showRule34Dialog = false }
                     }
                 )
             }
@@ -241,7 +242,8 @@ fun SettingsScreen(
     }
 
     if (showGelbooruDialog) {
-        val sheetState = rememberExpandedSheetState()
+        val keyboardSheet = rememberKeyboardSheetState()
+        val sheetState = keyboardSheet.state
         LaunchedEffect(Unit) {
             gelbooruUser = vm.gelbooruUserId
             gelbooruKey = vm.gelbooruApiKey
@@ -253,7 +255,7 @@ fun SettingsScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 shape = ShapeTokens.ExtraLargeTop
             ) {
-                DismissKeyboardOnHide(sheetState)
+                KeyboardSheetEffects(keyboardSheet, onDismiss = { showGelbooruDialog = false })
                 ApiKeyForm(
                     title = "Gelbooru API",
                     description = Strings.gelbooruDialogDesc(lang),
@@ -266,13 +268,13 @@ fun SettingsScreen(
                     onGetKey = { context.openUrlSafely("https://gelbooru.com/index.php?page=account&s=options", lang, showMessage) },
                     onSave = {
                         vm.saveGelbooruKeys(gelbooruUser.trim(), gelbooruKey.trim())
-                        scope.launch { sheetState.hide() }.invokeOnCompletion { showGelbooruDialog = false }
+                        scope.launch { keyboardSheet.hide() }.invokeOnCompletion { showGelbooruDialog = false }
                     },
                     onRemove = {
                         gelbooruUser = ""
                         gelbooruKey = ""
                         vm.saveGelbooruKeys("", "")
-                        scope.launch { sheetState.hide() }.invokeOnCompletion { showGelbooruDialog = false }
+                        scope.launch { keyboardSheet.hide() }.invokeOnCompletion { showGelbooruDialog = false }
                     }
                 )
             }
@@ -352,7 +354,8 @@ fun SettingsScreen(
 
     if (showAddCustomSourceDialog) {
         val isEditing = editingCustomSource != null
-        val sheetState = rememberExpandedSheetState()
+        val keyboardSheet = rememberKeyboardSheetState()
+        val sheetState = keyboardSheet.state
         SheetMotion {
             ModalBottomSheet(
                 onDismissRequest = {
@@ -363,7 +366,10 @@ fun SettingsScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 shape = ShapeTokens.ExtraLargeTop
             ) {
-                DismissKeyboardOnHide(sheetState)
+                KeyboardSheetEffects(keyboardSheet, onDismiss = {
+                    showAddCustomSourceDialog = false
+                    editingCustomSource = null
+                })
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -483,7 +489,7 @@ fun SettingsScreen(
                                 customApiKey = ""
                                 customUserId = ""
                                 editingCustomSource = null
-                                scope.launch { sheetState.hide() }.invokeOnCompletion { showAddCustomSourceDialog = false }
+                                scope.launch { keyboardSheet.hide() }.invokeOnCompletion { showAddCustomSourceDialog = false }
                             }
                         },
                         shapes = ButtonDefaults.shapes(shape = CircleShape, pressedShape = ButtonDefaults.pressedShape),
@@ -523,7 +529,8 @@ fun SettingsScreen(
             }
         }
 
-        val sheetState = rememberExpandedSheetState()
+        val keyboardSheet = rememberKeyboardSheetState()
+        val sheetState = keyboardSheet.state
 
         SheetMotion {
             ModalBottomSheet(
@@ -535,7 +542,10 @@ fun SettingsScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                 shape = ShapeTokens.ExtraLargeTop
             ) {
-                DismissKeyboardOnHide(sheetState)
+                KeyboardSheetEffects(keyboardSheet, onDismiss = {
+                    showBlacklistDialog = false
+                    blacklistFilterQuery = ""
+                })
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -787,7 +797,7 @@ fun SettingsScreen(
 
                     Button(
                         onClick = {
-                            scope.launch { sheetState.hide() }.invokeOnCompletion {
+                            scope.launch { keyboardSheet.hide() }.invokeOnCompletion {
                                 showBlacklistDialog = false
                                 blacklistFilterQuery = ""
                             }
@@ -1336,6 +1346,40 @@ fun SettingsScreen(
                             SettingsDivider()
 
                             SettingRowItem(
+                                title = Strings.tr(lang, "Website", "Сайт", "ウェブサイト", "网站", "웹사이트", "الموقع"),
+                                subtitle = "booru.weebio.ru",
+                                icon = Icons.Rounded.Language,
+                                trailing = {
+                                    FilledTonalButton(
+                                        onClick = {
+                                            context.openUrlSafely("https://booru.weebio.ru", lang, showMessage)
+                                        },
+                                        shapes = ButtonDefaults.shapes(shape = ShapeTokens.Large, pressedShape = ButtonDefaults.pressedShape),
+                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                                        ),
+                                        modifier = Modifier
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Rounded.OpenInNew,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = Strings.tr(lang, "Open", "Открыть", "開く", "打开", "열기", "فتح"),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            )
+
+                            SettingsDivider()
+
+                            SettingRowItem(
                                 title = Strings.checkUpdatesTitle(lang),
                                 subtitle = Strings.checkUpdatesDesc(lang),
                                 icon = Icons.Rounded.SystemUpdate,
@@ -1859,12 +1903,11 @@ private fun gridCorners(index: Int, count: Int): BooleanArray {
     val row = index / 2
     val col = index % 2
     val rowSize = minOf(2, count - row * 2)
-    val lastRowSize = count - (rows - 1) * 2
     return booleanArrayOf(
         row == 0 && col == 0,
         row == 0 && col == rowSize - 1,
         row == rows - 1 && col == 0,
-        (row == rows - 1 && col == rowSize - 1) || (row == rows - 2 && col == 1 && lastRowSize == 1)
+        row == rows - 1 && col == rowSize - 1
     )
 }
 
@@ -1877,7 +1920,6 @@ private fun ChoiceGrid(
         (0 until count).chunked(2).forEach { rowIndices ->
             Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
                 rowIndices.forEach { i -> content(i, gridCorners(i, count), Modifier.weight(1f)) }
-                if (rowIndices.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }
