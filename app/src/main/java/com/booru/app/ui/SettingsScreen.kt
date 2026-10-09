@@ -1247,25 +1247,15 @@ fun SettingsScreen(
                                 subtitle = Strings.clearRecommendationsDesc(lang),
                                 icon = Icons.Rounded.AutoAwesome,
                                 trailing = {
-                                    FilledTonalButton(
-                                        onClick = {
-                                            vm.clearRecommendationMemory {
-                                            }
-                                        },
-                                        shapes = ButtonDefaults.shapes(shape = ShapeTokens.Large, pressedShape = ButtonDefaults.pressedShape),
-                                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                                        colors = ButtonDefaults.filledTonalButtonColors(
-                                            containerColor = MaterialTheme.colorScheme.errorContainer,
-                                            contentColor = MaterialTheme.colorScheme.onErrorContainer
-                                        ),
-                                        modifier = Modifier
-                                    ) {
-                                        Text(
-                                            text = Strings.resetFilters(lang),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
+                                    AnimatedConfirmDeleteButton(
+                                        onConfirmed = { vm.clearRecommendationMemory {} },
+                                        lang = lang,
+                                        initialIcon = Icons.Rounded.RestartAlt,
+                                        initialText = Strings.resetFilters(lang),
+                                        confirmText = Strings.confirmDeleteAction(lang),
+                                        idleContainerColor = MaterialTheme.colorScheme.errorContainer,
+                                        idleContentColor = MaterialTheme.colorScheme.onErrorContainer
+                                    )
                                 }
                             )
                         }
