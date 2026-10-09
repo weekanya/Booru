@@ -833,12 +833,18 @@ fun ExploreScreen(
                         .fillMaxSize()
                         .imePadding()
                 ) {
+                    val hasHistory = vm.searchHistory.isNotEmpty()
+                    val fieldBottom by androidx.compose.animation.core.animateDpAsState(
+                        targetValue = if (hasHistory) 6.dp else 28.dp,
+                        animationSpec = Motion.spatialDefault(),
+                        label = "searchFieldBottom"
+                    )
                     Surface(
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp, bottomStart = fieldBottom, bottomEnd = fieldBottom),
                         color = MaterialTheme.colorScheme.surfaceContainerHigh,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                            .padding(start = 16.dp, end = 16.dp, top = 6.dp)
                             .height(56.dp)
                     ) {
                         Row(
@@ -928,6 +934,30 @@ fun ExploreScreen(
                     }
 
                     androidx.compose.animation.AnimatedVisibility(
+                        visible = hasHistory,
+                        enter = fadeIn(Motion.effectsDefault()) + expandVertically(Motion.spatialDefault()),
+                        exit = fadeOut(Motion.effectsFast()) + shrinkVertically(Motion.spatialDefault())
+                    ) {
+                        AnimatedConfirmDeleteButton(
+                            onConfirmed = { vm.clearHistory() },
+                            lang = lang,
+                            initialIcon = Icons.Rounded.DeleteSweep,
+                            initialText = if (lang == AppLanguage.RUSSIAN) "Очистить историю" else "Clear history",
+                            confirmText = Strings.confirmDeleteAction(lang),
+                            height = 44.dp,
+                            contentPadding = 16.dp,
+                            fillContentWidth = true,
+                            idleContainerColor = MaterialTheme.colorScheme.errorContainer,
+                            idleContentColor = MaterialTheme.colorScheme.onErrorContainer,
+                            shape = RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 28.dp, bottomEnd = 28.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 16.dp, end = 16.dp, top = 2.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(6.dp))
+
+                    androidx.compose.animation.AnimatedVisibility(
                         visible = vm.suggestionsLoading,
                         enter = fadeIn(Motion.effectsDefault()),
                         exit = fadeOut(Motion.effectsFast())
@@ -994,18 +1024,7 @@ fun ExploreScreen(
                             SearchSectionHeader(
                                 icon = Icons.Rounded.History,
                                 title = Strings.recentSearches(lang)
-                            ) {
-                                FilledTonalButton(
-                                    onClick = { vm.clearHistory() },
-                                    shape = CircleShape,
-                                    contentPadding = PaddingValues(horizontal = 12.dp),
-                                    modifier = Modifier.height(32.dp)
-                                ) {
-                                    Icon(Icons.Rounded.DeleteSweep, contentDescription = null, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(Strings.clearAll(lang), style = MaterialTheme.typography.labelMedium)
-                                }
-                            }
+                            )
                             val shownHistory = visibleHistory.take(8)
                             shownHistory.forEachIndexed { index, hist ->
                                 SearchListItem(
@@ -1016,20 +1035,6 @@ fun ExploreScreen(
                                     iconTint = MaterialTheme.colorScheme.onSecondaryContainer,
                                     title = hist
                                 ) {
-                                    IconButton(
-                                        onClick = {
-                                            val text = hist + " "
-                                            localQuery = TextFieldValue(text, TextRange(text.length))
-                                        },
-                                        modifier = Modifier.size(40.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Rounded.NorthWest,
-                                            contentDescription = "Insert tag",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
                                     IconButton(
                                         onClick = { vm.removeFromHistory(hist) },
                                         modifier = Modifier.size(40.dp)

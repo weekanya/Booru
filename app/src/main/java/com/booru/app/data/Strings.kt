@@ -200,12 +200,7 @@ object Strings {
     }
 
     fun authSection(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "АВТОРИЗАЦИЯ И API"
-        AppLanguage.JAPANESE -> "認証とAPI"
-        AppLanguage.CHINESE -> "认证与API"
-        AppLanguage.KOREAN -> "인증 및 API"
-        AppLanguage.ARABIC -> "المصادقة و API"
-        else -> "AUTHENTICATION & API"
+        else -> "API"
     }
 
     fun contentSection(lang: AppLanguage) = when (lang) {
@@ -1628,12 +1623,12 @@ object Strings {
     }
 
     fun confirmDeleteAction(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Удалить?"
-        AppLanguage.JAPANESE -> "削除しますか？"
-        AppLanguage.CHINESE -> "确认删除？"
-        AppLanguage.KOREAN -> "삭제하시겠습니까?"
-        AppLanguage.ARABIC -> "تأكيد الحذف؟"
-        else -> "Delete?"
+        AppLanguage.RUSSIAN -> "Подтвердить"
+        AppLanguage.JAPANESE -> "確認"
+        AppLanguage.CHINESE -> "确认"
+        AppLanguage.KOREAN -> "확인"
+        AppLanguage.ARABIC -> "تأكيد"
+        else -> "Confirm"
     }
 
     fun sourceNoVideosNotice(source: String, lang: AppLanguage) = when (lang) {

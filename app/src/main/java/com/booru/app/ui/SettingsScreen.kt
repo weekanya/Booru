@@ -127,6 +127,7 @@ fun SettingsScreen(
     var customNameError by remember { mutableStateOf<String?>(null) }
     var customUrlError by remember { mutableStateOf<String?>(null) }
     var showCustomApiKey by remember { mutableStateOf(false) }
+    var customAccessError by remember { mutableStateOf<String?>(null) }
     var customEngine by remember { mutableStateOf(BooruEngine.GELBOORU) }
     var customApiKey by remember { mutableStateOf("") }
     var customUserId by remember { mutableStateOf("") }
@@ -210,11 +211,11 @@ fun SettingsScreen(
                     key = rule34Key,
                     onKeyChange = { rule34Key = it },
                     lang = lang,
+                    hasSavedKeys = vm.rule34ApiKey.isNotBlank() || vm.rule34UserId.isNotBlank(),
                     onGetKey = { context.openUrlSafely("https://rule34.xxx/index.php?page=account&s=options", lang, showMessage) },
                     onSave = {
-                        vm.saveRule34Keys(rule34User, rule34Key)
+                        vm.saveRule34Keys(rule34User.trim(), rule34Key.trim())
                         scope.launch { sheetState.hide() }.invokeOnCompletion { showRule34Dialog = false }
-                        showMessage(Strings.keysSavedToast(lang))
                     }
                 )
             }
@@ -238,11 +239,11 @@ fun SettingsScreen(
                     key = gelbooruKey,
                     onKeyChange = { gelbooruKey = it },
                     lang = lang,
+                    hasSavedKeys = vm.gelbooruApiKey.isNotBlank() || vm.gelbooruUserId.isNotBlank(),
                     onGetKey = { context.openUrlSafely("https://gelbooru.com/index.php?page=account&s=options", lang, showMessage) },
                     onSave = {
-                        vm.saveGelbooruKeys(gelbooruUser, gelbooruKey)
+                        vm.saveGelbooruKeys(gelbooruUser.trim(), gelbooruKey.trim())
                         scope.launch { sheetState.hide() }.invokeOnCompletion { showGelbooruDialog = false }
-                        showMessage(Strings.keysSavedToast(lang))
                     }
                 )
             }
@@ -403,18 +404,19 @@ fun SettingsScreen(
                         Column {
                             GroupedField(
                                 value = customUserId,
-                                onValueChange = { customUserId = it },
+                                onValueChange = { customUserId = it; customAccessError = null },
                                 label = "User ID / Login",
                                 icon = Icons.Rounded.Person,
                                 shape = segmentedListShape(0, 2)
                             )
                             GroupedField(
                                 value = customApiKey,
-                                onValueChange = { customApiKey = it },
+                                onValueChange = { customApiKey = it; customAccessError = null },
                                 label = "API Key",
                                 icon = Icons.Rounded.Key,
                                 shape = segmentedListShape(1, 2),
-                                secret = true
+                                secret = true,
+                                error = customAccessError
                             )
                         }
                     }
@@ -429,7 +431,10 @@ fun SettingsScreen(
                                 else -> null
                             }
                             customUrlError = if (!com.booru.app.data.isHttpsBooruUrl(cleanUrl)) Strings.customSourceUrlError(lang) else null
-                            if (customNameError != null || customUrlError != null) return@Button
+                            customAccessError = if (customUserId.isBlank() != customApiKey.isBlank()) {
+                                if (lang == AppLanguage.RUSSIAN) "Укажите и логин, и ключ, или оставьте оба пустыми" else "Fill in both login and key, or leave both empty"
+                            } else null
+                            if (customNameError != null || customUrlError != null || customAccessError != null) return@Button
                             val targetId = editingCustomSource?.id ?: java.util.UUID.randomUUID().toString()
                             val newSource = CustomBooruSource(
                                 id = targetId,
@@ -443,7 +448,6 @@ fun SettingsScreen(
                                 if (wasActiveSource) {
                                     vm.selectSource(newSource.id)
                                 }
-                                showMessage(if (isEditing) Strings.sourceUpdatedSuccess(lang) else Strings.sourceAddedSuccess(lang))
                                 customName = ""
                                 customUrl = ""
                                 customApiKey = ""
@@ -586,11 +590,7 @@ fun SettingsScreen(
                         }
                     }
 
-                    AnimatedVisibility(
-                        visible = vm.tagBlacklist.isNotEmpty(),
-                        enter = fadeIn(Motion.effectsDefault()) + expandVertically(Motion.spatialDefault()),
-                        exit = fadeOut(Motion.effectsFast()) + shrinkVertically(Motion.spatialDefault())
-                    ) {
+                    if (vm.tagBlacklist.isNotEmpty()) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -650,7 +650,7 @@ fun SettingsScreen(
                                 lang = lang,
                                 initialIcon = Icons.Rounded.DeleteSweep,
                                 initialText = if (lang == AppLanguage.RUSSIAN) "Очистить" else "Clear all",
-                                confirmText = if (lang == AppLanguage.RUSSIAN) "Удалить всё?" else Strings.confirmDeleteAction(lang),
+                                confirmText = Strings.confirmDeleteAction(lang),
                                 height = 48.dp,
                                 contentPadding = 16.dp,
                                 idleContainerColor = MaterialTheme.colorScheme.errorContainer,
@@ -663,9 +663,7 @@ fun SettingsScreen(
                     Surface(
                         shape = ShapeTokens.LargeIncreased,
                         color = MaterialTheme.colorScheme.surfaceContainer,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .animateContentSize(Motion.spatialDefault())
+                        modifier = Modifier.fillMaxWidth()
                     ) {
                         if (vm.tagBlacklist.isEmpty()) {
                             Column(
@@ -1045,7 +1043,7 @@ fun SettingsScreen(
                         SettingsGroupCard {
                             SettingRowItem(
                                 title = "Rule34.xxx API",
-                                subtitle = if (vm.rule34ApiKey.isNotBlank()) "Configured (User ID: ${vm.rule34UserId})" else Strings.tapToEnterKeys(lang),
+                                subtitle = if (vm.rule34ApiKey.isNotBlank()) (if (lang == AppLanguage.RUSSIAN) "Подключено · ID ${vm.rule34UserId}" else "Connected · ID ${vm.rule34UserId}") else Strings.tapToEnterKeys(lang),
                                 icon = Icons.Rounded.Key,
                                 onClick = { showRule34Dialog = true }
                             )
@@ -1054,7 +1052,7 @@ fun SettingsScreen(
 
                             SettingRowItem(
                                 title = "Gelbooru API",
-                                subtitle = if (vm.gelbooruApiKey.isNotBlank()) "Configured (User ID: ${vm.gelbooruUserId})" else Strings.tapToEnterKeys(lang),
+                                subtitle = if (vm.gelbooruApiKey.isNotBlank()) (if (lang == AppLanguage.RUSSIAN) "Подключено · ID ${vm.gelbooruUserId}" else "Connected · ID ${vm.gelbooruUserId}") else Strings.tapToEnterKeys(lang),
                                 icon = Icons.Rounded.VpnKey,
                                 onClick = { showGelbooruDialog = true }
                             )
@@ -1150,7 +1148,6 @@ fun SettingsScreen(
                                         AnimatedConfirmDeleteButton(
                                             onConfirmed = {
                                                 vm.removeCustomSource(customSource.id)
-                                                showMessage(Strings.sourceRemovedSuccess(lang))
                                             },
                                             lang = lang,
                                             initialIcon = Icons.Rounded.DeleteOutline,
@@ -1211,7 +1208,6 @@ fun SettingsScreen(
                                     FilledTonalButton(
                                         onClick = {
                                             vm.clearRecommendationMemory {
-                                                showMessage(Strings.clearRecommendationsSuccess(lang))
                                             }
                                         },
                                         shapes = ButtonDefaults.shapes(shape = ShapeTokens.Large, pressedShape = ButtonDefaults.pressedShape),
@@ -2008,9 +2004,27 @@ private fun ApiKeyForm(
     key: String,
     onKeyChange: (String) -> Unit,
     lang: AppLanguage,
+    hasSavedKeys: Boolean,
     onGetKey: () -> Unit,
     onSave: () -> Unit
 ) {
+    val ru = lang == AppLanguage.RUSSIAN
+    val userTrim = user.trim()
+    val keyTrim = key.trim()
+    val bothEmpty = userTrim.isEmpty() && keyTrim.isEmpty()
+    val userError = when {
+        userTrim.isNotEmpty() && !userTrim.all { it.isDigit() } -> if (ru) "Только цифры" else "Digits only"
+        userTrim.isEmpty() && keyTrim.isNotEmpty() -> if (ru) "Введите User ID" else "Enter your User ID"
+        else -> null
+    }
+    val keyError = when {
+        keyTrim.isEmpty() && userTrim.isNotEmpty() -> if (ru) "Введите API-ключ" else "Enter your API key"
+        keyTrim.isNotEmpty() && keyTrim.length < 16 -> if (ru) "Ключ слишком короткий" else "Key looks too short"
+        keyTrim.any { it.isWhitespace() } -> if (ru) "Ключ без пробелов" else "Key can't contain spaces"
+        else -> null
+    }
+    val removing = bothEmpty && hasSavedKeys
+    val canSave = removing || (!bothEmpty && userError == null && keyError == null)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -2025,18 +2039,20 @@ private fun ApiKeyForm(
         Column {
             GroupedField(
                 value = user,
-                onValueChange = onUserChange,
+                onValueChange = { onUserChange(it.trim()) },
                 label = "User ID",
                 icon = Icons.Rounded.Person,
                 shape = segmentedListShape(0, 2),
+                error = userError,
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
             )
             GroupedField(
                 value = key,
-                onValueChange = onKeyChange,
+                onValueChange = { onKeyChange(it.trim()) },
                 label = "API Key",
                 icon = Icons.Rounded.VpnKey,
                 shape = segmentedListShape(1, 2),
+                error = keyError,
                 secret = true
             )
         }
@@ -2055,15 +2071,25 @@ private fun ApiKeyForm(
             }
             Button(
                 onClick = onSave,
+                enabled = canSave,
                 shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 28.dp, bottomEnd = 28.dp),
+                colors = if (removing) ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                ) else ButtonDefaults.buttonColors(),
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 modifier = Modifier
                     .weight(1f)
                     .height(56.dp)
             ) {
-                Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(if (removing) Icons.Rounded.DeleteOutline else Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
-                Text(Strings.saveBtn(lang), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = if (removing) (if (ru) "Удалить ключи" else "Remove keys") else Strings.saveBtn(lang),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1
+                )
             }
         }
     }

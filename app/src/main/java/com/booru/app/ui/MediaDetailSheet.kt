@@ -928,16 +928,25 @@ fun MediaDetailSheet(
                         vm.setMediaFolder(currentMedia, folder)
                         coroutineScope.launch { folderSheetState.hide() }.invokeOnCompletion { showFolderDialog = false }
                     }
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        folderOptions.chunked(2).forEach { rowItems ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                rowItems.forEach { folder ->
+                    val folderRows = folderOptions.chunked(2)
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        folderRows.forEachIndexed { rowIndex, rowItems ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                rowItems.forEachIndexed { colIndex, folder ->
+                                    val firstRow = rowIndex == 0
+                                    val lastRow = rowIndex == folderRows.lastIndex
+                                    val firstCol = colIndex == 0
+                                    val lastCol = colIndex == rowItems.lastIndex && (rowItems.size == 2 || folderRows.size == 1)
                                     FolderPickTile(
                                         title = folder ?: Strings.allFavoritesFolder(lang),
                                         count = folderCounts[folder] ?: 0,
                                         icon = if (folder == null) Icons.Rounded.FolderSpecial else Icons.Rounded.Folder,
                                         selected = currentFolder == folder,
                                         onClick = { pick(folder) },
+                                        outerTopStart = firstRow && firstCol,
+                                        outerTopEnd = firstRow && (lastCol || rowItems.size == 1),
+                                        outerBottomStart = lastRow && firstCol,
+                                        outerBottomEnd = (lastRow && colIndex == rowItems.lastIndex) || (rowIndex == folderRows.lastIndex - 1 && colIndex == 1 && folderRows.last().size == 1),
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
@@ -1119,7 +1128,6 @@ fun MediaDetailSheet(
                         onClick = {
                             val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             cm.setPrimaryClip(ClipData.newPlainText("Tag", currentActionTag))
-                            showMessage(Strings.tagCopied(lang))
                             coroutineScope.launch {
                                 tagSheetState.hide()
                             }.invokeOnCompletion {
@@ -2198,6 +2206,10 @@ private fun FolderPickTile(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     selected: Boolean,
     onClick: () -> Unit,
+    outerTopStart: Boolean,
+    outerTopEnd: Boolean,
+    outerBottomStart: Boolean,
+    outerBottomEnd: Boolean,
     modifier: Modifier = Modifier
 ) {
     val container by animateColorAsState(
@@ -2215,14 +2227,24 @@ private fun FolderPickTile(
         animationSpec = Motion.effectsDefault(),
         label = "folderTileBadgeContent"
     )
-    val corner by animateDpAsState(
-        targetValue = if (selected) 16.dp else 28.dp,
-        animationSpec = Motion.spatialDefault(),
-        label = "folderTileCorner"
+    @Composable
+    fun corner(outer: Boolean, label: String): androidx.compose.ui.unit.Dp {
+        val value by animateDpAsState(
+            targetValue = if (selected) 32.dp else if (outer) 24.dp else 6.dp,
+            animationSpec = Motion.spatialDefault(),
+            label = label
+        )
+        return value
+    }
+    val shape = RoundedCornerShape(
+        topStart = corner(outerTopStart, "tileTS"),
+        topEnd = corner(outerTopEnd, "tileTE"),
+        bottomStart = corner(outerBottomStart, "tileBS"),
+        bottomEnd = corner(outerBottomEnd, "tileBE")
     )
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(corner),
+        shape = shape,
         color = container,
         modifier = modifier.height(64.dp)
     ) {

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -61,7 +62,8 @@ fun AnimatedConfirmDeleteButton(
     idleContainerColor: Color = if (compact) Color.Transparent else MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.5f),
     idleContentColor: Color = MaterialTheme.colorScheme.error,
     shape: androidx.compose.ui.graphics.Shape? = null,
-    contentPadding: Dp? = null
+    contentPadding: Dp? = null,
+    fillContentWidth: Boolean = false
 ) {
     var isConfirming by remember { mutableStateOf(false) }
 
@@ -116,7 +118,7 @@ fun AnimatedConfirmDeleteButton(
                     )
             },
             contentAlignment = Alignment.Center,
-            modifier = Modifier.fillMaxHeight(),
+            modifier = if (fillContentWidth) Modifier.fillMaxHeight().fillMaxWidth() else Modifier.fillMaxHeight(),
             label = "confirmDeleteContentAnim"
         ) { confirming ->
             if (confirming) {

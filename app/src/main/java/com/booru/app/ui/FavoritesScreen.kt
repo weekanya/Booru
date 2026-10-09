@@ -11,6 +11,7 @@ import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -391,7 +392,7 @@ fun FavoritesScreen(
                     lang = lang,
                     initialIcon = Icons.Rounded.DeleteSweep,
                     initialText = if (lang == AppLanguage.RUSSIAN) "Очистить" else "Clear all",
-                    confirmText = if (lang == AppLanguage.RUSSIAN) "Удалить всё?" else Strings.confirmDeleteAction(lang),
+                    confirmText = Strings.confirmDeleteAction(lang),
                     height = 40.dp,
                     contentPadding = 14.dp,
                     idleContainerColor = MaterialTheme.colorScheme.errorContainer,
@@ -407,7 +408,7 @@ fun FavoritesScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     item(key = "all_folder_tab") {
@@ -424,7 +425,8 @@ fun FavoritesScreen(
                                     pagerState.animateScrollToPage(0, animationSpec = spring(dampingRatio = 1f, stiffness = 320f))
                                 }
                             },
-                            icon = Icons.Rounded.FolderSpecial
+                            icon = Icons.Rounded.FolderSpecial,
+                            position = GroupPosition.Leading
                         )
                     }
 
@@ -461,7 +463,8 @@ fun FavoritesScreen(
                             onDelete = {
                                 folderToDelete = folder
                             },
-                            icon = Icons.Rounded.Folder
+                            icon = Icons.Rounded.Folder,
+                            position = GroupPosition.Middle
                         )
                         }
                     }
@@ -473,7 +476,7 @@ fun FavoritesScreen(
                                 newFolderName = ""
                                 showCreateFolderDialog = true
                             },
-                            shape = pressMorphShape(pressSource1, resting = 20.dp),
+                            shape = folderPillShape(GroupPosition.Trailing, false, pressSource1),
                             interactionSource = pressSource1,
                             color = MaterialTheme.colorScheme.surfaceContainerHigh,
                             contentColor = MaterialTheme.colorScheme.primary,
@@ -809,13 +812,30 @@ fun FavoritesScreen(
 }
 
 @Composable
+private fun folderPillShape(
+    position: GroupPosition,
+    selected: Boolean,
+    interactionSource: MutableInteractionSource
+): androidx.compose.ui.graphics.Shape {
+    val pressed by interactionSource.collectIsPressedAsState()
+    val outer = 21.dp
+    val inner = if (pressed) 4.dp else 8.dp
+    val full = if (pressed) 12.dp else 21.dp
+    fun target(isOuter: Boolean) = if (selected) full else if (isOuter) outer else inner
+    val start by animateDpAsState(target(position == GroupPosition.Leading), Motion.spatialFast(), label = "pillStart")
+    val end by animateDpAsState(target(position == GroupPosition.Trailing), Motion.spatialFast(), label = "pillEnd")
+    return RoundedCornerShape(topStart = start, bottomStart = start, topEnd = end, bottomEnd = end)
+}
+
+@Composable
 private fun FolderTabPill(
     title: String,
     count: Int,
     isSelected: Boolean,
     onClick: () -> Unit,
     onDelete: (() -> Unit)? = null,
-    icon: ImageVector = Icons.Rounded.Folder
+    icon: ImageVector = Icons.Rounded.Folder,
+    position: GroupPosition = GroupPosition.Middle
 ) {
     val containerColor by animateColorAsState(
         targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -831,7 +851,7 @@ private fun FolderTabPill(
     val pressSource2 = remember { MutableInteractionSource() }
     Surface(
         onClick = onClick,
-        shape = pressMorphShape(pressSource2, resting = 20.dp),
+        shape = folderPillShape(position, isSelected, pressSource2),
         interactionSource = pressSource2,
         color = containerColor,
         contentColor = contentColor,
