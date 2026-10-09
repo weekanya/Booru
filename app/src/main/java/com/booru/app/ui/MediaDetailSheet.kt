@@ -52,6 +52,8 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.animation.Crossfade
 import kotlin.math.abs
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -233,7 +235,7 @@ fun MediaDetailSheet(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState(), flingBehavior = rememberCrispFlingBehavior())
+                    .verticalScroll(rememberScrollState())
                     .padding(bottom = 36.dp)
             ) {
                 Box(
@@ -254,7 +256,7 @@ fun MediaDetailSheet(
                         .fillMaxWidth()
                         .heightIn(min = 360.dp, max = 560.dp)
                         .padding(horizontal = 16.dp)
-                        .clip(ShapeTokens.ExtraLarge)
+                        .clip(ShapeTokens.ExtraLargeIncreased)
                         .background(MaterialTheme.colorScheme.surfaceContainerHigh),
                     contentAlignment = Alignment.Center
                 ) {
@@ -404,79 +406,73 @@ fun MediaDetailSheet(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
+                        .padding(horizontal = 16.dp)
+                        .height(56.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Button(
-                        onClick = { downloadCurrentMedia(currentMedia) },
-                        enabled = !isDownloading,
-                        shape = CircleShape,
-                        contentPadding = PaddingValues(horizontal = 18.dp),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp)
+                    DetailAction(
+                        position = GroupPosition.Leading,
+                        onClick = { if (!isDownloading) downloadCurrentMedia(currentMedia) },
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.weight(1f)
                     ) {
                         if (isDownloading) {
-                            LoadingIndicator(
-                                modifier = Modifier.size(24.dp),
-                                color = MaterialTheme.colorScheme.onPrimary
-                            )
+                            LoadingIndicator(modifier = Modifier.size(24.dp), color = MaterialTheme.colorScheme.onPrimary)
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 text = Strings.loadingOriginal(lang),
                                 style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         } else {
-                            Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(22.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 text = Strings.downloadBtn(lang),
                                 style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
-
-                    Spacer(Modifier.width(8.dp))
-                    val favCorner by animateDpAsState(
-                        targetValue = if (isFav) 16.dp else 24.dp,
-                        animationSpec = Motion.spatialDefault(),
-                        label = "favCorner"
+                    Spacer(Modifier.width(2.dp))
+                    val favContainer by animateColorAsState(
+                        targetValue = if (isFav) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                        animationSpec = Motion.effectsDefault(),
+                        label = "favContainer"
                     )
-                    FilledIconToggleButton(
-                        checked = isFav,
-                        onCheckedChange = { vm.toggleFavorite(currentMedia) },
-                        shape = RoundedCornerShape(favCorner),
-                        modifier = Modifier.size(48.dp)
+                    DetailAction(
+                        position = GroupPosition.Middle,
+                        onClick = { vm.toggleFavorite(currentMedia) },
+                        containerColor = favContainer,
+                        contentColor = if (isFav) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.width(56.dp)
                     ) {
-                        Icon(
-                            imageVector = if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            contentDescription = "Favorite",
-                            modifier = Modifier.size(22.dp)
-                        )
+                        Crossfade(targetState = isFav, animationSpec = Motion.effectsDefault(), label = "favIcon") { fav ->
+                            Icon(
+                                imageVector = if (fav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                contentDescription = "Favorite",
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
-
                     AnimatedVisibility(
                         visible = isFav,
-                        enter = expandHorizontally(Motion.spatialDefault(), expandFrom = Alignment.Start) +
-                            fadeIn(Motion.effectsDefault()) +
-                            scaleIn(Motion.spatialDefault(), initialScale = 0.6f),
-                        exit = shrinkHorizontally(Motion.effectsFast(), shrinkTowards = Alignment.Start) +
-                            fadeOut(Motion.effectsFast()) +
-                            scaleOut(Motion.effectsFast(), targetScale = 0.6f)
+                        enter = expandHorizontally(Motion.spatialDefault(), expandFrom = Alignment.Start) + fadeIn(Motion.effectsDefault()),
+                        exit = shrinkHorizontally(Motion.effectsFast(), shrinkTowards = Alignment.Start) + fadeOut(Motion.effectsFast())
                     ) {
-                        Row {
-                            Spacer(Modifier.width(8.dp))
-                            FilledTonalIconButton(
+                        Row(modifier = Modifier.fillMaxHeight()) {
+                            Spacer(Modifier.width(2.dp))
+                            DetailAction(
+                                position = GroupPosition.Middle,
                                 onClick = { showFolderDialog = true },
-                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = if (inFolder) MaterialTheme.colorScheme.tertiaryContainer else MaterialTheme.colorScheme.secondaryContainer,
-                                    contentColor = if (inFolder) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
-                                ),
-                                modifier = Modifier.size(48.dp)
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.width(56.dp)
                             ) {
                                 Icon(
                                     imageVector = if (inFolder) Icons.Rounded.Folder else Icons.Rounded.CreateNewFolder,
@@ -486,17 +482,15 @@ fun MediaDetailSheet(
                             }
                         }
                     }
-
-                    Spacer(Modifier.width(8.dp))
-                    FilledTonalIconButton(
+                    Spacer(Modifier.width(2.dp))
+                    DetailAction(
+                        position = GroupPosition.Trailing,
                         onClick = { showMoreSheet = true },
-                        modifier = Modifier.size(48.dp)
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                        modifier = Modifier.width(56.dp)
                     ) {
-                        Icon(
-                            Icons.Rounded.MoreVert,
-                            contentDescription = "More",
-                            modifier = Modifier.size(22.dp)
-                        )
+                        Icon(Icons.Rounded.MoreVert, contentDescription = "More", modifier = Modifier.size(22.dp))
                     }
                 }
 
@@ -527,7 +521,7 @@ fun MediaDetailSheet(
                                         title = when (action) {
                                             0 -> Strings.setWallpaperTitle(lang)
                                             2 -> Strings.share(lang)
-                                            else -> if (lang == AppLanguage.RUSSIAN) "Открыть в браузере" else "Open in browser"
+                                            else -> Strings.tr(lang, "Open in browser", "Открыть в браузере", "ブラウザで開く", "在浏览器中打开", "브라우저에서 열기", "فتح في المتصفح")
                                         },
                                         shape = segmentedListShape(index, actions.size),
                                         onClick = {
@@ -567,8 +561,8 @@ fun MediaDetailSheet(
                     Spacer(Modifier.height(12.dp))
                     val ru = lang == AppLanguage.RUSSIAN
                     val stats = buildList {
-                        if (showScore) add(Triple(Icons.Rounded.Star, currentMedia.score.toString(), if (ru) "Рейтинг" else "Score"))
-                        if (showResolution) add(Triple(Icons.Rounded.AspectRatio, "${currentMedia.width}×${currentMedia.height}", if (ru) "Разрешение" else "Resolution"))
+                        if (showScore) add(Triple(Icons.Rounded.Star, currentMedia.score.toString(), Strings.tr(lang, "Score", "Рейтинг", "スコア", "评分", "점수", "النقاط")))
+                        if (showResolution) add(Triple(Icons.Rounded.AspectRatio, "${currentMedia.width}×${currentMedia.height}", Strings.tr(lang, "Resolution", "Разрешение", "解像度", "分辨率", "해상도", "الدقة")))
                     }
                     Row(
                         modifier = Modifier
@@ -694,7 +688,7 @@ fun MediaDetailSheet(
                                     }
                                 }
                                 Text(
-                                    text = if (lang == AppLanguage.RUSSIAN) "Теги" else "Tags",
+                                    text = Strings.tr(lang, "Tags", "Теги", "タグ", "标签", "태그", "الوسوم"),
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     fontWeight = FontWeight.SemiBold
@@ -1816,21 +1810,12 @@ fun BooruVideoPlayer(
                         isPlaying = playing
                     }
                 })
+                prepare()
             }
     }
 
-    var isPrepared by remember(videoUrl) { mutableStateOf(false) }
     LaunchedEffect(exoPlayer, isActive) {
-        if (!isActive) return@LaunchedEffect
-        val headReady = CompletableDeferred<Unit>()
-        launch {
-            com.booru.app.BooruVideoCache.prefetchParallel(context, videoUrl) { headReady.complete(Unit) }
-        }
-        if (!isPrepared) {
-            withTimeoutOrNull(2500) { headReady.await() }
-            isPrepared = true
-            exoPlayer.prepare()
-        }
+        if (isActive) com.booru.app.BooruVideoCache.prefetchParallel(context, videoUrl)
     }
 
     LaunchedEffect(playbackSpeed, exoPlayer) {
@@ -2274,5 +2259,40 @@ private fun FolderPickTile(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun DetailAction(
+    position: GroupPosition,
+    onClick: () -> Unit,
+    containerColor: Color,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit
+) {
+    val interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val outer by animateDpAsState(if (pressed) 16.dp else 28.dp, Motion.spatialFast(), label = "detailOuter")
+    val inner by animateDpAsState(if (pressed) 4.dp else 8.dp, Motion.spatialFast(), label = "detailInner")
+    val shape = when (position) {
+        GroupPosition.Leading -> RoundedCornerShape(topStart = outer, bottomStart = outer, topEnd = inner, bottomEnd = inner)
+        GroupPosition.Trailing -> RoundedCornerShape(topStart = inner, bottomStart = inner, topEnd = outer, bottomEnd = outer)
+        GroupPosition.Middle -> RoundedCornerShape(inner)
+    }
+    Surface(
+        onClick = onClick,
+        shape = shape,
+        color = containerColor,
+        contentColor = contentColor,
+        interactionSource = interactionSource,
+        modifier = modifier.fillMaxHeight()
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp),
+            content = content
+        )
     }
 }

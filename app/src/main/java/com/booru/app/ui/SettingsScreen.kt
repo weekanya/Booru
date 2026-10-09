@@ -374,7 +374,7 @@ fun SettingsScreen(
                     SheetHeader(
                         icon = if (isEditing) Icons.Rounded.Edit else Icons.Rounded.AddLink,
                         title = if (isEditing) Strings.editSourceTitle(lang) else Strings.addSourceTitle(lang),
-                        subtitle = if (lang == AppLanguage.RUSSIAN) "Только HTTPS" else "HTTPS only"
+                        subtitle = Strings.tr(lang, "HTTPS only", "Только HTTPS", "HTTPSのみ", "仅限 HTTPS", "HTTPS만", "HTTPS فقط")
                     )
 
                     Column {
@@ -422,7 +422,7 @@ fun SettingsScreen(
 
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
-                            text = if (lang == AppLanguage.RUSSIAN) "Доступ (необязательно)" else "Access (optional)",
+                            text = Strings.tr(lang, "Access (optional)", "Доступ (необязательно)", "アクセス（任意）", "访问（可选）", "접근 (선택)", "الوصول (اختياري)"),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
@@ -459,7 +459,7 @@ fun SettingsScreen(
                             }
                             customUrlError = if (!com.booru.app.data.isHttpsBooruUrl(cleanUrl)) Strings.customSourceUrlError(lang) else null
                             customAccessError = if (customUserId.isBlank() != customApiKey.isBlank()) {
-                                if (lang == AppLanguage.RUSSIAN) "Укажите и логин, и ключ, или оставьте оба пустыми" else "Fill in both login and key, or leave both empty"
+                                Strings.tr(lang, "Fill in both login and key, or leave both empty", "Укажите и логин, и ключ, или оставьте оба пустыми", "ログインとキーの両方を入力するか、両方を空にしてください", "请同时填写登录名和密钥，或都留空", "로그인과 키를 모두 입력하거나 둘 다 비워 두세요", "املأ اسم الدخول والمفتاح معًا أو اتركهما فارغين")
                             } else null
                             if (customNameError != null || customUrlError != null || customAccessError != null) return@Button
                             val targetId = editingCustomSource?.id ?: java.util.UUID.randomUUID().toString()
@@ -676,7 +676,7 @@ fun SettingsScreen(
                                 },
                                 lang = lang,
                                 initialIcon = Icons.Rounded.DeleteSweep,
-                                initialText = if (lang == AppLanguage.RUSSIAN) "Очистить" else "Clear all",
+                                initialText = Strings.tr(lang, "Clear all", "Очистить", "すべて消去", "全部清除", "모두 지우기", "مسح الكل"),
                                 confirmText = Strings.confirmDeleteAction(lang),
                                 height = 48.dp,
                                 contentPadding = 16.dp,
@@ -725,7 +725,7 @@ fun SettingsScreen(
                                     modifier = Modifier.padding(start = 4.dp, bottom = 10.dp)
                                 ) {
                                     Text(
-                                        text = if (lang == AppLanguage.RUSSIAN) "Скрытые теги" else "Hidden tags",
+                                        text = Strings.tr(lang, "Hidden tags", "Скрытые теги", "非表示タグ", "隐藏的标签", "숨긴 태그", "الوسوم المخفية"),
                                         style = MaterialTheme.typography.labelLarge,
                                         fontWeight = FontWeight.SemiBold,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -752,7 +752,7 @@ fun SettingsScreen(
                                 ) {
                                     if (filteredBlacklist.isEmpty()) {
                                         Text(
-                                            text = if (lang == AppLanguage.RUSSIAN) "Ничего не найдено" else "No matching tags",
+                                            text = Strings.tr(lang, "No matching tags", "Ничего не найдено", "一致するタグはありません", "没有匹配的标签", "일치하는 태그 없음", "لا توجد وسوم مطابقة"),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier
@@ -794,7 +794,7 @@ fun SettingsScreen(
                             .height(56.dp)
                     ) {
                         Text(
-                            text = if (lang == AppLanguage.RUSSIAN) "Готово" else "Done",
+                            text = Strings.tr(lang, "Done", "Готово", "完了", "完成", "완료", "تم"),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -886,7 +886,7 @@ fun SettingsScreen(
                             .height(52.dp)
                     ) {
                         Text(
-                            text = if (lang == AppLanguage.RUSSIAN) "Готово" else "Done",
+                            text = Strings.tr(lang, "Done", "Готово", "完了", "完成", "완료", "تم"),
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -921,10 +921,10 @@ fun SettingsScreen(
         SettingsTabBar(
             titles = categories.map { cat ->
                 when (cat) {
-                    SettingsCategory.APPEARANCE -> if (lang == AppLanguage.RUSSIAN) "Вид" else "Style"
-                    SettingsCategory.SOURCES -> if (lang == AppLanguage.RUSSIAN) "Источники" else "Sources"
-                    SettingsCategory.CONTENT -> if (lang == AppLanguage.RUSSIAN) "Контент" else "Content"
-                    SettingsCategory.SYSTEM -> if (lang == AppLanguage.RUSSIAN) "Система" else "System"
+                    SettingsCategory.APPEARANCE -> Strings.tr(lang, "Style", "Вид", "スタイル", "样式", "스타일", "المظهر")
+                    SettingsCategory.SOURCES -> Strings.tr(lang, "Sources", "Источники", "ソース", "来源", "소스", "المصادر")
+                    SettingsCategory.CONTENT -> Strings.tr(lang, "Content", "Контент", "コンテンツ", "内容", "콘텐츠", "المحتوى")
+                    SettingsCategory.SYSTEM -> Strings.tr(lang, "System", "Система", "システム", "系统", "시스템", "النظام")
                 }
             },
             icons = categories.map { cat ->
@@ -1017,9 +1017,9 @@ fun SettingsScreen(
                                     },
                                     labelProvider = { mode ->
                                         when (mode) {
-                                            ThemeMode.SYSTEM -> if (lang == AppLanguage.RUSSIAN) "Авто" else "Auto"
-                                            ThemeMode.DARK -> if (lang == AppLanguage.RUSSIAN) "Тёмная" else "Dark"
-                                            ThemeMode.LIGHT -> if (lang == AppLanguage.RUSSIAN) "Светлая" else "Light"
+                                            ThemeMode.SYSTEM -> Strings.tr(lang, "Auto", "Авто", "自動", "自动", "자동", "تلقائي")
+                                            ThemeMode.DARK -> Strings.tr(lang, "Dark", "Тёмная", "ダーク", "深色", "다크", "داكن")
+                                            ThemeMode.LIGHT -> Strings.tr(lang, "Light", "Светлая", "ライト", "浅色", "라이트", "فاتح")
                                         }
                                     }
                                 )
@@ -1070,7 +1070,7 @@ fun SettingsScreen(
                         SettingsGroupCard {
                             SettingRowItem(
                                 title = "Rule34.xxx API",
-                                subtitle = if (vm.rule34ApiKey.isNotBlank() && vm.rule34UserId.isNotBlank()) (if (lang == AppLanguage.RUSSIAN) "Подключено · ID ${vm.rule34UserId}" else "Connected · ID ${vm.rule34UserId}") else Strings.tapToEnterKeys(lang),
+                                subtitle = if (vm.rule34ApiKey.isNotBlank() && vm.rule34UserId.isNotBlank()) (Strings.tr(lang, "Connected · ID ${vm.rule34UserId}", "Подключено · ID ${vm.rule34UserId}", "接続済み · ID ${vm.rule34UserId}", "已连接 · ID ${vm.rule34UserId}", "연결됨 · ID ${vm.rule34UserId}", "متصل · ID ${vm.rule34UserId}")) else Strings.tapToEnterKeys(lang),
                                 icon = Icons.Rounded.Key,
                                 onClick = { showRule34Dialog = true }
                             )
@@ -1079,7 +1079,7 @@ fun SettingsScreen(
 
                             SettingRowItem(
                                 title = "Gelbooru API",
-                                subtitle = if (vm.gelbooruApiKey.isNotBlank() && vm.gelbooruUserId.isNotBlank()) (if (lang == AppLanguage.RUSSIAN) "Подключено · ID ${vm.gelbooruUserId}" else "Connected · ID ${vm.gelbooruUserId}") else Strings.tapToEnterKeys(lang),
+                                subtitle = if (vm.gelbooruApiKey.isNotBlank() && vm.gelbooruUserId.isNotBlank()) (Strings.tr(lang, "Connected · ID ${vm.gelbooruUserId}", "Подключено · ID ${vm.gelbooruUserId}", "接続済み · ID ${vm.gelbooruUserId}", "已连接 · ID ${vm.gelbooruUserId}", "연결됨 · ID ${vm.gelbooruUserId}", "متصل · ID ${vm.gelbooruUserId}")) else Strings.tapToEnterKeys(lang),
                                 icon = Icons.Rounded.VpnKey,
                                 onClick = { showGelbooruDialog = true }
                             )
@@ -1092,7 +1092,7 @@ fun SettingsScreen(
                         SettingsGroupCard {
                             SettingRowItem(
                                 title = Strings.addSourceTitle(lang),
-                                subtitle = if (vm.customSources.isEmpty()) Strings.noCustomSources(lang) else "${vm.customSources.size} custom sources",
+                                subtitle = if (vm.customSources.isEmpty()) Strings.noCustomSources(lang) else Strings.tr(lang, "${vm.customSources.size} custom sources", "Своих источников: ${vm.customSources.size}", "カスタムソース: ${vm.customSources.size}", "自定义来源：${vm.customSources.size}", "사용자 소스: ${vm.customSources.size}", "مصادر مخصصة: ${vm.customSources.size}"),
                                 icon = Icons.Rounded.AddCircleOutline,
                                 onClick = {
                                     editingCustomSource = null
@@ -1320,7 +1320,7 @@ fun SettingsScreen(
                                         )
                                         Spacer(Modifier.width(6.dp))
                                         Text(
-                                            text = "Source code",
+                                            text = Strings.tr(lang, "Source code", "Исходный код", "ソースコード", "源代码", "소스 코드", "الشيفرة المصدرية"),
                                             style = MaterialTheme.typography.labelMedium,
                                             fontWeight = FontWeight.Bold
                                         )
@@ -2142,14 +2142,14 @@ private fun ApiKeyForm(
     val keyTrim = key.trim()
     val bothEmpty = userTrim.isEmpty() && keyTrim.isEmpty()
     val userError = when {
-        userTrim.isNotEmpty() && !userTrim.all { it.isDigit() } -> if (ru) "Только цифры" else "Digits only"
-        userTrim.isEmpty() && keyTrim.isNotEmpty() -> if (ru) "Введите User ID" else "Enter your User ID"
+        userTrim.isNotEmpty() && !userTrim.all { it.isDigit() } -> Strings.tr(lang, "Digits only", "Только цифры", "数字のみ", "仅限数字", "숫자만", "أرقام فقط")
+        userTrim.isEmpty() && keyTrim.isNotEmpty() -> Strings.tr(lang, "Enter your User ID", "Введите User ID", "ユーザーIDを入力", "请输入用户 ID", "사용자 ID를 입력하세요", "أدخل معرّف المستخدم")
         else -> null
     }
     val keyError = when {
-        keyTrim.isEmpty() && userTrim.isNotEmpty() -> if (ru) "Введите API-ключ" else "Enter your API key"
-        keyTrim.isNotEmpty() && keyTrim.length < 16 -> if (ru) "Ключ слишком короткий" else "Key looks too short"
-        keyTrim.any { it.isWhitespace() } -> if (ru) "Ключ без пробелов" else "Key can't contain spaces"
+        keyTrim.isEmpty() && userTrim.isNotEmpty() -> Strings.tr(lang, "Enter your API key", "Введите API-ключ", "APIキーを入力", "请输入 API 密钥", "API 키를 입력하세요", "أدخل مفتاح API")
+        keyTrim.isNotEmpty() && keyTrim.length < 16 -> Strings.tr(lang, "Key looks too short", "Ключ слишком короткий", "キーが短すぎます", "密钥太短", "키가 너무 짧습니다", "المفتاح قصير جدًا")
+        keyTrim.any { it.isWhitespace() } -> Strings.tr(lang, "Key can't contain spaces", "Ключ без пробелов", "キーにスペースは使えません", "密钥不能包含空格", "키에 공백을 넣을 수 없습니다", "لا يمكن أن يحتوي المفتاح على مسافات")
         else -> null
     }
     val canSave = !bothEmpty && userError == null && keyError == null

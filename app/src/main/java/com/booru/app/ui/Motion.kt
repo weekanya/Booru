@@ -71,12 +71,13 @@ object Motion {
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 private object SmoothSheetMotionScheme : androidx.compose.material3.MotionScheme {
-    override fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 520f)
-    override fun <T> fastSpatialSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 560f)
-    override fun <T> slowSpatialSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 240f)
-    override fun <T> defaultEffectsSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 700f)
-    override fun <T> fastEffectsSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 420f)
-    override fun <T> slowEffectsSpec(): FiniteAnimationSpec<T> = spring(dampingRatio = 1f, stiffness = 280f)
+    private val sheetEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+    override fun <T> defaultSpatialSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 340, easing = sheetEasing)
+    override fun <T> fastSpatialSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 240, easing = sheetEasing)
+    override fun <T> slowSpatialSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 420, easing = sheetEasing)
+    override fun <T> defaultEffectsSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 200, easing = sheetEasing)
+    override fun <T> fastEffectsSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 150, easing = sheetEasing)
+    override fun <T> slowEffectsSpec(): FiniteAnimationSpec<T> = tween(durationMillis = 260, easing = sheetEasing)
 }
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
@@ -154,27 +155,5 @@ class MorphShape(
         }
         path.close()
         return androidx.compose.ui.graphics.Outline.Generic(path)
-    }
-}
-
-@Composable
-fun rememberCrispFlingBehavior(): androidx.compose.foundation.gestures.FlingBehavior {
-    val decay = androidx.compose.animation.rememberSplineBasedDecay<Float>()
-    return remember(decay) {
-        object : androidx.compose.foundation.gestures.FlingBehavior {
-            override suspend fun androidx.compose.foundation.gestures.ScrollScope.performFling(initialVelocity: Float): Float {
-                if (kotlin.math.abs(initialVelocity) < 1f) return initialVelocity
-                var velocityLeft = initialVelocity
-                var lastValue = 0f
-                AnimationState(initialValue = 0f, initialVelocity = initialVelocity).animateDecay(decay) {
-                    val delta = value - lastValue
-                    val consumed = scrollBy(delta)
-                    lastValue = value
-                    velocityLeft = velocity
-                    if (kotlin.math.abs(delta - consumed) > 0.5f || kotlin.math.abs(velocity) < 120f) cancelAnimation()
-                }
-                return velocityLeft
-            }
-        }
     }
 }

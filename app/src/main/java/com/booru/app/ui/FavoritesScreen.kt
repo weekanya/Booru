@@ -391,7 +391,7 @@ fun FavoritesScreen(
                     },
                     lang = lang,
                     initialIcon = Icons.Rounded.DeleteSweep,
-                    initialText = if (lang == AppLanguage.RUSSIAN) "Очистить" else "Clear all",
+                    initialText = Strings.tr(lang, "Clear all", "Очистить", "すべて消去", "全部清除", "모두 지우기", "مسح الكل"),
                     confirmText = Strings.confirmDeleteAction(lang),
                     height = 40.dp,
                     contentPadding = 14.dp,
@@ -674,14 +674,14 @@ fun FavoritesScreen(
                             }
                             Spacer(Modifier.height(16.dp))
                             Text(
-                                if (lang == AppLanguage.RUSSIAN) "В этой коллекции пока ничего нет" else "This collection is empty",
+                                Strings.tr(lang, "This collection is empty", "В этой коллекции пока ничего нет", "このコレクションは空です", "此收藏夹为空", "이 컬렉션은 비어 있습니다", "هذه المجموعة فارغة"),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center
                             )
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                if (lang == AppLanguage.RUSSIAN) "Добавьте посты в коллекцию через меню деталей" else "Add posts to this collection via details menu",
+                                Strings.tr(lang, "Add posts to this collection via details menu", "Добавьте посты в коллекцию через меню деталей", "詳細メニューから投稿を追加できます", "通过详情菜单将帖子添加到此收藏夹", "상세 메뉴에서 게시물을 추가하세요", "أضف منشورات عبر قائمة التفاصيل"),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
@@ -987,7 +987,7 @@ private fun FavoritesFilterBottomSheet(
                         }
                         Spacer(Modifier.width(12.dp))
                         Text(
-                            text = if (lang == AppLanguage.RUSSIAN) "Сортировка и фильтры" else "Sort & Filters",
+                            text = Strings.tr(lang, "Sort & Filters", "Сортировка и фильтры", "並べ替えとフィルター", "排序与筛选", "정렬 및 필터", "الترتيب والفلاتر"),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -1142,7 +1142,7 @@ private fun FavoritesFilterBottomSheet(
                     Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
                     Text(
-                        text = if (lang == AppLanguage.RUSSIAN) "Готово" else "Done",
+                        text = Strings.tr(lang, "Done", "Готово", "完了", "完成", "완료", "تم"),
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.labelLarge
                     )
@@ -1320,7 +1320,7 @@ private fun DeleteFolderBottomSheet(
                     }
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        text = if (lang == AppLanguage.RUSSIAN) "Удалить коллекцию?" else "Delete collection?",
+                        text = Strings.tr(lang, "Delete collection?", "Удалить коллекцию?", "コレクションを削除しますか？", "删除此收藏夹？", "컬렉션을 삭제할까요?", "حذف المجموعة؟"),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
@@ -1328,10 +1328,15 @@ private fun DeleteFolderBottomSheet(
                 }
     
                 Text(
-                    text = if (lang == AppLanguage.RUSSIAN)
-                        "Коллекция «$folderName» будет удалена. Медиафайлы останутся в общем избранном."
-                    else
+                    text = Strings.tr(
+                        lang,
                         "Collection \"$folderName\" will be removed. Media items will remain in favorites.",
+                        "Коллекция «$folderName» будет удалена. Медиафайлы останутся в общем избранном.",
+                        "コレクション「$folderName」を削除します。メディアはお気に入りに残ります。",
+                        "将删除收藏夹「$folderName」。媒体仍保留在收藏中。",
+                        "컬렉션 \"$folderName\"이(가) 삭제됩니다. 미디어는 즐겨찾기에 남습니다.",
+                        "ستتم إزالة المجموعة \"$folderName\". ستبقى الوسائط في المفضلة."
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -1368,7 +1373,7 @@ private fun DeleteFolderBottomSheet(
                             .weight(1f)
                             .height(48.dp)
                     ) {
-                        Text(if (lang == AppLanguage.RUSSIAN) "Удалить" else "Delete")
+                        Text(Strings.tr(lang, "Delete", "Удалить", "削除", "删除", "삭제", "حذف"))
                     }
                 }
             }

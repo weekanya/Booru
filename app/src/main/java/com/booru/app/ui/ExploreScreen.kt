@@ -942,7 +942,7 @@ fun ExploreScreen(
                             onConfirmed = { vm.clearHistory() },
                             lang = lang,
                             initialIcon = Icons.Rounded.DeleteSweep,
-                            initialText = if (lang == AppLanguage.RUSSIAN) "Очистить историю" else "Clear history",
+                            initialText = Strings.tr(lang, "Clear history", "Очистить историю", "履歴を消去", "清除历史", "기록 지우기", "مسح السجل"),
                             confirmText = Strings.confirmDeleteAction(lang),
                             height = 44.dp,
                             contentPadding = 16.dp,
@@ -2157,8 +2157,8 @@ private fun FilterSelectionBottomSheet(
                         horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
                     ) {
                         val tabs = listOf(
-                            Pair(if (lang == AppLanguage.RUSSIAN) "Контент и рейтинг" else "Content & Rating", Icons.Rounded.Category),
-                            Pair(if (lang == AppLanguage.RUSSIAN) "Сортировка и лента" else "Sorting & Feed", Icons.Rounded.AutoAwesome)
+                            Pair(Strings.tr(lang, "Content & Rating", "Контент и рейтинг", "コンテンツと評価", "内容与分级", "콘텐츠 및 등급", "المحتوى والتصنيف"), Icons.Rounded.Category),
+                            Pair(Strings.tr(lang, "Sorting & Feed", "Сортировка и лента", "並べ替えとフィード", "排序与推送", "정렬 및 피드", "الترتيب والخلاصة"), Icons.Rounded.AutoAwesome)
                         )
                         val targetFilterIndex = if (filterPagerState.isScrollInProgress) filterPagerState.targetPage else filterPagerState.currentPage
                         tabs.forEachIndexed { index, (title, icon) ->
@@ -2390,7 +2390,7 @@ private fun FilterSelectionBottomSheet(
                                             FilterSectionIcon(Icons.AutoMirrored.Rounded.Sort)
                                             Spacer(Modifier.width(12.dp))
                                             Text(
-                                                text = if (lang == AppLanguage.RUSSIAN) "Сортировка" else "Sort by",
+                                                text = Strings.tr(lang, "Sort by", "Сортировка", "並べ替え", "排序", "정렬", "ترتيب حسب"),
                                                 style = MaterialTheme.typography.titleSmall,
                                                 fontWeight = FontWeight.Bold,
                                                 color = MaterialTheme.colorScheme.onSurface

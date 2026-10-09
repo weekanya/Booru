@@ -10,6 +10,15 @@ enum class AppLanguage(val code: String, val displayName: String, val englishNam
 }
 
 object Strings {
+    fun tr(lang: AppLanguage, en: String, ru: String, ja: String, zh: String, ko: String, ar: String) = when (lang) {
+        AppLanguage.RUSSIAN -> ru
+        AppLanguage.JAPANESE -> ja
+        AppLanguage.CHINESE -> zh
+        AppLanguage.KOREAN -> ko
+        AppLanguage.ARABIC -> ar
+        else -> en
+    }
+
     fun navExplore(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Обзор"
         AppLanguage.JAPANESE -> "探索"
@@ -1651,21 +1660,37 @@ object Strings {
 
     fun incognitoActiveDesc(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "История поиска и рекомендации отключены"
+        AppLanguage.JAPANESE -> "検索履歴とおすすめを一時停止中"
+        AppLanguage.CHINESE -> "搜索历史和推荐已暂停"
+        AppLanguage.KOREAN -> "검색 기록과 추천이 일시 중지됨"
+        AppLanguage.ARABIC -> "تم إيقاف سجل البحث والتوصيات مؤقتًا"
         else -> "Search history and recommendations are paused"
     }
 
     fun recommendationBalance(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Баланс рекомендаций"
+        AppLanguage.JAPANESE -> "おすすめのバランス"
+        AppLanguage.CHINESE -> "推荐比例"
+        AppLanguage.KOREAN -> "추천 비율"
+        AppLanguage.ARABIC -> "توازن التوصيات"
         else -> "Recommendation balance"
     }
 
     fun feedNewestOnly(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Новые"
+        AppLanguage.JAPANESE -> "新着"
+        AppLanguage.CHINESE -> "最新"
+        AppLanguage.KOREAN -> "최신"
+        AppLanguage.ARABIC -> "الأحدث"
         else -> "Newest"
     }
 
     fun feedBalanced(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "50/50"
+        AppLanguage.JAPANESE -> "50/50"
+        AppLanguage.CHINESE -> "50/50"
+        AppLanguage.KOREAN -> "50/50"
+        AppLanguage.ARABIC -> "50/50"
         else -> "50/50"
     }
 
@@ -1689,96 +1714,172 @@ object Strings {
 
     fun securitySection(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Безопасность"
+        AppLanguage.JAPANESE -> "セキュリティ"
+        AppLanguage.CHINESE -> "安全"
+        AppLanguage.KOREAN -> "보안"
+        AppLanguage.ARABIC -> "الأمان"
         else -> "Security"
     }
 
     fun biometricLockTitle(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Биометрическая защита"
+        AppLanguage.JAPANESE -> "生体認証ロック"
+        AppLanguage.CHINESE -> "生物识别锁"
+        AppLanguage.KOREAN -> "생체 인증 잠금"
+        AppLanguage.ARABIC -> "القفل البيومتري"
         else -> "Biometric Lock"
     }
 
     fun biometricLockSubtitle(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Блокировка при входе в приложение"
+        AppLanguage.JAPANESE -> "アプリを開くときに認証を要求"
+        AppLanguage.CHINESE -> "打开应用时需要验证"
+        AppLanguage.KOREAN -> "앱을 열 때 인증 필요"
+        AppLanguage.ARABIC -> "طلب المصادقة عند فتح التطبيق"
         else -> "Require authentication when opening app"
     }
 
     fun appLocked(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Приложение заблокировано"
+        AppLanguage.JAPANESE -> "アプリはロックされています"
+        AppLanguage.CHINESE -> "应用已锁定"
+        AppLanguage.KOREAN -> "앱이 잠겨 있습니다"
+        AppLanguage.ARABIC -> "التطبيق مقفل"
         else -> "App is locked"
     }
 
     fun unlockApp(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Разблокировать"
+        AppLanguage.JAPANESE -> "ロック解除"
+        AppLanguage.CHINESE -> "解锁"
+        AppLanguage.KOREAN -> "잠금 해제"
+        AppLanguage.ARABIC -> "فتح القفل"
         else -> "Unlock"
     }
 
     fun foldersTitle(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Коллекции"
+        AppLanguage.JAPANESE -> "コレクション"
+        AppLanguage.CHINESE -> "收藏夹"
+        AppLanguage.KOREAN -> "컬렉션"
+        AppLanguage.ARABIC -> "المجموعات"
         else -> "Collections"
     }
 
     fun allFavoritesFolder(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Все"
+        AppLanguage.JAPANESE -> "すべて"
+        AppLanguage.CHINESE -> "全部"
+        AppLanguage.KOREAN -> "전체"
+        AppLanguage.ARABIC -> "الكل"
         else -> "All"
     }
 
     fun newFolder(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Новая коллекция"
+        AppLanguage.JAPANESE -> "新しいコレクション"
+        AppLanguage.CHINESE -> "新建收藏夹"
+        AppLanguage.KOREAN -> "새 컬렉션"
+        AppLanguage.ARABIC -> "مجموعة جديدة"
         else -> "New collection"
     }
 
     fun folderNamePlaceholder(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Название коллекции"
+        AppLanguage.JAPANESE -> "コレクション名"
+        AppLanguage.CHINESE -> "收藏夹名称"
+        AppLanguage.KOREAN -> "컬렉션 이름"
+        AppLanguage.ARABIC -> "اسم المجموعة"
         else -> "Collection name"
     }
 
     fun addToFolder(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Добавить в коллекцию"
+        AppLanguage.JAPANESE -> "コレクションに追加"
+        AppLanguage.CHINESE -> "添加到收藏夹"
+        AppLanguage.KOREAN -> "컬렉션에 추가"
+        AppLanguage.ARABIC -> "إضافة إلى مجموعة"
         else -> "Add to collection"
     }
 
     fun create(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Создать"
+        AppLanguage.JAPANESE -> "作成"
+        AppLanguage.CHINESE -> "创建"
+        AppLanguage.KOREAN -> "만들기"
+        AppLanguage.ARABIC -> "إنشاء"
         else -> "Create"
     }
 
     fun lockTimeoutImmediately(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Сразу"
+        AppLanguage.JAPANESE -> "すぐに"
+        AppLanguage.CHINESE -> "立即"
+        AppLanguage.KOREAN -> "즉시"
+        AppLanguage.ARABIC -> "فورًا"
         else -> "Instant"
     }
 
     fun lockTimeoutMinutes(min: Int, lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "$min мин."
+        AppLanguage.JAPANESE -> "$min 分"
+        AppLanguage.CHINESE -> "$min 分钟"
+        AppLanguage.KOREAN -> "$min분"
+        AppLanguage.ARABIC -> "$min د"
         else -> "$min min"
     }
 
     fun gridColumnsTitle(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Сетка галереи"
+        AppLanguage.JAPANESE -> "グリッド列"
+        AppLanguage.CHINESE -> "网格列数"
+        AppLanguage.KOREAN -> "그리드 열"
+        AppLanguage.ARABIC -> "أعمدة الشبكة"
         else -> "Grid columns"
     }
 
     fun gridColumnsAuto(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Авто"
+        AppLanguage.JAPANESE -> "自動"
+        AppLanguage.CHINESE -> "自动"
+        AppLanguage.KOREAN -> "자동"
+        AppLanguage.ARABIC -> "تلقائي"
         else -> "Auto"
     }
 
     fun incognitoModeDesc(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Приватный режим включен"
+        AppLanguage.JAPANESE -> "プライベートモード中"
+        AppLanguage.CHINESE -> "隐私模式已开启"
+        AppLanguage.KOREAN -> "비공개 모드 켜짐"
+        AppLanguage.ARABIC -> "الوضع الخاص مفعّل"
         else -> "Private mode active"
     }
 
     fun brightness(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Яркость"
+        AppLanguage.JAPANESE -> "明るさ"
+        AppLanguage.CHINESE -> "亮度"
+        AppLanguage.KOREAN -> "밝기"
+        AppLanguage.ARABIC -> "السطوع"
         else -> "Brightness"
     }
 
     fun volume(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Громкость"
+        AppLanguage.JAPANESE -> "音量"
+        AppLanguage.CHINESE -> "音量"
+        AppLanguage.KOREAN -> "볼륨"
+        AppLanguage.ARABIC -> "مستوى الصوت"
         else -> "Volume"
     }
 
     fun deleteFolderConfirm(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Удалить коллекцию?"
+        AppLanguage.JAPANESE -> "コレクションを削除しますか？"
+        AppLanguage.CHINESE -> "删除此收藏夹？"
+        AppLanguage.KOREAN -> "컬렉션을 삭제할까요?"
+        AppLanguage.ARABIC -> "حذف المجموعة؟"
         else -> "Delete collection?"
     }
 

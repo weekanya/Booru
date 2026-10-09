@@ -247,6 +247,7 @@ object BooruVideoCache {
         androidx.media3.datasource.cache.CacheDataSource.Factory()
             .setCache(getCache(context))
             .setUpstreamDataSourceFactory(httpDataSourceFactory(url))
+            .setCacheWriteDataSinkFactory(null)
             .setFlags(androidx.media3.datasource.cache.CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
 
     private fun resolveContentLength(url: String): Long? = runCatching {
@@ -297,71 +298,53 @@ object BooruVideoCache {
         return true
     }
 
-    suspend fun prefetchParallel(
-        context: android.content.Context,
-        url: String,
-        onHeadReady: () -> Unit
-    ) {
-        try {
-            if (!url.startsWith("http://") && !url.startsWith("https://")) return
-            kotlinx.coroutines.withContext(Dispatchers.IO) {
-                val cache = getCache(context)
-                val length = resolveContentLength(url)
-                if (length == null || length <= 0L || length > MAX_PREFETCH_BYTES) return@withContext
-                val mutations = androidx.media3.datasource.cache.ContentMetadataMutations()
-                androidx.media3.datasource.cache.ContentMetadataMutations.setContentLength(mutations, length)
-                runCatching { cache.applyContentMetadataMutations(url, mutations) }
-                if (cache.isCached(url, 0L, length)) return@withContext
+    suspend fun prefetchParallel(context: android.content.Context, url: String) {
+        if (!url.startsWith("http://") && !url.startsWith("https://")) return
+        kotlinx.coroutines.withContext(Dispatchers.IO) {
+            val cache = getCache(context)
+            val length = resolveContentLength(url)
+            if (length == null || length <= 0L || length > MAX_PREFETCH_BYTES) return@withContext
+            val mutations = androidx.media3.datasource.cache.ContentMetadataMutations()
+            androidx.media3.datasource.cache.ContentMetadataMutations.setContentLength(mutations, length)
+            runCatching { cache.applyContentMetadataMutations(url, mutations) }
+            if (cache.isCached(url, 0L, length)) return@withContext
 
-                val upstream = httpDataSourceFactory(url, prefetchClient)
-                val head = minOf(FIRST_CHUNK_BYTES, length)
-                try {
-                    cacheChunk(cache, upstream, url, 0L, head)
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                }
-
-                val chunks = java.util.concurrent.ConcurrentLinkedQueue<Pair<Long, Long>>()
-                var position = head
-                while (position < length) {
-                    val size = minOf(CHUNK_BYTES, length - position)
-                    chunks.add(position to size)
-                    position += size
-                }
-                launch {
-                    var queue = chunks
-                    repeat(2) {
-                        if (queue.isEmpty()) return@repeat
-                        val current = queue
-                        val skipped = java.util.concurrent.ConcurrentLinkedQueue<Pair<Long, Long>>()
-                        kotlinx.coroutines.coroutineScope {
-                            repeat(PREFETCH_WORKERS) {
-                                launch {
-                                    var failures = 0
-                                    while (failures < 2) {
-                                        val (start, size) = current.poll() ?: break
-                                        val claimed = try {
-                                            cacheChunk(cache, upstream, url, start, size)
-                                        } catch (e: kotlinx.coroutines.CancellationException) {
-                                            throw e
-                                        } catch (_: Exception) {
-                                            failures++
-                                            true
-                                        }
-                                        if (!claimed) skipped.add(start to size)
-                                    }
+            val upstream = httpDataSourceFactory(url, prefetchClient)
+            val chunks = java.util.concurrent.ConcurrentLinkedQueue<Pair<Long, Long>>()
+            var position = 0L
+            var size = FIRST_CHUNK_BYTES
+            while (position < length) {
+                val len = minOf(size, length - position)
+                chunks.add(position to len)
+                position += len
+                size = CHUNK_BYTES
+            }
+            var queue = chunks
+            repeat(2) {
+                if (queue.isEmpty()) return@repeat
+                val current = queue
+                val skipped = java.util.concurrent.ConcurrentLinkedQueue<Pair<Long, Long>>()
+                kotlinx.coroutines.coroutineScope {
+                    repeat(PREFETCH_WORKERS) {
+                        launch {
+                            var failures = 0
+                            while (failures < 2) {
+                                val (start, len) = current.poll() ?: break
+                                val claimed = try {
+                                    cacheChunk(cache, upstream, url, start, len)
+                                } catch (e: kotlinx.coroutines.CancellationException) {
+                                    throw e
+                                } catch (_: Exception) {
+                                    failures++
+                                    true
                                 }
+                                if (!claimed) skipped.add(start to len)
                             }
                         }
-                        queue = skipped
                     }
                 }
-                kotlinx.coroutines.delay(40)
-                onHeadReady()
+                queue = skipped
             }
-        } finally {
-            onHeadReady()
         }
     }
 
