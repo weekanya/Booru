@@ -1357,8 +1357,8 @@ fun SettingsScreen(
                                         shapes = ButtonDefaults.shapes(shape = ShapeTokens.Large, pressedShape = ButtonDefaults.pressedShape),
                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                                         colors = ButtonDefaults.filledTonalButtonColors(
-                                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                         ),
                                         modifier = Modifier
                                     ) {
