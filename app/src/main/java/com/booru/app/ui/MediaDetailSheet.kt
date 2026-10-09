@@ -71,6 +71,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -450,7 +451,24 @@ fun MediaDetailSheet(
                         contentColor = if (isFav) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.width(56.dp)
                     ) {
-                        Crossfade(targetState = isFav, animationSpec = Motion.effectsDefault(), label = "favIcon") { fav ->
+                        val heartScale = remember { androidx.compose.animation.core.Animatable(1f) }
+                        var lastFav by remember(currentMedia) { mutableStateOf(isFav) }
+                        LaunchedEffect(isFav) {
+                            if (isFav != lastFav) {
+                                lastFav = isFav
+                                heartScale.animateTo(if (isFav) 1.3f else 0.75f, Motion.spatialFast())
+                                heartScale.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = 600f))
+                            }
+                        }
+                        Crossfade(
+                            targetState = isFav,
+                            animationSpec = Motion.effectsDefault(),
+                            label = "favIcon",
+                            modifier = Modifier.graphicsLayer {
+                                scaleX = heartScale.value
+                                scaleY = heartScale.value
+                            }
+                        ) { fav ->
                             Icon(
                                 imageVector = if (fav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                                 contentDescription = "Favorite",
@@ -458,19 +476,35 @@ fun MediaDetailSheet(
                             )
                         }
                     }
-                    AnimatedVisibility(
-                        visible = isFav,
-                        enter = expandHorizontally(Motion.spatialDefault(), expandFrom = Alignment.Start) + fadeIn(Motion.effectsDefault()),
-                        exit = shrinkHorizontally(Motion.effectsFast(), shrinkTowards = Alignment.Start) + fadeOut(Motion.effectsFast())
-                    ) {
-                        Row(modifier = Modifier.fillMaxHeight()) {
-                            Spacer(Modifier.width(2.dp))
+                    val folderSlot by animateFloatAsState(
+                        targetValue = if (isFav) 1f else 0f,
+                        animationSpec = if (isFav) spring(dampingRatio = 0.7f, stiffness = 420f) else spring(dampingRatio = 0.9f, stiffness = 520f),
+                        label = "folderSlot"
+                    )
+                    if (folderSlot > 0.01f) {
+                        Box(
+                            contentAlignment = Alignment.CenterStart,
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(58.dp * folderSlot.coerceAtLeast(0f))
+                                .clipToBounds()
+                        ) {
+                            val p = folderSlot.coerceIn(0f, 1f)
                             DetailAction(
                                 position = GroupPosition.Middle,
                                 onClick = { showFolderDialog = true },
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.width(56.dp)
+                                modifier = Modifier
+                                    .wrapContentWidth(Alignment.Start, unbounded = true)
+                                    .padding(start = 2.dp)
+                                    .width(56.dp)
+                                    .graphicsLayer {
+                                        alpha = p
+                                        scaleX = 0.5f + 0.5f * p
+                                        scaleY = 0.5f + 0.5f * p
+                                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
+                                    }
                             ) {
                                 Icon(
                                     imageVector = if (inFolder) Icons.Rounded.Folder else Icons.Rounded.CreateNewFolder,
