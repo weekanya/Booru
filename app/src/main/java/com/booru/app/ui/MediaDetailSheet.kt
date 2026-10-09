@@ -79,9 +79,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import kotlin.math.roundToInt
-import androidx.compose.ui.layout.layout
 import coil.compose.SubcomposeAsyncImage
 import coil.compose.SubcomposeAsyncImageContent
 import androidx.compose.ui.layout.onSizeChanged
@@ -685,16 +682,6 @@ fun MediaDetailSheet(
                     animationSpec = Motion.spatialDefault(),
                     label = "tagsChevron"
                 )
-                val tagsReveal = animateFloatAsState(
-                    targetValue = if (isTagsExpanded) 1f else 0f,
-                    animationSpec = spring(dampingRatio = 1f, stiffness = 420f, visibilityThreshold = 0.001f),
-                    label = "tagsReveal"
-                )
-                var tagsComposed by remember(currentMedia) { mutableStateOf(false) }
-                LaunchedEffect(currentMedia) {
-                    delay(350)
-                    tagsComposed = true
-                }
     
                 Surface(
                     shape = ShapeTokens.LargeIncreased,
@@ -769,22 +756,23 @@ fun MediaDetailSheet(
                             }
                         }
     
-                        if (tagsComposed || isTagsExpanded || tagsReveal.value > 0f) {
+                        AnimatedVisibility(
+                            visible = isTagsExpanded,
+                            enter = expandVertically(
+                                animationSpec = spring(dampingRatio = 1f, stiffness = 520f, visibilityThreshold = androidx.compose.ui.unit.IntSize(1, 1)),
+                                expandFrom = Alignment.Top
+                            ) + fadeIn(tween(220, delayMillis = 60)) + androidx.compose.animation.slideInVertically(
+                                animationSpec = spring(dampingRatio = 1f, stiffness = 520f, visibilityThreshold = androidx.compose.ui.unit.IntOffset(1, 1)),
+                                initialOffsetY = { -it / 12 }
+                            ),
+                            exit = shrinkVertically(
+                                animationSpec = spring(dampingRatio = 1f, stiffness = 700f, visibilityThreshold = androidx.compose.ui.unit.IntSize(1, 1)),
+                                shrinkTowards = Alignment.Top
+                            ) + fadeOut(tween(120))
+                        ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .then(if (isTagsExpanded) Modifier else Modifier.clearAndSetSemantics {})
-                                    .clipToBounds()
-                                    .layout { measurable, constraints ->
-                                        val placeable = measurable.measure(constraints.copy(minHeight = 0, maxHeight = androidx.compose.ui.unit.Constraints.Infinity))
-                                        val height = (placeable.height * tagsReveal.value.coerceIn(0f, 1f)).roundToInt()
-                                        layout(placeable.width, height) { placeable.placeRelative(0, 0) }
-                                    }
-                                    .graphicsLayer {
-                                        val p = tagsReveal.value.coerceIn(0f, 1f)
-                                        alpha = ((p - 0.2f) / 0.8f).coerceIn(0f, 1f)
-                                        translationY = (1f - p) * -12.dp.toPx()
-                                    }
                                     .padding(start = 14.dp, end = 14.dp, bottom = 14.dp, top = 2.dp)
                             ) {
                                 HorizontalDivider(
@@ -1664,72 +1652,83 @@ private fun OptInFlowDetailTags(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-    } else {
-        val classifiedTags = remember(tags) {
-            tags.map { TagClassifier.classify(it) }
-        }
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            classifiedTags.forEach { item ->
-                val isBlacklisted = blacklistedTags.any {
-                    it.equals(item.rawTag, ignoreCase = true) || (it.contains(":") && it.substringAfter(":") == item.rawTag)
-                }
-                val cat = item.category
-                val scheme = MaterialTheme.colorScheme
-                val roles = cat.roles()
-                val isGeneral = cat == TagCategory.GENERAL
-                val chipBg = when {
-                    isBlacklisted -> scheme.errorContainer.copy(alpha = 0.25f)
-                    isGeneral -> scheme.surfaceContainerHigh
-                    else -> roles.container
-                }
-                val chipContent = when {
-                    isBlacklisted -> scheme.error
-                    isGeneral -> scheme.onSurface
-                    else -> roles.onContainer
-                }
-                val chipIcon = if (isBlacklisted) Icons.Rounded.Block else cat.icon
-                val iconTint = when {
-                    isBlacklisted -> scheme.error
-                    isGeneral -> roles.accent
-                    else -> roles.onContainer
-                }
-
-                val chipPress = remember { MutableInteractionSource() }
-                val chipShape = pressMorphShape(chipPress, pressedFraction = 0.3f)
-                Surface(
-                    shape = chipShape,
-                    color = chipBg,
-                    modifier = Modifier
-                        .clip(chipShape)
-                        .combinedClickable(
-                            interactionSource = chipPress,
-                            indication = ripple(),
-                            onClick = { onTagClick(item.rawTag) },
-                            onLongClick = { onTagLongClick(item.rawTag) }
-                        )
+        return
+    }
+    val groups = remember(tags) {
+        val order = listOf(TagCategory.ARTIST, TagCategory.CHARACTER, TagCategory.COPYRIGHT, TagCategory.GENERAL, TagCategory.META)
+        val byCategory = tags.map { TagClassifier.classify(it) }.groupBy { it.category }
+        order.mapNotNull { cat -> byCategory[cat]?.let { cat to it } }
+    }
+    val blacklist = remember(blacklistedTags) { blacklistedTags.map { it.lowercase() }.toSet() }
+    val scheme = MaterialTheme.colorScheme
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        groups.forEach { (cat, items) ->
+            val roles = cat.roles()
+            val isGeneral = cat == TagCategory.GENERAL
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(start = 2.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Icon(
-                            imageVector = chipIcon,
-                            contentDescription = cat.localizedName(lang),
-                            modifier = Modifier.size(13.dp),
-                            tint = iconTint
-                        )
-                        Text(
-                            text = item.displayTag,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = if (cat != TagCategory.GENERAL) FontWeight.SemiBold else FontWeight.Medium,
-                            color = chipContent,
-                            textDecoration = if (isBlacklisted) TextDecoration.LineThrough else null
-                        )
+                    Icon(
+                        imageVector = cat.icon,
+                        contentDescription = null,
+                        tint = roles.accent,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = cat.localizedName(lang),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = roles.accent
+                    )
+                    Text(
+                        text = "${items.size}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = scheme.onSurfaceVariant
+                    )
+                }
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items.forEach { item ->
+                        val raw = item.rawTag.lowercase()
+                        val isBlacklisted = raw in blacklist || blacklist.any { it.contains(":") && it.substringAfter(":") == raw }
+                        val bg = when {
+                            isBlacklisted -> scheme.errorContainer
+                            isGeneral -> scheme.surfaceContainerLowest
+                            else -> roles.container
+                        }
+                        val fg = when {
+                            isBlacklisted -> scheme.onErrorContainer
+                            isGeneral -> scheme.onSurface
+                            else -> roles.onContainer
+                        }
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .heightIn(min = 34.dp)
+                                .clip(CircleShape)
+                                .background(bg)
+                                .combinedClickable(
+                                    onClick = { onTagClick(item.rawTag) },
+                                    onLongClick = { onTagLongClick(item.rawTag) }
+                                )
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = item.displayTag,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (isGeneral) FontWeight.Medium else FontWeight.SemiBold,
+                                color = fg,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textDecoration = if (isBlacklisted) TextDecoration.LineThrough else null
+                            )
+                        }
                     }
                 }
             }
