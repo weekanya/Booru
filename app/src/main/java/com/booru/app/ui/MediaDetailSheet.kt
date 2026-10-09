@@ -655,10 +655,7 @@ fun MediaDetailSheet(
                 Spacer(Modifier.height(14.dp))
     
                 val cardBg by animateColorAsState(
-                    targetValue = if (isTagsExpanded)
-                        MaterialTheme.colorScheme.surfaceContainerHighest
-                    else
-                        MaterialTheme.colorScheme.surfaceContainerHigh,
+                    targetValue = MaterialTheme.colorScheme.surfaceContainerHigh,
                     animationSpec = Motion.effectsDefault(),
                     label = "tagsCardBg"
                 )
@@ -1699,9 +1696,9 @@ private fun OptInFlowDetailTags(
                         val raw = item.rawTag.lowercase()
                         val isBlacklisted = raw in blacklist || blacklist.any { it.contains(":") && it.substringAfter(":") == raw }
                         val bg = when {
-                            isBlacklisted -> scheme.error.copy(alpha = 0.10f).compositeOver(scheme.surfaceContainerLowest)
-                            isGeneral -> scheme.surfaceContainerLowest
-                            else -> roles.accent.copy(alpha = 0.10f).compositeOver(scheme.surfaceContainerLowest)
+                            isBlacklisted -> scheme.error.copy(alpha = 0.14f).compositeOver(scheme.surfaceContainerHighest)
+                            isGeneral -> scheme.surfaceContainerHighest
+                            else -> roles.accent.copy(alpha = 0.14f).compositeOver(scheme.surfaceContainerHighest)
                         }
                         val fg = when {
                             isBlacklisted -> scheme.error
