@@ -122,6 +122,7 @@ fun FavoritesScreen(
     var newFolderName by remember { mutableStateOf("") }
     var folderToDelete by remember { mutableStateOf<String?>(null) }
     var showFilterSheet by remember { mutableStateOf(false) }
+    var showStatsSheet by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     val folders = remember(vm.customFolders) {
@@ -207,6 +208,13 @@ fun FavoritesScreen(
         }
     }
 
+    if (showStatsSheet) {
+        FavoriteStatsSheet(
+            lang = lang,
+            onDismiss = { showStatsSheet = false }
+        )
+    }
+
     if (showFilterSheet) {
         FavoritesFilterBottomSheet(
             currentSort = sortOrder,
@@ -274,6 +282,26 @@ fun FavoritesScreen(
                     )
                 }
 
+                AnimatedVisibility(
+                    visible = vm.favoritesList.isNotEmpty(),
+                    enter = fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialDefault()),
+                    exit = fadeOut(Motion.effectsFast()) + scaleOut()
+                ) {
+                    FilledTonalIconButton(
+                        shapes = IconButtonDefaults.shapes(),
+                        onClick = {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                            showStatsSheet = true
+                        }
+                    ) {
+                        Icon(
+                            Icons.Rounded.Insights,
+                            contentDescription = statsTitle(lang),
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
             }
         }
 
