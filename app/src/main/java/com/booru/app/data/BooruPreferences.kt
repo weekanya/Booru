@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -70,6 +71,12 @@ class BooruPreferences(private val context: Context) {
         val KEY_CUSTOM_SOURCES = stringPreferencesKey("custom_sources")
         val KEY_RECOMMENDATION_TAGS = stringPreferencesKey("recommendation_tags")
         val KEY_RECOMMENDATION_RATIO = floatPreferencesKey("recommendation_ratio")
+        val KEY_RECOMMENDATION_DECAYED_AT = longPreferencesKey("recommendation_decayed_at")
+
+        private const val INTEREST_HALF_LIFE_MS = 21L * 24 * 60 * 60 * 1000
+        private const val INTEREST_MIN_WEIGHT = 0.3f
+        private const val INTEREST_MAX_WEIGHT = 80f
+        private const val INTEREST_MAX_TAGS = 150
         val KEY_BIOMETRIC_LOCK_ENABLED = booleanPreferencesKey("biometric_lock_enabled")
         val KEY_BIOMETRIC_LOCK_TIMEOUT_MIN = intPreferencesKey("biometric_lock_timeout_min")
         val KEY_FAVORITE_FOLDERS_JSON = stringPreferencesKey("favorite_folders_json")
@@ -128,23 +135,22 @@ class BooruPreferences(private val context: Context) {
         }
     }
 
-    val recommendationTags: Flow<Map<String, Int>> = read { prefs ->
-        val jsonStr = prefs[KEY_RECOMMENDATION_TAGS] ?: ""
-        if (jsonStr.isBlank()) emptyMap()
-        else {
-            runCatching {
-                val obj = JSONObject(jsonStr)
-                val map = mutableMapOf<String, Int>()
-                val keys = obj.keys()
-                while (keys.hasNext()) {
-                    val k = keys.next()
-                    if (TagClassifier.isRecommendationCandidate(k)) {
-                        map[k] = obj.optInt(k, 0)
-                    }
-                }
-                map
-            }.getOrDefault(emptyMap())
+    val recommendationTags: Flow<Map<String, Float>> = read { prefs ->
+        parseInterestMap(prefs[KEY_RECOMMENDATION_TAGS]).filterKeys { TagClassifier.isRecommendationCandidate(it) }
+    }
+
+    private fun parseInterestMap(jsonStr: String?): MutableMap<String, Float> {
+        val map = mutableMapOf<String, Float>()
+        if (jsonStr.isNullOrBlank()) return map
+        runCatching {
+            val obj = JSONObject(jsonStr)
+            val keys = obj.keys()
+            while (keys.hasNext()) {
+                val k = keys.next()
+                map[k] = obj.optDouble(k, 0.0).toFloat()
+            }
         }
+        return map
     }
 
     val tagBlacklist: Flow<List<String>> = read { prefs ->
@@ -446,54 +452,56 @@ class BooruPreferences(private val context: Context) {
         }
     }
 
-    suspend fun recordSearchTags(tags: List<String>, weight: Int = 2) {
+    suspend fun recordSearchTags(tags: List<String>) = recordInterest(tags, weight = 2f)
+
+    suspend fun recordFavoriteTags(mediaTags: String) = recordInterest(splitTags(mediaTags), weight = 6f)
+
+    /** A post opened from the feed. Only the post that was tapped counts, not the ones swiped to afterwards. */
+    suspend fun recordViewedTags(mediaTags: String) = recordInterest(splitTags(mediaTags), weight = 1f, generalFactor = 0.4f)
+
+    suspend fun recordSavedTags(mediaTags: String) = recordInterest(splitTags(mediaTags), weight = 3f, generalFactor = 0.6f)
+
+    private fun splitTags(mediaTags: String): List<String> =
+        if (mediaTags.isBlank()) emptyList() else mediaTags.split(Regex("[\\s,]+"))
+
+    /**
+     * Adds [weight] to every candidate tag. Weights fade with a half-life of three weeks,
+     * so recent interests outrank old ones without any single event wiping the rest.
+     * General tags are scaled by [generalFactor] since they say less about taste than
+     * characters, franchises and artists.
+     */
+    private suspend fun recordInterest(tags: List<String>, weight: Float, generalFactor: Float = 1f) {
         if (tags.isEmpty()) return
         context.dataStore.edit { prefs ->
             val blacklist = prefs[KEY_TAG_BLACKLIST] ?: emptySet()
-            val jsonStr = prefs[KEY_RECOMMENDATION_TAGS] ?: ""
-            val currentMap = mutableMapOf<String, Int>()
-            if (jsonStr.isNotBlank()) {
-                runCatching {
-                    val obj = JSONObject(jsonStr)
-                    val keys = obj.keys()
-                    while (keys.hasNext()) {
-                        val k = keys.next()
-                        currentMap[k] = obj.optInt(k, 0)
-                    }
-                }
-            }
             val candidates = tags.map { it.trim().lowercase().trim(',', ';', '.', '(', ')', '"', '\'') }
                 .filter { TagClassifier.isRecommendationCandidate(it) && !blacklist.contains(it) }
-
+                .toSet()
             if (candidates.isEmpty()) return@edit
 
-            for (k in currentMap.keys.toList()) {
-                val count = currentMap[k] ?: 1
-                if (count > 1 && !candidates.contains(k)) {
-                    currentMap[k] = (count * 0.95f).toInt().coerceAtLeast(1)
-                }
+            val now = System.currentTimeMillis()
+            val map = parseInterestMap(prefs[KEY_RECOMMENDATION_TAGS])
+            val decayedAt = prefs[KEY_RECOMMENDATION_DECAYED_AT] ?: now
+            val elapsed = (now - decayedAt).coerceAtLeast(0L)
+            if (elapsed > 0L) {
+                val factor = Math.pow(0.5, elapsed.toDouble() / INTEREST_HALF_LIFE_MS).toFloat()
+                for (k in map.keys.toList()) map[k] = map.getValue(k) * factor
             }
 
             for (tag in candidates) {
-                val count = (currentMap[tag] ?: 0) + weight
-                currentMap[tag] = count.coerceAtMost(60)
+                val scaled = if (TagClassifier.classify(tag).category == TagCategory.GENERAL) weight * generalFactor else weight
+                map[tag] = ((map[tag] ?: 0f) + scaled).coerceAtMost(INTEREST_MAX_WEIGHT)
             }
-            val sorted = currentMap.entries
-                .filter { it.value >= 1 && !blacklist.contains(it.key) && TagClassifier.isRecommendationCandidate(it.key) }
-                .sortedByDescending { it.value }
-                .take(60)
-            val newObj = JSONObject()
-            for (entry in sorted) {
-                newObj.put(entry.key, entry.value)
-            }
-            prefs[KEY_RECOMMENDATION_TAGS] = newObj.toString()
-        }
-    }
 
-    suspend fun recordFavoriteTags(mediaTags: String) {
-        if (mediaTags.isBlank()) return
-        val tags = mediaTags.split(Regex("[\\s,]+"))
-        recordSearchTags(tags, weight = 6)
+            val newObj = JSONObject()
+            map.entries
+                .filter { it.value >= INTEREST_MIN_WEIGHT && !blacklist.contains(it.key) && TagClassifier.isRecommendationCandidate(it.key) }
+                .sortedByDescending { it.value }
+                .take(INTEREST_MAX_TAGS)
+                .forEach { newObj.put(it.key, Math.round(it.value * 100) / 100.0) }
+            prefs[KEY_RECOMMENDATION_TAGS] = newObj.toString()
+            prefs[KEY_RECOMMENDATION_DECAYED_AT] = now
+        }
     }
 
     suspend fun setRecommendationRatio(ratio: Float) {
@@ -558,7 +566,10 @@ class BooruPreferences(private val context: Context) {
     }
 
     suspend fun clearRecommendationData() {
-        context.dataStore.edit { it.remove(KEY_RECOMMENDATION_TAGS) }
+        context.dataStore.edit {
+            it.remove(KEY_RECOMMENDATION_TAGS)
+            it.remove(KEY_RECOMMENDATION_DECAYED_AT)
+        }
     }
 
     suspend fun addTagToBlacklist(tag: String) {

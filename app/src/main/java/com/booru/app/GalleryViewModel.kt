@@ -115,7 +115,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var customSources by mutableStateOf<List<CustomBooruSource>>(emptyList()); private set
     var selectedContentTypes by mutableStateOf<Set<ContentType>>(emptySet()); private set
     var recommendationTags by mutableStateOf<List<String>>(emptyList()); private set
-    private var recordedRecTagsMap: Map<String, Int> = emptyMap()
+    private var recordedRecTagsMap: Map<String, Float> = emptyMap()
+    private val viewedForRecommendations = HashSet<String>()
     var scrollToTopTrigger by mutableStateOf(0L); private set
     var refreshSeed by mutableStateOf(0); private set
     var isIncognito by mutableStateOf(false); private set
@@ -665,7 +666,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private fun computeRecommendationTags(
         favorites: List<RemoteMedia>,
         blacklist: List<String>,
-        recorded: Map<String, Int>
+        recorded: Map<String, Float>
     ): List<String> {
         val blocked = blacklist.mapTo(HashSet()) { it.lowercase() }
         val tagWeights = mutableMapOf<String, Float>()
@@ -706,7 +707,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 TagCategory.ARTIST -> 2.0f
                 else -> 1.0f
             }
-            tagWeights[clean] = (tagWeights[clean] ?: 0f) + (count.toFloat() * multiplier)
+            tagWeights[clean] = (tagWeights[clean] ?: 0f) + (count * multiplier)
         }
         return tagWeights.entries
             .sortedByDescending { it.value }
@@ -1468,6 +1469,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         source = BooruRepository.SOURCE_ALL
         query = ""
         recordedRecTagsMap = emptyMap()
+        viewedForRecommendations.clear()
         viewModelScope.launch {
             prefs.setDefaultSource(BooruRepository.SOURCE_ALL)
             prefs.clearRecommendationData()
@@ -1636,13 +1638,28 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun openFullscreen(list: List<RemoteMedia>, index: Int) {
         if (list.isNotEmpty()) {
-            fullscreenState = FullscreenState(
+            val state = FullscreenState(
                 list = list,
                 index = index.coerceIn(0, list.size - 1),
                 isFromResults = (list === results),
                 openId = ++fullscreenOpenCounter
             )
+            fullscreenState = state
+            if (state.isFromResults) recordOpenedForRecommendations(list[state.index])
         }
+    }
+
+    // Only the post tapped in the feed is a signal. Swiping to neighbours in the viewer goes
+    // through updateFullscreenIndex and is deliberately not recorded.
+    private fun recordOpenedForRecommendations(media: RemoteMedia) {
+        if (isIncognito || media.tags.isBlank()) return
+        if (!viewedForRecommendations.add(media.mediaKey)) return
+        viewModelScope.launch { prefs.recordViewedTags(media.tags) }
+    }
+
+    private fun recordSavedForRecommendations(media: RemoteMedia) {
+        if (isIncognito || media.tags.isBlank()) return
+        viewModelScope.launch { prefs.recordSavedTags(media.tags) }
     }
 
     var activeDownloads by mutableStateOf<Set<String>>(emptySet()); private set
@@ -1661,6 +1678,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val key = media.mediaKey
         if (key in activeDownloads) return
         activeDownloads = activeDownloads + key
+        recordSavedForRecommendations(media)
         val lang = language
         toast(com.booru.app.data.Strings.loadingOriginal(lang))
         viewModelScope.launch {
@@ -1681,6 +1699,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun applyWallpaper(target: Int, media: RemoteMedia) {
         if (isSettingWallpaper) return
         isSettingWallpaper = true
+        recordSavedForRecommendations(media)
         val lang = language
         toast(com.booru.app.data.Strings.settingWallpaper(lang))
         viewModelScope.launch {
