@@ -31,10 +31,19 @@ jobs:
       - name: Prepare signing key
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.BOORU_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.BOORU_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.BOORU_KEY_ALIAS }}
         run: |
           mkdir -p "$SIGNING_DIR"
           if [ "$HAS_RELEASE_KEY" = "true" ]; then
-            echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$SIGNING_DIR/release.jks"
+            if ! echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > "$SIGNING_DIR/release.jks" 2>/dev/null; then
+              echo "::error::BOORU_KEYSTORE_BASE64 is not valid base64"
+              exit 1
+            fi
+            if ! keytool -list -keystore "$SIGNING_DIR/release.jks" -storepass "$RELEASE_KEYSTORE_PASSWORD" -alias "$RELEASE_KEY_ALIAS" > /dev/null; then
+              echo "::error::Keystore cannot be opened: check BOORU_KEYSTORE_PASSWORD and BOORU_KEY_ALIAS"
+              exit 1
+            fi
             echo "::notice::Signing with the release key from repository secrets"
           else
             if [ ! -f "$SIGNING_DIR/ci.jks" ]; then
@@ -64,6 +73,22 @@ jobs:
           fi
           chmod +x gradlew
           ./gradlew assembleRelease
+
+      - name: Show signing certificate
+        run: |
+          APKSIGNER="$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)"
+          for apk in app/build/outputs/apk/release/*.apk; do
+            DIGEST="$("$APKSIGNER" verify --print-certs "$apk" | grep -m1 'certificate SHA-256 digest' | awk -F': ' '{print $2}')"
+            echo "$(basename "$apk"): $DIGEST"
+            {
+              echo "### Signing certificate"
+              echo "\`$(basename "$apk")\` SHA-256: \`$DIGEST\`"
+              if [ "$HAS_RELEASE_KEY" != "true" ]; then
+                echo ""
+                echo "> Signed with the CI key, not the release key. This APK will not update an installed release build."
+              fi
+            } >> "$GITHUB_STEP_SUMMARY"
+          done
 
       - name: Remove signing key
         if: always()
