@@ -1,12 +1,11 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class, androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package com.booru.app.ui
 
-import android.content.Context
-import android.content.Intent
-import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -28,22 +27,18 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.graphics.layer.drawLayer
-import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.core.content.FileProvider
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import coil3.request.allowHardware
@@ -58,10 +53,8 @@ import com.booru.app.data.TagCategoryCache
 import com.booru.app.data.db.AppDatabase
 import com.booru.app.data.db.FavoriteEntity
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -97,8 +90,7 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
     var favorites by remember { mutableStateOf<List<FavoriteEntity>?>(null) }
     var period by rememberSaveable { mutableStateOf(StatsPeriod.ALL_TIME) }
     var lookupProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    var sharing by remember { mutableStateOf(false) }
-    var periodMenuOpen by remember { mutableStateOf(false) }
+    var showPeriodSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val list = withContext(Dispatchers.IO) {
@@ -119,14 +111,24 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
         val list = favorites ?: return@produceState
         value = withContext(Dispatchers.Default) { FavoriteStats.compute(list, period) }
     }
-    val captureLayer = rememberGraphicsLayer()
-    val shareLabel = Strings.tr(lang, "Share", "Поделиться", "共有", "分享", "공유", "مشاركة")
     val tabs = listOf(
         Strings.tr(lang, "Overview", "Обзор", "概要", "概览", "개요", "نظرة عامة") to Icons.Rounded.Insights,
         Strings.tr(lang, "Favorites", "Любимое", "お気に入り", "最爱", "최애", "المفضلة") to Icons.Rounded.FavoriteBorder,
         Strings.tr(lang, "Activity", "Активность", "アクティビティ", "活跃度", "활동", "النشاط") to Icons.Rounded.BarChart
     )
     val pagerState = rememberPagerState(pageCount = { tabs.size })
+
+    if (showPeriodSheet) {
+        StatsPeriodSheet(
+            current = period,
+            lang = lang,
+            onSelect = {
+                period = it
+                showPeriodSheet = false
+            },
+            onDismiss = { showPeriodSheet = false }
+        )
+    }
 
     Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
@@ -137,7 +139,10 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDismiss, shapes = IconButtonDefaults.shapes()) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = null)
+                    Icon(
+                        Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = Strings.tr(lang, "Back", "Назад", "戻る", "返回", "뒤로", "رجوع")
+                    )
                 }
                 Text(
                     text = statsTitle(lang),
@@ -150,67 +155,48 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                         .weight(1f)
                         .padding(start = 4.dp)
                 )
-                Box {
-                    FilledTonalButton(
-                        onClick = { periodMenuOpen = true },
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = PaddingValues(start = 14.dp, end = 8.dp)
-                    ) {
-                        Text(periodLabel(period, lang), style = MaterialTheme.typography.labelLarge, maxLines = 1)
-                        Icon(Icons.Rounded.ArrowDropDown, contentDescription = null, modifier = Modifier.size(20.dp))
-                    }
-                    DropdownMenu(
-                        expanded = periodMenuOpen,
-                        onDismissRequest = { periodMenuOpen = false },
-                        shape = ShapeTokens.Large,
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-                    ) {
-                        StatsPeriod.entries.forEach { item ->
-                            DropdownMenuItem(
-                                text = { Text(periodLabel(item, lang)) },
-                                leadingIcon = {
-                                    if (item == period) Icon(Icons.Rounded.Check, contentDescription = null)
-                                    else Spacer(Modifier.size(24.dp))
-                                },
-                                onClick = {
-                                    period = item
-                                    periodMenuOpen = false
-                                }
-                            )
-                        }
-                    }
-                }
-                Spacer(Modifier.width(4.dp))
-                IconButton(
-                    onClick = {
-                        if (sharing) return@IconButton
-                        sharing = true
-                        scope.launch {
-                            try {
-                                if (pagerState.currentPage != 0) {
-                                    pagerState.animateScrollToPage(0)
-                                    delay(120)
-                                }
-                                shareStatsImage(context, captureLayer.toImageBitmap().asAndroidBitmap(), shareLabel)
-                            } catch (_: Exception) {
-                            } finally {
-                                sharing = false
-                            }
-                        }
-                    },
-                    enabled = stats?.isEmpty == false && !sharing,
-                    shapes = IconButtonDefaults.shapes()
+                FilledTonalButton(
+                    onClick = { showPeriodSheet = true },
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = PaddingValues(start = 12.dp, end = 8.dp)
                 ) {
-                    Icon(Icons.Rounded.Share, contentDescription = shareLabel)
+                    Icon(Icons.Rounded.DateRange, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(periodLabel(period, lang), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                    Icon(Icons.Rounded.ArrowDropDown, contentDescription = null, modifier = Modifier.size(20.dp))
                 }
             }
 
-            SettingsTabBar(
-                titles = tabs.map { it.first },
-                icons = tabs.map { it.second },
-                pagerState = pagerState,
-                onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index, animationSpec = Motion.spatialDefault()) } }
-            )
+            val selectedTab = pagerState.targetPage
+            PrimaryTabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = MaterialTheme.colorScheme.surface,
+                indicator = {
+                    TabRowDefaults.PrimaryIndicator(
+                        modifier = Modifier.tabIndicatorOffset(selectedTab, matchContentSize = true),
+                        width = Dp.Unspecified,
+                        shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
+                    )
+                }
+            ) {
+                tabs.forEachIndexed { index, (title, icon) ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = {
+                            scope.launch {
+                                pagerState.animateScrollToPage(
+                                    index,
+                                    animationSpec = tween(durationMillis = 380, easing = FastOutSlowInEasing)
+                                )
+                            }
+                        },
+                        text = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        icon = { Icon(icon, contentDescription = null) },
+                        selectedContentColor = MaterialTheme.colorScheme.primary,
+                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
 
             AnimatedVisibility(
                 visible = lookupProgress != null,
@@ -246,7 +232,7 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                 current.isEmpty -> EmptyStats(lang)
                 else -> HorizontalPager(
                     state = pagerState,
-                    beyondViewportPageCount = 2,
+                    beyondViewportPageCount = 1,
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
                     val background = MaterialTheme.colorScheme.surface
@@ -260,12 +246,6 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                                 .fillMaxWidth()
                                 .wrapContentWidth(Alignment.CenterHorizontally)
                                 .readableContentWidth()
-                                .then(
-                                    if (page == 0) Modifier.drawWithContent {
-                                        captureLayer.record { this@drawWithContent.drawContent() }
-                                        drawLayer(captureLayer)
-                                    } else Modifier
-                                )
                                 .background(background)
                                 .padding(horizontal = 16.dp)
                                 .padding(top = 8.dp, bottom = 24.dp),
@@ -294,6 +274,7 @@ private fun OverviewPage(stats: FavoriteStats, period: StatsPeriod, lang: AppLan
         stats.topCopyrights.firstOrNull()?.let { Triple(TagCategory.COPYRIGHT, Strings.tr(lang, "Favorite series", "Любимая франшиза", "推し作品", "最爱作品", "최애 작품", "العمل المفضل"), it) }
     )
     if (spotlights.isNotEmpty()) {
+        SectionHeader(Strings.tr(lang, "Your top picks", "Ваши любимчики", "あなたの推し", "你的最爱", "나의 최애", "مفضلاتك"))
         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
             spotlights.forEachIndexed { index, (category, title, entry) ->
                 SpotlightRow(category, title, entry, lang, segmentShape(index, spotlights.size))
@@ -305,7 +286,7 @@ private fun OverviewPage(stats: FavoriteStats, period: StatsPeriod, lang: AppLan
         FactTile(
             icon = Icons.Rounded.LocalFireDepartment,
             value = daysLabel(stats.longestStreak, lang),
-            label = Strings.tr(lang, "Longest streak", "Лучшая серия", "最長連続", "最长连续", "최장 연속", "أطول سلسلة"),
+            label = Strings.tr(lang, "Longest streak of days in a row", "Лучшая серия дней подряд", "最長連続日数", "最长连续天数", "최장 연속 일수", "أطول سلسلة أيام متتالية"),
             modifier = Modifier.weight(1f).fillMaxHeight()
         )
         FactTile(
@@ -347,17 +328,29 @@ private fun FavoritesPage(stats: FavoriteStats, lang: AppLanguage) {
     ).filter { it.third.isNotEmpty() }
 
     if (stats.topTags.isNotEmpty()) {
-        StatsCard(Icons.Rounded.Tag, Strings.tr(lang, "Your vibe", "Ваш вайб", "あなたの好み", "你的口味", "나의 취향", "ذوقك")) {
+        StatsCard(
+            Icons.Rounded.Tag,
+            Strings.tr(lang, "Your vibe", "Ваш вайб", "あなたの好み", "你的口味", "나의 취향", "ذوقك"),
+            Strings.tr(lang, "Most common tags in your favorites", "Самые частые теги в избранном", "お気に入りで多いタグ", "收藏中最常见的标签", "즐겨찾기에서 가장 많은 태그", "الوسوم الأكثر تكراراً في مفضلتك")
+        ) {
             TagCloud(stats.topTags)
         }
     }
     groups.forEach { (category, title, entries) ->
-        StatsCard(category.icon, title) {
+        StatsCard(
+            category.icon,
+            title,
+            Strings.tr(lang, "Posts in favorites with each one", "Сколько постов с ними в избранном", "お気に入りの投稿数", "收藏中的作品数", "즐겨찾기 게시물 수", "عدد المنشورات في المفضلة")
+        ) {
             RankedBars(entries.take(8), MaterialTheme.colorScheme.primary)
         }
     }
     if (stats.topSources.size > 1) {
-        StatsCard(Icons.Rounded.Public, Strings.tr(lang, "Sources", "Источники", "ソース", "来源", "소스", "المصادر")) {
+        StatsCard(
+            Icons.Rounded.Public,
+            Strings.tr(lang, "Sources", "Источники", "ソース", "来源", "소스", "المصادر"),
+            Strings.tr(lang, "Where your favorites come from", "Откуда вы чаще всего добавляете", "お気に入りの取得元", "收藏来自哪里", "즐겨찾기 출처", "مصادر مفضلتك")
+        ) {
             RankedBars(stats.topSources.take(5), MaterialTheme.colorScheme.primary, prettify = false)
         }
     }
@@ -367,12 +360,20 @@ private fun FavoritesPage(stats: FavoriteStats, lang: AppLanguage) {
 @Composable
 private fun ActivityPage(stats: FavoriteStats, lang: AppLanguage, locale: Locale) {
     if (stats.monthly.size > 1) {
-        StatsCard(Icons.Rounded.BarChart, Strings.tr(lang, "By month", "По месяцам", "月別", "按月", "월별", "حسب الشهر")) {
+        StatsCard(
+            Icons.Rounded.BarChart,
+            Strings.tr(lang, "By month", "По месяцам", "月別", "按月", "월별", "حسب الشهر"),
+            Strings.tr(lang, "Favorites added each month", "Сколько добавлено за каждый месяц", "月ごとの追加数", "每月新增收藏", "월별 추가 수", "المضاف كل شهر")
+        ) {
             ActivityChart(stats, locale, lang)
         }
     }
 
-    StatsCard(Icons.Rounded.PieChart, Strings.tr(lang, "Mix", "Состав", "内訳", "构成", "구성", "التركيبة")) {
+    StatsCard(
+        Icons.Rounded.PieChart,
+        Strings.tr(lang, "Mix", "Состав", "内訳", "构成", "구성", "التركيبة"),
+        Strings.tr(lang, "File types and ratings", "Типы файлов и рейтинг", "ファイル形式とレーティング", "文件类型与分级", "파일 형식과 등급", "أنواع الملفات والتصنيفات")
+    ) {
         val primary = MaterialTheme.colorScheme.primary
         val tertiary = MaterialTheme.colorScheme.tertiary
         val secondary = MaterialTheme.colorScheme.secondary
@@ -396,7 +397,11 @@ private fun ActivityPage(stats: FavoriteStats, lang: AppLanguage, locale: Locale
     }
 
     stats.topScored?.let { top ->
-        StatsCard(Icons.Rounded.EmojiEvents, Strings.tr(lang, "Highest score", "Самый высокий рейтинг", "最高スコア", "最高评分", "최고 점수", "أعلى تقييم")) {
+        StatsCard(
+            Icons.Rounded.EmojiEvents,
+            Strings.tr(lang, "Highest score", "Самый высокий рейтинг", "最高スコア", "最高评分", "최고 점수", "أعلى تقييم"),
+            Strings.tr(lang, "Your favorite with the most votes on its site", "Пост с наибольшим рейтингом на сайте", "サイトで最も評価された投稿", "在站点评分最高的收藏", "사이트 점수가 가장 높은 게시물", "المنشور الأعلى تقييماً")
+        ) {
             TopScoredRow(top)
         }
     }
@@ -556,7 +561,7 @@ private fun Thumbnail(favorite: FavoriteEntity?, modifier: Modifier) {
 }
 
 @Composable
-private fun StatsCard(icon: ImageVector, title: String, content: @Composable ColumnScope.() -> Unit) {
+private fun StatsCard(icon: ImageVector, title: String, subtitle: String? = null, content: @Composable ColumnScope.() -> Unit) {
     Surface(
         shape = ShapeTokens.ExtraLarge,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -570,12 +575,21 @@ private fun StatsCard(icon: ImageVector, title: String, content: @Composable Col
                     }
                 }
                 Spacer(Modifier.width(10.dp))
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Column {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (subtitle != null) {
+                        Text(
+                            text = subtitle,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
             }
             content()
         }
@@ -755,7 +769,6 @@ private fun ActivityChart(stats: FavoriteStats, locale: Locale, lang: AppLanguag
                 Text(
                     text = month.month.getDisplayName(TextStyle.NARROW_STANDALONE, locale),
                     style = MaterialTheme.typography.labelSmall,
-                    fontSize = 10.sp,
                     fontWeight = if (isPeak) FontWeight.Bold else FontWeight.Normal,
                     color = if (isPeak) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -900,18 +913,97 @@ private fun periodLabel(period: StatsPeriod, lang: AppLanguage) = when (period) 
 private fun daysLabel(days: Int, lang: AppLanguage) =
     Strings.tr(lang, "$days days", "$days дн.", "${days}日", "$days 天", "${days}일", "$days يوم")
 
-private suspend fun shareStatsImage(context: Context, bitmap: Bitmap, chooserTitle: String) {
-    val uri = withContext(Dispatchers.IO) {
-        val software = if (bitmap.config == Bitmap.Config.HARDWARE) bitmap.copy(Bitmap.Config.ARGB_8888, false) else bitmap
-        val dir = File(context.cacheDir, "images").apply { mkdirs() }
-        val file = File(dir, "booru_stats.png")
-        file.outputStream().use { software.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+@Composable
+private fun SectionHeader(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(start = 8.dp, top = 8.dp)
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StatsPeriodSheet(
+    current: StatsPeriod,
+    lang: AppLanguage,
+    onSelect: (StatsPeriod) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberExpandedSheetState()
+    SheetMotion {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = ShapeTokens.ExtraLargeTop
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 20.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = ShapeTokens.Medium,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Rounded.DateRange,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = Strings.tr(lang, "Period", "Период", "期間", "时间范围", "기간", "الفترة"),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+                val periods = StatsPeriod.entries
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    periods.forEachIndexed { index, item ->
+                        val selected = item == current
+                        Surface(
+                            onClick = { onSelect(item) },
+                            shape = segmentShape(index, periods.size),
+                            color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 56.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = periodLabel(item, lang),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                if (selected) {
+                                    Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(22.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
-    val intent = Intent(Intent.ACTION_SEND).apply {
-        type = "image/png"
-        putExtra(Intent.EXTRA_STREAM, uri)
-        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    }
-    context.startActivity(Intent.createChooser(intent, chooserTitle))
 }

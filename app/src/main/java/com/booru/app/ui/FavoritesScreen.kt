@@ -346,10 +346,11 @@ fun FavoritesScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    shape = CircleShape,
+                    shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 8.dp, bottomEnd = 8.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier
                         .weight(1f)
@@ -358,7 +359,7 @@ fun FavoritesScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(start = 18.dp, end = 8.dp),
+                            .padding(start = 18.dp, end = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -372,7 +373,7 @@ fun FavoritesScreen(
                             if (filterText.isEmpty()) {
                                 Text(
                                     text = Strings.favSearchHint(lang),
-                                    style = MaterialTheme.typography.bodyMedium,
+                                    style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -380,7 +381,7 @@ fun FavoritesScreen(
                                 value = filterText,
                                 onValueChange = { filterText = it },
                                 singleLine = true,
-                                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                textStyle = MaterialTheme.typography.bodyLarge.copy(
                                     color = MaterialTheme.colorScheme.onSurface
                                 ),
                                 cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
@@ -401,21 +402,36 @@ fun FavoritesScreen(
                         ) {
                             IconButton(
                                 shapes = IconButtonDefaults.shapes(),
-                                onClick = { filterText = "" },
-                                modifier = Modifier
-                                    .size(28.dp)
+                                onClick = { filterText = "" }
                             ) {
                                 Icon(
                                     Icons.Rounded.Close,
-                                    contentDescription = "Clear",
+                                    contentDescription = Strings.clearBtn(lang),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
-                        Spacer(Modifier.width(4.dp))
-                        val activeFilterCount = (if (sortOrder != FavoriteSortOrder.NEWEST) 1 else 0) +
-                            (if (mediaTypeFilter != FavoriteMediaTypeFilter.ALL) 1 else 0)
+                    }
+                }
+                val activeFilterCount = (if (sortOrder != FavoriteSortOrder.NEWEST) 1 else 0) +
+                    (if (mediaTypeFilter != FavoriteMediaTypeFilter.ALL) 1 else 0)
+                val filterInteraction = remember { MutableInteractionSource() }
+                val filterPressed by filterInteraction.collectIsPressedAsState()
+                val filterOuter by animateDpAsState(if (filterPressed) 12.dp else 28.dp, Motion.spatialFast(), label = "filterOuter")
+                Surface(
+                    onClick = {
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                        showFilterSheet = true
+                    },
+                    shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = filterOuter, bottomEnd = filterOuter),
+                    color = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    contentColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                    interactionSource = filterInteraction,
+                    modifier = Modifier.size(width = 64.dp, height = 56.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
                         BadgedBox(
                             badge = {
                                 if (activeFilterCount > 0) {
@@ -423,25 +439,11 @@ fun FavoritesScreen(
                                 }
                             }
                         ) {
-                            FilledTonalIconButton(
-                                onClick = {
-                                    focusManager.clearFocus()
-                                    keyboardController?.hide()
-                                    showFilterSheet = true
-                                },
-                                shapes = IconButtonDefaults.shapes(),
-                                colors = IconButtonDefaults.filledTonalIconButtonColors(
-                                    containerColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
-                                    contentColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                                ),
-                                modifier = Modifier.size(40.dp)
-                            ) {
-                                Icon(
-                                    Icons.Rounded.Tune,
-                                    contentDescription = Strings.filtersButton(lang),
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                            Icon(
+                                Icons.Rounded.Tune,
+                                contentDescription = Strings.filtersButton(lang),
+                                modifier = Modifier.size(22.dp)
+                            )
                         }
                     }
                 }
@@ -881,7 +883,7 @@ private fun FolderPickerSheet(
                                     ) {
                                         Icon(
                                             Icons.Rounded.DeleteOutline,
-                                            contentDescription = null,
+                                            contentDescription = Strings.tr(lang, "Delete folder", "Удалить папку", "フォルダを削除", "删除文件夹", "폴더 삭제", "حذف المجلد"),
                                             tint = MaterialTheme.colorScheme.error,
                                             modifier = Modifier.size(20.dp)
                                         )
