@@ -1389,8 +1389,8 @@ private fun MediaCard(
             if (media.isVideo || media.isGif) {
                 Surface(
                     shape = CircleShape,
-                    color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.78f),
-                    contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                    color = Color.Black.copy(alpha = 0.6f),
+                    contentColor = Color.White,
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .padding(8.dp)

@@ -335,13 +335,13 @@ fun MediaDetailSheet(
                         } else if (currentMedia.isVideo) {
                             Surface(
                                 shape = CircleShape,
-                                color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.95f)
+                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.95f)
                             ) {
                                 Text(
                                     text = "VIDEO",
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
