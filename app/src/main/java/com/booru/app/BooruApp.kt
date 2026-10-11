@@ -33,6 +33,8 @@ class BooruApplication : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
+        com.booru.app.data.TagCategoryCache.init(this)
+        CoroutineScope(Dispatchers.IO).launch { com.booru.app.data.TagCategoryCache.ensureLoaded() }
         val trash = BooruCacheManager.moveBrowsingCacheToTrash(this)
         CoroutineScope(Dispatchers.IO).launch {
             BooruCacheManager.deleteTrash(this@BooruApplication, trash)

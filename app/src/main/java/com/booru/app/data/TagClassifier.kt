@@ -88,7 +88,7 @@ object TagClassifier {
     fun classify(tag: String, typeHint: String = ""): ClassifiedTag {
         val raw = tag.trim()
         val lower = raw.lowercase()
-        val hint = typeHint.trim().lowercase()
+        val hint = typeHint.trim().lowercase().ifBlank { TagCategoryCache.hint(lower) }
 
         val category = when {
             hint == "1" || hint == "artist" || hint == "art" -> TagCategory.ARTIST

@@ -1165,6 +1165,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             favoritesList = listOf(media) + favoritesList
         }
         val recordTags = !wasFav && !isIncognito
+        if (recordTags) resolveTagCategories(media)
         viewModelScope.launch {
             favoriteMutex.withLock {
                 if (wasFav) {
@@ -1645,6 +1646,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 openId = ++fullscreenOpenCounter
             )
             fullscreenState = state
+            resolveTagCategories(list[state.index])
             if (state.isFromResults) recordOpenedForRecommendations(list[state.index])
         }
     }
@@ -1655,6 +1657,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         if (isIncognito || media.tags.isBlank()) return
         if (!viewedForRecommendations.add(media.mediaKey)) return
         viewModelScope.launch { prefs.recordViewedTags(media.tags) }
+    }
+
+    private fun resolveTagCategories(media: RemoteMedia) {
+        if (isIncognito || media.tagList.isEmpty()) return
+        viewModelScope.launch {
+            if (com.booru.app.data.TagCategoryCache.resolve(media.tagList)) recalculateRecommendationTags()
+        }
     }
 
     private fun recordSavedForRecommendations(media: RemoteMedia) {
@@ -1721,6 +1730,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val state = fullscreenState ?: return
         if (state.index != index && index >= 0) {
             fullscreenState = state.copy(index = index)
+            state.list.getOrNull(index)?.let { resolveTagCategories(it) }
         }
     }
 

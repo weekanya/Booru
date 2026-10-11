@@ -133,6 +133,7 @@ fun SettingsScreen(
     var customUserId by remember { mutableStateOf("") }
     var newBlacklistTag by remember { mutableStateOf("") }
     var showLanguageBottomSheet by remember { mutableStateOf(false) }
+    var showStatsScreen by remember { mutableStateOf(false) }
     var showFeedSourcesSheet by remember { mutableStateOf(false) }
     var blacklistFilterQuery by remember { mutableStateOf("") }
     var editingCustomSource by remember { mutableStateOf<CustomBooruSource?>(null) }
@@ -911,6 +912,14 @@ fun SettingsScreen(
         }
     }
 
+    if (showStatsScreen) {
+        FavoriteStatsScreen(
+            lang = lang,
+            allowTagLookup = !vm.isIncognito,
+            onDismiss = { showStatsScreen = false }
+        )
+    }
+
     if (showLanguageBottomSheet) {
         LanguageSelectionBottomSheet(
             currentLanguage = vm.language,
@@ -1217,6 +1226,19 @@ fun SettingsScreen(
                     }
 
                     SettingsCategory.CONTENT -> {
+                        SectionLabel(Strings.tr(lang, "Insights", "Аналитика", "分析", "洞察", "인사이트", "رؤى"))
+
+                        SettingsGroupCard {
+                            SettingRowItem(
+                                title = statsTitle(lang),
+                                subtitle = statsSubtitle(lang),
+                                icon = Icons.Rounded.Insights,
+                                onClick = { showStatsScreen = true }
+                            )
+                        }
+
+                        Spacer(Modifier.height(20.dp))
+
                         SectionLabel(Strings.contentSection(lang))
 
                         SettingsGroupCard {

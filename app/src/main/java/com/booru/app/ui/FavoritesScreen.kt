@@ -122,7 +122,6 @@ fun FavoritesScreen(
     var newFolderName by remember { mutableStateOf("") }
     var folderToDelete by remember { mutableStateOf<String?>(null) }
     var showFilterSheet by remember { mutableStateOf(false) }
-    var showStatsSheet by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     val folders = remember(vm.customFolders) {
@@ -208,13 +207,6 @@ fun FavoritesScreen(
         }
     }
 
-    if (showStatsSheet) {
-        FavoriteStatsSheet(
-            lang = lang,
-            onDismiss = { showStatsSheet = false }
-        )
-    }
-
     if (showFilterSheet) {
         FavoritesFilterBottomSheet(
             currentSort = sortOrder,
@@ -226,6 +218,10 @@ fun FavoritesScreen(
             lang = lang,
             onSortSelected = { sortOrder = it },
             onTypeSelected = { mediaTypeFilter = it },
+            onClearAll = {
+                showFilterSheet = false
+                vm.clearFavorites()
+            },
             onDismiss = { showFilterSheet = false }
         )
     }
@@ -281,165 +277,17 @@ fun FavoritesScreen(
                         modifier = Modifier.weight(1f, fill = false)
                     )
                 }
-
-                AnimatedVisibility(
-                    visible = vm.favoritesList.isNotEmpty(),
-                    enter = fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialDefault()),
-                    exit = fadeOut(Motion.effectsFast()) + scaleOut()
-                ) {
-                    FilledTonalIconButton(
-                        shapes = IconButtonDefaults.shapes(),
-                        onClick = {
-                            focusManager.clearFocus()
-                            keyboardController?.hide()
-                            showStatsSheet = true
-                        }
-                    ) {
-                        Icon(
-                            Icons.Rounded.Insights,
-                            contentDescription = statsTitle(lang),
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
             }
         }
 
         if (vm.favoritesList.isNotEmpty()) {
-            Surface(
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp, bottomStart = 8.dp, bottomEnd = 8.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 4.dp)
-                    .height(56.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Rounded.Search,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    Box(modifier = Modifier.weight(1f)) {
-                        if (filterText.isEmpty()) {
-                            Text(
-                                text = Strings.favSearchHint(lang),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        BasicTextField(
-                            value = filterText,
-                            onValueChange = { filterText = it },
-                            singleLine = true,
-                            textStyle = MaterialTheme.typography.bodyMedium.copy(
-                                color = MaterialTheme.colorScheme.onSurface
-                            ),
-                            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            keyboardActions = KeyboardActions(
-                                onSearch = {
-                                    focusManager.clearFocus()
-                                    keyboardController?.hide()
-                                }
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-                    AnimatedVisibility(
-                        visible = filterText.isNotEmpty(),
-                        enter = fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialDefault()),
-                        exit = fadeOut(Motion.effectsFast()) + scaleOut()
-                    ) {
-                        IconButton(
-                            shapes = IconButtonDefaults.shapes(),
-                            onClick = { filterText = "" },
-                            modifier = Modifier
-                                .size(28.dp)
-                        ) {
-                            Icon(
-                                Icons.Rounded.Close,
-                                contentDescription = "Clear",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 2.dp, bottom = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                val activeFilterCount = (if (sortOrder != FavoriteSortOrder.NEWEST) 1 else 0) +
-                    (if (mediaTypeFilter != FavoriteMediaTypeFilter.ALL) 1 else 0)
-                ConnectedBarButton(
-                    position = GroupPosition.Leading,
-                    onClick = {
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                        showFilterSheet = true
-                    },
-                    containerColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    contentColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Rounded.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = Strings.filtersButton(lang),
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.weight(1f)
-                    )
-                    if (activeFilterCount > 0) {
-                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp)) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(
-                                    text = "$activeFilterCount",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            }
-                        }
-                    }
-                }
-                AnimatedConfirmDeleteButton(
-                    onConfirmed = {
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                        vm.clearFavorites()
-                    },
-                    lang = lang,
-                    initialIcon = Icons.Rounded.DeleteSweep,
-                    initialText = Strings.tr(lang, "Clear all", "Очистить", "すべて消去", "全部清除", "모두 지우기", "مسح الكل"),
-                    confirmText = Strings.confirmDeleteAction(lang),
-                    height = 40.dp,
-                    contentPadding = 14.dp,
-                    idleContainerColor = MaterialTheme.colorScheme.errorContainer,
-                    idleContentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 8.dp, bottomEnd = 20.dp)
-                )
-            }
-
             if (vm.favoritesList.isNotEmpty() || vm.customFolders.isNotEmpty()) {
                 val targetFolderPage = pagerState.currentPage
                 LazyRow(
                     state = chipRowState,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                        .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -531,6 +379,111 @@ fun FavoritesScreen(
                                     fontWeight = FontWeight.SemiBold
                                 )
                             }
+                        }
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Surface(
+                    shape = ShapeTokens.ExtraLarge,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Rounded.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Box(modifier = Modifier.weight(1f)) {
+                            if (filterText.isEmpty()) {
+                                Text(
+                                    text = Strings.favSearchHint(lang),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            BasicTextField(
+                                value = filterText,
+                                onValueChange = { filterText = it },
+                                singleLine = true,
+                                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                                    color = MaterialTheme.colorScheme.onSurface
+                                ),
+                                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(
+                                    onSearch = {
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
+                                    }
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        AnimatedVisibility(
+                            visible = filterText.isNotEmpty(),
+                            enter = fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialDefault()),
+                            exit = fadeOut(Motion.effectsFast()) + scaleOut()
+                        ) {
+                            IconButton(
+                                shapes = IconButtonDefaults.shapes(),
+                                onClick = { filterText = "" },
+                                modifier = Modifier
+                                    .size(28.dp)
+                            ) {
+                                Icon(
+                                    Icons.Rounded.Close,
+                                    contentDescription = "Clear",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+                val activeFilterCount = (if (sortOrder != FavoriteSortOrder.NEWEST) 1 else 0) +
+                    (if (mediaTypeFilter != FavoriteMediaTypeFilter.ALL) 1 else 0)
+                BadgedBox(
+                    badge = {
+                        if (activeFilterCount > 0) {
+                            Badge { Text("$activeFilterCount") }
+                        }
+                    }
+                ) {
+                    Surface(
+                        onClick = {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                            showFilterSheet = true
+                        },
+                        shape = ShapeTokens.ExtraLarge,
+                        color = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        contentColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.size(52.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Rounded.Tune,
+                                contentDescription = Strings.filtersButton(lang),
+                                modifier = Modifier.size(22.dp)
+                            )
                         }
                     }
                 }
@@ -972,6 +925,7 @@ private fun FavoritesFilterBottomSheet(
     lang: AppLanguage,
     onSortSelected: (FavoriteSortOrder) -> Unit,
     onTypeSelected: (FavoriteMediaTypeFilter) -> Unit,
+    onClearAll: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberExpandedSheetState()
@@ -1155,28 +1109,46 @@ private fun FavoritesFilterBottomSheet(
     
                 Spacer(Modifier.height(14.dp))
     
-                Button(
-                    onClick = {
-                        onSortSelected(draftSort)
-                        onTypeSelected(draftType)
-                        scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
-                    },
-                    shape = CircleShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = Strings.tr(lang, "Done", "Готово", "完了", "完成", "완료", "تم"),
-                        fontWeight = FontWeight.Bold,
-                        style = MaterialTheme.typography.labelLarge
+                    AnimatedConfirmDeleteButton(
+                        onConfirmed = onClearAll,
+                        lang = lang,
+                        initialIcon = Icons.Rounded.DeleteSweep,
+                        initialText = Strings.tr(lang, "Clear all", "Очистить", "すべて消去", "全部清除", "모두 지우기", "مسح الكل"),
+                        confirmText = Strings.confirmDeleteAction(lang),
+                        height = 56.dp,
+                        contentPadding = 18.dp,
+                        idleContainerColor = MaterialTheme.colorScheme.errorContainer,
+                        idleContentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        shape = CircleShape
                     )
+                    Button(
+                        onClick = {
+                            onSortSelected(draftSort)
+                            onTypeSelected(draftType)
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                        },
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                    ) {
+                        Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = Strings.tr(lang, "Done", "Готово", "完了", "完成", "완료", "تم"),
+                            fontWeight = FontWeight.Bold,
+                            style = MaterialTheme.typography.labelLarge
+                        )
+                    }
                 }
             }
         }

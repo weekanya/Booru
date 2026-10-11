@@ -1654,7 +1654,7 @@ private fun OptInFlowDetailTags(
         }
         return
     }
-    val groups = remember(tags) {
+    val groups = remember(tags, com.booru.app.data.TagCategoryCache.version) {
         val order = listOf(TagCategory.ARTIST, TagCategory.CHARACTER, TagCategory.COPYRIGHT, TagCategory.GENERAL, TagCategory.META)
         val byCategory = tags.map { TagClassifier.classify(it) }.groupBy { it.category }
         order.mapNotNull { cat -> byCategory[cat]?.let { cat to it } }
