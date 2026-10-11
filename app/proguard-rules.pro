@@ -20,8 +20,8 @@
 -keep class okhttp3.** { *; }
 -keep interface okhttp3.** { *; }
 
--keep class coil.** { *; }
--dontwarn coil.**
+-keep class coil3.** { *; }
+-dontwarn coil3.**
 
 -keep class androidx.media3.** { *; }
 -dontwarn androidx.media3.**

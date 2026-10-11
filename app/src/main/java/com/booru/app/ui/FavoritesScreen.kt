@@ -70,17 +70,19 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import coil.compose.AsyncImagePainter
+import coil3.compose.AsyncImage
+import coil3.request.crossfade
+import coil3.request.allowHardware
+import coil3.compose.AsyncImagePainter
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import coil.compose.SubcomposeAsyncImage
-import coil.compose.SubcomposeAsyncImageContent
-import coil.request.ImageRequest
+import coil3.compose.SubcomposeAsyncImage
+import coil3.compose.SubcomposeAsyncImageContent
+import coil3.request.ImageRequest
 import com.booru.app.GalleryViewModel
 import com.booru.app.RemoteMedia
 import com.booru.app.data.AppLanguage
@@ -1489,7 +1491,7 @@ private fun FavoriteCard(
             .data(targetUrl)
             .crossfade(180)
             .allowHardware(true)
-            .setParameter("retry", retryKey, memoryCacheKey = null)
+            .apply { if (retryKey > 0) memoryCacheKeyExtra("retry", retryKey.toString()) }
             .build()
     }
     val description = remember(media.mediaKey) {

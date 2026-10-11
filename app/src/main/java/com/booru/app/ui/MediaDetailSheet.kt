@@ -80,8 +80,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.compositeOver
-import coil.compose.SubcomposeAsyncImage
-import coil.compose.SubcomposeAsyncImageContent
+import coil3.compose.SubcomposeAsyncImage
+import coil3.request.crossfade
+import coil3.request.allowHardware
+import coil3.compose.SubcomposeAsyncImageContent
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -96,10 +98,10 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import coil.Coil
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import coil.request.SuccessResult
+import coil3.SingletonImageLoader
+import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
 import com.booru.app.GalleryViewModel
 import com.booru.app.RemoteMedia
 import com.booru.app.data.AppLanguage
@@ -1318,14 +1320,14 @@ fun DetailZoomableImage(
             SubcomposeAsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(detailTargetUrl)
-                    .size(coil.size.Size(1080, 4096))
+                    .size(coil3.size.Size(1080, 4096))
                     .placeholderMemoryCacheKey(thumbnailKey)
                     .crossfade(260)
                     .allowHardware(false)
                     .listener(
                         onSuccess = { _, result ->
-                            val w = result.drawable.intrinsicWidth
-                            val h = result.drawable.intrinsicHeight
+                            val w = result.image.width
+                            val h = result.image.height
                             if (w > 0 && h > 0) {
                                 detectedRatio = h.toFloat() / w.toFloat()
                             }
@@ -1343,8 +1345,8 @@ fun DetailZoomableImage(
                 contentScale = ContentScale.FillWidth,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                val state = painter.state
-                if (state is coil.compose.AsyncImagePainter.State.Loading) {
+                val state = painter.state.collectAsState().value
+                if (state is coil3.compose.AsyncImagePainter.State.Loading) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1353,7 +1355,7 @@ fun DetailZoomableImage(
                     ) {
                         LoadingIndicator(modifier = Modifier.size(44.dp), color = MaterialTheme.colorScheme.primary)
                     }
-                } else if (state is coil.compose.AsyncImagePainter.State.Error) {
+                } else if (state is coil3.compose.AsyncImagePainter.State.Error) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1485,12 +1487,12 @@ fun DetailZoomableImage(
                     .data(detailTargetUrl)
                     .placeholderMemoryCacheKey(thumbnailKey)
                     .crossfade(260)
-                    .setParameter("retry", retryKey, memoryCacheKey = null)
+                    .apply { if (retryKey > 0) memoryCacheKeyExtra("retry", retryKey.toString()) }
                     .allowHardware(!media.isGif)
                     .listener(
                         onSuccess = { _, result ->
-                            val w = result.drawable.intrinsicWidth
-                            val h = result.drawable.intrinsicHeight
+                            val w = result.image.width
+                            val h = result.image.height
                             if (w > 0 && h > 0) {
                                 detectedRatio = h.toFloat() / w.toFloat()
                             }
@@ -1515,14 +1517,14 @@ fun DetailZoomableImage(
                     },
                 contentScale = ContentScale.Fit
             ) {
-                val state = painter.state
-                if (state is coil.compose.AsyncImagePainter.State.Loading) {
+                val state = painter.state.collectAsState().value
+                if (state is coil3.compose.AsyncImagePainter.State.Loading) {
                     val scope = this
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         scope.SubcomposeAsyncImageContent()
                         LoadingIndicator(modifier = Modifier.size(40.dp), color = MaterialTheme.colorScheme.primary)
                     }
-                } else if (state is coil.compose.AsyncImagePainter.State.Error) {
+                } else if (state is coil3.compose.AsyncImagePainter.State.Error) {
                     Column(
                         modifier = Modifier
                             .fillMaxSize()

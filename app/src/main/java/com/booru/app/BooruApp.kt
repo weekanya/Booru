@@ -1,14 +1,17 @@
 package com.booru.app
 
 import android.app.Application
-import android.os.Build.VERSION.SDK_INT
-import coil.ImageLoader
-import coil.ImageLoaderFactory
-import coil.decode.GifDecoder
-import coil.decode.ImageDecoderDecoder
-import coil.disk.DiskCache
-import coil.memory.MemoryCache
-import coil.request.CachePolicy
+import coil3.ImageLoader
+import coil3.PlatformContext
+import coil3.SingletonImageLoader
+import coil3.disk.DiskCache
+import coil3.gif.AnimatedImageDecoder
+import coil3.memory.MemoryCache
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
+import coil3.request.CachePolicy
+import coil3.request.crossfade
+import coil3.video.VideoFrameDecoder
+import okio.Path.Companion.toOkioPath
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
@@ -26,7 +29,7 @@ import okio.source
 
 import com.booru.app.data.network.NetworkClient
 
-class BooruApplication : Application(), ImageLoaderFactory {
+class BooruApplication : Application(), SingletonImageLoader.Factory {
 
     override fun onCreate() {
         super.onCreate()
@@ -36,7 +39,7 @@ class BooruApplication : Application(), ImageLoaderFactory {
         }
     }
 
-    override fun newImageLoader(): ImageLoader {
+    override fun newImageLoader(context: PlatformContext): ImageLoader {
         val okHttpClient = NetworkClient.baseClient.newBuilder()
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(25, TimeUnit.SECONDS)
@@ -158,29 +161,24 @@ class BooruApplication : Application(), ImageLoaderFactory {
             .build()
 
         return ImageLoader.Builder(this)
-            .okHttpClient(okHttpClient)
             .components {
-                if (SDK_INT >= 28) {
-                    add(ImageDecoderDecoder.Factory())
-                } else {
-                    add(GifDecoder.Factory())
-                }
-                add(coil.decode.VideoFrameDecoder.Factory())
+                add(OkHttpNetworkFetcherFactory(callFactory = { okHttpClient }))
+                add(AnimatedImageDecoder.Factory())
+                add(VideoFrameDecoder.Factory())
             }
             .memoryCache {
-                MemoryCache.Builder(this)
-                    .maxSizePercent(0.25)
+                MemoryCache.Builder()
+                    .maxSizePercent(this, 0.25)
                     .build()
             }
             .diskCache {
                 DiskCache.Builder()
-                    .directory(cacheDir.resolve("image_cache"))
+                    .directory(cacheDir.resolve("image_cache").toOkioPath())
                     .maxSizeBytes(200L * 1024 * 1024)
                     .build()
             }
             .memoryCachePolicy(CachePolicy.ENABLED)
             .diskCachePolicy(CachePolicy.ENABLED)
-            .respectCacheHeaders(false)
             .crossfade(true)
             .build()
     }

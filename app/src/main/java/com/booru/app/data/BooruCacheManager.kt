@@ -244,11 +244,11 @@ object BooruCacheManager {
         } catch (_: Exception) {}
     }
 
-    @OptIn(coil.annotation.ExperimentalCoilApi::class)
+    @OptIn(coil3.annotation.ExperimentalCoilApi::class)
     suspend fun clearBrowsingCache(context: Context) = withContext(Dispatchers.IO) {
         try {
-            coil.Coil.imageLoader(context).memoryCache?.clear()
-            coil.Coil.imageLoader(context).diskCache?.clear()
+            coil3.SingletonImageLoader.get(context).memoryCache?.clear()
+            coil3.SingletonImageLoader.get(context).diskCache?.clear()
         } catch (e: Exception) {
             Log.w(TAG, "Failed to clear Coil image cache", e)
         }

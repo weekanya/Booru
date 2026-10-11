@@ -66,11 +66,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
-import coil.compose.AsyncImagePainter
-import coil.imageLoader
-import coil.request.CachePolicy
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.request.crossfade
+import coil3.request.allowHardware
+import coil3.compose.AsyncImagePainter
+import coil3.imageLoader
+import coil3.request.CachePolicy
+import coil3.request.ImageRequest
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -1283,7 +1285,7 @@ private fun MediaCard(
             .data(targetUrl)
             .crossfade(180)
             .allowHardware(true)
-            .setParameter("retry", retryKey, memoryCacheKey = null)
+            .apply { if (retryKey > 0) memoryCacheKeyExtra("retry", retryKey.toString()) }
             .build()
     }
     val description = remember(media.mediaKey) {

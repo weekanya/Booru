@@ -4,16 +4,16 @@ import android.app.WallpaperManager
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.drawable.BitmapDrawable
 import android.media.MediaScannerConnection
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import androidx.core.graphics.drawable.toBitmap
-import coil.Coil
-import coil.request.ImageRequest
-import coil.request.SuccessResult
-import coil.size.Scale
+import coil3.toBitmap
+import coil3.SingletonImageLoader
+import coil3.request.allowHardware
+import coil3.request.ImageRequest
+import coil3.request.SuccessResult
+import coil3.size.Scale
 import com.booru.app.RemoteMedia
 import com.booru.app.data.ImageQuality
 import kotlinx.coroutines.Dispatchers
@@ -246,13 +246,13 @@ object MediaActionHandler {
             val displayMetrics = context.resources.displayMetrics
             val maxDim = maxOf(displayMetrics.widthPixels, displayMetrics.heightPixels).coerceAtLeast(1080)
 
-            val imageLoader = Coil.imageLoader(context)
+            val imageLoader = SingletonImageLoader.get(context)
             val request = ImageRequest.Builder(context)
                 .data(media.url.ifBlank { media.sample.ifBlank { media.preview } })
                 .size(maxDim, maxDim)
                 .scale(Scale.FIT)
                 .allowHardware(false)
-                .memoryCachePolicy(coil.request.CachePolicy.DISABLED)
+                .memoryCachePolicy(coil3.request.CachePolicy.DISABLED)
                 .build()
 
             val result = imageLoader.execute(request)
@@ -260,8 +260,7 @@ object MediaActionHandler {
                 return Result.failure(IOException("Failed to load image for wallpaper"))
             }
 
-            val bitmap: Bitmap = (result.drawable as? BitmapDrawable)?.bitmap
-                ?: runCatching { result.drawable.toBitmap() }.getOrNull()
+            val bitmap: Bitmap = runCatching { result.image.toBitmap() }.getOrNull()
                 ?: return Result.failure(IOException("Could not decode bitmap"))
 
             val wallpaperManager = WallpaperManager.getInstance(context)

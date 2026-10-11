@@ -56,6 +56,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -83,9 +84,11 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import coil.compose.SubcomposeAsyncImage
-import coil.compose.SubcomposeAsyncImageContent
-import coil.request.ImageRequest
+import coil3.compose.SubcomposeAsyncImage
+import coil3.request.crossfade
+import coil3.request.allowHardware
+import coil3.compose.SubcomposeAsyncImageContent
+import coil3.request.ImageRequest
 import com.booru.app.GalleryViewModel
 import com.booru.app.RemoteMedia
 import kotlin.math.abs
@@ -551,14 +554,14 @@ fun FullscreenZoomableImage(
             SubcomposeAsyncImage(
                 model = ImageRequest.Builder(context)
                     .data(detailTargetUrl)
-                    .size(coil.size.Size(1080, 4096))
+                    .size(coil3.size.Size(1080, 4096))
                     .placeholderMemoryCacheKey(thumbnailKey)
                     .crossfade(260)
                     .allowHardware(false)
                     .listener(
                         onSuccess = { _, result ->
-                            val w = result.drawable.intrinsicWidth
-                            val h = result.drawable.intrinsicHeight
+                            val w = result.image.width
+                            val h = result.image.height
                             if (w > 0 && h > 0) {
                                 detectedRatio = h.toFloat() / w.toFloat()
                             }
@@ -576,8 +579,8 @@ fun FullscreenZoomableImage(
                 contentScale = ContentScale.FillWidth,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                val state = painter.state
-                if (state is coil.compose.AsyncImagePainter.State.Loading) {
+                val state = painter.state.collectAsState().value
+                if (state is coil3.compose.AsyncImagePainter.State.Loading) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -586,7 +589,7 @@ fun FullscreenZoomableImage(
                     ) {
                         LoadingIndicator(modifier = Modifier.size(48.dp), color = MaterialTheme.colorScheme.primary)
                     }
-                } else if (state is coil.compose.AsyncImagePainter.State.Error) {
+                } else if (state is coil3.compose.AsyncImagePainter.State.Error) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -690,8 +693,8 @@ fun FullscreenZoomableImage(
                     .allowHardware(!media.isGif)
                     .listener(
                         onSuccess = { _, result ->
-                            val w = result.drawable.intrinsicWidth
-                            val h = result.drawable.intrinsicHeight
+                            val w = result.image.width
+                            val h = result.image.height
                             if (w > 0 && h > 0) {
                                 detectedRatio = h.toFloat() / w.toFloat()
                             }
@@ -716,14 +719,14 @@ fun FullscreenZoomableImage(
                     },
                 contentScale = ContentScale.Fit
             ) {
-                val state = painter.state
-                if (state is coil.compose.AsyncImagePainter.State.Loading) {
+                val state = painter.state.collectAsState().value
+                if (state is coil3.compose.AsyncImagePainter.State.Loading) {
                     val scope = this
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         scope.SubcomposeAsyncImageContent()
                         LoadingIndicator(modifier = Modifier.size(44.dp), color = MaterialTheme.colorScheme.primary)
                     }
-                } else if (state is coil.compose.AsyncImagePainter.State.Error) {
+                } else if (state is coil3.compose.AsyncImagePainter.State.Error) {
                     Icon(
                         Icons.Rounded.BrokenImage,
                         contentDescription = null,
