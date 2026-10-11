@@ -2,7 +2,16 @@
 
 package com.booru.app.ui
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -12,8 +21,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,6 +38,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -116,7 +127,7 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
         Strings.tr(lang, "Favorites", "Любимое", "お気に入り", "最爱", "최애", "المفضلة") to Icons.Rounded.FavoriteBorder,
         Strings.tr(lang, "Activity", "Активность", "アクティビティ", "活跃度", "활동", "النشاط") to Icons.Rounded.BarChart
     )
-    val pagerState = rememberPagerState(pageCount = { tabs.size })
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
 
     if (showPeriodSheet) {
         StatsPeriodSheet(
@@ -167,37 +178,6 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                 }
             }
 
-            val selectedTab = pagerState.targetPage
-            PrimaryTabRow(
-                selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.surface,
-                indicator = {
-                    TabRowDefaults.PrimaryIndicator(
-                        modifier = Modifier.tabIndicatorOffset(selectedTab, matchContentSize = true),
-                        width = Dp.Unspecified,
-                        shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp)
-                    )
-                }
-            ) {
-                tabs.forEachIndexed { index, (title, icon) ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = {
-                            scope.launch {
-                                pagerState.animateScrollToPage(
-                                    index,
-                                    animationSpec = tween(durationMillis = 380, easing = FastOutSlowInEasing)
-                                )
-                            }
-                        },
-                        text = { Text(title, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        icon = { Icon(icon, contentDescription = null) },
-                        selectedContentColor = MaterialTheme.colorScheme.primary,
-                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
             AnimatedVisibility(
                 visible = lookupProgress != null,
                 enter = fadeIn() + expandVertically(),
@@ -230,32 +210,108 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
             when {
                 current == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
                 current.isEmpty -> EmptyStats(lang)
-                else -> HorizontalPager(
-                    state = pagerState,
-                    beyondViewportPageCount = 1,
-                    modifier = Modifier.fillMaxSize()
-                ) { page ->
-                    val background = MaterialTheme.colorScheme.surface
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
-                    ) {
+                else -> Box(modifier = Modifier.fillMaxSize()) {
+                    AnimatedContent(
+                        targetState = selectedTab,
+                        transitionSpec = {
+                            (fadeIn(tween(220, delayMillis = 90, easing = LinearOutSlowInEasing)) +
+                                scaleIn(tween(220, delayMillis = 90, easing = LinearOutSlowInEasing), initialScale = 0.96f))
+                                .togetherWith(fadeOut(tween(90, easing = FastOutLinearInEasing)))
+                        },
+                        label = "statsTab",
+                        modifier = Modifier.fillMaxSize()
+                    ) { page ->
                         Column(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .wrapContentWidth(Alignment.CenterHorizontally)
-                                .readableContentWidth()
-                                .background(background)
-                                .padding(horizontal = 16.dp)
-                                .padding(top = 8.dp, bottom = 24.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
                         ) {
-                            when (page) {
-                                0 -> OverviewPage(current, period, lang, locale)
-                                1 -> FavoritesPage(current, lang)
-                                else -> ActivityPage(current, lang, locale)
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .wrapContentWidth(Alignment.CenterHorizontally)
+                                    .readableContentWidth()
+                                    .padding(horizontal = 16.dp)
+                                    .padding(top = 8.dp, bottom = 112.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                when (page) {
+                                    0 -> OverviewPage(current, period, lang, locale)
+                                    1 -> FavoritesPage(current, lang)
+                                    else -> ActivityPage(current, lang, locale)
+                                }
                             }
+                        }
+                    }
+                    StatsTabToolbar(
+                        tabs = tabs,
+                        selected = selectedTab,
+                        onSelect = { selectedTab = it },
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 16.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Floating MD3E toolbar: the selected tab expands into a labelled pill, the others stay icons. */
+@Composable
+private fun StatsTabToolbar(
+    tabs: List<Pair<String, ImageVector>>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shadowElevation = 6.dp,
+        modifier = modifier
+    ) {
+        Row(
+            modifier = Modifier.padding(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            tabs.forEachIndexed { index, (title, icon) ->
+                val isSelected = index == selected
+                val container by animateColorAsState(
+                    if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                    tween(200),
+                    label = "tabContainer"
+                )
+                val content by animateColorAsState(
+                    if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                    tween(200),
+                    label = "tabContent"
+                )
+                Surface(
+                    onClick = { onSelect(index) },
+                    shape = CircleShape,
+                    color = container,
+                    contentColor = content,
+                    modifier = Modifier
+                        .height(48.dp)
+                        .semantics { role = Role.Tab; this.selected = isSelected }
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .animateContentSize(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow))
+                            .padding(horizontal = if (isSelected) 18.dp else 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(icon, contentDescription = if (isSelected) null else title, modifier = Modifier.size(22.dp))
+                        if (isSelected) {
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1
+                            )
                         }
                     }
                 }
@@ -299,22 +355,6 @@ private fun OverviewPage(stats: FavoriteStats, period: StatsPeriod, lang: AppLan
                 Strings.tr(lang, "Active days", "Активных дней", "活動日数", "活跃天数", "활동한 날", "أيام النشاط")
             },
             modifier = Modifier.weight(1f).fillMaxHeight()
-        )
-    }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 4.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.Rounded.Favorite, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(14.dp))
-        Spacer(Modifier.width(6.dp))
-        Text(
-            text = "Booru · booru.weebio.ru",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
