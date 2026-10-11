@@ -1402,10 +1402,10 @@ fun SettingsScreen(
                                         shapes = ButtonDefaults.shapes(shape = ShapeTokens.Large, pressedShape = ButtonDefaults.pressedShape),
                                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                                         colors = ButtonDefaults.filledTonalButtonColors(
-                                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                            disabledContainerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                            disabledContentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                            disabledContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                                            disabledContentColor = MaterialTheme.colorScheme.onPrimaryContainer
                                         ),
                                         modifier = Modifier
                                             .height(36.dp)
@@ -1422,7 +1422,7 @@ fun SettingsScreen(
                                             if (vm.isCheckingUpdate) {
                                                 LoadingIndicator(
                                                     modifier = Modifier.size(24.dp),
-                                                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                                                    color = MaterialTheme.colorScheme.onPrimaryContainer
                                                 )
                                             }
                                         }
@@ -1438,7 +1438,7 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsTabBar(
+internal fun SettingsTabBar(
     titles: List<String>,
     icons: List<ImageVector>,
     pagerState: androidx.compose.foundation.pager.PagerState,

@@ -122,6 +122,7 @@ fun FavoritesScreen(
     var newFolderName by remember { mutableStateOf("") }
     var folderToDelete by remember { mutableStateOf<String?>(null) }
     var showFilterSheet by remember { mutableStateOf(false) }
+    var showFolderSheet by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
 
     val folders = remember(vm.customFolders) {
@@ -129,7 +130,6 @@ fun FavoritesScreen(
     }
     var pendingFolder by remember { mutableStateOf<String?>(null) }
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { folders.size })
-    val chipRowState = rememberLazyListState()
 
     LaunchedEffect(folders, pendingFolder) {
         val target = pendingFolder ?: return@LaunchedEffect
@@ -137,12 +137,6 @@ fun FavoritesScreen(
         if (idx >= 0) {
             pendingFolder = null
             pagerState.animateScrollToPage(idx)
-        }
-    }
-
-    LaunchedEffect(pagerState.currentPage) {
-        if (pagerState.currentPage in folders.indices) {
-            chipRowState.animateScrollToItem(pagerState.currentPage)
         }
     }
 
@@ -205,6 +199,37 @@ fun FavoritesScreen(
             FavoriteSortOrder.NEWEST -> list.toList()
             FavoriteSortOrder.OLDEST -> list.toList().asReversed()
         }
+    }
+
+    if (showFolderSheet) {
+        FolderPickerSheet(
+            folders = folders,
+            selectedIndex = pagerState.targetPage,
+            countFor = { folder ->
+                if (folder == null) vm.favoritesList.size
+                else vm.favoritesList.count { vm.getMediaFolder(it) == folder }
+            },
+            lang = lang,
+            onSelect = { index ->
+                showFolderSheet = false
+                scope.launch {
+                    if (kotlin.math.abs(pagerState.currentPage - index) > 3) {
+                        pagerState.scrollToPage(if (index > pagerState.currentPage) index - 2 else index + 2)
+                    }
+                    pagerState.animateScrollToPage(index, animationSpec = spring(dampingRatio = 1f, stiffness = 320f))
+                }
+            },
+            onCreate = {
+                showFolderSheet = false
+                newFolderName = ""
+                showCreateFolderDialog = true
+            },
+            onDelete = { folder ->
+                showFolderSheet = false
+                folderToDelete = folder
+            },
+            onDismiss = { showFolderSheet = false }
+        )
     }
 
     if (showFilterSheet) {
@@ -277,131 +302,63 @@ fun FavoritesScreen(
                         modifier = Modifier.weight(1f, fill = false)
                     )
                 }
+
+                if (vm.favoritesList.isNotEmpty() || vm.customFolders.isNotEmpty()) {
+                    val currentFolder = folders.getOrNull(pagerState.targetPage)
+                    FilledTonalButton(
+                        onClick = {
+                            focusManager.clearFocus()
+                            keyboardController?.hide()
+                            showFolderSheet = true
+                        },
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = PaddingValues(start = 12.dp, end = 8.dp),
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .widthIn(max = 200.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (currentFolder == null) Icons.Rounded.FolderSpecial else Icons.Rounded.Folder,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = currentFolder ?: Strings.allFavoritesFolder(lang),
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        Icon(
+                            imageVector = Icons.Rounded.ArrowDropDown,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
             }
         }
 
         if (vm.favoritesList.isNotEmpty()) {
-            if (vm.favoritesList.isNotEmpty() || vm.customFolders.isNotEmpty()) {
-                val targetFolderPage = pagerState.currentPage
-                LazyRow(
-                    state = chipRowState,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    item(key = "all_folder_tab") {
-                        val isAllSelected = targetFolderPage == 0
-                        FolderTabPill(
-                            title = Strings.allFavoritesFolder(lang),
-                            count = vm.favoritesList.size,
-                            isSelected = isAllSelected,
-                            onClick = {
-                                scope.launch {
-                                    if (pagerState.currentPage > 3) {
-                                        pagerState.scrollToPage(2)
-                                    }
-                                    pagerState.animateScrollToPage(0, animationSpec = spring(dampingRatio = 1f, stiffness = 320f))
-                                }
-                            },
-                            icon = Icons.Rounded.FolderSpecial,
-                            position = GroupPosition.Leading
-                        )
-                    }
-
-                    itemsIndexed(
-                        items = folders.drop(1).filterNotNull(),
-                        key = { _, folder -> folder }
-                    ) { index, folder ->
-                        val pageIndex = index + 1
-                        val count = remember(vm.favoritesList, folder, vm.favoriteFolders) {
-                            vm.favoritesList.count {
-                                vm.getMediaFolder(it) == folder
-                            }
-                        }
-                        val isSelected = targetFolderPage == pageIndex
-                        Box(
-                            modifier = Modifier.animateItem(
-                                fadeInSpec = Motion.effectsDefault(),
-                                placementSpec = null,
-                                fadeOutSpec = Motion.effectsFast()
-                            )
-                        ) {
-                        FolderTabPill(
-                            title = folder,
-                            count = count,
-                            isSelected = isSelected,
-                            onClick = {
-                                scope.launch {
-                                    if (kotlin.math.abs(pagerState.currentPage - pageIndex) > 3) {
-                                        pagerState.scrollToPage(if (pageIndex > pagerState.currentPage) pageIndex - 2 else pageIndex + 2)
-                                    }
-                                    pagerState.animateScrollToPage(pageIndex, animationSpec = spring(dampingRatio = 1f, stiffness = 320f))
-                                }
-                            },
-                            onDelete = {
-                                folderToDelete = folder
-                            },
-                            icon = Icons.Rounded.Folder,
-                            position = GroupPosition.Middle
-                        )
-                        }
-                    }
-
-                    item(key = "add_folder_pill") {
-                        val pressSource1 = remember { MutableInteractionSource() }
-                        Surface(
-                            onClick = {
-                                newFolderName = ""
-                                showCreateFolderDialog = true
-                            },
-                            shape = folderPillShape(GroupPosition.Trailing, false, pressSource1),
-                            interactionSource = pressSource1,
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                            contentColor = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier
-                                .height(42.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Rounded.CreateNewFolder,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(Modifier.width(6.dp))
-                                Text(
-                                    text = Strings.newFolder(lang),
-                                    style = MaterialTheme.typography.labelLarge,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    shape = ShapeTokens.ExtraLarge,
+                    shape = CircleShape,
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier
                         .weight(1f)
-                        .height(52.dp)
+                        .height(56.dp)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 16.dp),
+                            .padding(start = 18.dp, end = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
@@ -456,34 +413,35 @@ fun FavoritesScreen(
                                 )
                             }
                         }
-                    }
-                }
-                val activeFilterCount = (if (sortOrder != FavoriteSortOrder.NEWEST) 1 else 0) +
-                    (if (mediaTypeFilter != FavoriteMediaTypeFilter.ALL) 1 else 0)
-                BadgedBox(
-                    badge = {
-                        if (activeFilterCount > 0) {
-                            Badge { Text("$activeFilterCount") }
-                        }
-                    }
-                ) {
-                    Surface(
-                        onClick = {
-                            focusManager.clearFocus()
-                            keyboardController?.hide()
-                            showFilterSheet = true
-                        },
-                        shape = ShapeTokens.ExtraLarge,
-                        color = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(52.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Rounded.Tune,
-                                contentDescription = Strings.filtersButton(lang),
-                                modifier = Modifier.size(22.dp)
-                            )
+                        Spacer(Modifier.width(4.dp))
+                        val activeFilterCount = (if (sortOrder != FavoriteSortOrder.NEWEST) 1 else 0) +
+                            (if (mediaTypeFilter != FavoriteMediaTypeFilter.ALL) 1 else 0)
+                        BadgedBox(
+                            badge = {
+                                if (activeFilterCount > 0) {
+                                    Badge { Text("$activeFilterCount") }
+                                }
+                            }
+                        ) {
+                            FilledTonalIconButton(
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                    showFilterSheet = true
+                                },
+                                shapes = IconButtonDefaults.shapes(),
+                                colors = IconButtonDefaults.filledTonalIconButtonColors(
+                                    containerColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                    contentColor = if (activeFilterCount > 0) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+                                ),
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    Icons.Rounded.Tune,
+                                    contentDescription = Strings.filtersButton(lang),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -796,117 +754,144 @@ fun FavoritesScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun folderPillShape(
-    position: GroupPosition,
-    selected: Boolean,
-    interactionSource: MutableInteractionSource
-): androidx.compose.ui.graphics.Shape {
-    val pressed by interactionSource.collectIsPressedAsState()
-    val outer = 21.dp
-    val inner = if (pressed) 4.dp else 8.dp
-    val full = if (pressed) 12.dp else 21.dp
-    fun target(isOuter: Boolean) = if (selected) full else if (isOuter) outer else inner
-    val start by animateDpAsState(target(position == GroupPosition.Leading), Motion.spatialFast(), label = "pillStart")
-    val end by animateDpAsState(target(position == GroupPosition.Trailing), Motion.spatialFast(), label = "pillEnd")
-    return RoundedCornerShape(topStart = start, bottomStart = start, topEnd = end, bottomEnd = end)
-}
-
-@Composable
-private fun FolderTabPill(
-    title: String,
-    count: Int,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    onDelete: (() -> Unit)? = null,
-    icon: ImageVector = Icons.Rounded.Folder,
-    position: GroupPosition = GroupPosition.Middle
+private fun FolderPickerSheet(
+    folders: List<String?>,
+    selectedIndex: Int,
+    countFor: (String?) -> Int,
+    lang: AppLanguage,
+    onSelect: (Int) -> Unit,
+    onCreate: () -> Unit,
+    onDelete: (String) -> Unit,
+    onDismiss: () -> Unit
 ) {
-    val containerColor by animateColorAsState(
-        targetValue = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh,
-        animationSpec = Motion.effectsDefault(),
-        label = "folderPillBg"
-    )
-    val contentColor by animateColorAsState(
-        targetValue = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-        animationSpec = Motion.effectsDefault(),
-        label = "folderPillContent"
-    )
-
-    val pressSource2 = remember { MutableInteractionSource() }
-    Surface(
-        onClick = onClick,
-        shape = folderPillShape(position, isSelected, pressSource2),
-        interactionSource = pressSource2,
-        color = containerColor,
-        contentColor = contentColor,
-        modifier = Modifier
-            .height(42.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .padding(start = 12.dp, end = if (onDelete != null) 5.dp else 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+    val sheetState = rememberExpandedSheetState()
+    SheetMotion {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = ShapeTokens.ExtraLargeTop
         ) {
-            Crossfade(
-                targetState = isSelected,
-                animationSpec = Motion.effectsDefault(),
-                label = "folderPillIcon",
-                modifier = Modifier.size(18.dp)
-            ) { selected ->
-                Icon(
-                    imageVector = if (selected) Icons.Rounded.Check else icon,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = if (selected) contentColor else contentColor.copy(alpha = 0.8f)
-                )
-            }
-            Spacer(Modifier.width(6.dp))
-
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(Modifier.width(6.dp))
-
-            Surface(
-                shape = CircleShape,
-                color = if (isSelected)
-                    MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.22f)
-                else
-                    MaterialTheme.colorScheme.surfaceContainerHighest,
-                contentColor = if (isSelected)
-                    MaterialTheme.colorScheme.onPrimary
-                else
-                    MaterialTheme.colorScheme.onSurfaceVariant
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 20.dp)
             ) {
-                Text(
-                    text = "$count",
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                )
-            }
-
-            if (onDelete != null) {
-                Spacer(Modifier.width(2.dp))
-                Box(
+                Row(
                     modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .clickable { onDelete() },
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = "Delete",
-                        modifier = Modifier.size(16.dp),
-                        tint = contentColor.copy(alpha = 0.75f)
+                    Surface(
+                        shape = ShapeTokens.Medium,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                Icons.Rounded.FolderOpen,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = Strings.tr(lang, "Folders", "Папки", "フォルダ", "文件夹", "폴더", "المجلدات"),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
                     )
+                    FilledTonalButton(
+                        onClick = onCreate,
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = PaddingValues(horizontal = 14.dp)
+                    ) {
+                        Icon(Icons.Rounded.CreateNewFolder, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(Strings.newFolder(lang), style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 460.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    folders.forEachIndexed { index, folder ->
+                        val selected = index == selectedIndex
+                        val outer = 20.dp
+                        val inner = 4.dp
+                        val shape = when {
+                            folders.size == 1 -> RoundedCornerShape(outer)
+                            index == 0 -> RoundedCornerShape(topStart = outer, topEnd = outer, bottomStart = inner, bottomEnd = inner)
+                            index == folders.lastIndex -> RoundedCornerShape(topStart = inner, topEnd = inner, bottomStart = outer, bottomEnd = outer)
+                            else -> RoundedCornerShape(inner)
+                        }
+                        Surface(
+                            onClick = { onSelect(index) },
+                            shape = shape,
+                            color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 56.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = when {
+                                        selected -> Icons.Rounded.Check
+                                        folder == null -> Icons.Rounded.FolderSpecial
+                                        else -> Icons.Rounded.Folder
+                                    },
+                                    contentDescription = null,
+                                    tint = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(Modifier.width(14.dp))
+                                Text(
+                                    text = folder ?: Strings.allFavoritesFolder(lang),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Text(
+                                    text = countFor(folder).toString(),
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                )
+                                if (folder != null) {
+                                    IconButton(
+                                        onClick = { onDelete(folder) },
+                                        shapes = IconButtonDefaults.shapes()
+                                    ) {
+                                        Icon(
+                                            Icons.Rounded.DeleteOutline,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                } else {
+                                    Spacer(Modifier.width(48.dp))
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

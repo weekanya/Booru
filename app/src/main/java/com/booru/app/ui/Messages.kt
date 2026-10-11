@@ -1,11 +1,14 @@
 package com.booru.app.ui
 
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -45,17 +48,25 @@ val LocalMessageRouter = staticCompositionLocalOf { MessageRouter {} }
 @Composable
 fun FlatSnackbar(data: SnackbarData, modifier: Modifier = Modifier) {
     Surface(
-        shape = ShapeTokens.ExtraSmall,
-        color = MaterialTheme.colorScheme.inverseSurface,
-        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+        shape = ShapeTokens.ExtraLarge,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shadowElevation = 3.dp,
         modifier = modifier
-            .padding(12.dp)
-            .heightIn(min = 48.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .heightIn(min = 52.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 16.dp, end = 8.dp)
+            modifier = Modifier.padding(start = 14.dp, end = 8.dp)
         ) {
+            Icon(
+                imageVector = Icons.Rounded.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(12.dp))
             Text(
                 text = data.visuals.message,
                 style = MaterialTheme.typography.bodyMedium,
@@ -67,7 +78,7 @@ fun FlatSnackbar(data: SnackbarData, modifier: Modifier = Modifier) {
                 TextButton(
                     onClick = { data.performAction() },
                     shapes = ButtonDefaults.shapes(),
-                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.inversePrimary)
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text(label, style = MaterialTheme.typography.labelLarge)
                 }

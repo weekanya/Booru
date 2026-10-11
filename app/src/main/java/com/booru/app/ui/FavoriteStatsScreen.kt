@@ -13,6 +13,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,7 +29,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.layer.drawLayer
@@ -57,6 +58,7 @@ import com.booru.app.data.TagCategoryCache
 import com.booru.app.data.db.AppDatabase
 import com.booru.app.data.db.FavoriteEntity
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -68,8 +70,9 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 /**
- * Full-screen favorites statistics. Tag categories are refined through [TagCategoryCache]
- * while the page is open unless [allowTagLookup] is false (incognito).
+ * Full-screen favorites statistics split into Overview, Favorites and Activity tabs. Tag
+ * categories are refined through [TagCategoryCache] while the page is open unless
+ * [allowTagLookup] is false (incognito).
  */
 @Composable
 fun FavoriteStatsScreen(
@@ -95,6 +98,7 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
     var period by rememberSaveable { mutableStateOf(StatsPeriod.ALL_TIME) }
     var lookupProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var sharing by remember { mutableStateOf(false) }
+    var periodMenuOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         val list = withContext(Dispatchers.IO) {
@@ -117,13 +121,19 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
     }
     val captureLayer = rememberGraphicsLayer()
     val shareLabel = Strings.tr(lang, "Share", "Поделиться", "共有", "分享", "공유", "مشاركة")
+    val tabs = listOf(
+        Strings.tr(lang, "Overview", "Обзор", "概要", "概览", "개요", "نظرة عامة") to Icons.Rounded.Insights,
+        Strings.tr(lang, "Favorites", "Любимое", "お気に入り", "最爱", "최애", "المفضلة") to Icons.Rounded.FavoriteBorder,
+        Strings.tr(lang, "Activity", "Активность", "アクティビティ", "活跃度", "활동", "النشاط") to Icons.Rounded.BarChart
+    )
+    val pagerState = rememberPagerState(pageCount = { tabs.size })
 
     Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                    .padding(start = 4.dp, end = 12.dp, top = 8.dp, bottom = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDismiss, shapes = IconButtonDefaults.shapes()) {
@@ -134,16 +144,53 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
                         .weight(1f)
                         .padding(start = 4.dp)
                 )
-                FilledTonalIconButton(
+                Box {
+                    FilledTonalButton(
+                        onClick = { periodMenuOpen = true },
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = PaddingValues(start = 14.dp, end = 8.dp)
+                    ) {
+                        Text(periodLabel(period, lang), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                        Icon(Icons.Rounded.ArrowDropDown, contentDescription = null, modifier = Modifier.size(20.dp))
+                    }
+                    DropdownMenu(
+                        expanded = periodMenuOpen,
+                        onDismissRequest = { periodMenuOpen = false },
+                        shape = ShapeTokens.Large,
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
+                    ) {
+                        StatsPeriod.entries.forEach { item ->
+                            DropdownMenuItem(
+                                text = { Text(periodLabel(item, lang)) },
+                                leadingIcon = {
+                                    if (item == period) Icon(Icons.Rounded.Check, contentDescription = null)
+                                    else Spacer(Modifier.size(24.dp))
+                                },
+                                onClick = {
+                                    period = item
+                                    periodMenuOpen = false
+                                }
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.width(4.dp))
+                IconButton(
                     onClick = {
-                        if (sharing) return@FilledTonalIconButton
+                        if (sharing) return@IconButton
                         sharing = true
                         scope.launch {
                             try {
+                                if (pagerState.currentPage != 0) {
+                                    pagerState.animateScrollToPage(0)
+                                    delay(120)
+                                }
                                 shareStatsImage(context, captureLayer.toImageBitmap().asAndroidBitmap(), shareLabel)
                             } catch (_: Exception) {
                             } finally {
@@ -158,37 +205,12 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                 }
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
-                val periods = StatsPeriod.entries
-                periods.forEachIndexed { index, item ->
-                    val selected = item == period
-                    ConnectedBarButton(
-                        position = groupPosition(index, periods.size),
-                        onClick = { period = item },
-                        containerColor = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                        contentColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        if (selected) {
-                            Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(4.dp))
-                        }
-                        Text(
-                            text = periodLabel(item, lang),
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
+            SettingsTabBar(
+                titles = tabs.map { it.first },
+                icons = tabs.map { it.second },
+                pagerState = pagerState,
+                onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index, animationSpec = Motion.spatialDefault()) } }
+            )
 
             AnimatedVisibility(
                 visible = lookupProgress != null,
@@ -196,7 +218,7 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                 exit = fadeOut() + shrinkVertically()
             ) {
                 val (done, total) = lookupProgress ?: (0 to 1)
-                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
                     Text(
                         text = Strings.tr(
                             lang,
@@ -218,36 +240,43 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                 }
             }
 
-            val background = MaterialTheme.colorScheme.surface
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentWidth(Alignment.CenterHorizontally)
-                        .readableContentWidth()
-                        .drawWithContent {
-                            captureLayer.record { this@drawWithContent.drawContent() }
-                            drawLayer(captureLayer)
-                        }
-                        .background(background)
-                        .padding(horizontal = 16.dp)
-                        .padding(top = 8.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    val current = stats
-                    when {
-                        current == null -> Box(
+            val current = stats
+            when {
+                current == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
+                current.isEmpty -> EmptyStats(lang)
+                else -> HorizontalPager(
+                    state = pagerState,
+                    beyondViewportPageCount = 2,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    val background = MaterialTheme.colorScheme.surface
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(320.dp),
-                            contentAlignment = Alignment.Center
-                        ) { LoadingIndicator() }
-                        current.isEmpty -> EmptyStats(lang)
-                        else -> StatsBody(current, period, lang, locale)
+                                .wrapContentWidth(Alignment.CenterHorizontally)
+                                .readableContentWidth()
+                                .then(
+                                    if (page == 0) Modifier.drawWithContent {
+                                        captureLayer.record { this@drawWithContent.drawContent() }
+                                        drawLayer(captureLayer)
+                                    } else Modifier
+                                )
+                                .background(background)
+                                .padding(horizontal = 16.dp)
+                                .padding(top = 8.dp, bottom = 24.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            when (page) {
+                                0 -> OverviewPage(current, period, lang, locale)
+                                1 -> FavoritesPage(current, lang)
+                                else -> ActivityPage(current, lang, locale)
+                            }
+                        }
                     }
                 }
             }
@@ -256,8 +285,8 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
 }
 
 @Composable
-private fun StatsBody(stats: FavoriteStats, period: StatsPeriod, lang: AppLanguage, locale: Locale) {
-    HeroCard(stats, period, lang, locale)
+private fun OverviewPage(stats: FavoriteStats, period: StatsPeriod, lang: AppLanguage, locale: Locale) {
+    SummaryCard(stats, period, lang, locale)
 
     val spotlights = listOfNotNull(
         stats.topCharacters.firstOrNull()?.let { Triple(TagCategory.CHARACTER, Strings.tr(lang, "Favorite character", "Любимый персонаж", "推しキャラ", "最爱角色", "최애 캐릭터", "الشخصية المفضلة"), it) },
@@ -265,53 +294,10 @@ private fun StatsBody(stats: FavoriteStats, period: StatsPeriod, lang: AppLangua
         stats.topCopyrights.firstOrNull()?.let { Triple(TagCategory.COPYRIGHT, Strings.tr(lang, "Favorite series", "Любимая франшиза", "推し作品", "最爱作品", "최애 작품", "العمل المفضل"), it) }
     )
     if (spotlights.isNotEmpty()) {
-        SectionTitle(Strings.tr(lang, "Your favorites", "Ваши любимчики", "あなたの推し", "你的最爱", "나의 최애", "مفضلاتك"))
         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
             spotlights.forEachIndexed { index, (category, title, entry) ->
-                SpotlightRow(
-                    category = category,
-                    title = title,
-                    entry = entry,
-                    lang = lang,
-                    shape = segmentShape(index, spotlights.size)
-                )
+                SpotlightRow(category, title, entry, lang, segmentShape(index, spotlights.size))
             }
-        }
-    }
-
-    val runnersUp = listOf(
-        TagCategory.CHARACTER to stats.topCharacters.drop(1).take(5),
-        TagCategory.ARTIST to stats.topArtists.drop(1).take(5),
-        TagCategory.COPYRIGHT to stats.topCopyrights.drop(1).take(5)
-    ).filter { it.second.isNotEmpty() }
-    if (runnersUp.isNotEmpty()) {
-        StatsCard(Icons.Rounded.Leaderboard, Strings.tr(lang, "Also in your top", "Также в топе", "その他の上位", "其他上榜", "그 외 상위", "أيضاً في القمة")) {
-            runnersUp.forEachIndexed { i, (category, entries) ->
-                if (i > 0) Spacer(Modifier.height(14.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(category.icon, contentDescription = null, tint = categoryTint(category), modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = category.localizedName(lang),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Spacer(Modifier.height(8.dp))
-                RankedBars(entries, categoryTint(category), startRank = 2)
-            }
-        }
-    }
-
-    if (stats.topTags.isNotEmpty()) {
-        StatsCard(Icons.Rounded.Tag, Strings.tr(lang, "Your vibe", "Ваш вайб", "あなたの好み", "你的口味", "나의 취향", "ذوقك")) {
-            TagCloud(stats.topTags)
-        }
-    }
-
-    if (stats.monthly.size > 1) {
-        StatsCard(Icons.Rounded.BarChart, Strings.tr(lang, "Activity", "Активность", "アクティビティ", "活跃度", "활동", "النشاط")) {
-            ActivityChart(stats, locale, lang)
         }
     }
 
@@ -335,41 +321,6 @@ private fun StatsBody(stats: FavoriteStats, period: StatsPeriod, lang: AppLangua
         )
     }
 
-    StatsCard(Icons.Rounded.PieChart, Strings.tr(lang, "Mix", "Состав", "内訳", "构成", "구성", "التركيبة")) {
-        val primary = MaterialTheme.colorScheme.primary
-        val tertiary = MaterialTheme.colorScheme.tertiary
-        val secondary = MaterialTheme.colorScheme.secondary
-        SplitBar(
-            listOf(
-                Triple(Strings.tr(lang, "Images", "Картинки", "画像", "图片", "이미지", "صور"), stats.images, primary),
-                Triple("GIF", stats.gifs, tertiary),
-                Triple(Strings.tr(lang, "Videos", "Видео", "動画", "视频", "동영상", "فيديو"), stats.videos, secondary)
-            )
-        )
-        if (stats.safe + stats.questionable + stats.explicit > 0) {
-            Spacer(Modifier.height(16.dp))
-            SplitBar(
-                listOf(
-                    Triple(Strings.tr(lang, "Safe", "Безопасно", "全年齢", "安全", "안전", "آمن"), stats.safe, tertiary),
-                    Triple(Strings.tr(lang, "Questionable", "Сомнительно", "センシティブ", "可疑", "민감", "مشكوك"), stats.questionable, secondary),
-                    Triple(Strings.tr(lang, "Explicit", "Откровенно", "成人向け", "露骨", "성인", "صريح"), stats.explicit, MaterialTheme.colorScheme.error)
-                )
-            )
-        }
-    }
-
-    if (stats.topSources.size > 1) {
-        StatsCard(Icons.Rounded.Public, Strings.tr(lang, "Sources", "Источники", "ソース", "来源", "소스", "المصادر")) {
-            RankedBars(stats.topSources.take(5), MaterialTheme.colorScheme.primary, prettify = false)
-        }
-    }
-
-    stats.topScored?.let { top ->
-        StatsCard(Icons.Rounded.EmojiEvents, Strings.tr(lang, "Highest score", "Самый высокий рейтинг", "最高スコア", "最高评分", "최고 점수", "أعلى تقييم")) {
-            TopScoredRow(top)
-        }
-    }
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -388,88 +339,134 @@ private fun StatsBody(stats: FavoriteStats, period: StatsPeriod, lang: AppLangua
 }
 
 @Composable
-private fun HeroCard(stats: FavoriteStats, period: StatsPeriod, lang: AppLanguage, locale: Locale) {
+private fun FavoritesPage(stats: FavoriteStats, lang: AppLanguage) {
+    val groups = listOf(
+        Triple(TagCategory.CHARACTER, Strings.tr(lang, "Characters", "Персонажи", "キャラクター", "角色", "캐릭터", "الشخصيات"), stats.topCharacters),
+        Triple(TagCategory.ARTIST, Strings.tr(lang, "Artists", "Авторы", "絵師", "画师", "작가", "الفنانون"), stats.topArtists),
+        Triple(TagCategory.COPYRIGHT, Strings.tr(lang, "Series", "Франшизы", "作品", "作品", "작품", "الأعمال"), stats.topCopyrights)
+    ).filter { it.third.isNotEmpty() }
+
+    if (stats.topTags.isNotEmpty()) {
+        StatsCard(Icons.Rounded.Tag, Strings.tr(lang, "Your vibe", "Ваш вайб", "あなたの好み", "你的口味", "나의 취향", "ذوقك")) {
+            TagCloud(stats.topTags)
+        }
+    }
+    groups.forEach { (category, title, entries) ->
+        StatsCard(category.icon, title) {
+            RankedBars(entries.take(8), MaterialTheme.colorScheme.primary)
+        }
+    }
+    if (stats.topSources.size > 1) {
+        StatsCard(Icons.Rounded.Public, Strings.tr(lang, "Sources", "Источники", "ソース", "来源", "소스", "المصادر")) {
+            RankedBars(stats.topSources.take(5), MaterialTheme.colorScheme.primary, prettify = false)
+        }
+    }
+    if (groups.isEmpty() && stats.topTags.isEmpty()) EmptyStats(lang)
+}
+
+@Composable
+private fun ActivityPage(stats: FavoriteStats, lang: AppLanguage, locale: Locale) {
+    if (stats.monthly.size > 1) {
+        StatsCard(Icons.Rounded.BarChart, Strings.tr(lang, "By month", "По месяцам", "月別", "按月", "월별", "حسب الشهر")) {
+            ActivityChart(stats, locale, lang)
+        }
+    }
+
+    StatsCard(Icons.Rounded.PieChart, Strings.tr(lang, "Mix", "Состав", "内訳", "构成", "구성", "التركيبة")) {
+        val primary = MaterialTheme.colorScheme.primary
+        val tertiary = MaterialTheme.colorScheme.tertiary
+        val secondary = MaterialTheme.colorScheme.secondary
+        SplitBar(
+            listOf(
+                Triple(Strings.tr(lang, "Images", "Картинки", "画像", "图片", "이미지", "صور"), stats.images, primary),
+                Triple("GIF", stats.gifs, tertiary),
+                Triple(Strings.tr(lang, "Videos", "Видео", "動画", "视频", "동영상", "فيديو"), stats.videos, secondary)
+            )
+        )
+        if (stats.safe + stats.questionable + stats.explicit > 0) {
+            Spacer(Modifier.height(16.dp))
+            SplitBar(
+                listOf(
+                    Triple(Strings.tr(lang, "Safe", "Безопасно", "全年齢", "安全", "안전", "آمن"), stats.safe, tertiary),
+                    Triple(Strings.tr(lang, "Questionable", "Сомнительно", "センシティブ", "可疑", "민감", "مشكوك"), stats.questionable, secondary),
+                    Triple(Strings.tr(lang, "Explicit", "Откровенно", "成人向け", "露骨", "성인", "صريح"), stats.explicit, primary)
+                )
+            )
+        }
+    }
+
+    stats.topScored?.let { top ->
+        StatsCard(Icons.Rounded.EmojiEvents, Strings.tr(lang, "Highest score", "Самый высокий рейтинг", "最高スコア", "最高评分", "최고 점수", "أعلى تقييم")) {
+            TopScoredRow(top)
+        }
+    }
+}
+
+@Composable
+private fun SummaryCard(stats: FavoriteStats, period: StatsPeriod, lang: AppLanguage, locale: Locale) {
     val scheme = MaterialTheme.colorScheme
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(ShapeTokens.ExtraLargeIncreased)
-            .background(Brush.linearGradient(listOf(scheme.primaryContainer, scheme.tertiaryContainer)))
-            .padding(24.dp)
+    Surface(
+        shape = ShapeTokens.ExtraLarge,
+        color = scheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column {
-            Surface(shape = CircleShape, color = scheme.onPrimaryContainer.copy(alpha = 0.12f)) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = periodLabel(period, lang),
+                style = MaterialTheme.typography.labelLarge,
+                color = scheme.onSurfaceVariant
+            )
+            Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    text = periodLabel(period, lang),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = scheme.onPrimaryContainer,
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                    text = stats.total.toString(),
+                    style = MaterialTheme.typography.displayMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = scheme.primary
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = Strings.tr(lang, "favorites", "в избранном", "件", "个收藏", "개", "مفضلة"),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = scheme.onSurface,
+                    modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
-            Spacer(Modifier.height(12.dp))
-            Text(
-                text = stats.total.toString(),
-                style = MaterialTheme.typography.displayLarge,
-                fontSize = 72.sp,
-                lineHeight = 76.sp,
-                fontWeight = FontWeight.Black,
-                color = scheme.onPrimaryContainer
-            )
-            Text(
-                text = Strings.tr(lang, "favorites saved", "постов в избранном", "件のお気に入り", "个收藏", "개의 즐겨찾기", "عنصر في المفضلة"),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = scheme.onPrimaryContainer
-            )
             stats.firstSavedAt?.let { first ->
                 val date = Instant.ofEpochMilli(first).atZone(ZoneId.systemDefault()).toLocalDate()
                 val formatted = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).format(date)
                 Text(
                     text = Strings.tr(lang, "since $formatted", "с $formatted", "$formatted から", "自 $formatted 起", "${formatted}부터", "منذ $formatted"),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = scheme.onPrimaryContainer.copy(alpha = 0.75f)
+                    color = scheme.onSurfaceVariant
                 )
             }
             Spacer(Modifier.height(16.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                HeroPill(Icons.Rounded.Image, stats.images)
-                HeroPill(Icons.Rounded.Gif, stats.gifs)
-                HeroPill(Icons.Rounded.Videocam, stats.videos)
+            Row(horizontalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.fillMaxWidth()) {
+                val items = listOf(
+                    Triple(Icons.Rounded.Image, stats.images, Strings.tr(lang, "Images", "Картинки", "画像", "图片", "이미지", "صور")),
+                    Triple(Icons.Rounded.Gif, stats.gifs, "GIF"),
+                    Triple(Icons.Rounded.Videocam, stats.videos, Strings.tr(lang, "Videos", "Видео", "動画", "视频", "동영상", "فيديو"))
+                )
+                items.forEachIndexed { index, (icon, count, label) ->
+                    val outer = 16.dp
+                    val inner = 4.dp
+                    val shape = when (index) {
+                        0 -> RoundedCornerShape(topStart = outer, bottomStart = outer, topEnd = inner, bottomEnd = inner)
+                        items.lastIndex -> RoundedCornerShape(topStart = inner, bottomStart = inner, topEnd = outer, bottomEnd = outer)
+                        else -> RoundedCornerShape(inner)
+                    }
+                    Surface(shape = shape, color = scheme.surfaceContainerHighest, modifier = Modifier.weight(1f)) {
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                            Icon(icon, contentDescription = null, tint = scheme.primary, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.height(4.dp))
+                            Text(count.toString(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = scheme.onSurface)
+                            Text(label, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
             }
         }
     }
-}
-
-@Composable
-private fun HeroPill(icon: ImageVector, count: Int) {
-    val onContainer = MaterialTheme.colorScheme.onPrimaryContainer
-    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)) {
-        Row(
-            modifier = Modifier.padding(start = 10.dp, end = 12.dp, top = 6.dp, bottom = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, contentDescription = null, tint = onContainer, modifier = Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(
-                text = count.toString(),
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                color = onContainer
-            )
-        }
-    }
-}
-
-@Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onSurface,
-        modifier = Modifier.padding(start = 4.dp, top = 4.dp)
-    )
 }
 
 private fun segmentShape(index: Int, count: Int): RoundedCornerShape {
@@ -499,14 +496,14 @@ private fun SpotlightRow(category: TagCategory, title: String, entry: CountEntry
                 Thumbnail(entry.sample, Modifier.size(72.dp).clip(ShapeTokens.Large))
                 Surface(
                     shape = CircleShape,
-                    color = tint,
+                    color = MaterialTheme.colorScheme.primaryContainer,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .offset(x = 4.dp, y = 4.dp)
                         .size(26.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(category.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
+                        Icon(category.icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(15.dp))
                     }
                 }
             }
@@ -589,24 +586,24 @@ private fun StatsCard(icon: ImageVector, title: String, content: @Composable Col
 private fun FactTile(icon: ImageVector, value: String, label: String, modifier: Modifier = Modifier) {
     Surface(
         shape = ShapeTokens.ExtraLarge,
-        color = MaterialTheme.colorScheme.secondaryContainer,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
         modifier = modifier
     ) {
         Column(modifier = Modifier.padding(18.dp)) {
-            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.size(22.dp))
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
             Spacer(Modifier.height(10.dp))
             Text(
                 text = value,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
@@ -679,7 +676,7 @@ private fun TagCloud(entries: List<CountEntry>) {
             val highlight = index < 3
             Surface(
                 shape = CircleShape,
-                color = if (highlight) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest
+                color = if (highlight) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest
             ) {
                 Row(
                     modifier = Modifier.padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
@@ -689,18 +686,18 @@ private fun TagCloud(entries: List<CountEntry>) {
                         text = prettyTag(entry.label),
                         style = if (highlight) MaterialTheme.typography.titleSmall else MaterialTheme.typography.labelLarge,
                         fontWeight = if (highlight) FontWeight.Bold else FontWeight.Medium,
-                        color = if (highlight) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        color = if (highlight) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(Modifier.width(6.dp))
                     Surface(
                         shape = CircleShape,
-                        color = if (highlight) MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceContainerHigh
+                        color = if (highlight) MaterialTheme.colorScheme.surface.copy(alpha = 0.6f) else MaterialTheme.colorScheme.surfaceContainerHigh
                     ) {
                         Text(
                             text = entry.count.toString(),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
-                            color = if (highlight) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (highlight) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                         )
                     }
@@ -877,12 +874,7 @@ private fun EmptyStats(lang: AppLanguage) {
 }
 
 @Composable
-private fun categoryTint(category: TagCategory): Color = when (category) {
-    TagCategory.CHARACTER -> MaterialTheme.colorScheme.tertiary
-    TagCategory.ARTIST -> MaterialTheme.colorScheme.error
-    TagCategory.COPYRIGHT -> MaterialTheme.colorScheme.secondary
-    else -> MaterialTheme.colorScheme.primary
-}
+private fun categoryTint(@Suppress("UNUSED_PARAMETER") category: TagCategory): Color = MaterialTheme.colorScheme.primary
 
 private fun prettyTag(tag: String) = tag.replace('_', ' ')
 
