@@ -277,7 +277,7 @@ fun ImmersiveMediaViewer(
                     if (item.isVideo) {
                         BooruVideoPlayer(
                             videoUrl = vm.resolveVideoUrl(item),
-                            previewUrl = item.gridImageUrl(vm.imageQuality != com.booru.app.data.ImageQuality.SAVER),
+                            previewUrl = item.gridImageUrl(vm.effectiveImageQuality != com.booru.app.data.ImageQuality.SAVER),
                             lang = vm.language,
                             modifier = Modifier.fillMaxSize(),
                             isActive = isCurrent && !isClosing,
@@ -504,8 +504,8 @@ fun FullscreenZoomableImage(
     var rawScale by remember { mutableFloatStateOf(1f) }
     var rawOffset by remember { mutableStateOf(Offset.Zero) }
     var detailLoadError by remember(media.id, media.url) { mutableStateOf(false) }
-    val thumbnailKey = remember(media.mediaKey, vm.imageQuality) {
-        media.gridImageUrl(vm.imageQuality != com.booru.app.data.ImageQuality.SAVER)
+    val thumbnailKey = remember(media.mediaKey, vm.effectiveImageQuality) {
+        media.gridImageUrl(vm.effectiveImageQuality != com.booru.app.data.ImageQuality.SAVER)
     }
     var detectedRatio by remember(media.id, media.url) {
         mutableFloatStateOf(

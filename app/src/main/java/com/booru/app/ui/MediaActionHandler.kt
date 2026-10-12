@@ -212,6 +212,8 @@ object MediaActionHandler {
 
                 Result.success(filename)
             }
+        } catch (c: kotlinx.coroutines.CancellationException) {
+            throw c
         } catch (e: Exception) {
             Result.failure(e)
         } finally {

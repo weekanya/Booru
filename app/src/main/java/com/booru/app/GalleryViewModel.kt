@@ -98,6 +98,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     /** True while the user asked to save mobile data and the current network is metered. */
     val isDataSaverActive: Boolean get() = dataSaverOnMobile && isMeteredNetwork
 
+    /** Quality used for grids and thumbnails: light previews while saving mobile data. */
+    val effectiveImageQuality: ImageQuality get() = if (isDataSaverActive) ImageQuality.SAVER else imageQuality
+
     private val connectivity = application.getSystemService(android.net.ConnectivityManager::class.java)
     private val networkCallback = object : android.net.ConnectivityManager.NetworkCallback() {
         override fun onCapabilitiesChanged(network: android.net.Network, caps: android.net.NetworkCapabilities) {
@@ -514,9 +517,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             } catch (c: CancellationException) {
                 if (tempFile.exists()) tempFile.delete()
                 if (targetFile.exists()) targetFile.delete()
-                withContext(Dispatchers.Main) {
+                // The coroutine is already cancelled, so the reset must not be cancellable,
+                // otherwise the "downloading" state would stay on forever.
+                withContext(kotlinx.coroutines.NonCancellable + Dispatchers.Main) {
                     isDownloadingUpdate = false
                 }
+                throw c
             } catch (e: Exception) {
                 if (tempFile.exists()) tempFile.delete()
                 if (targetFile.exists()) targetFile.delete()

@@ -325,25 +325,31 @@ fun SettingsScreen(
                         )
                     }
     
+                    // "Auto" is Original on Wi-Fi plus the mobile data saver: samples in the viewer,
+                    // no video preloading and no AI file checks on metered networks.
+                    val autoSelected = vm.dataSaverOnMobile
                     val options = listOf(
-                        Pair(ImageQuality.SAMPLE, Strings.qualitySample(lang)),
-                        Pair(ImageQuality.ORIGINAL, Strings.qualityOriginal(lang)),
-                        Pair(ImageQuality.SAVER, Strings.qualitySaver(lang))
+                        Triple(null as ImageQuality?, qualityAutoLabel(lang), Icons.Rounded.NetworkCheck),
+                        Triple(ImageQuality.ORIGINAL, Strings.qualityOriginal(lang), Icons.Rounded.HighQuality),
+                        Triple(ImageQuality.SAMPLE, Strings.qualitySample(lang), Icons.Rounded.Speed),
+                        Triple(ImageQuality.SAVER, Strings.qualitySaver(lang), Icons.Rounded.DataSaverOn)
                     )
-    
-                    options.forEachIndexed { index, (q, title) ->
+
+                    options.forEachIndexed { index, (q, title, icon) ->
                         SegmentedOptionItem(
                             title = title,
-                            selected = vm.imageQuality == q,
+                            selected = if (q == null) autoSelected else !autoSelected && vm.imageQuality == q,
                             index = index,
                             count = options.size,
-                            icon = when (q) {
-                                ImageQuality.SAMPLE -> Icons.Rounded.Speed
-                                ImageQuality.ORIGINAL -> Icons.Rounded.HighQuality
-                                ImageQuality.SAVER -> Icons.Rounded.DataSaverOn
-                            },
+                            icon = icon,
                             onClick = {
-                                vm.updateImageQuality(q)
+                                if (q == null) {
+                                    vm.updateImageQuality(ImageQuality.ORIGINAL)
+                                    vm.updateDataSaverOnMobile(true)
+                                } else {
+                                    vm.updateImageQuality(q)
+                                    vm.updateDataSaverOnMobile(false)
+                                }
                                 scope.launch { sheetState.hide() }.invokeOnCompletion { showQualityDialog = false }
                             }
                         )
@@ -1244,7 +1250,7 @@ fun SettingsScreen(
                         SettingsGroupCard {
                             SettingRowItem(
                                 title = Strings.imageQualityTitle(lang),
-                                subtitle = when (vm.imageQuality) {
+                                subtitle = if (vm.dataSaverOnMobile) qualityAutoLabel(lang) else when (vm.imageQuality) {
                                     ImageQuality.ORIGINAL -> Strings.qualityOriginal(lang)
                                     ImageQuality.SAVER    -> Strings.qualitySaver(lang)
                                     ImageQuality.SAMPLE   -> Strings.qualitySample(lang)
@@ -1255,23 +1261,6 @@ fun SettingsScreen(
 
                             SettingsDivider()
 
-                            SettingSwitchItem(
-                                title = Strings.tr(lang, "Save mobile data", "Экономить мобильный трафик", "モバイルデータを節約", "节省移动数据", "모바일 데이터 절약", "توفير بيانات الجوال"),
-                                subtitle = Strings.tr(
-                                    lang,
-                                    "On mobile data: no originals in the viewer, no video preloading, no AI file checks",
-                                    "В мобильной сети: без оригиналов в просмотре, без предзагрузки видео и проверки файлов на ИИ",
-                                    "モバイル通信時：オリジナル画像・動画の先読み・AIファイル検査をしない",
-                                    "移动网络下：不加载原图、不预加载视频、不检查AI文件",
-                                    "모바일 데이터에서는 원본, 동영상 미리 로드, AI 파일 검사를 하지 않음",
-                                    "على بيانات الجوال: بدون الصور الأصلية أو التحميل المسبق للفيديو أو فحص الذكاء الاصطناعي"
-                                ),
-                                icon = Icons.Rounded.DataSaverOn,
-                                checked = vm.dataSaverOnMobile,
-                                onCheckedChange = { vm.updateDataSaverOnMobile(it) }
-                            )
-
-                            SettingsDivider()
 
                             SettingRowItem(
                                 title = Strings.tagBlacklistTitle(lang),
@@ -2303,3 +2292,13 @@ private fun ApiKeyForm(
         }
     }
 }
+
+private fun qualityAutoLabel(lang: AppLanguage) = Strings.tr(
+    lang,
+    "Auto: original on Wi-Fi, saving on mobile data",
+    "Авто: оригинал по Wi-Fi, экономия в мобильной сети",
+    "自動：Wi-Fiではオリジナル、モバイルでは節約",
+    "自动：Wi-Fi 原图，移动网络省流量",
+    "자동: Wi-Fi는 원본, 모바일은 절약",
+    "تلقائي: الأصلي عبر Wi-Fi وتوفير على بيانات الجوال"
+)

@@ -178,8 +178,8 @@ fun ExploreScreen(
     }
 
     val context = LocalContext.current
-    LaunchedEffect(gridState, vm.imageQuality) {
-        val preferLarge = vm.imageQuality != ImageQuality.SAVER
+    LaunchedEffect(gridState, vm.effectiveImageQuality) {
+        val preferLarge = vm.effectiveImageQuality != ImageQuality.SAVER
         val prefetched = HashSet<String>()
         snapshotFlow { gridState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1 }
             .distinctUntilChanged()
@@ -665,7 +665,7 @@ fun ExploreScreen(
                                 media = media,
                                 aspectRatio = ratio,
                                 isFavorite = vm.isFavorite(media),
-                                quality = vm.imageQuality,
+                                quality = vm.effectiveImageQuality,
                                 onFavoriteClick = { vm.toggleFavorite(media) },
                                 onClick = { vm.openFullscreen(vm.results, index) },
                                 modifier = Modifier.animateItem(

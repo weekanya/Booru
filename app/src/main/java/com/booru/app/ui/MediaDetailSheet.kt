@@ -294,7 +294,7 @@ private fun MediaDetailSheetContent(
                             BooruVideoPlayer(
                                 videoUrl = vm.resolveVideoUrl(item),
                                 lang = lang,
-                                previewUrl = item.gridImageUrl(vm.imageQuality != com.booru.app.data.ImageQuality.SAVER),
+                                previewUrl = item.gridImageUrl(vm.effectiveImageQuality != com.booru.app.data.ImageQuality.SAVER),
                                 modifier = Modifier.fillMaxSize(),
                                 isActive = pagerState.currentPage == page && !showTrueFullscreen && !isDismissingSheet,
                                 onFullscreen = { showTrueFullscreen = true },
@@ -1321,8 +1321,8 @@ fun DetailZoomableImage(
     var rawOffset by remember { mutableStateOf(Offset.Zero) }
     var detailLoadError by remember(media.id, media.url) { mutableStateOf(false) }
     var retryKey by remember(media.id, media.url) { mutableIntStateOf(0) }
-    val thumbnailKey = remember(media.mediaKey, vm.imageQuality) {
-        media.gridImageUrl(vm.imageQuality != com.booru.app.data.ImageQuality.SAVER)
+    val thumbnailKey = remember(media.mediaKey, vm.effectiveImageQuality) {
+        media.gridImageUrl(vm.effectiveImageQuality != com.booru.app.data.ImageQuality.SAVER)
     }
     var detectedRatio by remember(media.id, media.url) {
         mutableFloatStateOf(

@@ -506,7 +506,7 @@ fun FavoritesScreen(
                 folderName = folderToDelete!!,
                 lang = lang,
                 onConfirm = {
-                    val toDelete = folderToDelete!!
+                    val toDelete = folderToDelete ?: return@DeleteFolderBottomSheet
                     val deleteIdx = folders.indexOf(toDelete)
                     if (pagerState.currentPage == deleteIdx) {
                         scope.launch { pagerState.animateScrollToPage(0) }
@@ -718,7 +718,7 @@ fun FavoritesScreen(
                         FavoriteCard(
                             media = media,
                             aspectRatio = ratio,
-                            quality = vm.imageQuality,
+                            quality = vm.effectiveImageQuality,
                             folder = mediaFolder,
                             onRemove = {
                                 vm.toggleFavorite(media)
