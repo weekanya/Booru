@@ -231,46 +231,6 @@ private data class NavItemData(
     val badgeCount: Int = 0
 )
 
-@Composable
-private fun BooruNavigationRail(
-    items: List<NavItemData>,
-    selectedIndex: Int,
-    onSelect: (Int) -> Unit
-) {
-    NavigationRail(
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        modifier = Modifier.fillMaxHeight()
-    ) {
-        Spacer(Modifier.weight(1f))
-        items.forEachIndexed { index, item ->
-            val selected = selectedIndex == index
-            NavigationRailItem(
-                selected = selected,
-                onClick = { onSelect(index) },
-                icon = {
-                    val icon = if (selected) item.selectedIcon else item.icon
-                    if (item.badgeCount > 0) {
-                        BadgedBox(
-                            badge = {
-                                Badge {
-                                    Text(if (item.badgeCount > 99) "99+" else "${item.badgeCount}")
-                                }
-                            }
-                        ) {
-                            Icon(icon, contentDescription = item.label)
-                        }
-                    } else {
-                        Icon(icon, contentDescription = item.label)
-                    }
-                },
-                label = { Text(item.label) }
-            )
-            Spacer(Modifier.height(12.dp))
-        }
-        Spacer(Modifier.weight(1f))
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BooruApp(
@@ -438,13 +398,6 @@ fun BooruApp(
                         ) {
                             CompositionLocalProvider(LocalWindowWidthClass provides widthClass) {
                             Row(modifier = Modifier.fillMaxSize()) {
-                            if (widthClass.usesNavigationRail) {
-                                BooruNavigationRail(
-                                    items = navItems,
-                                    selectedIndex = selectedTab,
-                                    onSelect = onNavSelect
-                                )
-                            }
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
@@ -486,7 +439,19 @@ fun BooruApp(
                             }
                             }
 
-                            if (!widthClass.usesNavigationRail) {
+                            if (widthClass.usesNavigationRail) {
+                                // Tablets: a compact floating toolbar instead of a side rail, so the
+                                // grid keeps the full width and tabs look like the stats page.
+                                FloatingTabToolbar(
+                                    tabs = navItems.map { FloatingTab(it.label, it.icon, it.selectedIcon, it.badgeCount) },
+                                    selected = selectedTab,
+                                    onSelect = onNavSelect,
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .navigationBarsPadding()
+                                        .padding(bottom = 12.dp)
+                                )
+                            } else {
                             Surface(
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
@@ -675,7 +640,7 @@ fun BooruApp(
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .navigationBarsPadding()
-                            .padding(bottom = if (widthClass.usesNavigationRail) 16.dp else 88.dp)
+                            .padding(bottom = 88.dp)
                     )
                 }
             }

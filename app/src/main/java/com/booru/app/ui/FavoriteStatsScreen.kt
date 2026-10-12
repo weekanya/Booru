@@ -265,8 +265,8 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                             }
                         }
                     }
-                    StatsTabToolbar(
-                        tabs = tabs,
+                    FloatingTabToolbar(
+                        tabs = tabs.map { FloatingTab(it.first, it.second) },
                         selected = pagerState.targetPage,
                         onSelect = { index ->
                             scope.launch { pagerState.animateScrollToPage(index, animationSpec = Motion.pageSwitch()) }
@@ -276,69 +276,6 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                             .zIndex(1f)
                             .padding(bottom = 16.dp)
                     )
-                }
-            }
-        }
-    }
-}
-
-/** Floating MD3E toolbar: the selected tab expands into a labelled pill, the others stay icons. */
-@Composable
-private fun StatsTabToolbar(
-    tabs: List<Pair<String, ImageVector>>,
-    selected: Int,
-    onSelect: (Int) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Surface(
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-        shadowElevation = 6.dp,
-        modifier = modifier
-    ) {
-        Row(
-            modifier = Modifier.padding(6.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            tabs.forEachIndexed { index, (title, icon) ->
-                val isSelected = index == selected
-                val container by animateColorAsState(
-                    if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                    tween(200),
-                    label = "tabContainer"
-                )
-                val content by animateColorAsState(
-                    if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                    tween(200),
-                    label = "tabContent"
-                )
-                Surface(
-                    onClick = { onSelect(index) },
-                    shape = CircleShape,
-                    color = container,
-                    contentColor = content,
-                    modifier = Modifier
-                        .height(48.dp)
-                        .semantics { role = Role.Tab; this.selected = isSelected }
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .animateContentSize(spring(dampingRatio = 1f, stiffness = Spring.StiffnessMediumLow))
-                            .padding(horizontal = if (isSelected) 18.dp else 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(icon, contentDescription = if (isSelected) null else title, modifier = Modifier.size(22.dp))
-                        if (isSelected) {
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = title,
-                                style = MaterialTheme.typography.labelLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1
-                            )
-                        }
-                    }
                 }
             }
         }

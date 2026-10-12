@@ -92,6 +92,19 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var safeMode by mutableStateOf(false); private set
     var excludeSafe by mutableStateOf(false); private set
     var noAi by mutableStateOf(false); private set
+    var dataSaverOnMobile by mutableStateOf(false); private set
+    var isMeteredNetwork by mutableStateOf(false); private set
+
+    /** True while the user asked to save mobile data and the current network is metered. */
+    val isDataSaverActive: Boolean get() = dataSaverOnMobile && isMeteredNetwork
+
+    private val connectivity = application.getSystemService(android.net.ConnectivityManager::class.java)
+    private val networkCallback = object : android.net.ConnectivityManager.NetworkCallback() {
+        override fun onCapabilitiesChanged(network: android.net.Network, caps: android.net.NetworkCapabilities) {
+            val metered = !caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
+            viewModelScope.launch { isMeteredNetwork = metered }
+        }
+    }
     var sortOrder by mutableStateOf(SortOrder.NEWEST); private set
 
     var themeMode by mutableStateOf(ThemeMode.SYSTEM); private set
@@ -141,6 +154,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var isNetworkError by mutableStateOf(false); private set
     var resultsEpoch by mutableIntStateOf(0); private set
     private val favoriteMutex = Mutex()
+
+    init {
+        runCatching { connectivity?.registerDefaultNetworkCallback(networkCallback) }
+    }
 
     init {
         viewModelScope.launch {
@@ -239,6 +256,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
         viewModelScope.launch {
             prefs.noAiFilter.collect { noAi = it }
+        }
+        viewModelScope.launch {
+            prefs.dataSaverOnMobile.collect { dataSaverOnMobile = it }
         }
         viewModelScope.launch {
             prefs.searchHistory.collect { searchHistory = it }
@@ -1414,6 +1434,16 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun setDataSaverOnMobile(enabled: Boolean) {
+        dataSaverOnMobile = enabled
+        viewModelScope.launch { prefs.setDataSaverOnMobile(enabled) }
+    }
+
+    override fun onCleared() {
+        runCatching { connectivity?.unregisterNetworkCallback(networkCallback) }
+        super.onCleared()
+    }
+
     fun setNoAiEnabled(enabled: Boolean) {
         viewModelScope.launch {
             prefs.setNoAiFilter(enabled)
@@ -1603,7 +1633,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         get() = BooruRepository.AVAILABLE_SOURCES.filter { isSourceEnabled(it) } + customSources.filter { it.enabled }.map { it.id }
 
     fun resolveMediaUrl(media: RemoteMedia): String = when (imageQuality) {
-        ImageQuality.ORIGINAL -> media.url.ifBlank { media.sample.ifBlank { media.preview } }
+        ImageQuality.ORIGINAL ->
+            if (isDataSaverActive) media.sample.ifBlank { media.url.ifBlank { media.preview } }
+            else media.url.ifBlank { media.sample.ifBlank { media.preview } }
         ImageQuality.SAVER    -> media.preview.ifBlank { media.sample.ifBlank { media.url } }
         ImageQuality.SAMPLE   -> media.sample.ifBlank { media.url.ifBlank { media.preview } }
     }
@@ -1671,7 +1703,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private var aiScanGeneration = -1L
 
     private fun scanForAiTraces(items: List<RemoteMedia>, searchGen: Long) {
-        if (!noAi || items.isEmpty()) return
+        if (!noAi || items.isEmpty() || isDataSaverActive) return
         // A new search makes the old feed's checks pointless; stop downloading their headers.
         if (searchGen != aiScanGeneration) {
             aiScanJobs.forEach { it.cancel() }
@@ -1693,6 +1725,31 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             if (com.booru.app.data.TagCategoryCache.resolve(media.tagList)) recalculateRecommendationTags()
         }
+    }
+
+    /**
+     * Searches for posts like [media]: its character plus artist, falling back to the series and
+     * then to its two most distinctive general tags. Returns false when the post has no usable tags.
+     */
+    fun searchSimilar(media: RemoteMedia): Boolean {
+        val classified = media.tagList
+            .filter { TagClassifier.isRecommendationCandidate(it) }
+            .map { TagClassifier.classify(it) }
+        fun first(category: TagCategory) = classified.firstOrNull { it.category == category }?.rawTag
+        val parts = mutableListOf<String>()
+        first(TagCategory.CHARACTER)?.let(parts::add)
+        first(TagCategory.ARTIST)?.let(parts::add)
+        if (parts.size < 2) first(TagCategory.COPYRIGHT)?.let(parts::add)
+        if (parts.isEmpty()) {
+            val weights = recommendationTags.withIndex().associate { (i, t) -> t to i }
+            classified.filter { it.category == TagCategory.GENERAL }
+                .sortedBy { weights[it.rawTag.lowercase()] ?: Int.MAX_VALUE }
+                .take(2)
+                .forEach { parts += it.rawTag }
+        }
+        if (parts.isEmpty()) return false
+        search(source, parts.take(2).joinToString(" "), safeMode)
+        return true
     }
 
     /** Hides the post from the feed and, outside incognito, teaches recommendations to show less like it. */

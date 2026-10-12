@@ -54,6 +54,7 @@ class BooruPreferences(private val context: Context) {
         val KEY_SAFE_MODE = booleanPreferencesKey("safe_mode")
         val KEY_EXCLUDE_SAFE = booleanPreferencesKey("exclude_safe")
         val KEY_NO_AI = booleanPreferencesKey("no_ai_filter")
+        val KEY_DATA_SAVER_MOBILE = booleanPreferencesKey("data_saver_mobile")
         val KEY_LANGUAGE = stringPreferencesKey("app_language")
         val KEY_DEFAULT_SOURCE = stringPreferencesKey("default_source")
         val KEY_SEARCH_HISTORY = stringSetPreferencesKey("search_history")
@@ -113,6 +114,10 @@ class BooruPreferences(private val context: Context) {
 
     val noAiFilter: Flow<Boolean> = read { prefs ->
         prefs[KEY_NO_AI] ?: false
+    }
+
+    val dataSaverOnMobile: Flow<Boolean> = read { prefs ->
+        prefs[KEY_DATA_SAVER_MOBILE] ?: false
     }
 
     val language: Flow<AppLanguage> = read { prefs ->
@@ -284,6 +289,10 @@ class BooruPreferences(private val context: Context) {
 
     suspend fun setNoAiFilter(enabled: Boolean) {
         context.dataStore.edit { it[KEY_NO_AI] = enabled }
+    }
+
+    suspend fun setDataSaverOnMobile(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_DATA_SAVER_MOBILE] = enabled }
     }
 
     suspend fun setLanguage(lang: AppLanguage) {

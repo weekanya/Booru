@@ -297,7 +297,8 @@ private fun MediaDetailSheetContent(
                                 previewUrl = item.gridImageUrl(vm.imageQuality != com.booru.app.data.ImageQuality.SAVER),
                                 modifier = Modifier.fillMaxSize(),
                                 isActive = pagerState.currentPage == page && !showTrueFullscreen && !isDismissingSheet,
-                                onFullscreen = { showTrueFullscreen = true }
+                                onFullscreen = { showTrueFullscreen = true },
+                                allowPrefetch = !vm.isDataSaverActive
                             )
                         } else {
                             DetailZoomableImage(
@@ -562,26 +563,35 @@ private fun MediaDetailSheetContent(
                                     .padding(horizontal = 16.dp)
                                     .padding(bottom = 24.dp)
                             ) {
-                                val actions = if (currentMedia.isVideo) listOf(2, 1, 3) else listOf(2, 0, 1, 3)
+                                val actions = if (currentMedia.isVideo) listOf(4, 2, 1, 3) else listOf(4, 2, 0, 1, 3)
                                 actions.forEachIndexed { index, action ->
                                     TagActionItem(
                                         icon = when (action) {
                                             0 -> Icons.Rounded.Wallpaper
                                             2 -> Icons.Rounded.Share
                                             3 -> Icons.Rounded.ThumbDownOffAlt
+                                            4 -> Icons.Rounded.ImageSearch
                                             else -> Icons.AutoMirrored.Rounded.OpenInNew
                                         },
                                         title = when (action) {
                                             0 -> Strings.setWallpaperTitle(lang)
                                             2 -> Strings.share(lang)
                                             3 -> Strings.tr(lang, "Not interested", "Не интересно", "興味なし", "不感兴趣", "관심 없음", "غير مهتم")
+                                            4 -> Strings.tr(lang, "Similar posts", "Похожие посты", "似た投稿", "相似作品", "비슷한 게시물", "منشورات مشابهة")
                                             else -> Strings.tr(lang, "Open in browser", "Открыть в браузере", "ブラウザで開く", "在浏览器中打开", "브라우저에서 열기", "فتح في المتصفح")
                                         },
                                         shape = segmentedListShape(index, actions.size),
                                         onClick = {
                                             coroutineScope.launch { moreSheetState.hide() }.invokeOnCompletion {
                                                 showMoreSheet = false
-                                                if (action == 3) {
+                                                if (action == 4) {
+                                                    if (vm.searchSimilar(currentMedia)) {
+                                                        onDismiss()
+                                                        onNavigateToExplore?.invoke()
+                                                    } else {
+                                                        showMessage(Strings.noTags(lang))
+                                                    }
+                                                } else if (action == 3) {
                                                     val page = pagerState.currentPage
                                                     vm.markNotInterested(currentMedia)
                                                     showMessage(
@@ -1817,7 +1827,8 @@ fun BooruVideoPlayer(
     isExternalControls: Boolean = false,
     externalShowControls: Boolean = true,
     onToggleControls: (() -> Unit)? = null,
-    onFullscreen: (() -> Unit)? = null
+    onFullscreen: (() -> Unit)? = null,
+    allowPrefetch: Boolean = true
 ) {
     val context = LocalContext.current
     val activeState = rememberUpdatedState(isActive)
@@ -1895,7 +1906,7 @@ fun BooruVideoPlayer(
     }
 
     LaunchedEffect(exoPlayer, isActive) {
-        if (isActive) com.booru.app.BooruVideoCache.prefetchParallel(context, videoUrl)
+        if (isActive && allowPrefetch) com.booru.app.BooruVideoCache.prefetchParallel(context, videoUrl)
     }
 
     LaunchedEffect(playbackSpeed, exoPlayer) {

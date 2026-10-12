@@ -1255,6 +1255,24 @@ fun SettingsScreen(
 
                             SettingsDivider()
 
+                            SettingSwitchItem(
+                                title = Strings.tr(lang, "Save mobile data", "Экономить мобильный трафик", "モバイルデータを節約", "节省移动数据", "모바일 데이터 절약", "توفير بيانات الجوال"),
+                                subtitle = Strings.tr(
+                                    lang,
+                                    "On mobile data: no originals in the viewer, no video preloading, no AI file checks",
+                                    "В мобильной сети: без оригиналов в просмотре, без предзагрузки видео и проверки файлов на ИИ",
+                                    "モバイル通信時：オリジナル画像・動画の先読み・AIファイル検査をしない",
+                                    "移动网络下：不加载原图、不预加载视频、不检查AI文件",
+                                    "모바일 데이터에서는 원본, 동영상 미리 로드, AI 파일 검사를 하지 않음",
+                                    "على بيانات الجوال: بدون الصور الأصلية أو التحميل المسبق للفيديو أو فحص الذكاء الاصطناعي"
+                                ),
+                                icon = Icons.Rounded.DataSaverOn,
+                                checked = vm.dataSaverOnMobile,
+                                onCheckedChange = { vm.setDataSaverOnMobile(it) }
+                            )
+
+                            SettingsDivider()
+
                             SettingRowItem(
                                 title = Strings.tagBlacklistTitle(lang),
                                 subtitle = if (vm.tagBlacklist.isEmpty()) Strings.noBlacklistedTags(lang) else "${vm.tagBlacklist.size} tags blocked",

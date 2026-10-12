@@ -282,6 +282,7 @@ fun ImmersiveMediaViewer(
                             modifier = Modifier.fillMaxSize(),
                             isActive = isCurrent && !isClosing,
                             isExternalControls = true,
+                            allowPrefetch = !vm.isDataSaverActive,
                             externalShowControls = showControls,
                             onToggleControls = {
                                 showControls = !showControls
