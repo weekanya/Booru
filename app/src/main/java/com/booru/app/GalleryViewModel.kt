@@ -1434,7 +1434,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun setDataSaverOnMobile(enabled: Boolean) {
+    fun updateDataSaverOnMobile(enabled: Boolean) {
         dataSaverOnMobile = enabled
         viewModelScope.launch { prefs.setDataSaverOnMobile(enabled) }
     }

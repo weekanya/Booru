@@ -1268,7 +1268,7 @@ fun SettingsScreen(
                                 ),
                                 icon = Icons.Rounded.DataSaverOn,
                                 checked = vm.dataSaverOnMobile,
-                                onCheckedChange = { vm.setDataSaverOnMobile(it) }
+                                onCheckedChange = { vm.updateDataSaverOnMobile(it) }
                             )
 
                             SettingsDivider()
