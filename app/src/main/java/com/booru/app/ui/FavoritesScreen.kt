@@ -130,6 +130,7 @@ fun FavoritesScreen(
     }
     var pendingFolder by remember { mutableStateOf<String?>(null) }
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { folders.size })
+    val folderTabController = rememberTabPagerController(pagerState)
 
     LaunchedEffect(folders, pendingFolder) {
         val target = pendingFolder ?: return@LaunchedEffect
@@ -204,7 +205,7 @@ fun FavoritesScreen(
     if (showFolderSheet) {
         FolderPickerSheet(
             folders = folders,
-            selectedIndex = pagerState.targetPage,
+            selectedIndex = folderTabController.selectedPage,
             countFor = { folder ->
                 if (folder == null) vm.favoritesList.size
                 else vm.favoritesList.count { vm.getMediaFolder(it) == folder }
@@ -212,12 +213,7 @@ fun FavoritesScreen(
             lang = lang,
             onSelect = { index ->
                 showFolderSheet = false
-                scope.launch {
-                    if (kotlin.math.abs(pagerState.currentPage - index) > 3) {
-                        pagerState.scrollToPage(if (index > pagerState.currentPage) index - 2 else index + 2)
-                    }
-                    pagerState.animateScrollToPage(index, animationSpec = Motion.pageSwitch())
-                }
+                folderTabController.select(index)
             },
             onCreate = {
                 showFolderSheet = false
@@ -304,7 +300,7 @@ fun FavoritesScreen(
                 }
 
                 if (vm.favoritesList.isNotEmpty() || vm.customFolders.isNotEmpty()) {
-                    val currentFolder = folders.getOrNull(pagerState.targetPage)
+                    val currentFolder = folders.getOrNull(folderTabController.selectedPage)
                     FilledTonalButton(
                         onClick = {
                             focusManager.clearFocus()

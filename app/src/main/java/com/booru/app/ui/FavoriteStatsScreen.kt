@@ -148,6 +148,7 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
         Strings.tr(lang, "Activity", "Активность", "アクティビティ", "活跃度", "활동", "النشاط") to Icons.Rounded.BarChart
     )
     val pagerState = rememberPagerState(pageCount = { tabs.size })
+    val tabController = rememberTabPagerController(pagerState)
 
     if (showPeriodSheet) {
         StatsPeriodSheet(
@@ -261,10 +262,8 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                     }
                     FloatingTabToolbar(
                         tabs = tabs.map { FloatingTab(it.first, it.second) },
-                        selected = pagerState.targetPage,
-                        onSelect = { index ->
-                            scope.launch { pagerState.animateScrollToPage(index, animationSpec = Motion.pageSwitch()) }
-                        },
+                        selected = tabController.selectedPage,
+                        onSelect = { index -> tabController.select(index) },
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
                             .zIndex(1f)

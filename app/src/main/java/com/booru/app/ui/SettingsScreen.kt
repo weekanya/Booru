@@ -965,6 +965,7 @@ fun SettingsScreen(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
         )
 
+        val tabController = rememberTabPagerController(pagerState)
         SettingsTabBar(
             titles = categories.map { cat ->
                 when (cat) {
@@ -982,15 +983,7 @@ fun SettingsScreen(
                     SettingsCategory.SYSTEM -> Icons.Rounded.Settings
                 }
             },
-            pagerState = pagerState,
-            onSelect = { index ->
-                scope.launch {
-                    pagerState.animateScrollToPage(
-                        page = index,
-                        animationSpec = Motion.pageSwitch()
-                    )
-                }
-            }
+            controller = tabController
         )
 
         HorizontalPager(
@@ -1465,10 +1458,9 @@ fun SettingsScreen(
 internal fun SettingsTabBar(
     titles: List<String>,
     icons: List<ImageVector>,
-    pagerState: androidx.compose.foundation.pager.PagerState,
-    onSelect: (Int) -> Unit
+    controller: TabPagerController
 ) {
-    val selectedIndex = if (pagerState.isScrollInProgress) pagerState.targetPage else pagerState.currentPage
+    val selectedIndex = controller.selectedPage
     ToggleGroupColors {
         Row(
             modifier = Modifier
@@ -1482,7 +1474,7 @@ internal fun SettingsTabBar(
                 val selected = selectedIndex == index
                 ToggleButton(
                     checked = selected,
-                    onCheckedChange = { onSelect(index) },
+                    onCheckedChange = { controller.select(index) },
                     shapes = groupPosition(index, titles.size).toggleShapes(),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 6.dp),
                     modifier = Modifier

@@ -2108,6 +2108,7 @@ private fun FilterSelectionBottomSheet(
     var tempNoAi by remember { mutableStateOf(vm.noAi) }
     var tempRecRatio by remember { mutableFloatStateOf(vm.recommendationRatio) }
     val filterPagerState = rememberPagerState(initialPage = 0) { 2 }
+    val filterTabController = rememberTabPagerController(filterPagerState)
 
     SheetMotion {
         ModalBottomSheet(
@@ -2182,18 +2183,11 @@ private fun FilterSelectionBottomSheet(
                             Pair(Strings.tr(lang, "Content & Rating", "Контент и рейтинг", "コンテンツと評価", "内容与分级", "콘텐츠 및 등급", "المحتوى والتصنيف"), Icons.Rounded.Category),
                             Pair(Strings.tr(lang, "Sorting & Feed", "Сортировка и лента", "並べ替えとフィード", "排序与推送", "정렬 및 피드", "الترتيب والخلاصة"), Icons.Rounded.AutoAwesome)
                         )
-                        val targetFilterIndex = if (filterPagerState.isScrollInProgress) filterPagerState.targetPage else filterPagerState.currentPage
+                        val targetFilterIndex = filterTabController.selectedPage
                         tabs.forEachIndexed { index, (title, icon) ->
                             ToggleButton(
                                 checked = targetFilterIndex == index,
-                                onCheckedChange = {
-                                    scope.launch {
-                                        filterPagerState.animateScrollToPage(
-                                            page = index,
-                                            animationSpec = Motion.pageSwitch()
-                                        )
-                                    }
-                                },
+                                onCheckedChange = { filterTabController.select(index) },
                                 shapes = groupPosition(index, tabs.size).toggleShapes(),
                                 contentPadding = PaddingValues(horizontal = 8.dp),
                                 modifier = Modifier
