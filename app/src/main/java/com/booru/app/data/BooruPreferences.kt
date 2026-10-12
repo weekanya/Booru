@@ -76,6 +76,7 @@ class BooruPreferences(private val context: Context) {
         private const val INTEREST_HALF_LIFE_MS = 21L * 24 * 60 * 60 * 1000
         private const val INTEREST_MIN_WEIGHT = 0.3f
         private const val INTEREST_MAX_WEIGHT = 80f
+        private const val INTEREST_MIN_NEGATIVE = -40f
         private const val INTEREST_MAX_TAGS = 150
         val KEY_BIOMETRIC_LOCK_ENABLED = booleanPreferencesKey("biometric_lock_enabled")
         val KEY_BIOMETRIC_LOCK_TIMEOUT_MIN = intPreferencesKey("biometric_lock_timeout_min")
@@ -461,6 +462,9 @@ class BooruPreferences(private val context: Context) {
 
     suspend fun recordSavedTags(mediaTags: String) = recordInterest(splitTags(mediaTags), weight = 3f, generalFactor = 0.6f)
 
+    /** "Not interested": pushes the post's characters, series and artists down; general tags only slightly. */
+    suspend fun recordNotInterestedTags(mediaTags: String) = recordInterest(splitTags(mediaTags), weight = -5f, generalFactor = 0.25f)
+
     private fun splitTags(mediaTags: String): List<String> =
         if (mediaTags.isBlank()) emptyList() else mediaTags.split(Regex("[\\s,]+"))
 
@@ -490,13 +494,13 @@ class BooruPreferences(private val context: Context) {
 
             for (tag in candidates) {
                 val scaled = if (TagClassifier.classify(tag).category == TagCategory.GENERAL) weight * generalFactor else weight
-                map[tag] = ((map[tag] ?: 0f) + scaled).coerceAtMost(INTEREST_MAX_WEIGHT)
+                map[tag] = ((map[tag] ?: 0f) + scaled).coerceIn(INTEREST_MIN_NEGATIVE, INTEREST_MAX_WEIGHT)
             }
 
             val newObj = JSONObject()
             map.entries
-                .filter { it.value >= INTEREST_MIN_WEIGHT && !blacklist.contains(it.key) && TagClassifier.isRecommendationCandidate(it.key) }
-                .sortedByDescending { it.value }
+                .filter { kotlin.math.abs(it.value) >= INTEREST_MIN_WEIGHT && !blacklist.contains(it.key) && TagClassifier.isRecommendationCandidate(it.key) }
+                .sortedByDescending { kotlin.math.abs(it.value) }
                 .take(INTEREST_MAX_TAGS)
                 .forEach { newObj.put(it.key, Math.round(it.value * 100) / 100.0) }
             prefs[KEY_RECOMMENDATION_TAGS] = newObj.toString()

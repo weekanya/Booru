@@ -417,7 +417,7 @@ fun BooruApp(
                 color = MaterialTheme.colorScheme.surface
             ) {
                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                    val isWideScreen = maxWidth >= 760.dp
+                    val isWideScreen = WindowWidthClass.fromWidth(maxWidth) == WindowWidthClass.Expanded
                     val widthClass = WindowWidthClass.fromWidth(maxWidth)
                     val onNavSelect: (Int) -> Unit = { index ->
                         haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)

@@ -2,6 +2,7 @@
 
 package com.booru.app.ui
 
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -92,7 +93,27 @@ fun FavoriteStatsScreen(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     ) {
-        FavoriteStatsContent(lang, allowTagLookup, onDismiss)
+        var backProgress by remember { mutableFloatStateOf(0f) }
+        PredictiveBackHandler { events ->
+            try {
+                events.collect { backProgress = it.progress }
+                onDismiss()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                backProgress = 0f
+                throw e
+            }
+        }
+        Box(
+            modifier = Modifier.graphicsLayer {
+                val scale = 1f - 0.08f * backProgress
+                scaleX = scale
+                scaleY = scale
+                shape = RoundedCornerShape((32 * backProgress).dp)
+                clip = backProgress > 0f
+            }
+        ) {
+            FavoriteStatsContent(lang, allowTagLookup, onDismiss)
+        }
     }
 }
 

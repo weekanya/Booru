@@ -1410,11 +1410,6 @@ private fun MediaCard(
                                 contentDescription = null,
                                 modifier = Modifier.size(14.dp)
                             )
-                            Text(
-                                text = "VIDEO",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold
-                            )
                         }
                     } else {
                         Icon(

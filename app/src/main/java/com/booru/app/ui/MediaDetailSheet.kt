@@ -216,20 +216,6 @@ private fun MediaDetailSheetContent(
     val isDownloading = currentMedia.mediaKey in vm.activeDownloads
     val isSettingWallpaper = vm.isSettingWallpaper
 
-    BackHandler {
-        when {
-            showTrueFullscreen -> showTrueFullscreen = false
-            selectedTagForAction != null -> selectedTagForAction = null
-            showWallpaperDialog -> showWallpaperDialog = false
-            showFolderDialog -> showFolderDialog = false
-            isCurrentPageZoomed -> {
-                resetZoomKey++
-                isCurrentPageZoomed = false
-            }
-            else -> dismissSheetAnimated()
-        }
-    }
-
     LaunchedEffect(pagerState.currentPage) {
         vm.updateFullscreenIndex(pagerState.currentPage)
     }
@@ -259,6 +245,12 @@ private fun MediaDetailSheetContent(
             sheetState = sheetState,
             shape = ShapeTokens.ExtraLargeIncreasedTop
         ) {
+            // Back is left to the sheet itself so Android 14+ shows the predictive shrink;
+            // only a zoomed photo takes it first to zoom out.
+            BackHandler(enabled = isCurrentPageZoomed) {
+                resetZoomKey++
+                isCurrentPageZoomed = false
+            }
             Box {
             Column(
                 modifier = Modifier
@@ -363,7 +355,7 @@ private fun MediaDetailSheetContent(
                                 color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.95f)
                             ) {
                                 Text(
-                                    text = "VIDEO",
+                                    text = Strings.favFilterVideos(lang).uppercase(),
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = MaterialTheme.colorScheme.onSecondaryContainer,
@@ -570,24 +562,43 @@ private fun MediaDetailSheetContent(
                                     .padding(horizontal = 16.dp)
                                     .padding(bottom = 24.dp)
                             ) {
-                                val actions = if (currentMedia.isVideo) listOf(2, 1) else listOf(2, 0, 1)
+                                val actions = if (currentMedia.isVideo) listOf(2, 1, 3) else listOf(2, 0, 1, 3)
                                 actions.forEachIndexed { index, action ->
                                     TagActionItem(
                                         icon = when (action) {
                                             0 -> Icons.Rounded.Wallpaper
                                             2 -> Icons.Rounded.Share
+                                            3 -> Icons.Rounded.ThumbDownOffAlt
                                             else -> Icons.AutoMirrored.Rounded.OpenInNew
                                         },
                                         title = when (action) {
                                             0 -> Strings.setWallpaperTitle(lang)
                                             2 -> Strings.share(lang)
+                                            3 -> Strings.tr(lang, "Not interested", "Не интересно", "興味なし", "不感兴趣", "관심 없음", "غير مهتم")
                                             else -> Strings.tr(lang, "Open in browser", "Открыть в браузере", "ブラウザで開く", "在浏览器中打开", "브라우저에서 열기", "فتح في المتصفح")
                                         },
                                         shape = segmentedListShape(index, actions.size),
                                         onClick = {
                                             coroutineScope.launch { moreSheetState.hide() }.invokeOnCompletion {
                                                 showMoreSheet = false
-                                                if (action == 0) {
+                                                if (action == 3) {
+                                                    val page = pagerState.currentPage
+                                                    vm.markNotInterested(currentMedia)
+                                                    showMessage(
+                                                        Strings.tr(
+                                                            lang,
+                                                            "Got it, you'll see less like this",
+                                                            "Понятно, такого будет меньше",
+                                                            "了解、似た投稿を減らします",
+                                                            "明白了，会减少类似内容",
+                                                            "알겠어요, 비슷한 게시물을 줄일게요",
+                                                            "حسناً، سنعرض محتوى أقل مثل هذا"
+                                                        )
+                                                    )
+                                                    if (page + 1 < mediaList.size) {
+                                                        coroutineScope.launch { pagerState.animateScrollToPage(page + 1, animationSpec = Motion.pageSwitch()) }
+                                                    }
+                                                } else if (action == 0) {
                                                     showWallpaperDialog = true
                                                 } else if (action == 2) {
                                                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -1592,7 +1603,7 @@ fun DetailZoomableImage(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(14.dp)
-                        .size(38.dp)
+                        .size(40.dp)
                 ) {
                     Icon(
                         Icons.Rounded.ZoomOutMap,
@@ -2078,7 +2089,7 @@ fun BooruVideoPlayer(
                 ) {
                     Icon(
                         if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = if (isPlaying) "Pause" else "Play",
+                        contentDescription = if (isPlaying) Strings.tr(lang, "Pause", "Пауза", "一時停止", "暂停", "일시정지", "إيقاف مؤقت") else Strings.tr(lang, "Play", "Воспроизвести", "再生", "播放", "재생", "تشغيل"),
                         tint = MaterialTheme.colorScheme.onPrimary,
                         modifier = Modifier.size(36.dp)
                     )
@@ -2190,7 +2201,7 @@ fun BooruVideoPlayer(
                                 containerColor = Color.Black.copy(alpha = 0.5f)
                             ),
                             modifier = Modifier
-                                .size(34.dp)
+                                .size(40.dp)
                         ) {
                             val text = if (playbackSpeed == 1f) "1x" else if (playbackSpeed == 2f) "2x" else "${playbackSpeed}x"
                             Text(
@@ -2211,11 +2222,11 @@ fun BooruVideoPlayer(
                                 containerColor = Color.Black.copy(alpha = 0.5f)
                             ),
                             modifier = Modifier
-                                .size(34.dp)
+                                .size(40.dp)
                         ) {
                             Icon(
                                 imageVector = if (isMuted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
-                                contentDescription = if (isMuted) "Unmute" else "Mute",
+                                contentDescription = if (isMuted) Strings.tr(lang, "Unmute", "Включить звук", "ミュート解除", "取消静音", "음소거 해제", "إلغاء الكتم") else Strings.tr(lang, "Mute", "Выключить звук", "ミュート", "静音", "음소거", "كتم"),
                                 tint = Color.White,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -2229,7 +2240,7 @@ fun BooruVideoPlayer(
                                     containerColor = Color.Black.copy(alpha = 0.5f)
                                 ),
                                 modifier = Modifier
-                                    .size(34.dp)
+                                    .size(40.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.Fullscreen,

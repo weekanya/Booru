@@ -3,7 +3,7 @@
 package com.booru.app.ui
 
 import android.app.Activity
-import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.Spring
@@ -141,9 +141,7 @@ fun ImmersiveMediaViewer(
         }
     }
 
-    BackHandler {
-        dismissWithAnimation()
-    }
+    var backProgress by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(pagerState.currentPage) {
         isPageZoomed = false
@@ -189,6 +187,16 @@ fun ImmersiveMediaViewer(
                     val insetsController = WindowCompat.getInsetsController(window, window.decorView)
                     insetsController.show(WindowInsetsCompat.Type.systemBars())
                 }
+            }
+        }
+
+        PredictiveBackHandler(enabled = !isClosing) { events ->
+            try {
+                events.collect { backProgress = it.progress }
+                dismissWithAnimation()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                backProgress = 0f
+                throw e
             }
         }
 
@@ -241,16 +249,17 @@ fun ImmersiveMediaViewer(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = backgroundAlpha))
+                .background(Color.Black.copy(alpha = backgroundAlpha * (1f - 0.5f * backProgress)))
                 .then(dragModifier)
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
+                        val backScale = 1f - 0.1f * backProgress
                         translationY = animatedDragOffsetY
-                        scaleX = contentScale
-                        scaleY = contentScale
+                        scaleX = contentScale * backScale
+                        scaleY = contentScale * backScale
                         alpha = if (isClosing) backgroundAlpha else 1f
                     }
             ) {

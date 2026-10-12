@@ -1590,12 +1590,6 @@ private fun FavoriteCard(
                             tint = Color.White,
                             modifier = Modifier.size(14.dp)
                         )
-                        Text(
-                            text = "VIDEO",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold
-                        )
                     }
                 }
             } else if (media.isGif) {

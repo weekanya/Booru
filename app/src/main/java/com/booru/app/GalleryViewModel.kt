@@ -117,6 +117,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var recommendationTags by mutableStateOf<List<String>>(emptyList()); private set
     private var recordedRecTagsMap: Map<String, Float> = emptyMap()
     private val viewedForRecommendations = HashSet<String>()
+    private val notInterestedKeys = HashSet<String>()
     var scrollToTopTrigger by mutableStateOf(0L); private set
     var refreshSeed by mutableStateOf(0); private set
     var isIncognito by mutableStateOf(false); private set
@@ -1022,7 +1023,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 if (searchGen != currentSearchGeneration) return@launch
                 advanceRecTagPages(recTags)
                 currentPage = batch.lastPage
-                results = batch.items
+                results = batch.items.filterNot { it.mediaKey in notInterestedKeys }
                 hasMore = batch.hasMore
                 resultsEpoch++
                 scanForAiTraces(batch.items, searchGen)
@@ -1069,7 +1070,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 currentPage = batch.lastPage
                 if (batch.items.isNotEmpty()) {
                     emptyLoadMoreStreak = 0
-                    results = (results + batch.items).distinctBy { it.mediaKey }
+                    results = (results + batch.items.filterNot { it.mediaKey in notInterestedKeys }).distinctBy { it.mediaKey }
                     hasMore = batch.hasMore
                     scanForAiTraces(batch.items, searchGen)
                 } else {
@@ -1681,6 +1682,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         if (isIncognito || media.tagList.isEmpty()) return
         viewModelScope.launch {
             if (com.booru.app.data.TagCategoryCache.resolve(media.tagList)) recalculateRecommendationTags()
+        }
+    }
+
+    /** Hides the post from the feed and, outside incognito, teaches recommendations to show less like it. */
+    fun markNotInterested(media: RemoteMedia) {
+        notInterestedKeys.add(media.mediaKey)
+        results = results.filterNot { it.mediaKey == media.mediaKey }
+        if (!isIncognito && media.tags.isNotBlank()) {
+            viewModelScope.launch { prefs.recordNotInterestedTags(media.tags) }
         }
     }
 

@@ -610,8 +610,8 @@ fun SettingsScreen(
                                     enter = fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialDefault()),
                                     exit = fadeOut(Motion.effectsFast()) + scaleOut(Motion.effectsFast())
                                 ) {
-                                    IconButton(onClick = { newBlacklistTag = "" }, modifier = Modifier.size(36.dp)) {
-                                        Icon(Icons.Rounded.Close, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                                    IconButton(onClick = { newBlacklistTag = "" }) {
+                                        Icon(Icons.Rounded.Close, contentDescription = Strings.clearBtn(lang), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                                     }
                                 }
                             }
