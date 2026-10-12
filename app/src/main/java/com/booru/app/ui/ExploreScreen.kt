@@ -841,18 +841,25 @@ fun ExploreScreen(
                         .imePadding()
                 ) {
                     val hasHistory = vm.searchHistory.isNotEmpty()
-                    val fieldBottom by androidx.compose.animation.core.animateDpAsState(
+                    val fieldEnd by androidx.compose.animation.core.animateDpAsState(
                         targetValue = if (hasHistory) 6.dp else 28.dp,
-                        animationSpec = Motion.spatialDefault(),
-                        label = "searchFieldBottom"
+                        animationSpec = Motion.effectsDefault(),
+                        label = "searchFieldEnd"
                     )
-                    Surface(
-                        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp, bottomStart = fieldBottom, bottomEnd = fieldBottom),
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(start = 16.dp, end = 16.dp, top = 6.dp)
-                            .height(56.dp)
+                            .height(56.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                    Surface(
+                        shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = fieldEnd, bottomEnd = fieldEnd),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
                     ) {
                         Row(
                             modifier = Modifier
@@ -942,25 +949,22 @@ fun ExploreScreen(
 
                     androidx.compose.animation.AnimatedVisibility(
                         visible = hasHistory,
-                        enter = fadeIn(Motion.effectsDefault()) + expandVertically(Motion.spatialDefault()),
-                        exit = fadeOut(Motion.effectsFast()) + shrinkVertically(Motion.spatialDefault())
+                        enter = fadeIn(Motion.effectsDefault()) + expandHorizontally(Motion.effectsDefault()),
+                        exit = fadeOut(Motion.effectsFast()) + shrinkHorizontally(Motion.effectsDefault())
                     ) {
                         AnimatedConfirmDeleteButton(
                             onConfirmed = { vm.clearHistory() },
                             lang = lang,
                             initialIcon = Icons.Rounded.DeleteSweep,
-                            initialText = Strings.tr(lang, "Clear history", "Очистить историю", "履歴を消去", "清除历史", "기록 지우기", "مسح السجل"),
+                            initialText = null,
                             confirmText = Strings.confirmDeleteAction(lang),
-                            height = 44.dp,
+                            height = 56.dp,
                             contentPadding = 16.dp,
-                            fillContentWidth = true,
                             idleContainerColor = MaterialTheme.colorScheme.errorContainer,
                             idleContentColor = MaterialTheme.colorScheme.onErrorContainer,
-                            shape = RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 28.dp, bottomEnd = 28.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 16.dp, end = 16.dp, top = 2.dp)
+                            shape = RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 28.dp, bottomEnd = 28.dp)
                         )
+                    }
                     }
                     Spacer(Modifier.height(6.dp))
 
@@ -2375,12 +2379,27 @@ private fun FilterSelectionBottomSheet(
                                                 }
                                             }
                                             Spacer(Modifier.width(12.dp))
-                                            Text(
-                                                text = Strings.noAiBadge(lang),
-                                                style = MaterialTheme.typography.bodyLarge,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
+                                            Column(modifier = Modifier.weight(1f, fill = false)) {
+                                                Text(
+                                                    text = Strings.noAiBadge(lang),
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Text(
+                                                    text = Strings.tr(
+                                                        lang,
+                                                        "By tags and by generator data inside the file",
+                                                        "По тегам и по данным генератора внутри файла",
+                                                        "タグとファイル内の生成情報で判定",
+                                                        "根据标签和文件内的生成信息",
+                                                        "태그와 파일 속 생성 정보로 판별",
+                                                        "حسب الوسوم وبيانات المولّد داخل الملف"
+                                                    ),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
                                         }
                                         Switch(
                                             checked = tempNoAi,

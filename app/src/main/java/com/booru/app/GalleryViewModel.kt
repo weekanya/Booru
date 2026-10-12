@@ -1025,6 +1025,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 results = batch.items
                 hasMore = batch.hasMore
                 resultsEpoch++
+                scanForAiTraces(batch.items, searchGen)
             } catch (c: CancellationException) {
                 throw c
             } catch (e: Exception) {
@@ -1070,6 +1071,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     emptyLoadMoreStreak = 0
                     results = (results + batch.items).distinctBy { it.mediaKey }
                     hasMore = batch.hasMore
+                    scanForAiTraces(batch.items, searchGen)
                 } else {
                     emptyLoadMoreStreak++
                     hasMore = batch.hasMore && emptyLoadMoreStreak < 3
@@ -1657,6 +1659,22 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         if (isIncognito || media.tags.isBlank()) return
         if (!viewedForRecommendations.add(media.mediaKey)) return
         viewModelScope.launch { prefs.recordViewedTags(media.tags) }
+    }
+
+    /**
+     * With the AI filter on, posts that boorus did not tag as AI are still checked for
+     * generator metadata inside the file and removed from the feed as soon as one is found.
+     * Runs in the background, a few files at a time, so the feed shows up without waiting.
+     */
+    private fun scanForAiTraces(items: List<RemoteMedia>, searchGen: Long) {
+        if (!noAi || items.isEmpty()) return
+        viewModelScope.launch {
+            com.booru.app.data.AiImageScanner.scan(items) { media ->
+                if (searchGen == currentSearchGeneration && noAi) {
+                    results = results.filterNot { it.mediaKey == media.mediaKey }
+                }
+            }
+        }
     }
 
     private fun resolveTagCategories(media: RemoteMedia) {

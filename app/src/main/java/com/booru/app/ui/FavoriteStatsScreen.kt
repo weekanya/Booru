@@ -34,6 +34,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -211,34 +213,43 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                 current == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
                 current.isEmpty -> EmptyStats(lang)
                 else -> Box(modifier = Modifier.fillMaxSize()) {
-                    AnimatedContent(
-                        targetState = selectedTab,
-                        transitionSpec = {
-                            (fadeIn(tween(220, delayMillis = 90, easing = LinearOutSlowInEasing)) +
-                                scaleIn(tween(220, delayMillis = 90, easing = LinearOutSlowInEasing), initialScale = 0.96f))
-                                .togetherWith(fadeOut(tween(90, easing = FastOutLinearInEasing)))
-                        },
-                        label = "statsTab",
-                        modifier = Modifier.fillMaxSize()
-                    ) { page ->
-                        Column(
+                    // All three pages stay composed; switching only animates layer alpha and offset,
+                    // so a tap never rebuilds a page (that rebuild was the stutter on tab change).
+                    tabs.indices.forEach { page ->
+                        val visibility by animateFloatAsState(
+                            targetValue = if (page == selectedTab) 1f else 0f,
+                            animationSpec = tween(durationMillis = 260, easing = LinearOutSlowInEasing),
+                            label = "statsPage"
+                        )
+                        val scroll = rememberScrollState()
+                        Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
+                                .zIndex(if (page == selectedTab) 1f else 0f)
+                                .graphicsLayer {
+                                    alpha = visibility
+                                    translationY = (1f - visibility) * 16.dp.toPx()
+                                }
                         ) {
                             Column(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .wrapContentWidth(Alignment.CenterHorizontally)
-                                    .readableContentWidth()
-                                    .padding(horizontal = 16.dp)
-                                    .padding(top = 8.dp, bottom = 112.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                                    .fillMaxSize()
+                                    .verticalScroll(scroll, enabled = page == selectedTab)
                             ) {
-                                when (page) {
-                                    0 -> OverviewPage(current, period, lang, locale)
-                                    1 -> FavoritesPage(current, lang)
-                                    else -> ActivityPage(current, lang, locale)
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .wrapContentWidth(Alignment.CenterHorizontally)
+                                        .readableContentWidth()
+                                        .padding(horizontal = 16.dp)
+                                        .padding(top = 8.dp, bottom = 112.dp),
+                                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                                ) {
+                                    when (page) {
+                                        0 -> OverviewPage(current, period, lang, locale)
+                                        1 -> FavoritesPage(current, lang)
+                                        else -> ActivityPage(current, lang, locale)
+                                    }
                                 }
                             }
                         }
