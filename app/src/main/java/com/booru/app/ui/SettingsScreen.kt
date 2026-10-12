@@ -964,7 +964,7 @@ fun SettingsScreen(
                 scope.launch {
                     pagerState.animateScrollToPage(
                         page = index,
-                        animationSpec = Motion.spatialDefault()
+                        animationSpec = Motion.pageSwitch()
                     )
                 }
             }
@@ -972,7 +972,7 @@ fun SettingsScreen(
 
         HorizontalPager(
             state = pagerState,
-            beyondViewportPageCount = 1,
+            beyondViewportPageCount = categories.size - 1,
             modifier = Modifier.fillMaxSize()
         ) { page ->
             Column(

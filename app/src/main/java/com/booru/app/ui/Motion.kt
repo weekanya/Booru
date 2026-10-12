@@ -35,6 +35,9 @@ object Motion {
     const val FADE_THROUGH_IN_MS = 210
 
     fun <T> spatialDefault() = spring<T>(dampingRatio = 0.8f, stiffness = 380f)
+
+    /** Tab and pager switches: critically damped, so pages glide in and never bounce at the end. */
+    fun <T> pageSwitch() = spring<T>(dampingRatio = 1f, stiffness = 300f)
     fun <T> spatialFast() = spring<T>(dampingRatio = 0.6f, stiffness = 800f)
     fun <T> spatialSlow() = spring<T>(dampingRatio = 0.8f, stiffness = 200f)
     fun <T> effectsDefault() = spring<T>(dampingRatio = 1f, stiffness = 1600f)

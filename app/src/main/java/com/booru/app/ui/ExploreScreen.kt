@@ -2195,7 +2195,7 @@ private fun FilterSelectionBottomSheet(
                                     scope.launch {
                                         filterPagerState.animateScrollToPage(
                                             page = index,
-                                            animationSpec = Motion.spatialDefault()
+                                            animationSpec = Motion.pageSwitch()
                                         )
                                     }
                                 },

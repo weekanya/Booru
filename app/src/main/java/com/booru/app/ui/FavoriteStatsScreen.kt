@@ -21,6 +21,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -129,7 +131,7 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
         Strings.tr(lang, "Favorites", "Любимое", "お気に入り", "最爱", "최애", "المفضلة") to Icons.Rounded.FavoriteBorder,
         Strings.tr(lang, "Activity", "Активность", "アクティビティ", "活跃度", "활동", "النشاط") to Icons.Rounded.BarChart
     )
-    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    val pagerState = rememberPagerState(pageCount = { tabs.size })
 
     if (showPeriodSheet) {
         StatsPeriodSheet(
@@ -213,53 +215,44 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                 current == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
                 current.isEmpty -> EmptyStats(lang)
                 else -> Box(modifier = Modifier.fillMaxSize()) {
-                    // All three pages stay composed; switching only animates layer alpha and offset,
-                    // so a tap never rebuilds a page (that rebuild was the stutter on tab change).
-                    tabs.indices.forEach { page ->
-                        val visibility by animateFloatAsState(
-                            targetValue = if (page == selectedTab) 1f else 0f,
-                            animationSpec = tween(durationMillis = 260, easing = LinearOutSlowInEasing),
-                            label = "statsPage"
-                        )
-                        val scroll = rememberScrollState()
-                        Box(
+                    // beyondViewportPageCount keeps every page composed, so jumping between tabs
+                    // only scrolls already-built pages instead of building one mid-animation.
+                    HorizontalPager(
+                        state = pagerState,
+                        beyondViewportPageCount = tabs.size - 1,
+                        modifier = Modifier.fillMaxSize()
+                    ) { page ->
+                        Column(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .zIndex(if (page == selectedTab) 1f else 0f)
-                                .graphicsLayer {
-                                    alpha = visibility
-                                    translationY = (1f - visibility) * 16.dp.toPx()
-                                }
+                                .verticalScroll(rememberScrollState())
                         ) {
                             Column(
                                 modifier = Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(scroll, enabled = page == selectedTab)
+                                    .fillMaxWidth()
+                                    .wrapContentWidth(Alignment.CenterHorizontally)
+                                    .readableContentWidth()
+                                    .padding(horizontal = 16.dp)
+                                    .padding(top = 8.dp, bottom = 112.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .wrapContentWidth(Alignment.CenterHorizontally)
-                                        .readableContentWidth()
-                                        .padding(horizontal = 16.dp)
-                                        .padding(top = 8.dp, bottom = 112.dp),
-                                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                                ) {
-                                    when (page) {
-                                        0 -> OverviewPage(current, period, lang, locale)
-                                        1 -> FavoritesPage(current, lang)
-                                        else -> ActivityPage(current, lang, locale)
-                                    }
+                                when (page) {
+                                    0 -> OverviewPage(current, period, lang, locale)
+                                    1 -> FavoritesPage(current, lang)
+                                    else -> ActivityPage(current, lang, locale)
                                 }
                             }
                         }
                     }
                     StatsTabToolbar(
                         tabs = tabs,
-                        selected = selectedTab,
-                        onSelect = { selectedTab = it },
+                        selected = pagerState.targetPage,
+                        onSelect = { index ->
+                            scope.launch { pagerState.animateScrollToPage(index, animationSpec = Motion.pageSwitch()) }
+                        },
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
+                            .zIndex(1f)
                             .padding(bottom = 16.dp)
                     )
                 }

@@ -216,7 +216,7 @@ fun FavoritesScreen(
                     if (kotlin.math.abs(pagerState.currentPage - index) > 3) {
                         pagerState.scrollToPage(if (index > pagerState.currentPage) index - 2 else index + 2)
                     }
-                    pagerState.animateScrollToPage(index, animationSpec = spring(dampingRatio = 1f, stiffness = 320f))
+                    pagerState.animateScrollToPage(index, animationSpec = Motion.pageSwitch())
                 }
             },
             onCreate = {
