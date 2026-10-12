@@ -246,6 +246,7 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .graphicsLayer()
                                 .verticalScroll(rememberScrollState())
                         ) {
                             Column(

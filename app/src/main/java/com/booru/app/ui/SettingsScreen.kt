@@ -328,20 +328,39 @@ fun SettingsScreen(
                     // "Auto" is Original on Wi-Fi plus the mobile data saver: samples in the viewer,
                     // no video preloading and no AI file checks on metered networks.
                     val autoSelected = vm.dataSaverOnMobile
+                    data class QualityOption(val quality: ImageQuality?, val title: String, val hint: String, val icon: ImageVector)
                     val options = listOf(
-                        Triple(null as ImageQuality?, qualityAutoLabel(lang), Icons.Rounded.NetworkCheck),
-                        Triple(ImageQuality.ORIGINAL, Strings.qualityOriginal(lang), Icons.Rounded.HighQuality),
-                        Triple(ImageQuality.SAMPLE, Strings.qualitySample(lang), Icons.Rounded.Speed),
-                        Triple(ImageQuality.SAVER, Strings.qualitySaver(lang), Icons.Rounded.DataSaverOn)
+                        QualityOption(
+                            null, qualityAutoLabel(lang),
+                            Strings.tr(lang, "Original on Wi-Fi, light images on mobile data", "Оригинал по Wi-Fi, лёгкие картинки в мобильной сети", "Wi-Fiでは原寸、モバイルでは軽量", "Wi-Fi 原图，移动网络轻量图", "Wi-Fi는 원본, 모바일은 가벼운 이미지", "الأصلي عبر Wi-Fi وصور خفيفة على الجوال"),
+                            Icons.Rounded.NetworkCheck
+                        ),
+                        QualityOption(
+                            ImageQuality.ORIGINAL, Strings.qualityOriginal(lang),
+                            Strings.tr(lang, "Full resolution everywhere", "Полное разрешение всегда", "常にフル解像度", "始终全分辨率", "항상 최대 해상도", "الدقة الكاملة دائماً"),
+                            Icons.Rounded.HighQuality
+                        ),
+                        QualityOption(
+                            ImageQuality.SAMPLE, Strings.qualitySample(lang),
+                            Strings.tr(lang, "Sharp enough, loads faster", "Достаточно чётко и быстрее грузится", "十分な画質で高速", "清晰且加载更快", "충분히 선명하고 빠름", "واضحة وأسرع تحميلاً"),
+                            Icons.Rounded.Speed
+                        ),
+                        QualityOption(
+                            ImageQuality.SAVER, Strings.qualitySaver(lang),
+                            Strings.tr(lang, "Smallest previews, least traffic", "Маленькие превью, минимум трафика", "最小プレビュー、通信量最少", "最小预览，最省流量", "가장 작은 미리보기, 최소 데이터", "أصغر معاينات وأقل استهلاك"),
+                            Icons.Rounded.DataSaverOn
+                        )
                     )
 
-                    options.forEachIndexed { index, (q, title, icon) ->
+                    options.forEachIndexed { index, option ->
+                        val q = option.quality
                         SegmentedOptionItem(
-                            title = title,
+                            title = option.title,
+                            supporting = option.hint,
                             selected = if (q == null) autoSelected else !autoSelected && vm.imageQuality == q,
                             index = index,
                             count = options.size,
-                            icon = icon,
+                            icon = option.icon,
                             onClick = {
                                 if (q == null) {
                                     vm.updateImageQuality(ImageQuality.ORIGINAL)
@@ -984,6 +1003,8 @@ fun SettingsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    // Own layer per page: a tab jump only moves layers instead of redrawing pages.
+                    .graphicsLayer()
                     .background(MaterialTheme.colorScheme.surface)
                     .verticalScroll(rememberScrollState())
                     .wrapContentWidth(Alignment.CenterHorizontally)
@@ -2293,12 +2314,5 @@ private fun ApiKeyForm(
     }
 }
 
-private fun qualityAutoLabel(lang: AppLanguage) = Strings.tr(
-    lang,
-    "Auto: original on Wi-Fi, saving on mobile data",
-    "Авто: оригинал по Wi-Fi, экономия в мобильной сети",
-    "自動：Wi-Fiではオリジナル、モバイルでは節約",
-    "自动：Wi-Fi 原图，移动网络省流量",
-    "자동: Wi-Fi는 원본, 모바일은 절약",
-    "تلقائي: الأصلي عبر Wi-Fi وتوفير على بيانات الجوال"
-)
+private fun qualityAutoLabel(lang: AppLanguage) =
+    Strings.tr(lang, "Auto", "Авто", "自動", "自动", "자동", "تلقائي")
