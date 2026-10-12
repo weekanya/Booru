@@ -56,6 +56,7 @@ import androidx.compose.runtime.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -405,36 +406,70 @@ fun BooruApp(
                                     .weight(1f)
                                     .fillMaxHeight()
                             ) {
-                            AnimatedContent(
-                                targetState = selectedTab,
-                                transitionSpec = {
-                                    (fadeIn(tween(Motion.FADE_THROUGH_IN_MS, delayMillis = Motion.FADE_THROUGH_OUT_MS, easing = Motion.EmphasizedDecelerate)) +
-                                        scaleIn(tween(Motion.FADE_THROUGH_IN_MS, delayMillis = Motion.FADE_THROUGH_OUT_MS, easing = Motion.EmphasizedDecelerate), initialScale = 0.96f))
-                                        .togetherWith(fadeOut(tween(Motion.FADE_THROUGH_OUT_MS, easing = Motion.EmphasizedAccelerate)))
-                                },
-                                label = "TabFadeThrough",
-                                modifier = Modifier.fillMaxSize()
-                            ) { tab ->
-                                tabStateHolder.SaveableStateProvider(tab) {
-                                    Surface(
-                                        modifier = Modifier.fillMaxSize(),
-                                        color = MaterialTheme.colorScheme.surface
+                            // Every visited tab stays composed; switching only animates layer alpha and
+                            // scale, so a tap never rebuilds a whole screen mid-animation (that rebuild
+                            // was the stutter). Hidden tabs get an inert back dispatcher so their
+                            // BackHandlers cannot catch back presses meant for the visible tab.
+                            val visitedTabs = remember { mutableStateListOf(selectedTab) }
+                            if (selectedTab !in visitedTabs) visitedTabs.add(selectedTab)
+                            val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+                            val inertBackOwner = remember(lifecycleOwner) {
+                                object : androidx.activity.OnBackPressedDispatcherOwner {
+                                    override val lifecycle get() = lifecycleOwner.lifecycle
+                                    override val onBackPressedDispatcher = androidx.activity.OnBackPressedDispatcher()
+                                }
+                            }
+                            val activeBackOwner = androidx.activity.compose.LocalOnBackPressedDispatcherOwner.current
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                for (tab in 0..2) {
+                                    if (tab !in visitedTabs) continue
+                                    val isCurrent = tab == selectedTab
+                                    val visibility by animateFloatAsState(
+                                        targetValue = if (isCurrent) 1f else 0f,
+                                        animationSpec = tween(
+                                            durationMillis = if (isCurrent) Motion.FADE_THROUGH_IN_MS else Motion.FADE_THROUGH_OUT_MS,
+                                            delayMillis = if (isCurrent) Motion.FADE_THROUGH_OUT_MS else 0,
+                                            easing = if (isCurrent) Motion.EmphasizedDecelerate else Motion.EmphasizedAccelerate
+                                        ),
+                                        label = "tabVisibility$tab"
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .zIndex(if (isCurrent) 1f else 0f)
+                                            .graphicsLayer {
+                                                alpha = visibility
+                                                val scale = 0.96f + 0.04f * visibility
+                                                scaleX = scale
+                                                scaleY = scale
+                                            }
                                     ) {
-                                        when (tab) {
-                                            0 -> ExploreScreen(
-                                                vm = vm,
-                                                onNavigateToSettings = { selectedTab = 2 }
-                                            )
-                                            1 -> FavoritesScreen(
-                                                vm = vm,
-                                                onNavigateToExplore = { selectedTab = 0 }
-                                            )
-                                            2 -> SettingsScreen(
-                                                vm = vm
-                                            )
+                                        CompositionLocalProvider(
+                                            androidx.activity.compose.LocalOnBackPressedDispatcherOwner provides
+                                                (if (isCurrent) activeBackOwner ?: inertBackOwner else inertBackOwner)
+                                        ) {
+                                            Surface(
+                                                modifier = Modifier.fillMaxSize(),
+                                                color = MaterialTheme.colorScheme.surface
+                                            ) {
+                                                when (tab) {
+                                                    0 -> ExploreScreen(
+                                                        vm = vm,
+                                                        onNavigateToSettings = { selectedTab = 2 }
+                                                    )
+                                                    1 -> FavoritesScreen(
+                                                        vm = vm,
+                                                        onNavigateToExplore = { selectedTab = 0 }
+                                                    )
+                                                    2 -> SettingsScreen(
+                                                        vm = vm
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
+                            }
                             }
 
                             }
