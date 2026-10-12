@@ -36,7 +36,6 @@ object Motion {
 
     fun <T> spatialDefault() = spring<T>(dampingRatio = 0.8f, stiffness = 380f)
 
-    /** Tab and pager switches: critically damped, so pages glide in and never bounce at the end. */
     fun <T> pageSwitch() = tween<T>(durationMillis = 420, easing = EmphasizedEasing)
     fun <T> spatialFast() = spring<T>(dampingRatio = 0.6f, stiffness = 800f)
     fun <T> spatialSlow() = spring<T>(dampingRatio = 0.8f, stiffness = 200f)

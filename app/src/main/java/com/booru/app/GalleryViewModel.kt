@@ -95,10 +95,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var dataSaverOnMobile by mutableStateOf(false); private set
     var isMeteredNetwork by mutableStateOf(false); private set
 
-    /** True while the user asked to save mobile data and the current network is metered. */
     val isDataSaverActive: Boolean get() = dataSaverOnMobile && isMeteredNetwork
 
-    /** Quality used for grids and thumbnails: light previews while saving mobile data. */
     val effectiveImageQuality: ImageQuality get() = if (isDataSaverActive) ImageQuality.SAVER else imageQuality
 
     private val connectivity = application.getSystemService(android.net.ConnectivityManager::class.java)
@@ -517,8 +515,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             } catch (c: CancellationException) {
                 if (tempFile.exists()) tempFile.delete()
                 if (targetFile.exists()) targetFile.delete()
-                // The coroutine is already cancelled, so the reset must not be cancellable,
-                // otherwise the "downloading" state would stay on forever.
                 withContext(kotlinx.coroutines.NonCancellable + Dispatchers.Main) {
                     isDownloadingUpdate = false
                 }
@@ -1692,25 +1688,17 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // Only the post tapped in the feed is a signal. Swiping to neighbours in the viewer goes
-    // through updateFullscreenIndex and is deliberately not recorded.
     private fun recordOpenedForRecommendations(media: RemoteMedia) {
         if (isIncognito || media.tags.isBlank()) return
         if (!viewedForRecommendations.add(media.mediaKey)) return
         viewModelScope.launch { prefs.recordViewedTags(media.tags) }
     }
 
-    /**
-     * With the AI filter on, posts that boorus did not tag as AI are still checked for
-     * generator metadata inside the file and removed from the feed as soon as one is found.
-     * Runs in the background, a few files at a time, so the feed shows up without waiting.
-     */
     private val aiScanJobs = mutableListOf<Job>()
     private var aiScanGeneration = -1L
 
     private fun scanForAiTraces(items: List<RemoteMedia>, searchGen: Long) {
         if (!noAi || items.isEmpty() || isDataSaverActive) return
-        // A new search makes the old feed's checks pointless; stop downloading their headers.
         if (searchGen != aiScanGeneration) {
             aiScanJobs.forEach { it.cancel() }
             aiScanJobs.clear()
@@ -1733,10 +1721,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    /**
-     * Searches for posts like [media]: its character plus artist, falling back to the series and
-     * then to its two most distinctive general tags. Returns false when the post has no usable tags.
-     */
     fun searchSimilar(media: RemoteMedia): Boolean {
         val classified = media.tagList
             .filter { TagClassifier.isRecommendationCandidate(it) }
@@ -1758,7 +1742,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         return true
     }
 
-    /** Hides the post from the feed and, outside incognito, teaches recommendations to show less like it. */
     fun markNotInterested(media: RemoteMedia) {
         notInterestedKeys.add(media.mediaKey)
         results = results.filterNot { it.mediaKey == media.mediaKey }

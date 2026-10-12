@@ -39,7 +39,6 @@ data class FloatingTab(
     val badgeCount: Int = 0
 )
 
-/** Floating MD3E toolbar: the selected tab expands into a labelled pill, the others stay icons. */
 @Composable
 fun FloatingTabToolbar(
     tabs: List<FloatingTab>,

@@ -10,7 +10,6 @@ import java.time.ZoneId
 
 enum class StatsPeriod { ALL_TIME, YEAR, MONTH }
 
-/** [sample] is the newest favorite carrying this label, used as a thumbnail. */
 data class CountEntry(val label: String, val count: Int, val sample: FavoriteEntity? = null)
 
 data class FavoriteStats(
@@ -55,7 +54,6 @@ data class FavoriteStats(
             }
             fun dateOf(f: FavoriteEntity): LocalDate = Instant.ofEpochMilli(f.savedAt).atZone(zone).toLocalDate()
 
-            // Newest first, so the first favorite seen for a tag is its most recent sample.
             val items = (if (from == null) favorites else favorites.filter { !dateOf(it).isBefore(from) })
                 .sortedByDescending { it.savedAt }
             val media = items.map { it.toRemoteMedia() }

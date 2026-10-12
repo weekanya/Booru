@@ -325,8 +325,6 @@ fun SettingsScreen(
                         )
                     }
     
-                    // "Auto" is Original on Wi-Fi plus the mobile data saver: samples in the viewer,
-                    // no video preloading and no AI file checks on metered networks.
                     val autoSelected = vm.dataSaverOnMobile
                     data class QualityOption(val quality: ImageQuality?, val title: String, val hint: String, val icon: ImageVector)
                     val options = listOf(
@@ -1003,7 +1001,6 @@ fun SettingsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    // Own layer per page: a tab jump only moves layers instead of redrawing pages.
                     .graphicsLayer()
                     .background(MaterialTheme.colorScheme.surface)
                     .verticalScroll(rememberScrollState())
@@ -1281,7 +1278,6 @@ fun SettingsScreen(
                             )
 
                             SettingsDivider()
-
 
                             SettingRowItem(
                                 title = Strings.tagBlacklistTitle(lang),

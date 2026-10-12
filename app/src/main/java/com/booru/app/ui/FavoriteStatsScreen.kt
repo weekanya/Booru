@@ -78,11 +78,6 @@ import java.time.format.FormatStyle
 import java.time.format.TextStyle
 import java.util.Locale
 
-/**
- * Full-screen favorites statistics split into Overview, Favorites and Activity tabs. Tag
- * categories are refined through [TagCategoryCache] while the page is open unless
- * [allowTagLookup] is false (incognito).
- */
 @Composable
 fun FavoriteStatsScreen(
     lang: AppLanguage,
@@ -236,8 +231,6 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                 current == null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { LoadingIndicator() }
                 current.isEmpty -> EmptyStats(lang)
                 else -> Box(modifier = Modifier.fillMaxSize()) {
-                    // beyondViewportPageCount keeps every page composed, so jumping between tabs
-                    // only scrolls already-built pages instead of building one mid-animation.
                     HorizontalPager(
                         state = pagerState,
                         beyondViewportPageCount = tabs.size - 1,

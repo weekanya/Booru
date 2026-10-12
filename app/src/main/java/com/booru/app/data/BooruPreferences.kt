@@ -466,23 +466,15 @@ class BooruPreferences(private val context: Context) {
 
     suspend fun recordFavoriteTags(mediaTags: String) = recordInterest(splitTags(mediaTags), weight = 6f)
 
-    /** A post opened from the feed. Only the post that was tapped counts, not the ones swiped to afterwards. */
     suspend fun recordViewedTags(mediaTags: String) = recordInterest(splitTags(mediaTags), weight = 1f, generalFactor = 0.4f)
 
     suspend fun recordSavedTags(mediaTags: String) = recordInterest(splitTags(mediaTags), weight = 3f, generalFactor = 0.6f)
 
-    /** "Not interested": pushes the post's characters, series and artists down; general tags only slightly. */
     suspend fun recordNotInterestedTags(mediaTags: String) = recordInterest(splitTags(mediaTags), weight = -5f, generalFactor = 0.25f)
 
     private fun splitTags(mediaTags: String): List<String> =
         if (mediaTags.isBlank()) emptyList() else mediaTags.split(Regex("[\\s,]+"))
 
-    /**
-     * Adds [weight] to every candidate tag. Weights fade with a half-life of three weeks,
-     * so recent interests outrank old ones without any single event wiping the rest.
-     * General tags are scaled by [generalFactor] since they say less about taste than
-     * characters, franchises and artists.
-     */
     private suspend fun recordInterest(tags: List<String>, weight: Float, generalFactor: Float = 1f) {
         if (tags.isEmpty()) return
         context.dataStore.edit { prefs ->

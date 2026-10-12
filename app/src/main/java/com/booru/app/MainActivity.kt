@@ -406,10 +406,6 @@ fun BooruApp(
                                     .weight(1f)
                                     .fillMaxHeight()
                             ) {
-                            // Every visited tab stays composed; switching only animates layer alpha and
-                            // scale, so a tap never rebuilds a whole screen mid-animation (that rebuild
-                            // was the stutter). Hidden tabs get an inert back dispatcher so their
-                            // BackHandlers cannot catch back presses meant for the visible tab.
                             val visitedTabs = remember { mutableStateListOf(selectedTab) }
                             if (selectedTab !in visitedTabs) visitedTabs.add(selectedTab)
                             val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -477,8 +473,6 @@ fun BooruApp(
                             }
 
                             if (widthClass.usesNavigationRail) {
-                                // Tablets: a compact floating toolbar instead of a side rail, so the
-                                // grid keeps the full width and tabs look like the stats page.
                                 FloatingTabToolbar(
                                     tabs = navItems.map { FloatingTab(it.label, it.icon, it.selectedIcon, it.badgeCount) },
                                     selected = selectedTab,

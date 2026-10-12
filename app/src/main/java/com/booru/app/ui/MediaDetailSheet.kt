@@ -149,7 +149,6 @@ fun MediaDetailSheet(
     onLoadMore: (() -> Unit)? = null,
     onNavigateToExplore: (() -> Unit)? = null
 ) {
-    // A new search briefly empties the feed; the viewer keeps showing what it already has.
     val viewerList = rememberViewerList(mediaList)
     if (viewerList.isEmpty()) {
         LaunchedEffect(Unit) { onDismiss() }
@@ -245,8 +244,6 @@ private fun MediaDetailSheetContent(
             sheetState = sheetState,
             shape = ShapeTokens.ExtraLargeIncreasedTop
         ) {
-            // Back is left to the sheet itself so Android 14+ shows the predictive shrink;
-            // only a zoomed photo takes it first to zoom out.
             BackHandler(enabled = isCurrentPageZoomed) {
                 resetZoomKey++
                 isCurrentPageZoomed = false
@@ -2388,12 +2385,6 @@ private fun DetailAction(
     }
 }
 
-/**
- * The feed list passed to the viewer changes while it is open: pages are appended by load-more,
- * but posts can also be removed (blacklist, AI check) or replaced by a new search. Removing or
- * replacing would shift every page under the user's finger, so the viewer keeps its own list
- * that only grows with posts appended to the same feed.
- */
 @Composable
 internal fun rememberViewerList(source: List<RemoteMedia>): List<RemoteMedia> {
     val list = remember { mutableStateListOf<RemoteMedia>().apply { addAll(source.distinctBy { it.mediaKey }) } }
@@ -2408,7 +2399,6 @@ internal fun rememberViewerList(source: List<RemoteMedia>): List<RemoteMedia> {
     return list
 }
 
-/** Pages turn once a swipe passes a fifth of the width, instead of snapping back below half. */
 @Composable
 internal fun viewerFlingBehavior(state: androidx.compose.foundation.pager.PagerState) =
     androidx.compose.foundation.pager.PagerDefaults.flingBehavior(

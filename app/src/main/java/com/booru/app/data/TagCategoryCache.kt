@@ -19,11 +19,6 @@ import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * Real tag categories (artist, character, copyright…) looked up on Danbooru and kept on disk.
- * Post tags only come with names, so without this the app has to guess categories from how a
- * tag is spelled, which misses most characters and artists.
- */
 object TagCategoryCache {
     private const val TAG = "TagCategoryCache"
     private const val FILE_NAME = "tag_categories.json"
@@ -40,7 +35,6 @@ object TagCategoryCache {
     @Volatile private var pausedUntil = 0L
     private val inFlight = ConcurrentHashMap.newKeySet<String>()
 
-    /** Bumped whenever new categories arrive, so UI that groups tags can recompute. */
     var version by mutableIntStateOf(0)
         private set
 
@@ -48,7 +42,6 @@ object TagCategoryCache {
         file = File(context.applicationContext.filesDir, FILE_NAME)
     }
 
-    /** Category hint for [TagClassifier.classify], or "" when the tag was never looked up. */
     fun hint(tag: String): String = when (categories[tag.lowercase()]) {
         0 -> "general"
         1 -> "artist"
@@ -78,15 +71,8 @@ object TagCategoryCache {
         }
     }
 
-    /**
-     * Looks up every tag in [tags] that is not cached yet. Failures are quiet: tags that could
-     * not be fetched simply keep falling back to the spelling heuristic. Returns true when
-     * anything new was learned.
-     */
     suspend fun resolve(tags: Collection<String>, onProgress: (done: Int, total: Int) -> Unit = { _, _ -> }): Boolean {
         ensureLoaded()
-        // After a failed request (offline, Cloudflare challenge) stop asking for a while
-        // instead of firing every remaining batch on each screen open.
         if (System.currentTimeMillis() < pausedUntil) return false
         val missing = tags.asSequence()
             .map { it.trim().lowercase() }
