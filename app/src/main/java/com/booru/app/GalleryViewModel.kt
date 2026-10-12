@@ -1667,9 +1667,19 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
      * generator metadata inside the file and removed from the feed as soon as one is found.
      * Runs in the background, a few files at a time, so the feed shows up without waiting.
      */
+    private val aiScanJobs = mutableListOf<Job>()
+    private var aiScanGeneration = -1L
+
     private fun scanForAiTraces(items: List<RemoteMedia>, searchGen: Long) {
         if (!noAi || items.isEmpty()) return
-        viewModelScope.launch {
+        // A new search makes the old feed's checks pointless; stop downloading their headers.
+        if (searchGen != aiScanGeneration) {
+            aiScanJobs.forEach { it.cancel() }
+            aiScanJobs.clear()
+            aiScanGeneration = searchGen
+        }
+        aiScanJobs.removeAll { !it.isActive }
+        aiScanJobs += viewModelScope.launch {
             com.booru.app.data.AiImageScanner.scan(items) { media ->
                 if (searchGen == currentSearchGeneration && noAi) {
                     results = results.filterNot { it.mediaKey == media.mediaKey }

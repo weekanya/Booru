@@ -30,12 +30,15 @@ object TagCategoryCache {
     private const val BATCH_SIZE = 100
     private const val MAX_ENTRIES = 40_000
     private const val UNKNOWN = -1
+    private const val FAILURE_BACKOFF_MS = 10 * 60 * 1000L
 
     private val categories = ConcurrentHashMap<String, Int>()
     private val loadMutex = Mutex()
     private val writeMutex = Mutex()
     @Volatile private var loaded = false
     @Volatile private var file: File? = null
+    @Volatile private var pausedUntil = 0L
+    private val inFlight = ConcurrentHashMap.newKeySet<String>()
 
     /** Bumped whenever new categories arrive, so UI that groups tags can recompute. */
     var version by mutableIntStateOf(0)
@@ -82,20 +85,32 @@ object TagCategoryCache {
      */
     suspend fun resolve(tags: Collection<String>, onProgress: (done: Int, total: Int) -> Unit = { _, _ -> }): Boolean {
         ensureLoaded()
+        // After a failed request (offline, Cloudflare challenge) stop asking for a while
+        // instead of firing every remaining batch on each screen open.
+        if (System.currentTimeMillis() < pausedUntil) return false
         val missing = tags.asSequence()
             .map { it.trim().lowercase() }
             .filter { it.isNotBlank() && !it.contains(',') && !categories.containsKey(it) }
             .distinct()
+            .filter { inFlight.add(it) }
             .toList()
         if (missing.isEmpty()) return false
 
         val batches = missing.chunked(BATCH_SIZE)
         var changed = false
-        batches.forEachIndexed { index, batch ->
-            val fetched = fetchBatch(batch) ?: return@forEachIndexed
-            for (name in batch) categories[name] = fetched[name] ?: UNKNOWN
-            changed = true
-            onProgress(index + 1, batches.size)
+        try {
+            for ((index, batch) in batches.withIndex()) {
+                val fetched = fetchBatch(batch)
+                if (fetched == null) {
+                    pausedUntil = System.currentTimeMillis() + FAILURE_BACKOFF_MS
+                    break
+                }
+                for (name in batch) categories[name] = fetched[name] ?: UNKNOWN
+                changed = true
+                onProgress(index + 1, batches.size)
+            }
+        } finally {
+            inFlight.removeAll(missing.toSet())
         }
         if (changed) {
             withContext(Dispatchers.Main) { version++ }
