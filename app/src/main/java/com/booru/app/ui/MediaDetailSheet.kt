@@ -149,6 +149,32 @@ fun MediaDetailSheet(
     onLoadMore: (() -> Unit)? = null,
     onNavigateToExplore: (() -> Unit)? = null
 ) {
+    // A new search briefly empties the feed; the viewer keeps showing what it already has.
+    val viewerList = rememberViewerList(mediaList)
+    if (viewerList.isEmpty()) {
+        LaunchedEffect(Unit) { onDismiss() }
+        return
+    }
+    MediaDetailSheetContent(
+        initialIndex = initialIndex,
+        mediaList = viewerList,
+        vm = vm,
+        onDismiss = onDismiss,
+        onLoadMore = onLoadMore,
+        onNavigateToExplore = onNavigateToExplore
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
+@Composable
+private fun MediaDetailSheetContent(
+    initialIndex: Int,
+    mediaList: List<RemoteMedia>,
+    vm: GalleryViewModel,
+    onDismiss: () -> Unit,
+    onLoadMore: (() -> Unit)?,
+    onNavigateToExplore: (() -> Unit)?
+) {
     if (mediaList.isEmpty()) {
         LaunchedEffect(Unit) { onDismiss() }
         return
@@ -266,11 +292,10 @@ fun MediaDetailSheet(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize(),
                         beyondViewportPageCount = 1,
+                        pageSpacing = 12.dp,
+                        flingBehavior = viewerFlingBehavior(pagerState),
                         userScrollEnabled = !isCurrentPageZoomed,
-                        key = { page ->
-                            val m = mediaList.getOrNull(page)
-                            if (m != null) "${m.source}_${m.id.ifBlank { m.url }}_$page" else page
-                        }
+                        key = { page -> mediaList.getOrNull(page)?.mediaKey ?: page }
                     ) { page ->
                         val item = mediaList.getOrNull(page) ?: return@HorizontalPager
                         if (item.isVideo) {
@@ -474,14 +499,14 @@ fun MediaDetailSheet(
                         ) { fav ->
                             Icon(
                                 imageVector = if (fav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = "Favorite",
+                                contentDescription = Strings.tr(lang, "Favorite", "В избранное", "お気に入り", "收藏", "즐겨찾기", "المفضلة"),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
                     }
                     val folderSlot by animateFloatAsState(
                         targetValue = if (isFav) 1f else 0f,
-                        animationSpec = if (isFav) spring(dampingRatio = 0.7f, stiffness = 420f) else spring(dampingRatio = 0.9f, stiffness = 520f),
+                        animationSpec = spring(dampingRatio = 1f, stiffness = 520f),
                         label = "folderSlot"
                     )
                     if (folderSlot > 0.01f) {
@@ -525,7 +550,7 @@ fun MediaDetailSheet(
                         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.width(56.dp)
                     ) {
-                        Icon(Icons.Rounded.MoreVert, contentDescription = "More", modifier = Modifier.size(22.dp))
+                        Icon(Icons.Rounded.MoreVert, contentDescription = Strings.tr(lang, "More", "Ещё", "その他", "更多", "더보기", "المزيد"), modifier = Modifier.size(22.dp))
                     }
                 }
 
@@ -746,7 +771,7 @@ fun MediaDetailSheet(
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         Icons.Rounded.ExpandMore,
-                                        contentDescription = if (isTagsExpanded) "Collapse" else "Expand",
+                                        contentDescription = null,
                                         tint = chevronTint,
                                         modifier = Modifier
                                             .size(22.dp)
@@ -1270,6 +1295,7 @@ fun DetailZoomableImage(
     onZoomChanged: (Boolean) -> Unit
 ) {
     val context = LocalContext.current
+    val onZoomChangedLatest by rememberUpdatedState(onZoomChanged)
     var rawScale by remember { mutableFloatStateOf(1f) }
     var rawOffset by remember { mutableStateOf(Offset.Zero) }
     var detailLoadError by remember(media.id, media.url) { mutableStateOf(false) }
@@ -1291,7 +1317,7 @@ fun DetailZoomableImage(
         if (!isActive) {
             rawScale = 1f
             rawOffset = Offset.Zero
-            onZoomChanged(false)
+            onZoomChangedLatest(false)
         }
     }
 
@@ -1299,7 +1325,7 @@ fun DetailZoomableImage(
         if (resetZoomKey > 0) {
             rawScale = 1f
             rawOffset = Offset.Zero
-            onZoomChanged(false)
+            onZoomChangedLatest(false)
         }
     }
 
@@ -1410,7 +1436,7 @@ fun DetailZoomableImage(
                             if (rawScale > 1.05f) {
                                 rawScale = 1f
                                 rawOffset = Offset.Zero
-                                onZoomChanged(false)
+                                onZoomChangedLatest(false)
                             } else {
                                 val newScale = 2.5f
                                 rawScale = newScale
@@ -1422,7 +1448,7 @@ fun DetailZoomableImage(
                                     x = targetX.coerceIn(-maxOffsetX, maxOffsetX),
                                     y = targetY.coerceIn(-maxOffsetY, maxOffsetY)
                                 )
-                                onZoomChanged(true)
+                                onZoomChangedLatest(true)
                             }
                         }
                     )
@@ -1461,7 +1487,7 @@ fun DetailZoomableImage(
                                     val newScale = (rawScale * zoomChange).coerceIn(1f, 4.5f)
                                     rawScale = newScale
                                     val isZoomNow = newScale > 1.05f
-                                    onZoomChanged(isZoomNow)
+                                    onZoomChangedLatest(isZoomNow)
 
                                     if (isZoomNow) {
                                         val maxOffsetX = ((newScale - 1f) * size.width.toFloat() / 2f).coerceAtLeast(0f)
@@ -1560,7 +1586,7 @@ fun DetailZoomableImage(
                     onClick = {
                         rawScale = 1f
                         rawOffset = Offset.Zero
-                        onZoomChanged(false)
+                        onZoomChangedLatest(false)
                     },
                     shapes = IconButtonDefaults.shapes(shape = CircleShape, pressedShape = IconButtonDefaults.smallPressedShape),
                     modifier = Modifier
@@ -1570,7 +1596,7 @@ fun DetailZoomableImage(
                 ) {
                     Icon(
                         Icons.Rounded.ZoomOutMap,
-                        contentDescription = "Reset zoom",
+                        contentDescription = Strings.tr(vm.language, "Reset zoom", "Сбросить зум", "ズームをリセット", "重置缩放", "확대 초기화", "إعادة التكبير"),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -2339,3 +2365,31 @@ private fun DetailAction(
         )
     }
 }
+
+/**
+ * The feed list passed to the viewer changes while it is open: pages are appended by load-more,
+ * but posts can also be removed (blacklist, AI check) or replaced by a new search. Removing or
+ * replacing would shift every page under the user's finger, so the viewer keeps its own list
+ * that only grows with posts appended to the same feed.
+ */
+@Composable
+internal fun rememberViewerList(source: List<RemoteMedia>): List<RemoteMedia> {
+    val list = remember { mutableStateListOf<RemoteMedia>().apply { addAll(source.distinctBy { it.mediaKey }) } }
+    LaunchedEffect(source) {
+        val known = list.mapTo(HashSet()) { it.mediaKey }
+        val sameFeed = source.any { it.mediaKey in known }
+        if (sameFeed) {
+            val added = source.filter { known.add(it.mediaKey) }
+            if (added.isNotEmpty()) list.addAll(added)
+        }
+    }
+    return list
+}
+
+/** Pages turn once a swipe passes a fifth of the width, instead of snapping back below half. */
+@Composable
+internal fun viewerFlingBehavior(state: androidx.compose.foundation.pager.PagerState) =
+    androidx.compose.foundation.pager.PagerDefaults.flingBehavior(
+        state = state,
+        snapPositionalThreshold = 0.2f
+    )

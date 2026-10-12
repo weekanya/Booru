@@ -65,6 +65,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -258,10 +259,9 @@ fun ImmersiveMediaViewer(
                     modifier = Modifier.fillMaxSize(),
                     userScrollEnabled = !isPageZoomed && abs(dragDismissOffsetY) < 15f,
                     beyondViewportPageCount = 1,
-                    key = { page ->
-                        val m = mediaList.getOrNull(page)
-                        if (m != null) "fs_${m.source}_${m.id.ifBlank { m.url }}_$page" else page
-                    }
+                    pageSpacing = 16.dp,
+                    flingBehavior = viewerFlingBehavior(pagerState),
+                    key = { page -> mediaList.getOrNull(page)?.mediaKey ?: page }
                 ) { page ->
                     val item = mediaList.getOrNull(page) ?: return@HorizontalPager
                     val isCurrent = (pagerState.currentPage == page)
@@ -285,7 +285,7 @@ fun ImmersiveMediaViewer(
                             isActive = isCurrent,
                             resetZoomKey = if (isCurrent) resetZoomKey else 0,
                             onZoomChanged = { zoomed ->
-                                if (isCurrent) isPageZoomed = zoomed
+                                if (pagerState.currentPage == page) isPageZoomed = zoomed
                             },
                             onToggleControls = {
                                 showControls = !showControls
@@ -489,6 +489,8 @@ fun FullscreenZoomableImage(
     onToggleControls: () -> Unit
 ) {
     val context = LocalContext.current
+    val onZoomChangedLatest by rememberUpdatedState(onZoomChanged)
+    val onToggleControlsLatest by rememberUpdatedState(onToggleControls)
     var rawScale by remember { mutableFloatStateOf(1f) }
     var rawOffset by remember { mutableStateOf(Offset.Zero) }
     var detailLoadError by remember(media.id, media.url) { mutableStateOf(false) }
@@ -509,7 +511,7 @@ fun FullscreenZoomableImage(
         if (!isActive) {
             rawScale = 1f
             rawOffset = Offset.Zero
-            onZoomChanged(false)
+            onZoomChangedLatest(false)
         }
     }
 
@@ -517,7 +519,7 @@ fun FullscreenZoomableImage(
         if (resetZoomKey > 0) {
             rawScale = 1f
             rawOffset = Offset.Zero
-            onZoomChanged(false)
+            onZoomChangedLatest(false)
         }
     }
 
@@ -545,7 +547,7 @@ fun FullscreenZoomableImage(
                 .fillMaxSize()
                 .pointerInput(Unit) {
                     detectTapGestures(
-                        onTap = { onToggleControls() }
+                        onTap = { onToggleControlsLatest() }
                     )
                 }
                 .verticalScroll(scrollState),
@@ -621,12 +623,12 @@ fun FullscreenZoomableImage(
                 .fillMaxSize()
                 .pointerInput(Unit) {
                     detectTapGestures(
-                        onTap = { onToggleControls() },
+                        onTap = { onToggleControlsLatest() },
                         onDoubleTap = { tapOffset ->
                             if (rawScale > 1.05f) {
                                 rawScale = 1f
                                 rawOffset = Offset.Zero
-                                onZoomChanged(false)
+                                onZoomChangedLatest(false)
                             } else {
                                 val newScale = 2.5f
                                 rawScale = newScale
@@ -638,7 +640,7 @@ fun FullscreenZoomableImage(
                                     x = targetX.coerceIn(-maxOffsetX, maxOffsetX),
                                     y = targetY.coerceIn(-maxOffsetY, maxOffsetY)
                                 )
-                                onZoomChanged(true)
+                                onZoomChangedLatest(true)
                             }
                         }
                     )
@@ -665,7 +667,7 @@ fun FullscreenZoomableImage(
                                 val newScale = (rawScale * zoomChange).coerceIn(1f, 5f)
                                 rawScale = newScale
                                 val zoomed = newScale > 1.05f
-                                onZoomChanged(zoomed)
+                                onZoomChangedLatest(zoomed)
 
                                 if (zoomed) {
                                     val maxOffsetX = ((newScale - 1f) * size.width.toFloat() / 2f).coerceAtLeast(0f)
