@@ -130,7 +130,6 @@ class MainActivity : ComponentActivity() {
                 onLockNeeded = {
                     if (!vm.hasUnlockedSession) {
                         isAppLocked.value = true
-                        promptBiometric()
                     }
                 }
             )
@@ -146,7 +145,6 @@ class MainActivity : ComponentActivity() {
             if (!vm.hasUnlockedSession || leftApp) {
                 vm.markSessionLocked()
                 isAppLocked.value = true
-                promptBiometric()
             }
         }
         vm.markForegrounded()

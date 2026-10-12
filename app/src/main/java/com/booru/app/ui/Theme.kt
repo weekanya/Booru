@@ -218,7 +218,7 @@ fun ToggleGroupColors(content: @Composable () -> Unit) {
             onSurfaceVariant = scheme.onSecondaryContainer
         )
     }
-    MaterialExpressiveTheme(colorScheme = adjusted, content = content)
+    MaterialExpressiveTheme(colorScheme = adjusted, motionScheme = MotionScheme.standard(), content = content)
 }
 
 val BooruShapes = Shapes(
