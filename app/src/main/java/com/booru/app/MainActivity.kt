@@ -466,7 +466,6 @@ fun BooruApp(
                                     }
                                 }
                             }
-                            }
 
                             }
                             }
