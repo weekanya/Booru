@@ -1,53 +1,176 @@
 <p align="center">
-  <img src="docs/assets/banner.svg" alt="Booru" width="100%">
+  <img src="docs/assets/banner.svg" alt="Booru: a private, fast booru client for Android" width="100%">
 </p>
 
 <p align="center">
-  <a href="https://github.com/weekanya/Booru/releases/latest"><img src="https://img.shields.io/github/v/release/weekanya/Booru?style=flat-square&color=7B5BEA&label=release" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/Android-12%2B-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android 12+">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-blue?style=flat-square" alt="GPL-3.0"></a>
-  <a href="https://booru.weebio.ru"><img src="https://img.shields.io/badge/website-booru.weebio.ru-7B5BEA?style=flat-square" alt="Website"></a>
+  <a href="https://github.com/weekanya/Booru/releases/latest"><img src="https://img.shields.io/github/v/release/weekanya/Booru?style=for-the-badge&color=7B5BEA&label=release" alt="Latest release"></a>
+  <img src="https://img.shields.io/badge/Android-12%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 12+">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-4C6FD6?style=for-the-badge" alt="GPL-3.0"></a>
 </p>
+
+<p align="center">
+  <b>One feed for seven booru sites, with recommendations computed on your phone.</b><br>
+  No accounts, no analytics, no ads.
+</p>
+
+<p align="center">
+  <a href="https://github.com/weekanya/Booru/releases/latest"><b>Download APK</b></a>
+  &nbsp;·&nbsp;
+  <a href="https://booru.weebio.ru"><b>Website</b></a>
+  &nbsp;·&nbsp;
+  <a href="#features"><b>Features</b></a>
+</p>
+
+<br>
+
+<table align="center">
+  <tr>
+    <td align="center" width="25%">
+      <a href="docs/screenshots/1.png"><img src="docs/screenshots/framed/explore.webp" width="200" alt="Explore feed"></a>
+    </td>
+    <td align="center" width="25%">
+      <a href="docs/screenshots/5.png"><img src="docs/screenshots/framed/details.webp" width="200" alt="Post details"></a>
+    </td>
+    <td align="center" width="25%">
+      <a href="docs/screenshots/2.png"><img src="docs/screenshots/framed/favorites.webp" width="200" alt="Favorites"></a>
+    </td>
+    <td align="center" width="25%">
+      <a href="docs/screenshots/3.png"><img src="docs/screenshots/framed/settings.webp" width="200" alt="Settings"></a>
+    </td>
+  </tr>
+  <tr>
+    <td align="center"><b>Explore</b><br><sub>Mixed feed from every source</sub></td>
+    <td align="center"><b>Post</b><br><sub>Zoom, tags, download</sub></td>
+    <td align="center"><b>Favorites</b><br><sub>Offline, with folders</sub></td>
+    <td align="center"><b>Settings</b><br><sub>Themes, sources, privacy</sub></td>
+  </tr>
+</table>
+
+<p align="center"><sub>Tap a screenshot to open it at full size.</sub></p>
+
+## Highlights
 
 <table>
   <tr>
-    <td><img src="docs/screenshots/1.png" width="180" alt="Explore"></td>
-    <td><img src="docs/screenshots/4.png" width="180" alt="Search"></td>
-    <td><img src="docs/screenshots/5.png" width="180" alt="Post details"></td>
-    <td><img src="docs/screenshots/2.png" width="180" alt="Favorites"></td>
-    <td><img src="docs/screenshots/3.png" width="180" alt="Settings"></td>
+    <td width="50%" valign="top">
+      <h3>✨ For you feed</h3>
+      Posts from every enabled source in one feed. Recommendations are learned on the device from your favorites, searches, downloads and the posts you open. Recent interests count more than old ones.
+    </td>
+    <td width="50%" valign="top">
+      <h3>🔍 Search and filters</h3>
+      Multiple tags with autocomplete, tag categories and post counts. Filter by photos, videos or GIFs and by rating. Sort by newest, top score or random.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <h3>🤖 No AI filter</h3>
+      Hides AI-generated posts by their tags and by the generator metadata inside each file.
+    </td>
+    <td valign="top">
+      <h3>❤️ Favorites and stats</h3>
+      Saved offline, sorted into folders. Stats show your top characters, artists, series and tags, and your activity by month.
+    </td>
+  </tr>
+  <tr>
+    <td valign="top">
+      <h3>🎨 Material 3 Expressive</h3>
+      Eight color palettes including Monet dynamic color. Light, dark and AMOLED modes. Tablets and foldables get a floating tab bar.
+    </td>
+    <td valign="top">
+      <h3>🔒 Private by default</h3>
+      No accounts or analytics. API keys are encrypted, and the app can be locked with your fingerprint. Content is hidden from recent apps and screenshots.
+    </td>
   </tr>
 </table>
 
 ## Features
 
-- **Sources:** Rule34, Gelbooru, Realbooru, TBIB, Yande.re, Konachan, Safebooru. You can also add any custom Gelbooru, Moebooru or Danbooru instance.
-- **For you feed:** posts from all enabled sources in one feed, with recommendations learned on the device from your favorites, searches, downloads and the posts you open from the feed. Recent interests weigh more than old ones. A slider sets the mix between new posts and recommendations. Each source can be turned on or off.
-- **Search:** multiple tags at once, autocomplete that shows tag categories and post counts, and search history.
-- **Filters:** content type (photos, videos, GIFs), rating, hide AI-generated posts. The AI filter checks tags and the generator metadata inside each file. Sort by newest, top score or random.
-- **Tag blacklist:** applied to every source.
-- **Viewer:**
-  - zoom and swipe-to-dismiss in fullscreen;
-  - tags with quick actions;
-  - download the original, share, set as wallpaper, open in browser.
-- **Video:** downloads in parallel chunks, so seeking is instant. Playback speed from 0.5x to 2x.
-- **Favorites:** stored offline, with folders, search by tag and filters by type.
-- **Stats:** your favorite characters, artists and series, top tags, activity by month and content mix, for all time, this year or this month.
-- **Not interested:** hide a post and see less like it in recommendations.
-- **Material 3 Expressive design:** eight color palettes including Monet dynamic color, light, dark and AMOLED modes. Tablets and foldables get a navigation rail.
-- **Languages:** English, Russian, Japanese, Chinese, Korean, Arabic.
-- **Privacy:**
-  - no analytics or accounts;
-  - API keys stored encrypted;
-  - biometric app lock;
-  - incognito mode;
-  - content hidden from recents and screenshots.
-- **Updates:** built-in updater from GitHub Releases that checks the APK signature before installing.
+<details open>
+<summary><b>Sources</b></summary>
+<br>
 
-## Links
+- Rule34, Gelbooru, Realbooru, TBIB, Yande.re, Konachan and Safebooru.
+- Add any custom Gelbooru, Moebooru or Danbooru site.
+- Each source can be turned on or off.
+- A slider sets the mix between new posts and recommendations.
 
-| | |
-| --- | --- |
-| Website | [booru.weebio.ru](https://booru.weebio.ru) |
-| Download | [Latest release](https://github.com/weekanya/Booru/releases/latest) |
-| License | [GPL-3.0](LICENSE) |
+</details>
+
+<details>
+<summary><b>Viewer and video</b></summary>
+<br>
+
+- Pinch to zoom, swipe between posts, swipe down to close.
+- Tap a tag to search it, copy it or add it to the blacklist.
+- Download the original, share, set as wallpaper or open in the browser.
+- **Similar posts** finds posts with the same character and artist.
+- **Not interested** hides a post and shows fewer posts like it.
+- Videos load in parallel chunks, so seeking is instant. Playback speed goes from 0.5x to 2x.
+
+</details>
+
+<details>
+<summary><b>Favorites and stats</b></summary>
+<br>
+
+- Stored on the device, so they work offline.
+- Folders, search by tag, and filters by type.
+- Stats for all time, this year or this month:
+  - top characters, artists, series and tags;
+  - activity by month and your longest streak;
+  - content mix.
+
+</details>
+
+<details>
+<summary><b>Data and quality</b></summary>
+<br>
+
+- Image quality: Auto, Original, Optimal or Saver.
+- **Auto** loads originals on Wi-Fi and switches to lighter images on mobile data.
+- A tag blacklist that applies to every source.
+
+</details>
+
+<details>
+<summary><b>Privacy</b></summary>
+<br>
+
+- No analytics, ads or accounts.
+- API keys stored with Android encrypted storage.
+- Fingerprint app lock with a timeout you can set.
+- Incognito mode: searches and views are not remembered.
+- The app is hidden from recent apps and screenshots.
+
+</details>
+
+<details>
+<summary><b>Languages and updates</b></summary>
+<br>
+
+- English, Russian, Japanese, Chinese, Korean and Arabic.
+- Built-in updater from GitHub Releases. It checks the APK signature before installing.
+
+</details>
+
+## Install
+
+1. Download the latest APK from [Releases](https://github.com/weekanya/Booru/releases/latest).
+2. Open it and allow installs from your browser or file manager if Android asks.
+3. Later updates can be installed from **Settings → System** inside the app.
+
+Requires Android 12 or newer.
+
+## Build from source
+
+```bash
+git clone https://github.com/weekanya/Booru.git
+cd Booru
+./gradlew assembleDebug
+```
+
+The APK is written to `app/build/outputs/apk/debug/`.
+
+## License
+
+Booru is free software under the [GPL-3.0](LICENSE) license.
