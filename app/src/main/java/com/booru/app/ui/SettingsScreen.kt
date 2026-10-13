@@ -995,7 +995,7 @@ fun SettingsScreen(
         HorizontalPager(
             state = pagerState,
             beyondViewportPageCount = categories.size - 1,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize().tabTransition(tabController)
         ) { page ->
             Column(
                 modifier = Modifier

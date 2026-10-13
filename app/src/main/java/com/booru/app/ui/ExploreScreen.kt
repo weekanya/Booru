@@ -2219,6 +2219,7 @@ private fun FilterSelectionBottomSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(266.dp)
+                        .tabTransition(filterTabController)
                 ) { page ->
                     if (page == 0) {
                         Column(

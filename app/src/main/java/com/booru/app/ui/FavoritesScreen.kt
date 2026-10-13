@@ -213,11 +213,7 @@ fun FavoritesScreen(
             lang = lang,
             onSelect = { index ->
                 showFolderSheet = false
-                if (kotlin.math.abs(index - pagerState.currentPage) > 1) {
-                    scope.launch { pagerState.scrollToPage(index) }
-                } else {
-                    folderTabController.select(index)
-                }
+                folderTabController.select(index)
             },
             onCreate = {
                 showFolderSheet = false
@@ -533,7 +529,7 @@ fun FavoritesScreen(
         HorizontalPager(
             state = pagerState,
             beyondViewportPageCount = 1,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier.fillMaxSize().tabTransition(folderTabController),
             key = { page -> folders.getOrNull(page)?.let { "folder:$it" } ?: "all" }
         ) { page ->
             val currentFolder = folders.getOrNull(page)

@@ -294,7 +294,7 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, int
                     HorizontalPager(
                         state = pagerState,
                         beyondViewportPageCount = tabs.size - 1,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize().tabTransition(tabController)
                     ) { page ->
                         Column(
                             modifier = Modifier
