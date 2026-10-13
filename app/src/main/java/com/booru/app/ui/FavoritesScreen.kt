@@ -89,6 +89,7 @@ import com.booru.app.data.AppLanguage
 import com.booru.app.data.ImageQuality
 import com.booru.app.data.Strings
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 enum class FavoriteMediaTypeFilter {
@@ -765,6 +766,14 @@ private fun FolderPickerSheet(
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberExpandedSheetState()
+    val scope = rememberCoroutineScope()
+    var closing by remember { mutableStateOf(false) }
+    val closeThen: (() -> Unit) -> Unit = { action ->
+        if (!closing) {
+            closing = true
+            scope.launch { sheetState.hide() }.invokeOnCompletion { action() }
+        }
+    }
     SheetMotion {
         ModalBottomSheet(
             onDismissRequest = onDismiss,
@@ -787,7 +796,7 @@ private fun FolderPickerSheet(
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                     action = {
                         FilledTonalButton(
-                            onClick = onCreate,
+                            onClick = { closeThen(onCreate) },
                             shapes = ButtonDefaults.shapes(),
                             contentPadding = PaddingValues(start = 12.dp, end = 16.dp),
                             modifier = Modifier.height(44.dp)
@@ -855,7 +864,7 @@ private fun FolderPickerSheet(
                                 )
                                 if (folder != null) {
                                     IconButton(
-                                        onClick = { onDelete(folder) },
+                                        onClick = { closeThen { onDelete(folder) } },
                                         shapes = IconButtonDefaults.shapes()
                                     ) {
                                         Icon(
@@ -925,6 +934,8 @@ private fun FavoritesFilterBottomSheet(
                         ) {
                             draftSort = FavoriteSortOrder.NEWEST
                             draftType = FavoriteMediaTypeFilter.ALL
+                            onSortSelected(draftSort)
+                            onTypeSelected(draftType)
                         }
                     }
                 )
@@ -1044,34 +1055,23 @@ private fun FavoritesFilterBottomSheet(
     
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween, Alignment.End),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    AnimatedConfirmDeleteButton(
-                        onConfirmed = onClearAll,
-                        lang = lang,
-                        initialIcon = Icons.Rounded.DeleteSweep,
-                        initialText = Strings.tr(lang, "Clear all", "Очистить", "すべて消去", "全部清除", "모두 지우기", "مسح الكل"),
-                        confirmText = Strings.confirmDeleteAction(lang),
-                        height = 52.dp,
-                        contentPadding = 18.dp,
-                        idleContainerColor = MaterialTheme.colorScheme.errorContainer,
-                        idleContentColor = MaterialTheme.colorScheme.onErrorContainer,
-                        shape = RoundedCornerShape(topStart = 26.dp, bottomStart = 26.dp, topEnd = 8.dp, bottomEnd = 8.dp)
-                    )
                     Button(
                         onClick = {
                             onSortSelected(draftSort)
                             onTypeSelected(draftType)
                             scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                         },
-                        shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 26.dp, bottomEnd = 26.dp),
+                        shape = CircleShape,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
-                        contentPadding = PaddingValues(horizontal = 22.dp),
-                        modifier = Modifier.height(52.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
                     ) {
                         Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
@@ -1081,6 +1081,18 @@ private fun FavoritesFilterBottomSheet(
                             style = MaterialTheme.typography.labelLarge
                         )
                     }
+                    AnimatedConfirmDeleteButton(
+                        onConfirmed = onClearAll,
+                        lang = lang,
+                        initialIcon = Icons.Rounded.DeleteSweep,
+                        initialText = Strings.tr(lang, "Clear all", "Очистить", "すべて消去", "全部清除", "모두 지우기", "مسح الكل"),
+                        confirmText = Strings.confirmDeleteAction(lang),
+                        height = 56.dp,
+                        contentPadding = 18.dp,
+                        idleContainerColor = MaterialTheme.colorScheme.errorContainer,
+                        idleContentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        shape = CircleShape
+                    )
                 }
             }
         }
@@ -1113,7 +1125,9 @@ private fun CreateFolderBottomSheet(
     val focusRequester = remember { FocusRequester() }
 
     LaunchedEffect(Unit) {
-        delay(200)
+        androidx.compose.runtime.snapshotFlow { sheetState.currentValue }
+            .first { it == androidx.compose.material3.SheetValue.Expanded }
+        delay(60)
         try {
             focusRequester.requestFocus()
         } catch (_: Exception) {}

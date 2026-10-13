@@ -176,7 +176,7 @@ class KeyboardSheetState internal constructor() {
 
     internal fun gate(target: androidx.compose.material3.SheetValue): Boolean {
         if (target != androidx.compose.material3.SheetValue.Hidden || keyboardClosed || imeBottom == 0) return true
-        dismissRequested = true
+        if (state.currentValue == androidx.compose.material3.SheetValue.Expanded) dismissRequested = true
         return false
     }
 

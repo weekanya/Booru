@@ -38,6 +38,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -559,71 +560,89 @@ fun SettingsScreen(
                         polygon = MaterialShapes.Burst
                     )
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    val addInteraction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                    val addFocused by addInteraction.collectIsFocusedAsState()
+                    val isAddActive = newBlacklistTag.isNotBlank()
+                    val addContainer by animateColorAsState(
+                        targetValue = if (addFocused) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainerHigh,
+                        animationSpec = Motion.effectsDefault(),
+                        label = "addContainer"
+                    )
+                    val addBorder by animateColorAsState(
+                        targetValue = if (addFocused) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        animationSpec = Motion.effectsDefault(),
+                        label = "addBorder"
+                    )
+                    Surface(
+                        shape = CircleShape,
+                        color = addContainer,
+                        border = BorderStroke(2.dp, addBorder),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(64.dp)
                     ) {
-                        Surface(
-                            shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 6.dp, bottomEnd = 6.dp),
-                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        Row(
                             modifier = Modifier
-                                .weight(1f)
-                                .height(56.dp)
+                                .fillMaxSize()
+                                .padding(start = 8.dp, end = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(start = 18.dp, end = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
+                            Surface(
+                                shape = MaterialShapes.Cookie6Sided.toShape(),
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.size(44.dp)
                             ) {
-                                Icon(Icons.Rounded.Tag, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(12.dp))
-                                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                                    if (newBlacklistTag.isEmpty()) {
-                                        Text(
-                                            text = Strings.addTagPlaceholder(lang),
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                    BasicTextField(
-                                        value = newBlacklistTag,
-                                        onValueChange = { newBlacklistTag = it },
-                                        singleLine = true,
-                                        textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
-                                        cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                        keyboardActions = KeyboardActions(onDone = { addTagAction() }),
-                                        modifier = Modifier.fillMaxWidth()
-                                    )
-                                }
-                                AnimatedVisibility(
-                                    visible = newBlacklistTag.isNotEmpty(),
-                                    enter = fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialDefault()),
-                                    exit = fadeOut(Motion.effectsFast()) + scaleOut(Motion.effectsFast())
-                                ) {
-                                    IconButton(onClick = { newBlacklistTag = "" }) {
-                                        Icon(Icons.Rounded.Close, contentDescription = Strings.clearBtn(lang), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
-                                    }
+                                Box(contentAlignment = Alignment.Center) {
+                                    Icon(Icons.Rounded.Tag, contentDescription = null, modifier = Modifier.size(20.dp))
                                 }
                             }
-                        }
-                        val isAddActive = newBlacklistTag.isNotBlank()
-                        val addLead by androidx.compose.animation.core.animateDpAsState(
-                            targetValue = if (isAddActive) 28.dp else 6.dp,
-                            animationSpec = Motion.spatialDefault(),
-                            label = "addLead"
-                        )
-                        FilledIconButton(
-                            onClick = addTagAction,
-                            enabled = isAddActive,
-                            shape = RoundedCornerShape(topStart = addLead, bottomStart = addLead, topEnd = 28.dp, bottomEnd = 28.dp),
-                            modifier = Modifier.size(56.dp)
-                        ) {
-                            Icon(Icons.Rounded.Add, contentDescription = Strings.addTagBtn(lang), modifier = Modifier.size(24.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                                if (newBlacklistTag.isEmpty()) {
+                                    Text(
+                                        text = Strings.addTagPlaceholder(lang),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                BasicTextField(
+                                    value = newBlacklistTag,
+                                    onValueChange = { newBlacklistTag = it },
+                                    singleLine = true,
+                                    textStyle = MaterialTheme.typography.bodyLarge.copy(color = MaterialTheme.colorScheme.onSurface),
+                                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                    keyboardActions = KeyboardActions(onDone = { addTagAction() }),
+                                    interactionSource = addInteraction,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                            AnimatedVisibility(
+                                visible = newBlacklistTag.isNotEmpty(),
+                                enter = fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialDefault()),
+                                exit = fadeOut(Motion.effectsFast()) + scaleOut(Motion.effectsFast())
+                            ) {
+                                IconButton(onClick = { newBlacklistTag = "" }, modifier = Modifier.size(40.dp)) {
+                                    Icon(Icons.Rounded.Close, contentDescription = Strings.clearBtn(lang), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                            Spacer(Modifier.width(4.dp))
+                            val addCorner by androidx.compose.animation.core.animateDpAsState(
+                                targetValue = if (isAddActive) 24.dp else 14.dp,
+                                animationSpec = Motion.spatialDefault(),
+                                label = "addCorner"
+                            )
+                            FilledIconButton(
+                                onClick = addTagAction,
+                                enabled = isAddActive,
+                                shape = RoundedCornerShape(addCorner),
+                                modifier = Modifier.size(48.dp)
+                            ) {
+                                Icon(Icons.Rounded.Add, contentDescription = Strings.addTagBtn(lang), modifier = Modifier.size(24.dp))
+                            }
                         }
                     }
 
@@ -631,11 +650,18 @@ fun SettingsScreen(
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            val searching = blacklistFilterQuery.isNotEmpty()
+                            val searchBorder by animateColorAsState(
+                                targetValue = if (searching) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                                animationSpec = Motion.effectsDefault(),
+                                label = "searchBorder"
+                            )
                             Surface(
-                                shape = RoundedCornerShape(topStart = 24.dp, bottomStart = 24.dp, topEnd = 6.dp, bottomEnd = 6.dp),
-                                color = MaterialTheme.colorScheme.surfaceContainer,
+                                shape = CircleShape,
+                                color = Color.Transparent,
+                                border = BorderStroke(1.dp, searchBorder),
                                 modifier = Modifier
                                     .weight(1f)
                                     .height(48.dp)
@@ -649,12 +675,12 @@ fun SettingsScreen(
                                     Icon(
                                         Icons.Rounded.Search,
                                         contentDescription = null,
-                                        tint = if (blacklistFilterQuery.isNotEmpty()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        tint = if (searching) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Spacer(Modifier.width(10.dp))
                                     Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                                        if (blacklistFilterQuery.isEmpty()) {
+                                        if (!searching) {
                                             Text(
                                                 text = Strings.searchBlacklistPlaceholder(lang),
                                                 style = MaterialTheme.typography.bodyMedium,
@@ -672,10 +698,24 @@ fun SettingsScreen(
                                             modifier = Modifier.fillMaxWidth()
                                         )
                                     }
-                                    if (blacklistFilterQuery.isNotEmpty()) {
-                                        IconButton(onClick = { blacklistFilterQuery = "" }, modifier = Modifier.size(32.dp)) {
+                                    Surface(
+                                        shape = CircleShape,
+                                        color = if (searching) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+                                        contentColor = if (searching) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
+                                    ) {
+                                        Text(
+                                            text = if (searching) "${filteredBlacklist.size} / ${vm.tagBlacklist.size}" else "${vm.tagBlacklist.size}",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            fontWeight = FontWeight.Bold,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                                        )
+                                    }
+                                    if (searching) {
+                                        IconButton(onClick = { blacklistFilterQuery = "" }, modifier = Modifier.size(36.dp)) {
                                             Icon(Icons.Rounded.Close, contentDescription = Strings.tr(lang, "Clear", "Очистить", "クリア", "清除", "지우기", "مسح"), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                                         }
+                                    } else {
+                                        Spacer(Modifier.width(6.dp))
                                     }
                                 }
                             }
@@ -692,14 +732,14 @@ fun SettingsScreen(
                                 contentPadding = 16.dp,
                                 idleContainerColor = MaterialTheme.colorScheme.errorContainer,
                                 idleContentColor = MaterialTheme.colorScheme.onErrorContainer,
-                                shape = RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 24.dp, bottomEnd = 24.dp)
+                                shape = CircleShape
                             )
                         }
                     }
 
                     Surface(
-                        shape = ShapeTokens.ExtraLarge,
-                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = ShapeTokens.LargeIncreased,
+                        color = MaterialTheme.colorScheme.surfaceContainer,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         if (vm.tagBlacklist.isEmpty()) {
@@ -771,8 +811,8 @@ fun SettingsScreen(
                                         )
                                     } else {
                                         FlowRow(
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp),
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             filteredBlacklist.forEach { tag ->
@@ -2003,32 +2043,32 @@ private fun BlacklistTagChip(
         )
     ) {
         Surface(
-            shape = CircleShape,
-            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f),
-            contentColor = MaterialTheme.colorScheme.onErrorContainer
+            shape = ShapeTokens.Small,
+            color = MaterialTheme.colorScheme.surfaceContainerHighest
         ) {
             Row(
                 modifier = Modifier
-                    .heightIn(min = 38.dp)
-                    .padding(start = 12.dp, end = 4.dp),
+                    .heightIn(min = 36.dp)
+                    .padding(start = 12.dp, end = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Icon(
-                    Icons.Rounded.Block,
-                    contentDescription = null,
-                    modifier = Modifier.size(14.dp)
+                Text(
+                    text = "#",
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
                 )
                 Text(
-                    text = tag.replace('_', ' '),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
+                    text = tag,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Box(
                     modifier = Modifier
-                        .size(28.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
                         .clickable {
                             if (visibleState.targetState) {
                                 visibleState.targetState = false
@@ -2043,8 +2083,8 @@ private fun BlacklistTagChip(
                     Icon(
                         Icons.Rounded.Close,
                         contentDescription = Strings.tr(lang, "Remove", "Удалить", "削除", "移除", "삭제", "إزالة"),
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurface
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

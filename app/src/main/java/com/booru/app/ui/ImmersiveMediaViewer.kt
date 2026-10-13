@@ -142,8 +142,11 @@ fun ImmersiveMediaViewer(
 
     SettlePagerWhenIdle(pagerState)
 
+    LaunchedEffect(pagerState.settledPage) {
+        mediaList.getOrNull(pagerState.settledPage)?.let { vm.recordViewed(it) }
+    }
+
     LaunchedEffect(pagerState.currentPage) {
-        mediaList.getOrNull(pagerState.currentPage)?.let { vm.recordViewed(it) }
         isPageZoomed = false
         if (onLoadMore != null && pagerState.currentPage >= mediaList.size - 4) {
             onLoadMore()
@@ -281,7 +284,7 @@ fun ImmersiveMediaViewer(
                             previewUrl = item.gridImageUrl(vm.effectiveImageQuality != com.booru.app.data.ImageQuality.SAVER),
                             lang = vm.language,
                             modifier = Modifier.fillMaxSize(),
-                            isActive = isCurrent && !isClosing,
+                            isActive = pagerState.settledPage == page && !isClosing,
                             isExternalControls = true,
                             allowPrefetch = !vm.isDataSaverActive,
                             externalShowControls = showControls,

@@ -215,9 +215,9 @@ private fun MediaDetailSheetContent(
     val isDownloading = currentMedia.mediaKey in vm.activeDownloads
     val isSettingWallpaper = vm.isSettingWallpaper
 
-    LaunchedEffect(pagerState.currentPage) {
-        vm.updateFullscreenIndex(pagerState.currentPage)
-        mediaList.getOrNull(pagerState.currentPage)?.let { vm.recordViewed(it) }
+    LaunchedEffect(pagerState.settledPage) {
+        vm.updateFullscreenIndex(pagerState.settledPage)
+        mediaList.getOrNull(pagerState.settledPage)?.let { vm.recordViewed(it) }
     }
 
     LaunchedEffect(pagerState.currentPage) {
@@ -299,7 +299,7 @@ private fun MediaDetailSheetContent(
                                 lang = lang,
                                 previewUrl = item.gridImageUrl(vm.effectiveImageQuality != com.booru.app.data.ImageQuality.SAVER),
                                 modifier = Modifier.fillMaxSize(),
-                                isActive = pagerState.currentPage == page && !showTrueFullscreen && !isDismissingSheet,
+                                isActive = pagerState.settledPage == page && !showTrueFullscreen && !isDismissingSheet,
                                 onFullscreen = { showTrueFullscreen = true },
                                 allowPrefetch = !vm.isDataSaverActive
                             )
@@ -573,7 +573,9 @@ private fun MediaDetailSheetContent(
                                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
-                                val actions = if (currentMedia.isVideo) listOf(2, 1, 3) else listOf(2, 0, 1, 3)
+                                val allowNotInterested = vm.fullscreenState?.isFromResults == true && !vm.isFavorite(currentMedia)
+                                val actions = (if (currentMedia.isVideo) listOf(2, 1, 3) else listOf(2, 0, 1, 3))
+                                    .filter { it != 3 || allowNotInterested }
                                 actions.forEachIndexed { index, action ->
                                     TagActionItem(
                                         icon = when (action) {
@@ -2348,14 +2350,15 @@ internal fun SettlePagerWhenIdle(state: androidx.compose.foundation.pager.PagerS
         androidx.compose.runtime.snapshotFlow { state.isScrollInProgress }
             .collect { scrolling ->
                 if (!scrolling) {
-                    kotlinx.coroutines.delay(120)
-                    val offset = kotlin.math.abs(state.currentPageOffsetFraction)
-                    if (!state.isScrollInProgress) {
-                        if (offset > 0.03f) {
-                            state.animateScrollToPage(state.currentPage, animationSpec = Motion.pageSwitch())
-                        } else if (offset > 0.0005f) {
-                            state.scrollToPage(state.currentPage)
-                        }
+                    kotlinx.coroutines.delay(48)
+                    if (!state.isScrollInProgress && kotlin.math.abs(state.currentPageOffsetFraction) > 0.002f) {
+                        state.animateScrollToPage(
+                            state.currentPage,
+                            animationSpec = androidx.compose.animation.core.spring(
+                                dampingRatio = 1f,
+                                stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                            )
+                        )
                     }
                 }
             }

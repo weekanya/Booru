@@ -40,6 +40,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -97,14 +98,14 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
             onDismissRequest = onDismiss,
             sheetState = rememberExpandedSheetState(),
             containerColor = scheme.surfaceContainerLow,
-            shape = ShapeTokens.ExtraLargeIncreasedTop
+            shape = ShapeTokens.ExtraLargeTop
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp)
+                    .padding(horizontal = 16.dp)
                     .padding(bottom = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -124,13 +125,36 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                         }
                     )
                     Spacer(Modifier.width(14.dp))
-                    Text(
-                        offlineTitle(lang),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = scheme.onSurface,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            offlineTitle(lang),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = scheme.onSurface,
+                            maxLines = 1
+                        )
+                        AnimatedContent(
+                            targetState = when {
+                                downloading -> 1
+                                saved > 0 -> 2
+                                else -> 0
+                            },
+                            transitionSpec = { fadeIn(Motion.effectsDefault()) togetherWith fadeOut(Motion.effectsFast()) },
+                            label = "offlineSubtitle"
+                        ) { state ->
+                            Text(
+                                when (state) {
+                                    1 -> Strings.tr(lang, "Keeps going in the background", "Продолжится в фоне", "バックグラウンドで続行します", "会在后台继续", "백그라운드에서 계속됩니다", "يستمر في الخلفية")
+                                    2 -> Strings.tr(lang, "Ready to watch without internet", "Можно смотреть без интернета", "インターネットなしで見られます", "无需网络即可查看", "인터넷 없이 볼 수 있어요", "جاهزة للمشاهدة بلا إنترنت")
+                                    else -> Strings.tr(lang, "From your feed, search and filters", "Из вашей ленты, поиска и фильтров", "フィード・検索・フィルターから", "来自你的推送、搜索和筛选", "피드, 검색, 필터에서 가져옵니다", "من خلاصتك وبحثك وعوامل التصفية")
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = scheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                     AnimatedVisibility(
                         visible = added > 0 && !downloading,
                         enter = fadeIn(Motion.effectsDefault()) + androidx.compose.animation.scaleIn(Motion.spatialFast(), initialScale = 0.6f),
@@ -197,6 +221,13 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                         DownloadProgress(vm, lang)
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Text(
+                                Strings.tr(lang, "How many posts to keep", "Сколько постов хранить", "保存する投稿数", "保留多少帖子", "보관할 게시물 수", "عدد المنشورات المحفوظة"),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = scheme.onSurfaceVariant,
+                                modifier = Modifier.padding(start = 4.dp)
+                            )
                             OFFLINE_OPTIONS.chunked(2).forEach { row ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     row.forEach { option ->
@@ -211,7 +242,13 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                 }
                             }
                             vm.offlineError?.let { error ->
-                                Text(error, style = MaterialTheme.typography.bodySmall, color = scheme.error, modifier = Modifier.padding(start = 4.dp))
+                                Surface(shape = ShapeTokens.Large, color = scheme.errorContainer, contentColor = scheme.onErrorContainer, modifier = Modifier.fillMaxWidth()) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                                        Icon(Icons.Rounded.ErrorOutline, contentDescription = null, modifier = Modifier.size(20.dp))
+                                        Spacer(Modifier.width(12.dp))
+                                        Text(error, style = MaterialTheme.typography.bodyMedium)
+                                    }
+                                }
                             }
                             val complete = saved >= count
                             Row(
@@ -224,7 +261,7 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                     enabled = !complete,
                                     shape = if (saved > 0) androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 8.dp, bottomEnd = 8.dp) else CircleShape,
                                     contentPadding = PaddingValues(horizontal = 20.dp),
-                                    modifier = Modifier.weight(1f).height(60.dp)
+                                    modifier = Modifier.weight(1f).height(56.dp)
                                 ) {
                                     Icon(if (complete) Icons.Rounded.CheckCircle else Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(22.dp))
                                     Spacer(Modifier.width(10.dp))
@@ -245,7 +282,7 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                     AnimatedConfirmDeleteButton(
                                         onConfirmed = { vm.deleteOfflinePosts() },
                                         lang = lang,
-                                        height = 60.dp,
+                                        height = 56.dp,
                                         idleContainerColor = scheme.errorContainer,
                                         idleContentColor = scheme.onErrorContainer,
                                         shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 28.dp, bottomEnd = 28.dp)

@@ -747,9 +747,9 @@ fun ExploreScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    if (vm.isIncognito) Icons.Rounded.VisibilityOff else Icons.Rounded.Search,
+                    Icons.Rounded.Search,
                     contentDescription = "Search",
-                    tint = if (vm.isIncognito) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp)
                 )
                 Spacer(Modifier.width(14.dp))
@@ -934,7 +934,7 @@ fun ExploreScreen(
                                                     Strings.searchPlaceholder(lang)
                                                 },
                                                 style = MaterialTheme.typography.bodyLarge,
-                                                color = if (vm.isIncognito) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                 maxLines = 1,
                                                 overflow = TextOverflow.Ellipsis
                                             )
@@ -2136,6 +2136,22 @@ private fun FilterSelectionBottomSheet(
     var tempRecRatio by remember { mutableFloatStateOf(vm.recommendationRatio) }
     var filterTab by rememberSaveable { mutableIntStateOf(0) }
 
+    fun applyTemp() {
+        val ratioChanged = kotlin.math.abs(tempRecRatio - vm.recommendationRatio) > 0.01f
+        val filtersChanged = tempContentTypes != vm.selectedContentTypes || tempSortOrder != vm.sortOrder ||
+            tempSafeMode != vm.safeMode || tempExcludeSafe != vm.excludeSafe || tempNoAi != vm.noAi || tempNoFurry != vm.noFurry
+        vm.updateRecommendationRatio(tempRecRatio)
+        if (ratioChanged && !filtersChanged && vm.query.isBlank()) vm.refresh(isPull = false)
+        vm.applyAllFilters(
+            contentTypes = tempContentTypes,
+            sortOrder = tempSortOrder,
+            safeMode = tempSafeMode,
+            excludeSafe = tempExcludeSafe,
+            noAi = tempNoAi,
+            noFurry = tempNoFurry
+        )
+    }
+
     SheetMotion {
         ModalBottomSheet(
             onDismissRequest = onDismiss,
@@ -2166,6 +2182,7 @@ private fun FilterSelectionBottomSheet(
                             tempNoAi = false
                             tempNoFurry = false
                             tempRecRatio = 0.5f
+                            applyTemp()
                         }
                     }
                 )
@@ -2584,19 +2601,7 @@ private fun FilterSelectionBottomSheet(
     
                 Button(
                     onClick = {
-                        val ratioChanged = kotlin.math.abs(tempRecRatio - vm.recommendationRatio) > 0.01f
-                        val filtersChanged = tempContentTypes != vm.selectedContentTypes || tempSortOrder != vm.sortOrder ||
-                            tempSafeMode != vm.safeMode || tempExcludeSafe != vm.excludeSafe || tempNoAi != vm.noAi || tempNoFurry != vm.noFurry
-                        vm.updateRecommendationRatio(tempRecRatio)
-                        if (ratioChanged && !filtersChanged && vm.query.isBlank()) vm.refresh(isPull = false)
-                        vm.applyAllFilters(
-                            contentTypes = tempContentTypes,
-                            sortOrder = tempSortOrder,
-                            safeMode = tempSafeMode,
-                            excludeSafe = tempExcludeSafe,
-                            noAi = tempNoAi,
-                            noFurry = tempNoFurry
-                        )
+                        applyTemp()
                         scope.launch {
                             sheetState.hide()
                         }.invokeOnCompletion {
