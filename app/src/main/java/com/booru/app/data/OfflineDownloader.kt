@@ -38,9 +38,14 @@ object OfflineDownloader {
         private set
     var lastAdded by mutableIntStateOf(-1)
         private set
+    var goal by mutableIntStateOf(0)
+        private set
+    var base by mutableIntStateOf(0)
+        private set
 
     fun start(
         context: Context,
+        goal: Int,
         count: Int,
         preferOriginal: Boolean,
         lang: AppLanguage,
@@ -54,6 +59,8 @@ object OfflineDownloader {
         phase = 0
         lastAdded = -1
         language = lang
+        this.goal = goal
+        base = OfflineStore.posts.size
         downloading = true
         OfflineDownloadService.start(context.applicationContext)
         val previous = job

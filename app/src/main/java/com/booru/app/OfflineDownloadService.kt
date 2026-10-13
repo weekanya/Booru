@@ -89,7 +89,7 @@ class OfflineDownloadService : Service() {
         val text = if (collecting) {
             "${OfflineDownloader.done}"
         } else {
-            "${OfflineDownloader.done} / ${OfflineDownloader.target} · ${BooruCacheManager.formatBytes(OfflineDownloader.bytes)}"
+            "${OfflineDownloader.base + OfflineDownloader.done} / ${OfflineDownloader.goal} · ${BooruCacheManager.formatBytes(OfflineDownloader.bytes)}"
         }
         val stopIntent = PendingIntent.getService(
             this,
@@ -101,7 +101,7 @@ class OfflineDownloadService : Service() {
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setContentTitle(title)
             .setContentText(text)
-            .setProgress(OfflineDownloader.target.coerceAtLeast(1), OfflineDownloader.done, collecting)
+            .setProgress(OfflineDownloader.goal.coerceAtLeast(1), OfflineDownloader.base + OfflineDownloader.done, collecting)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)

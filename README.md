@@ -101,7 +101,6 @@
 - Pinch to zoom, swipe between posts, swipe down to close.
 - Tap a tag to search it, copy it or add it to the blacklist.
 - Download the original, share, set as wallpaper or open in the browser.
-- **Similar posts** finds posts with the same character and artist.
 - **Not interested** hides a post and shows fewer posts like it.
 - Videos load in parallel chunks, so seeking is instant. Playback speed goes from 0.5x to 2x.
 
@@ -113,7 +112,7 @@
 
 - Stored on the device, so they work offline.
 - Folders, search by tag, and filters by type.
-- Stats for all time, this year or this month, built from everything you view, favorite, download and search:
+- Stats for today, the last 7 or 30 days, or all time, compared with the previous period, built from everything you view, favorite, download and search:
   - posts viewed, favorited and downloaded, and how much of what you open you save;
   - top characters, artists, series, tags and searches;
   - the tags your recommendations lean on right now;
@@ -127,7 +126,8 @@
 <summary><b>Offline posts</b></summary>
 <br>
 
-- Download 100 to 500 posts from your current feed, search and filters, including GIFs and videos.
+- Keep 100 to 500 posts from your current feed, search and filters, including GIFs and videos. Posts you already have are never downloaded twice.
+- Downloads keep running in the background with a progress notification.
 - Watch them later without internet, with filters for images, GIFs and videos.
 - Find it in **Settings → Content → Offline posts**, or open it from the error card when there is no connection.
 

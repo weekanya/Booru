@@ -10,9 +10,9 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
-enum class StatsPeriod { ALL_TIME, YEAR, MONTH }
+enum class StatsPeriod { DAY, WEEK, MONTH, ALL_TIME }
 
-enum class BucketSize { DAY, MONTH }
+enum class BucketSize { HOUR, DAY, MONTH }
 
 data class PostRef(
     val mediaKey: String,
@@ -33,7 +33,7 @@ data class PostRef(
 
 data class CountEntry(val label: String, val count: Int, val sample: PostRef? = null)
 
-data class ActivityBucket(val start: LocalDate, val views: Int, val favorites: Int)
+data class ActivityBucket(val start: java.time.LocalDateTime, val views: Int, val favorites: Int)
 
 data class FavoriteStats(
     val viewed: Int,
@@ -41,6 +41,8 @@ data class FavoriteStats(
     val downloaded: Int,
     val searches: Int,
     val likeRate: Int?,
+    val prevViewed: Int?,
+    val prevFavorited: Int?,
     val images: Int,
     val gifs: Int,
     val videos: Int,
@@ -85,13 +87,19 @@ data class FavoriteStats(
             zone: ZoneId = ZoneId.systemDefault(),
             today: LocalDate = LocalDate.now(zone)
         ): FavoriteStats {
-            val from = when (period) {
-                StatsPeriod.ALL_TIME -> null
-                StatsPeriod.YEAR -> today.withDayOfYear(1)
-                StatsPeriod.MONTH -> today.withDayOfMonth(1)
+            val spanDays = when (period) {
+                StatsPeriod.DAY -> 1L
+                StatsPeriod.WEEK -> 7L
+                StatsPeriod.MONTH -> 30L
+                StatsPeriod.ALL_TIME -> 0L
             }
+            val fromMillis = if (spanDays == 0L) null else today.minusDays(spanDays - 1).atStartOfDay(zone).toInstant().toEpochMilli()
+            val prevFromMillis = if (spanDays == 0L) null else today.minusDays(spanDays * 2 - 1).atStartOfDay(zone).toInstant().toEpochMilli()
             fun dateOf(millis: Long): LocalDate = Instant.ofEpochMilli(millis).atZone(zone).toLocalDate()
-            fun inPeriod(millis: Long) = from == null || !dateOf(millis).isBefore(from)
+            fun inPeriod(millis: Long) = fromMillis == null || millis >= fromMillis
+            fun inPrevious(millis: Long) = fromMillis != null && prevFromMillis != null && millis >= prevFromMillis && millis < fromMillis
+            val prevViewed = if (fromMillis == null) null else history.filter { it.kind == HistoryEntity.KIND_VIEW && inPrevious(it.at) }.mapTo(HashSet()) { it.mediaKey }.size
+            val prevFavorited = if (fromMillis == null) null else favorites.count { inPrevious(it.savedAt) }
 
             val favs = favorites.filter { inPeriod(it.savedAt) }.sortedByDescending { it.savedAt }
             val events = history.filter { inPeriod(it.at) }
@@ -132,15 +140,26 @@ data class FavoriteStats(
 
             val media = posts.values.map { it.toRemoteMedia() }
 
-            val bucketSize = if (period == StatsPeriod.MONTH) BucketSize.DAY else BucketSize.MONTH
-            fun bucketOf(date: LocalDate): LocalDate = if (bucketSize == BucketSize.DAY) date else date.withDayOfMonth(1)
-            val bucketStarts = when (period) {
-                StatsPeriod.MONTH -> (1..today.dayOfMonth).map { today.withDayOfMonth(it) }
-                StatsPeriod.YEAR -> (1..today.monthValue).map { today.withMonth(it).withDayOfMonth(1) }
-                StatsPeriod.ALL_TIME -> (11 downTo 0).map { today.withDayOfMonth(1).minusMonths(it.toLong()) }
+            val bucketSize = when (period) {
+                StatsPeriod.DAY -> BucketSize.HOUR
+                StatsPeriod.WEEK, StatsPeriod.MONTH -> BucketSize.DAY
+                StatsPeriod.ALL_TIME -> BucketSize.MONTH
             }
-            val viewsPerBucket = views.groupingBy { bucketOf(dateOf(it.at)) }.eachCount()
-            val favsPerBucket = favs.groupingBy { bucketOf(dateOf(it.savedAt)) }.eachCount()
+            fun bucketOf(millis: Long): java.time.LocalDateTime {
+                val t = Instant.ofEpochMilli(millis).atZone(zone).toLocalDateTime()
+                return when (bucketSize) {
+                    BucketSize.HOUR -> t.withMinute(0).withSecond(0).withNano(0)
+                    BucketSize.DAY -> t.toLocalDate().atStartOfDay()
+                    BucketSize.MONTH -> t.toLocalDate().withDayOfMonth(1).atStartOfDay()
+                }
+            }
+            val bucketStarts = when (period) {
+                StatsPeriod.DAY -> (0..23).map { today.atTime(it, 0) }
+                StatsPeriod.WEEK, StatsPeriod.MONTH -> (spanDays - 1 downTo 0).map { today.minusDays(it).atStartOfDay() }
+                StatsPeriod.ALL_TIME -> (11 downTo 0).map { today.withDayOfMonth(1).minusMonths(it.toLong()).atStartOfDay() }
+            }
+            val viewsPerBucket = views.groupingBy { bucketOf(it.at) }.eachCount()
+            val favsPerBucket = favs.groupingBy { bucketOf(it.savedAt) }.eachCount()
             val buckets = bucketStarts.map { ActivityBucket(it, viewsPerBucket[it] ?: 0, favsPerBucket[it] ?: 0) }
 
             val activityTimes = buildList {
@@ -166,6 +185,8 @@ data class FavoriteStats(
                 downloaded = downloads.mapTo(HashSet()) { it.mediaKey }.size,
                 searches = searches.size,
                 likeRate = likeRate,
+                prevViewed = prevViewed,
+                prevFavorited = prevFavorited,
                 images = media.count { !it.isVideo && !it.isGif },
                 gifs = media.count { it.isGif },
                 videos = media.count { it.isVideo },

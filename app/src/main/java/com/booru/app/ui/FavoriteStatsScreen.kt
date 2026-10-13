@@ -30,6 +30,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.TrendingDown
+import androidx.compose.material.icons.automirrored.rounded.TrendingFlat
+import androidx.compose.material.icons.automirrored.rounded.TrendingUp
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -124,9 +127,8 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, int
 
     var favorites by remember { mutableStateOf<List<FavoriteEntity>?>(null) }
     var history by remember { mutableStateOf<List<HistoryEntity>>(emptyList()) }
-    var period by rememberSaveable { mutableStateOf(StatsPeriod.ALL_TIME) }
+    var period by rememberSaveable { mutableStateOf(StatsPeriod.WEEK) }
     var lookupProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
-    var showPeriodSheet by remember { mutableStateOf(false) }
 
     var lookupAttempt by remember { mutableIntStateOf(0) }
 
@@ -167,18 +169,6 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, int
     val pagerState = rememberPagerState(pageCount = { tabs.size })
     val tabController = rememberTabPagerController(pagerState)
 
-    if (showPeriodSheet) {
-        StatsPeriodSheet(
-            current = period,
-            lang = lang,
-            onSelect = {
-                period = it
-                showPeriodSheet = false
-            },
-            onDismiss = { showPeriodSheet = false }
-        )
-    }
-
     Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
             Row(
@@ -204,15 +194,36 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, int
                         .weight(1f)
                         .padding(start = 4.dp)
                 )
-                FilledTonalButton(
-                    onClick = { showPeriodSheet = true },
-                    shapes = ButtonDefaults.shapes(),
-                    contentPadding = PaddingValues(start = 12.dp, end = 8.dp)
+            }
+
+            ToggleGroupColors {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentWidth(Alignment.CenterHorizontally)
+                        .readableContentWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
                 ) {
-                    Icon(Icons.Rounded.DateRange, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(periodLabel(period, lang), style = MaterialTheme.typography.labelLarge, maxLines = 1)
-                    Icon(Icons.Rounded.ArrowDropDown, contentDescription = null, modifier = Modifier.size(20.dp))
+                    val periods = StatsPeriod.entries
+                    periods.forEachIndexed { index, item ->
+                        ToggleButton(
+                            checked = period == item,
+                            onCheckedChange = { period = item },
+                            shapes = groupPosition(index, periods.size).toggleShapes(),
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 48.dp)
+                                .semantics { role = Role.RadioButton }
+                        ) {
+                            Text(
+                                periodShortLabel(item, lang),
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = if (period == item) FontWeight.Bold else FontWeight.Medium,
+                                maxLines = 1
+                            )
+                        }
+                    }
                 }
             }
 
@@ -434,10 +445,10 @@ private fun ActivityPage(stats: FavoriteStats, lang: AppLanguage, locale: Locale
     if (stats.buckets.size > 1) {
         StatsCard(
             Icons.Rounded.BarChart,
-            if (stats.bucketSize == BucketSize.DAY) {
-                Strings.tr(lang, "By day", "По дням", "日別", "按天", "일별", "حسب اليوم")
-            } else {
-                Strings.tr(lang, "By month", "По месяцам", "月別", "按月", "월별", "حسب الشهر")
+            when (stats.bucketSize) {
+                BucketSize.HOUR -> Strings.tr(lang, "By hour", "По часам", "時間別", "按小时", "시간별", "حسب الساعة")
+                BucketSize.DAY -> Strings.tr(lang, "By day", "По дням", "日別", "按天", "일별", "حسب اليوم")
+                BucketSize.MONTH -> Strings.tr(lang, "By month", "По месяцам", "月別", "按月", "월별", "حسب الشهر")
             },
             Strings.tr(lang, "Posts viewed and favorited", "Просмотрено и добавлено в избранное", "閲覧数とお気に入り数", "浏览与收藏", "본 게시물과 즐겨찾기", "المنشورات المشاهدة والمفضلة")
         ) {
@@ -445,7 +456,7 @@ private fun ActivityPage(stats: FavoriteStats, lang: AppLanguage, locale: Locale
         }
     }
 
-    if (stats.hours.any { it > 0 }) {
+    if (stats.bucketSize != BucketSize.HOUR && stats.hours.any { it > 0 }) {
         StatsCard(
             Icons.Rounded.Schedule,
             Strings.tr(lang, "Time of day", "Время суток", "時間帯", "时段", "시간대", "وقت اليوم"),
@@ -524,6 +535,10 @@ private fun SummaryCard(stats: FavoriteStats, period: StatsPeriod, lang: AppLang
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
+            stats.prevViewed?.let { prev ->
+                TrendChip(current = stats.viewed, previous = prev, period = period, lang = lang)
+                Spacer(Modifier.height(6.dp))
+            }
             stats.likeRate?.let { rate ->
                 Text(
                     text = Strings.tr(lang, "You save $rate% of what you open", "Вы сохраняете $rate% того, что открываете", "開いた投稿の $rate% を保存", "你收藏了打开内容的 $rate%", "연 게시물의 $rate%를 저장", "تحفظ $rate% مما تفتحه"),
@@ -573,6 +588,37 @@ private fun SummaryCard(stats: FavoriteStats, period: StatsPeriod, lang: AppLang
         }
     }
 }
+
+@Composable
+private fun TrendChip(current: Int, previous: Int, period: StatsPeriod, lang: AppLanguage) {
+    val scheme = MaterialTheme.colorScheme
+    val versus = when (period) {
+        StatsPeriod.DAY -> Strings.tr(lang, "vs yesterday", "к вчера", "昨日比", "较昨天", "어제 대비", "مقارنة بالأمس")
+        StatsPeriod.WEEK -> Strings.tr(lang, "vs previous week", "к прошлой неделе", "前週比", "较上周", "지난주 대비", "مقارنة بالأسبوع السابق")
+        else -> Strings.tr(lang, "vs previous 30 days", "к прошлым 30 дням", "前の30日比", "较前 30 天", "이전 30일 대비", "مقارنة بالثلاثين يومًا السابقة")
+    }
+    val (icon, text, container, content) = when {
+        previous == 0 && current == 0 -> Quad(Icons.AutoMirrored.Rounded.TrendingFlat, "0", scheme.surfaceContainerHighest, scheme.onSurfaceVariant)
+        previous == 0 -> Quad(Icons.AutoMirrored.Rounded.TrendingUp, Strings.tr(lang, "new", "новое", "新規", "新增", "신규", "جديد"), scheme.primaryContainer, scheme.onPrimaryContainer)
+        else -> {
+            val delta = Math.round((current - previous) * 100f / previous)
+            when {
+                delta > 0 -> Quad(Icons.AutoMirrored.Rounded.TrendingUp, "+$delta%", scheme.primaryContainer, scheme.onPrimaryContainer)
+                delta < 0 -> Quad(Icons.AutoMirrored.Rounded.TrendingDown, "$delta%", scheme.tertiaryContainer, scheme.onTertiaryContainer)
+                else -> Quad(Icons.AutoMirrored.Rounded.TrendingFlat, "0%", scheme.surfaceContainerHighest, scheme.onSurfaceVariant)
+            }
+        }
+    }
+    Surface(shape = CircleShape, color = container, contentColor = content) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("$text $versus", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+private data class Quad<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)
 
 private fun segmentShape(index: Int, count: Int): RoundedCornerShape {
     val outer = 24.dp
@@ -827,9 +873,14 @@ private fun ActivityChart(stats: FavoriteStats, locale: Locale, lang: AppLanguag
     val buckets = stats.buckets
     val max = buckets.maxOfOrNull { maxOf(it.views, it.favorites) }?.coerceAtLeast(1) ?: 1
     val peak = buckets.maxByOrNull { it.views + it.favorites }?.takeIf { it.views + it.favorites > 0 }
-    val daily = stats.bucketSize == BucketSize.DAY
-    fun bucketName(date: java.time.LocalDate, style: TextStyle) =
-        if (daily) date.dayOfMonth.toString() else date.month.getDisplayName(style, locale).replaceFirstChar { it.titlecase(locale) }
+    val daily = stats.bucketSize != BucketSize.MONTH
+    val weekly = stats.bucketSize == BucketSize.DAY && buckets.size <= 7
+    fun bucketName(time: java.time.LocalDateTime, style: TextStyle) = when {
+        stats.bucketSize == BucketSize.HOUR -> "%02d".format(time.hour)
+        weekly -> time.dayOfWeek.getDisplayName(if (style == TextStyle.FULL_STANDALONE) TextStyle.FULL_STANDALONE else TextStyle.SHORT_STANDALONE, locale).replaceFirstChar { it.titlecase(locale) }
+        stats.bucketSize == BucketSize.DAY -> time.dayOfMonth.toString()
+        else -> time.month.getDisplayName(style, locale).replaceFirstChar { it.titlecase(locale) }
+    }
     if (peak != null) {
         val name = bucketName(peak.start, TextStyle.FULL_STANDALONE)
         val total = peak.views + peak.favorites
@@ -850,7 +901,11 @@ private fun ActivityChart(stats: FavoriteStats, locale: Locale, lang: AppLanguag
         buckets.forEachIndexed { index, bucket ->
             val viewFraction by animateFloatAsState((bucket.views.toFloat() / max).coerceIn(0f, 1f), Motion.effectsDefault(), label = "viewBar")
             val favFraction by animateFloatAsState((bucket.favorites.toFloat() / max).coerceIn(0f, 1f), Motion.effectsDefault(), label = "favBar")
-            val showLabel = !daily || index == 0 || (index + 1) % 5 == 0 || index == buckets.lastIndex
+            val showLabel = when {
+                stats.bucketSize == BucketSize.HOUR -> index % 6 == 0
+                weekly || !daily -> true
+                else -> index == 0 || (index + 1) % 5 == 0 || index == buckets.lastIndex
+            }
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -1087,10 +1142,18 @@ fun statsSubtitle(lang: AppLanguage) = Strings.tr(
     "ما تشاهده وتحفظه وتبحث عنه، وشخصياتك وفنانيك المفضلون"
 )
 
+private fun periodShortLabel(period: StatsPeriod, lang: AppLanguage) = when (period) {
+    StatsPeriod.DAY -> Strings.tr(lang, "Day", "День", "日", "日", "일", "يوم")
+    StatsPeriod.WEEK -> Strings.tr(lang, "Week", "Неделя", "週", "周", "주", "أسبوع")
+    StatsPeriod.MONTH -> Strings.tr(lang, "Month", "Месяц", "月", "月", "월", "شهر")
+    StatsPeriod.ALL_TIME -> Strings.tr(lang, "All", "Всё", "全期間", "全部", "전체", "الكل")
+}
+
 private fun periodLabel(period: StatsPeriod, lang: AppLanguage) = when (period) {
     StatsPeriod.ALL_TIME -> Strings.tr(lang, "All time", "Всё время", "全期間", "全部", "전체 기간", "كل الوقت")
-    StatsPeriod.YEAR -> Strings.tr(lang, "This year", "Этот год", "今年", "今年", "올해", "هذا العام")
-    StatsPeriod.MONTH -> Strings.tr(lang, "This month", "Этот месяц", "今月", "本月", "이번 달", "هذا الشهر")
+    StatsPeriod.DAY -> Strings.tr(lang, "Today", "Сегодня", "今日", "今天", "오늘", "اليوم")
+    StatsPeriod.WEEK -> Strings.tr(lang, "Last 7 days", "Последние 7 дней", "過去7日間", "最近 7 天", "최근 7일", "آخر 7 أيام")
+    StatsPeriod.MONTH -> Strings.tr(lang, "Last 30 days", "Последние 30 дней", "過去30日間", "最近 30 天", "최근 30일", "آخر 30 يومًا")
 }
 
 private fun daysLabel(days: Int, lang: AppLanguage) =
@@ -1105,69 +1168,4 @@ private fun SectionHeader(text: String) {
         color = MaterialTheme.colorScheme.primary,
         modifier = Modifier.padding(start = 8.dp, top = 8.dp)
     )
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun StatsPeriodSheet(
-    current: StatsPeriod,
-    lang: AppLanguage,
-    onSelect: (StatsPeriod) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val sheetState = rememberExpandedSheetState()
-    SheetMotion {
-        ModalBottomSheet(
-            onDismissRequest = onDismiss,
-            sheetState = sheetState,
-            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-            shape = ShapeTokens.ExtraLargeTop
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 20.dp)
-            ) {
-                ExpressiveSheetHeader(
-                    icon = Icons.Rounded.DateRange,
-                    title = Strings.tr(lang, "Period", "Период", "期間", "时间范围", "기간", "الفترة"),
-                    polygon = MaterialShapes.Pill,
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                )
-                val periods = StatsPeriod.entries
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    periods.forEachIndexed { index, item ->
-                        val selected = item == current
-                        Surface(
-                            onClick = { onSelect(item) },
-                            shape = segmentShape(index, periods.size),
-                            color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-                            contentColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 56.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = periodLabel(item, lang),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                if (selected) {
-                                    Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(22.dp))
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 }

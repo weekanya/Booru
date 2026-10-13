@@ -1759,6 +1759,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     val offlineDownloading: Boolean get() = com.booru.app.data.OfflineDownloader.downloading
     val offlineDone: Int get() = com.booru.app.data.OfflineDownloader.done
     val offlineTarget: Int get() = com.booru.app.data.OfflineDownloader.target
+    val offlineGoal: Int get() = com.booru.app.data.OfflineDownloader.goal
+    val offlineBase: Int get() = com.booru.app.data.OfflineDownloader.base
     val offlinePhase: Int get() = com.booru.app.data.OfflineDownloader.phase
     val offlineBytes: Long get() = com.booru.app.data.OfflineDownloader.bytes
     val offlineError: String? get() = com.booru.app.data.OfflineDownloader.error
@@ -1778,12 +1780,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch { prefs.setOfflineCount(count) }
     }
 
-    fun startOfflineDownload(count: Int) {
+    fun startOfflineDownload(goal: Int) {
         if (offlineDownloading) return
+        val count = goal - com.booru.app.data.OfflineStore.posts.size
+        if (count <= 0) return
         val params = snapshotParams(source, query, safeMode)
         val preferOriginal = imageQuality == ImageQuality.ORIGINAL && !isDataSaverActive
         val skipKeys = HashSet(notInterestedKeys)
-        com.booru.app.data.OfflineDownloader.start(getApplication(), count, preferOriginal, language) { onFound ->
+        com.booru.app.data.OfflineDownloader.start(getApplication(), goal, count, preferOriginal, language) { onFound ->
             val collected = LinkedHashMap<String, RemoteMedia>()
             var page = 0
             var hasMoreFeed = true
@@ -1886,27 +1890,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             if (com.booru.app.data.TagCategoryCache.resolve(media.tagList)) recalculateRecommendationTags()
         }
-    }
-
-    fun searchSimilar(media: RemoteMedia): Boolean {
-        val classified = media.tagList
-            .filter { TagClassifier.isRecommendationCandidate(it) }
-            .map { TagClassifier.classify(it) }
-        fun first(category: TagCategory) = classified.firstOrNull { it.category == category }?.rawTag
-        val parts = mutableListOf<String>()
-        first(TagCategory.CHARACTER)?.let(parts::add)
-        first(TagCategory.ARTIST)?.let(parts::add)
-        if (parts.size < 2) first(TagCategory.COPYRIGHT)?.let(parts::add)
-        if (parts.isEmpty()) {
-            val weights = recommendationTags.withIndex().associate { (i, t) -> t to i }
-            classified.filter { it.category == TagCategory.GENERAL }
-                .sortedBy { weights[it.rawTag.lowercase()] ?: Int.MAX_VALUE }
-                .take(2)
-                .forEach { parts += it.rawTag }
-        }
-        if (parts.isEmpty()) return false
-        search(source, parts.take(2).joinToString(" "), safeMode)
-        return true
     }
 
     fun markNotInterested(media: RemoteMedia) {

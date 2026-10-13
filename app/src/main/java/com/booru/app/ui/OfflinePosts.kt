@@ -121,13 +121,6 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                     fontWeight = FontWeight.Bold,
                     color = scheme.onSurface
                 )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    Strings.tr(lang, "Posts from your current feed, search and filters, saved to watch without internet", "Посты из текущей ленты, поиска и фильтров, чтобы смотреть без интернета", "現在のフィード・検索・フィルターの投稿をオフラインで見られるよう保存", "保存当前推荐、搜索和筛选中的帖子，离线观看", "현재 피드·검색·필터의 게시물을 저장해 인터넷 없이 보기", "منشورات من خلاصتك وبحثك وعوامل التصفية لمشاهدتها بلا إنترنت"),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = scheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
-                )
                 Spacer(Modifier.height(20.dp))
 
                 AnimatedContent(
@@ -155,32 +148,6 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                     }
                                 }
                             }
-                            if (vm.isMeteredNetwork) {
-                                Surface(shape = ShapeTokens.Large, color = scheme.tertiaryContainer, contentColor = scheme.onTertiaryContainer) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-                                        Icon(Icons.Rounded.SignalCellularAlt, contentDescription = null, modifier = Modifier.size(18.dp))
-                                        Spacer(Modifier.width(10.dp))
-                                        Text(
-                                            Strings.tr(lang, "You're on mobile data. Videos can be large.", "Вы в мобильной сети. Видео могут весить много.", "モバイルデータ通信中です。動画は容量が大きい場合があります。", "正在使用移动数据，视频可能较大。", "모바일 데이터 사용 중입니다. 동영상은 용량이 클 수 있습니다.", "أنت على بيانات الجوال. قد تكون مقاطع الفيديو كبيرة."),
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
-                                }
-                            }
-                            val originals = vm.imageQuality == com.booru.app.data.ImageQuality.ORIGINAL && !vm.isDataSaverActive
-                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp)) {
-                                Icon(Icons.Rounded.HighQuality, contentDescription = null, tint = scheme.primary, modifier = Modifier.size(18.dp))
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    if (originals) {
-                                        Strings.tr(lang, "Images in original quality, as in settings", "Картинки в оригинале, как в настройках", "設定どおり画像は原寸", "按设置下载原图", "설정대로 원본 화질", "الصور بالجودة الأصلية كما في الإعدادات")
-                                    } else {
-                                        Strings.tr(lang, "Images in optimal quality, as in settings", "Картинки в оптимальном качестве, как в настройках", "設定どおり画像は最適画質", "按设置下载优化画质", "설정대로 최적 화질", "الصور بجودة مثلى كما في الإعدادات")
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = scheme.onSurfaceVariant
-                                )
-                            }
                             val added = com.booru.app.data.OfflineDownloader.lastAdded
                             if (added >= 0 && vm.offlineError == null) {
                                 Surface(shape = ShapeTokens.Large, color = scheme.secondaryContainer, contentColor = scheme.onSecondaryContainer) {
@@ -198,31 +165,26 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                             vm.offlineError?.let { error ->
                                 Text(error, style = MaterialTheme.typography.bodySmall, color = scheme.error, modifier = Modifier.padding(start = 4.dp))
                             }
+                            val complete = saved >= count
                             Button(
                                 onClick = startDownload,
+                                enabled = !complete,
                                 shapes = ButtonDefaults.shapes(),
                                 contentPadding = PaddingValues(horizontal = 24.dp),
                                 modifier = Modifier.fillMaxWidth().height(64.dp)
                             ) {
-                                Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(22.dp))
+                                Icon(if (complete) Icons.Rounded.CheckCircle else Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(22.dp))
                                 Spacer(Modifier.width(10.dp))
                                 Text(
-                                    if (saved > 0) {
-                                        Strings.tr(lang, "Add $count more posts", "Скачать ещё $count", "さらに $count 件追加", "再添加 $count 个帖子", "${count}개 더 받기", "إضافة $count منشور آخر")
+                                    if (complete) {
+                                        Strings.tr(lang, "All $count saved", "Все $count сохранены", "$count 件すべて保存済み", "已全部保存 $count 个", "${count}개 모두 저장됨", "تم حفظ $count كلها")
+                                    } else if (saved > 0) {
+                                        Strings.tr(lang, "Download ${count - saved} more to $count", "Докачать ${count - saved} до $count", "残り ${count - saved} 件を取得", "再下载 ${count - saved} 个，共 $count", "${count - saved}개 더 받아 ${count}개로", "تنزيل ${count - saved} أخرى للوصول إلى $count")
                                     } else {
                                         Strings.tr(lang, "Download $count posts", "Скачать $count постов", "$count 件をダウンロード", "下载 $count 个帖子", "${count}개 다운로드", "تنزيل $count منشور")
                                     },
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
-                                )
-                            }
-                            if (saved > 0) {
-                                Text(
-                                    Strings.tr(lang, "New posts are added to the ones you have. No repeats.", "Новые посты добавятся к уже сохранённым, без повторов.", "新しい投稿が保存済みに追加されます。重複はありません。", "新帖子会添加到已保存内容中，不会重复。", "새 게시물이 기존 게시물에 추가되며 중복되지 않습니다.", "تُضاف المنشورات الجديدة إلى المحفوظة دون تكرار."),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = scheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
@@ -416,20 +378,19 @@ private fun ThumbStack(items: List<RemoteMedia>) {
 private fun DownloadProgress(vm: GalleryViewModel, lang: AppLanguage) {
     val scheme = MaterialTheme.colorScheme
     val collecting = vm.offlinePhase == 0
-    val target = vm.offlineTarget.coerceAtLeast(1)
+    val goal = vm.offlineGoal.coerceAtLeast(1)
     val fraction by androidx.compose.animation.core.animateFloatAsState(
-        (vm.offlineDone.toFloat() / target).coerceIn(0f, 1f),
+        ((vm.offlineBase + vm.offlineDone).toFloat() / goal).coerceIn(0f, 1f),
         Motion.effectsDefault(),
         label = "offlineProgress"
     )
     val density = androidx.compose.ui.platform.LocalDensity.current
     val stroke = remember(density) {
         androidx.compose.ui.graphics.drawscope.Stroke(
-            width = with(density) { 7.dp.toPx() },
+            width = with(density) { 6.dp.toPx() },
             cap = androidx.compose.ui.graphics.StrokeCap.Round
         )
     }
-    val saved = OfflineStore.posts.size
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(168.dp)) {
             if (collecting) {
@@ -437,8 +398,7 @@ private fun DownloadProgress(vm: GalleryViewModel, lang: AppLanguage) {
                     modifier = Modifier.fillMaxSize(),
                     stroke = stroke,
                     trackStroke = stroke,
-                    amplitude = 0.5f,
-                    wavelength = 52.dp
+                    wavelength = 36.dp
                 )
             } else {
                 CircularWavyProgressIndicator(
@@ -446,13 +406,12 @@ private fun DownloadProgress(vm: GalleryViewModel, lang: AppLanguage) {
                     modifier = Modifier.fillMaxSize(),
                     stroke = stroke,
                     trackStroke = stroke,
-                    amplitude = { 0.5f },
-                    wavelength = 52.dp
+                    wavelength = 36.dp
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    if (collecting) "${vm.offlineDone}" else "$saved",
+                    if (collecting) "${vm.offlineDone}" else "${vm.offlineBase + vm.offlineDone}",
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Black,
                     color = scheme.onSurface
@@ -461,7 +420,7 @@ private fun DownloadProgress(vm: GalleryViewModel, lang: AppLanguage) {
                     if (collecting) {
                         Strings.tr(lang, "found", "найдено", "件見つかりました", "已找到", "찾음", "تم العثور")
                     } else {
-                        Strings.tr(lang, "saved", "сохранено", "保存済み", "已保存", "저장됨", "محفوظ")
+                        Strings.tr(lang, "of ${vm.offlineGoal}", "из ${vm.offlineGoal}", "/ ${vm.offlineGoal}", "/ ${vm.offlineGoal}", "/ ${vm.offlineGoal}", "من ${vm.offlineGoal}")
                     },
                     style = MaterialTheme.typography.labelLarge,
                     color = scheme.onSurfaceVariant
@@ -481,18 +440,11 @@ private fun DownloadProgress(vm: GalleryViewModel, lang: AppLanguage) {
         )
         if (!collecting) {
             Text(
-                Strings.tr(lang, "+${vm.offlineDone} of ${vm.offlineTarget} new", "+${vm.offlineDone} из ${vm.offlineTarget} новых", "新規 ${vm.offlineDone} / ${vm.offlineTarget}", "新增 ${vm.offlineDone} / ${vm.offlineTarget}", "새 게시물 ${vm.offlineDone} / ${vm.offlineTarget}", "+${vm.offlineDone} من ${vm.offlineTarget} جديدة") + " · " + BooruCacheManager.formatBytes(vm.offlineBytes),
+                BooruCacheManager.formatBytes(vm.offlineBytes),
                 style = MaterialTheme.typography.bodyMedium,
                 color = scheme.onSurfaceVariant
             )
         }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            Strings.tr(lang, "You can leave the app, the download continues in the background.", "Можно выйти из приложения, загрузка продолжится в фоне.", "アプリを閉じてもバックグラウンドで続きます。", "可以离开应用，下载会在后台继续。", "앱을 나가도 백그라운드에서 계속됩니다.", "يمكنك مغادرة التطبيق، سيستمر التنزيل في الخلفية."),
-            style = MaterialTheme.typography.bodySmall,
-            color = scheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
         Spacer(Modifier.height(16.dp))
         FilledTonalButton(
             onClick = { vm.cancelOfflineDownload() },
