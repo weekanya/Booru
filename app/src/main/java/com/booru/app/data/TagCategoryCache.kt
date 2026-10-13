@@ -4,8 +4,8 @@ import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import com.booru.app.BooruRepository
 import com.booru.app.data.network.NetworkClient
 import com.booru.app.data.network.await
 import kotlinx.coroutines.Dispatchers
@@ -35,8 +35,19 @@ object TagCategoryCache {
     @Volatile private var pausedUntil = 0L
     private val inFlight = ConcurrentHashMap.newKeySet<String>()
 
+    private const val LOOKUP_USER_AGENT = "BooruApp/7.0 (Android; +https://github.com/weekanya/Booru)"
+    private val TAG_ELEMENT = Regex("<tag\\s[^>]*>")
+    private val ATTRIBUTE = Regex("(\\w+)=\"([^\"]*)\"")
+
     var version by mutableIntStateOf(0)
         private set
+
+    var lookupFailed by mutableStateOf(false)
+        private set
+
+    fun clearBackoff() {
+        pausedUntil = 0L
+    }
 
     fun init(context: Context) {
         file = File(context.applicationContext.filesDir, FILE_NAME)
@@ -89,9 +100,15 @@ object TagCategoryCache {
                 val fetched = fetchBatch(batch)
                 if (fetched == null) {
                     pausedUntil = System.currentTimeMillis() + FAILURE_BACKOFF_MS
+                    withContext(Dispatchers.Main) { lookupFailed = true }
                     break
                 }
-                for (name in batch) categories[name] = fetched[name] ?: UNKNOWN
+                if (lookupFailed) withContext(Dispatchers.Main) { lookupFailed = false }
+                for (name in batch) {
+                    val category = fetched.categories[name]
+                    if (category != null) categories[name] = category
+                    else if (fetched.complete) categories[name] = UNKNOWN
+                }
                 changed = true
                 onProgress(index + 1, batches.size)
             }
@@ -105,7 +122,47 @@ object TagCategoryCache {
         return changed
     }
 
-    private suspend fun fetchBatch(names: List<String>): Map<String, Int>? = withContext(Dispatchers.IO) {
+    private class Batch(val categories: Map<String, Int>, val complete: Boolean)
+
+    private suspend fun fetchBatch(names: List<String>): Batch? =
+        fetchFromDanbooru(names)?.let { Batch(it, complete = true) }
+            ?: fetchFromSafebooru(names)?.let { Batch(it, complete = false) }
+
+    private suspend fun fetchFromSafebooru(names: List<String>): Map<String, Int>? = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://safebooru.org/index.php".toHttpUrl().newBuilder()
+                .addQueryParameter("page", "dapi")
+                .addQueryParameter("s", "tag")
+                .addQueryParameter("q", "index")
+                .addQueryParameter("names", names.joinToString(" "))
+                .addQueryParameter("limit", "1000")
+                .build()
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", LOOKUP_USER_AGENT)
+                .build()
+            NetworkClient.baseClient.newCall(request).await().use { response ->
+                if (!response.isSuccessful) return@use null
+                val body = response.body?.string().orEmpty()
+                if (!body.contains("<tags")) return@use null
+                val result = HashMap<String, Int>()
+                for (element in TAG_ELEMENT.findAll(body)) {
+                    val attrs = ATTRIBUTE.findAll(element.value).associate { it.groupValues[1] to it.groupValues[2] }
+                    val name = attrs["name"]?.let { org.jsoup.parser.Parser.unescapeEntities(it, true) }?.lowercase() ?: continue
+                    val type = attrs["type"]?.toIntOrNull() ?: continue
+                    if (name.isNotBlank()) result[name] = type
+                }
+                result
+            }
+        } catch (c: kotlinx.coroutines.CancellationException) {
+            throw c
+        } catch (e: Exception) {
+            Log.w(TAG, "Fallback tag lookup failed: ${e.javaClass.simpleName}")
+            null
+        }
+    }
+
+    private suspend fun fetchFromDanbooru(names: List<String>): Map<String, Int>? = withContext(Dispatchers.IO) {
         try {
             val url = "https://danbooru.donmai.us/tags.json".toHttpUrl().newBuilder()
                 .addQueryParameter("search[name_comma]", names.joinToString(","))
@@ -114,7 +171,7 @@ object TagCategoryCache {
                 .build()
             val request = Request.Builder()
                 .url(url)
-                .header("User-Agent", BooruRepository.USER_AGENT)
+                .header("User-Agent", LOOKUP_USER_AGENT)
                 .build()
             NetworkClient.baseClient.newCall(request).await().use { response ->
                 if (!response.isSuccessful) return@use null

@@ -123,16 +123,25 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
     var lookupProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var showPeriodSheet by remember { mutableStateOf(false) }
 
+    var lookupAttempt by remember { mutableIntStateOf(0) }
+
     LaunchedEffect(Unit) {
         val list = withContext(Dispatchers.IO) {
             AppDatabase.getDatabase(context).favoriteDao().getAllFavoritesList()
         }
         TagCategoryCache.ensureLoaded()
         favorites = list
-        if (allowTagLookup && list.isNotEmpty()) {
+    }
+
+    LaunchedEffect(favorites, lookupAttempt) {
+        val list = favorites ?: return@LaunchedEffect
+        if (!allowTagLookup || list.isEmpty()) return@LaunchedEffect
+        lookupProgress = 0 to 1
+        try {
             TagCategoryCache.resolve(FavoriteStats.allTags(list)) { done, total ->
                 lookupProgress = done to total
             }
+        } finally {
             lookupProgress = null
         }
     }
@@ -224,6 +233,48 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                         progress = { done.toFloat() / total.coerceAtLeast(1) },
                         modifier = Modifier.fillMaxWidth()
                     )
+                }
+            }
+
+            AnimatedVisibility(
+                visible = allowTagLookup && lookupProgress == null && TagCategoryCache.lookupFailed,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    shape = MaterialTheme.shapes.large,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp)
+                    ) {
+                        Icon(Icons.Rounded.CloudOff, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = Strings.tr(
+                                lang,
+                                "Couldn't load tag categories, so characters, artists and series may be missing.",
+                                "Не удалось загрузить категории тегов, поэтому персонажи, авторы и франшизы могут не отображаться.",
+                                "タグの分類を読み込めませんでした。キャラクター・作者・作品が表示されない場合があります。",
+                                "无法加载标签分类，角色、画师和作品可能无法显示。",
+                                "태그 분류를 불러오지 못해 캐릭터, 작가, 작품이 표시되지 않을 수 있습니다.",
+                                "تعذّر تحميل تصنيفات الوسوم، لذا قد لا تظهر الشخصيات والفنانون والأعمال."
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = {
+                            TagCategoryCache.clearBackoff()
+                            lookupAttempt++
+                        }) {
+                            Text(Strings.tr(lang, "Retry", "Повторить", "再試行", "重试", "다시 시도", "إعادة المحاولة"))
+                        }
+                    }
                 }
             }
 
