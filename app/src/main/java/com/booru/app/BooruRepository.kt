@@ -115,6 +115,7 @@ class BooruRepository(
         .build()
 ) {
     @Volatile private var realbooruPageSize = 0
+    @Volatile var excludeFurry = false
 
 
     companion object {
@@ -640,6 +641,14 @@ class BooruRepository(
         if (noAi && !isStrictTagLimit) {
             for (queryTag in com.booru.app.data.AiFilter.EXCLUDE_QUERY_TAGS) {
                 if (queryTag !in cleanedTokens) {
+                    parts.add(queryTag)
+                }
+            }
+        }
+
+        if (excludeFurry && !isStrictTagLimit) {
+            for (queryTag in com.booru.app.data.FurryFilter.EXCLUDE_QUERY_TAGS) {
+                if (queryTag !in cleanedTokens && queryTag.removePrefix("-") !in cleanedTokens) {
                     parts.add(queryTag)
                 }
             }

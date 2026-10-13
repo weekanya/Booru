@@ -901,6 +901,7 @@ fun SettingsScreen(
             lang = lang,
             allowTagLookup = !vm.isIncognito,
             interests = remember { vm.topInterests() },
+            onClearHistory = { vm.clearUsageHistory() },
             onDismiss = { showStatsScreen = false }
         )
     }
@@ -1216,21 +1217,6 @@ fun SettingsScreen(
                                 subtitle = statsSubtitle(lang),
                                 icon = Icons.Rounded.Insights,
                                 onClick = { showStatsScreen = true }
-                            )
-
-                            SettingsDivider()
-
-                            SettingRowItem(
-                                title = Strings.tr(lang, "Clear history", "Очистить историю", "履歴を消去", "清除历史", "기록 지우기", "مسح السجل"),
-                                subtitle = Strings.tr(lang, "Views, downloads and searches used for stats", "Просмотры, скачивания и поиски для статистики", "統計用の閲覧・保存・検索", "用于统计的浏览、下载和搜索", "통계용 보기, 다운로드, 검색", "المشاهدات والتنزيلات وعمليات البحث للإحصائيات"),
-                                icon = Icons.Rounded.History,
-                                trailing = {
-                                    AnimatedConfirmDeleteButton(
-                                        onConfirmed = { vm.clearUsageHistory() },
-                                        lang = lang,
-                                        compact = true
-                                    )
-                                }
                             )
                         }
 

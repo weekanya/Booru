@@ -89,6 +89,7 @@ fun FavoriteStatsScreen(
     lang: AppLanguage,
     allowTagLookup: Boolean,
     interests: List<Pair<String, Float>>,
+    onClearHistory: () -> Unit,
     onDismiss: () -> Unit
 ) {
     Dialog(
@@ -114,13 +115,13 @@ fun FavoriteStatsScreen(
                 clip = backProgress > 0f
             }
         ) {
-            FavoriteStatsContent(lang, allowTagLookup, interests, onDismiss)
+            FavoriteStatsContent(lang, allowTagLookup, interests, onClearHistory, onDismiss)
         }
     }
 }
 
 @Composable
-private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, interests: List<Pair<String, Float>>, onDismiss: () -> Unit) {
+private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, interests: List<Pair<String, Float>>, onClearHistory: () -> Unit, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val locale = remember(lang) { Locale.forLanguageTag(lang.code) }
@@ -131,6 +132,42 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, int
     var lookupProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
     var lookupAttempt by remember { mutableIntStateOf(0) }
+    var confirmClear by remember { mutableStateOf(false) }
+
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            icon = { Icon(Icons.Rounded.DeleteSweep, contentDescription = null) },
+            title = { Text(Strings.tr(lang, "Clear history?", "Очистить историю?", "履歴を消去しますか？", "清除历史？", "기록을 지울까요?", "مسح السجل؟")) },
+            text = {
+                Text(
+                    Strings.tr(
+                        lang,
+                        "Views, downloads and searches will be removed from stats. Favorites stay.",
+                        "Просмотры, скачивания и поиски пропадут из статистики. Избранное останется.",
+                        "閲覧・保存・検索の記録を統計から削除します。お気に入りは残ります。",
+                        "浏览、下载和搜索记录将从统计中删除，收藏会保留。",
+                        "보기, 다운로드, 검색 기록이 통계에서 지워집니다. 즐겨찾기는 유지됩니다.",
+                        "ستُحذف المشاهدات والتنزيلات وعمليات البحث من الإحصائيات. تبقى المفضلة."
+                    )
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmClear = false
+                    onClearHistory()
+                    history = emptyList()
+                }) {
+                    Text(Strings.tr(lang, "Clear", "Очистить", "消去", "清除", "지우기", "مسح"), color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClear = false }) {
+                    Text(Strings.tr(lang, "Cancel", "Отмена", "キャンセル", "取消", "취소", "إلغاء"))
+                }
+            }
+        )
+    }
 
     LaunchedEffect(Unit) {
         val db = AppDatabase.getDatabase(context)
@@ -194,6 +231,12 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, int
                         .weight(1f)
                         .padding(start = 4.dp)
                 )
+                IconButton(onClick = { confirmClear = true }, shapes = IconButtonDefaults.shapes()) {
+                    Icon(
+                        Icons.Rounded.DeleteSweep,
+                        contentDescription = Strings.tr(lang, "Clear history", "Очистить историю", "履歴を消去", "清除历史", "기록 지우기", "مسح السجل")
+                    )
+                }
             }
 
             ToggleGroupColors {

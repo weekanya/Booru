@@ -264,6 +264,7 @@ fun ExploreScreen(
 
                 val activeFilterCount = (if (vm.safeMode || vm.excludeSafe) 1 else 0) +
                         (if (vm.noAi) 1 else 0) +
+                        (if (vm.noFurry) 1 else 0) +
                         (if (vm.sortOrder != SortOrder.NEWEST) 1 else 0) +
                         (if (vm.selectedContentTypes.isNotEmpty()) 1 else 0)
 
@@ -1635,7 +1636,7 @@ private fun EmptyResultActions(vm: GalleryViewModel, lang: AppLanguage) {
         query.split(Regex("\\s+")).filter { it.isNotBlank() }
     }
     val canJoin = plainTokens.size in 2..4 && plainTokens.none { it.contains(':') || it.startsWith("-") || it.startsWith("~") || it.contains('*') }
-    val hasFilters = vm.safeMode || vm.excludeSafe || vm.noAi || vm.selectedContentTypes.isNotEmpty()
+    val hasFilters = vm.safeMode || vm.excludeSafe || vm.noAi || vm.noFurry || vm.selectedContentTypes.isNotEmpty()
     val canWiden = vm.source != BooruRepository.SOURCE_ALL && query.isNotEmpty()
     if (!canJoin && !hasFilters && !canWiden) return
     FlowRow(
@@ -1668,7 +1669,8 @@ private fun EmptyResultActions(vm: GalleryViewModel, lang: AppLanguage) {
                         sortOrder = vm.sortOrder,
                         safeMode = false,
                         excludeSafe = false,
-                        noAi = false
+                        noAi = false,
+                        noFurry = false
                     )
                 },
                 label = { Text(Strings.resetFilters(lang)) },
@@ -2122,6 +2124,7 @@ private fun FilterSelectionBottomSheet(
     var tempSafeMode by remember { mutableStateOf(vm.safeMode) }
     var tempExcludeSafe by remember { mutableStateOf(vm.excludeSafe) }
     var tempNoAi by remember { mutableStateOf(vm.noAi) }
+    var tempNoFurry by remember { mutableStateOf(vm.noFurry) }
     var tempRecRatio by remember { mutableFloatStateOf(vm.recommendationRatio) }
     val filterPagerState = rememberPagerState(initialPage = 0) { 2 }
     val filterTabController = rememberTabPagerController(filterPagerState)
@@ -2153,6 +2156,7 @@ private fun FilterSelectionBottomSheet(
                         tempSafeMode = false
                         tempExcludeSafe = false
                         tempNoAi = false
+                        tempNoFurry = false
                         tempRecRatio = 0.5f
                     },
                     shape = CircleShape,
@@ -2212,7 +2216,7 @@ private fun FilterSelectionBottomSheet(
                     beyondViewportPageCount = 1,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(266.dp)
+                        .height(330.dp)
                         .tabTransition(filterTabController)
                 ) { page ->
                     if (page == 0) {
@@ -2223,7 +2227,7 @@ private fun FilterSelectionBottomSheet(
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                                 Card(
-                                    shape = segmentedListShape(0, 3),
+                                    shape = segmentedListShape(0, 4),
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -2274,7 +2278,7 @@ private fun FilterSelectionBottomSheet(
                                 }
     
                                 Card(
-                                    shape = segmentedListShape(1, 3),
+                                    shape = segmentedListShape(1, 4),
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -2332,7 +2336,7 @@ private fun FilterSelectionBottomSheet(
                                 }
     
                                 Card(
-                                    shape = segmentedListShape(2, 3),
+                                    shape = segmentedListShape(2, 4),
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -2391,6 +2395,74 @@ private fun FilterSelectionBottomSheet(
                                             thumbContent = {
                                                 Icon(
                                                     imageVector = if (tempNoAi) Icons.Rounded.Check else Icons.Rounded.Close,
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(SwitchDefaults.IconSize)
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
+
+                                Card(
+                                    shape = segmentedListShape(3, 4),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { tempNoFurry = !tempNoFurry }
+                                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier.weight(1f)
+                                        ) {
+                                            Surface(
+                                                shape = CircleShape,
+                                                color = if (tempNoFurry) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
+                                                modifier = Modifier.size(36.dp)
+                                            ) {
+                                                Box(contentAlignment = Alignment.Center) {
+                                                    Icon(
+                                                        Icons.Rounded.Pets,
+                                                        contentDescription = null,
+                                                        tint = if (tempNoFurry) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.size(18.dp)
+                                                    )
+                                                }
+                                            }
+                                            Spacer(Modifier.width(12.dp))
+                                            Column(modifier = Modifier.weight(1f, fill = false)) {
+                                                Text(
+                                                    text = Strings.tr(lang, "No furry", "Без фурри", "ケモノを除外", "排除兽人", "퍼리 제외", "بدون فوري"),
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.onSurface
+                                                )
+                                                Text(
+                                                    text = Strings.tr(
+                                                        lang,
+                                                        "Hides furry, anthro and feral posts",
+                                                        "Скрывает фурри, антро и ферал",
+                                                        "ケモノ・獣人・フェラルを非表示",
+                                                        "隐藏兽人、拟人和野兽内容",
+                                                        "퍼리, 수인, 페럴 게시물 숨김",
+                                                        "يخفي منشورات الفوري والأنثرو والحيوانات"
+                                                    ),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                        Switch(
+                                            checked = tempNoFurry,
+                                            onCheckedChange = { tempNoFurry = it },
+                                            thumbContent = {
+                                                Icon(
+                                                    imageVector = if (tempNoFurry) Icons.Rounded.Check else Icons.Rounded.Close,
                                                     contentDescription = null,
                                                     modifier = Modifier.size(SwitchDefaults.IconSize)
                                                 )
@@ -2512,7 +2584,7 @@ private fun FilterSelectionBottomSheet(
                     onClick = {
                         val ratioChanged = kotlin.math.abs(tempRecRatio - vm.recommendationRatio) > 0.01f
                         val filtersChanged = tempContentTypes != vm.selectedContentTypes || tempSortOrder != vm.sortOrder ||
-                            tempSafeMode != vm.safeMode || tempExcludeSafe != vm.excludeSafe || tempNoAi != vm.noAi
+                            tempSafeMode != vm.safeMode || tempExcludeSafe != vm.excludeSafe || tempNoAi != vm.noAi || tempNoFurry != vm.noFurry
                         vm.updateRecommendationRatio(tempRecRatio)
                         if (ratioChanged && !filtersChanged && vm.query.isBlank()) vm.refresh(isPull = false)
                         vm.applyAllFilters(
@@ -2520,7 +2592,8 @@ private fun FilterSelectionBottomSheet(
                             sortOrder = tempSortOrder,
                             safeMode = tempSafeMode,
                             excludeSafe = tempExcludeSafe,
-                            noAi = tempNoAi
+                            noAi = tempNoAi,
+                            noFurry = tempNoFurry
                         )
                         scope.launch {
                             sheetState.hide()

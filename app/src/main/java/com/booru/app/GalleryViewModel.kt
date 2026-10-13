@@ -96,6 +96,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var safeMode by mutableStateOf(false); private set
     var excludeSafe by mutableStateOf(false); private set
     var noAi by mutableStateOf(false); private set
+    var noFurry by mutableStateOf(false); private set
     var dataSaverOnMobile by mutableStateOf(false); private set
     var isMeteredNetwork by mutableStateOf(
         runCatching { application.getSystemService(android.net.ConnectivityManager::class.java)?.isActiveNetworkMetered == true }.getOrDefault(false)
@@ -217,6 +218,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             safeMode = initialSafe
             excludeSafe = initialExcludeSafe
             noAi = initialNoAi
+            noFurry = prefs.noFurryFilter.first()
+            repo.excludeFurry = noFurry
             language = initialLang
             themeMode = initialTheme
             palette = initialPalette
@@ -839,6 +842,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val safeMode: Boolean,
         val excludeSafe: Boolean,
         val noAi: Boolean,
+        val noFurry: Boolean,
         val sortOrder: SortOrder,
         val contentTypes: Set<ContentType>,
         val blacklist: List<String>,
@@ -859,6 +863,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         safeMode = safeMode,
         excludeSafe = excludeSafe,
         noAi = noAi,
+        noFurry = noFurry,
         sortOrder = sortOrder,
         contentTypes = selectedContentTypes,
         blacklist = tagBlacklist,
@@ -898,6 +903,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     private fun FeedParams.accepts(item: RemoteMedia): Boolean {
         if (com.booru.app.data.TagBlacklistMatcher.isBlacklisted(item, blacklist)) return false
+        if (noFurry && com.booru.app.data.FurryFilter.isFurryPost(item.tags)) return false
         if (contentTypes.isEmpty()) return true
         return (contentTypes.contains(ContentType.PHOTOS) && !item.isVideo && !item.isGif) ||
             (contentTypes.contains(ContentType.VIDEOS) && item.isVideo) ||
@@ -1354,23 +1360,28 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         sortOrder: SortOrder,
         safeMode: Boolean,
         excludeSafe: Boolean,
-        noAi: Boolean
+        noAi: Boolean,
+        noFurry: Boolean = this.noFurry
     ) {
         val changed = this.selectedContentTypes != contentTypes ||
                 this.sortOrder != sortOrder ||
                 this.safeMode != safeMode ||
                 this.excludeSafe != excludeSafe ||
-                this.noAi != noAi
+                this.noAi != noAi ||
+                this.noFurry != noFurry
         this.selectedContentTypes = contentTypes
         this.sortOrder = sortOrder
         this.safeMode = safeMode
         this.excludeSafe = excludeSafe
         this.noAi = noAi
+        this.noFurry = noFurry
+        repo.excludeFurry = noFurry
         if (changed) {
             viewModelScope.launch {
                 prefs.setSafeMode(safeMode)
                 prefs.setExcludeSafe(excludeSafe)
                 prefs.setNoAiFilter(noAi)
+                prefs.setNoFurryFilter(noFurry)
             }
             search(source, query, safeMode, isPullRefresh = false)
         }

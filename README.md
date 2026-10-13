@@ -61,8 +61,8 @@
   </tr>
   <tr>
     <td valign="top">
-      <h3>🤖 No AI filter</h3>
-      Hides AI-generated posts by their tags and by the generator metadata inside each file.
+      <h3>🤖 No AI, no furry</h3>
+      Hides AI-generated posts by their tags and by the generator metadata inside each file. A separate switch hides furry, anthro and feral posts.
     </td>
     <td valign="top">
       <h3>❤️ Favorites and stats</h3>

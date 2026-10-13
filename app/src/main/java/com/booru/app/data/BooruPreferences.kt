@@ -54,6 +54,7 @@ class BooruPreferences(private val context: Context) {
         val KEY_SAFE_MODE = booleanPreferencesKey("safe_mode")
         val KEY_EXCLUDE_SAFE = booleanPreferencesKey("exclude_safe")
         val KEY_NO_AI = booleanPreferencesKey("no_ai_filter")
+        val KEY_NO_FURRY = booleanPreferencesKey("no_furry_filter")
         val KEY_DATA_SAVER_MOBILE = booleanPreferencesKey("data_saver_mobile")
         val KEY_OFFLINE_COUNT = intPreferencesKey("offline_count")
         val KEY_LANGUAGE = stringPreferencesKey("app_language")
@@ -115,6 +116,14 @@ class BooruPreferences(private val context: Context) {
 
     val noAiFilter: Flow<Boolean> = read { prefs ->
         prefs[KEY_NO_AI] ?: false
+    }
+
+    val noFurryFilter: Flow<Boolean> = read { prefs ->
+        prefs[KEY_NO_FURRY] ?: false
+    }
+
+    suspend fun setNoFurryFilter(enabled: Boolean) {
+        context.dataStore.edit { it[KEY_NO_FURRY] = enabled }
     }
 
     val offlineCount: Flow<Int> = read { prefs ->
