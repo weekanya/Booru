@@ -1805,24 +1805,26 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     }
                     val fresh = batch.items.filter { item ->
                         item.mediaKey !in notInterestedKeys &&
+                            !com.booru.app.data.OfflineStore.contains(item.mediaKey) &&
                             !(params.noAi && com.booru.app.data.AiImageScanner.cachedVerdict(item) == true)
                     }
                     fresh.forEach { collected.putIfAbsent(it.mediaKey, it) }
                     offlineDone = collected.size.coerceAtMost(count)
-                    emptyStreak = if (fresh.isEmpty()) emptyStreak + 1 else 0
+                    emptyStreak = if (batch.items.isEmpty()) emptyStreak + 1 else 0
                     if (emptyStreak >= 3) break
                     hasMoreFeed = batch.hasMore
                     page = batch.lastPage + 1
                 }
                 val chosen = collected.values.take(count)
                 if (chosen.isEmpty()) {
-                    offlineError = com.booru.app.data.Strings.tr(language, "Nothing matched your filters", "Под ваши фильтры ничего не нашлось", "フィルターに合う投稿がありません", "没有符合筛选的帖子", "필터에 맞는 게시물이 없습니다", "لا شيء يطابق عوامل التصفية")
+                    offlineError = com.booru.app.data.Strings.tr(language, "No new posts for your filters", "Новых постов под ваши фильтры нет", "フィルターに合う新しい投稿がありません", "没有符合筛选的新帖子", "필터에 맞는 새 게시물이 없습니다", "لا منشورات جديدة تطابق عوامل التصفية")
                     return@launch
                 }
                 offlineTarget = chosen.size
                 offlineDone = 0
                 offlinePhase = 1
-                com.booru.app.data.OfflineStore.download(chosen) { done, bytes ->
+                val preferOriginal = imageQuality == ImageQuality.ORIGINAL && !isDataSaverActive
+                com.booru.app.data.OfflineStore.download(chosen, preferOriginal) { done, bytes ->
                     withContext(Dispatchers.Main) {
                         if (offlineJob === ownJob) {
                             offlineDone = done

@@ -112,27 +112,46 @@ object OfflineStore {
         activeCalls.forEach { runCatching { it.cancel() } }
     }
 
+    fun contains(mediaKey: String): Boolean = entryFiles.containsKey(mediaKey)
+
     suspend fun download(
         items: List<RemoteMedia>,
+        preferOriginal: Boolean,
         onProgress: suspend (done: Int, bytes: Long) -> Unit
     ) = coroutineScope {
-        val folder = dir ?: return@coroutineScope
         val previous = posts
+        val known = previous.mapTo(HashSet()) { it.mediaKey }
+        val knownUrls = previous.mapTo(HashSet()) { it.url }
+        val fresh = items
+            .filter { it.mediaKey !in known && (it.url.isBlank() || it.url !in knownUrls) }
+            .distinctBy { it.mediaKey }
         val completedKeys = ConcurrentHashMap.newKeySet<String>()
         val bytes = AtomicLong(0L)
         val doneCount = AtomicInteger(0)
         val permits = Semaphore(PARALLELISM)
+        fun snapshot() = fresh.filter { it.mediaKey in completedKeys } + previous
         val ticker = launch {
+            var lastSaved = 0
+            var tick = 0
             while (isActive) {
                 onProgress(doneCount.get(), bytes.get())
+                val completed = completedKeys.size
+                if (completed != posts.size - previous.size) {
+                    val live = snapshot()
+                    withContext(Dispatchers.Main) { posts = live }
+                }
+                if (completed - lastSaved >= 10) {
+                    lastSaved = completed
+                    persist()
+                }
+                if (++tick % 4 == 0) refreshSize()
                 delay(250)
             }
         }
         try {
-            items.map { media ->
+            fresh.map { media ->
                 async(Dispatchers.IO) {
-                    val reused = entryFiles[media.mediaKey]?.values?.all { File(folder, it).let { f -> f.exists() && f.length() > 0 } } == true
-                    val ok = reused || permits.withPermit { savePost(media, bytes) }
+                    val ok = permits.withPermit { savePost(media, bytes, preferOriginal) }
                     if (ok) completedKeys.add(media.mediaKey)
                     doneCount.incrementAndGet()
                 }
@@ -140,14 +159,11 @@ object OfflineStore {
         } finally {
             ticker.cancel()
             withContext(NonCancellable) {
-                val finished = items.filter { it.mediaKey in completedKeys }
-                val cancelled = doneCount.get() < items.size
-                val keep = if (cancelled) previous.filter { it.mediaKey !in completedKeys } else emptyList()
-                val result = finished + keep
-                commit(result)
+                commit(snapshot())
                 onProgress(doneCount.get(), bytes.get())
             }
         }
+        fresh.size
     }
 
     private suspend fun commit(result: List<RemoteMedia>) {
@@ -164,10 +180,10 @@ object OfflineStore {
         refreshSize()
     }
 
-    private suspend fun savePost(media: RemoteMedia, bytes: AtomicLong): Boolean {
+    private suspend fun savePost(media: RemoteMedia, bytes: AtomicLong, preferOriginal: Boolean): Boolean {
         val folder = dir ?: return false
         val animated = media.isVideo || media.isGif
-        val mainUrl = if (animated) media.url else media.sample.ifBlank { media.url }
+        val mainUrl = if (animated || preferOriginal) media.url.ifBlank { media.sample } else media.sample.ifBlank { media.url }
         if (mainUrl.isBlank()) return false
         val mainName = fetch(mainUrl, folder, bytes) ?: return false
         val files = HashMap<String, String>()

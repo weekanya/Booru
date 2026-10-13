@@ -153,6 +153,20 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                     }
                                 }
                             }
+                            val originals = vm.imageQuality == com.booru.app.data.ImageQuality.ORIGINAL && !vm.isDataSaverActive
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp)) {
+                                Icon(Icons.Rounded.HighQuality, contentDescription = null, tint = scheme.primary, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    if (originals) {
+                                        Strings.tr(lang, "Images in original quality, as in settings", "Картинки в оригинале, как в настройках", "設定どおり画像は原寸", "按设置下载原图", "설정대로 원본 화질", "الصور بالجودة الأصلية كما في الإعدادات")
+                                    } else {
+                                        Strings.tr(lang, "Images in optimal quality, as in settings", "Картинки в оптимальном качестве, как в настройках", "設定どおり画像は最適画質", "按设置下载优化画质", "설정대로 최적 화질", "الصور بجودة مثلى كما في الإعدادات")
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = scheme.onSurfaceVariant
+                                )
+                            }
                             vm.offlineError?.let { error ->
                                 Text(error, style = MaterialTheme.typography.bodySmall, color = scheme.error, modifier = Modifier.padding(start = 4.dp))
                             }
@@ -166,7 +180,7 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                 Spacer(Modifier.width(10.dp))
                                 Text(
                                     if (saved > 0) {
-                                        Strings.tr(lang, "Update to $count posts", "Обновить до $count постов", "$count 件に更新", "更新为 $count 个帖子", "${count}개로 업데이트", "تحديث إلى $count منشور")
+                                        Strings.tr(lang, "Add $count more posts", "Скачать ещё $count", "さらに $count 件追加", "再添加 $count 个帖子", "${count}개 더 받기", "إضافة $count منشور آخر")
                                     } else {
                                         Strings.tr(lang, "Download $count posts", "Скачать $count постов", "$count 件をダウンロード", "下载 $count 个帖子", "${count}개 다운로드", "تنزيل $count منشور")
                                     },
@@ -176,7 +190,7 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                             }
                             if (saved > 0) {
                                 Text(
-                                    Strings.tr(lang, "Posts you already have are kept and not downloaded again.", "Уже скачанные посты сохранятся и не будут качаться заново.", "保存済みの投稿は再ダウンロードされません。", "已下载的帖子会保留，不会重新下载。", "이미 받은 게시물은 다시 받지 않습니다.", "المنشورات المحفوظة لن تُنزَّل مرة أخرى."),
+                                    Strings.tr(lang, "New posts are added to the ones you have. No repeats.", "Новые посты добавятся к уже сохранённым, без повторов.", "新しい投稿が保存済みに追加されます。重複はありません。", "新帖子会添加到已保存内容中，不会重复。", "새 게시물이 기존 게시물에 추가되며 중복되지 않습니다.", "تُضاف المنشورات الجديدة إلى المحفوظة دون تكرار."),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = scheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center,
