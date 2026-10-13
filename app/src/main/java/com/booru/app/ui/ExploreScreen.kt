@@ -1749,12 +1749,11 @@ fun SourceSelectionSheet(
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 24.dp)
             ) {
-                Text(
-                    text = Strings.selectSourceTitle(lang),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.padding(start = 8.dp, top = 4.dp, bottom = 16.dp)
+                ExpressiveSheetHeader(
+                    icon = Icons.Rounded.Public,
+                    title = Strings.selectSourceTitle(lang),
+                    polygon = MaterialShapes.Sunny,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
 
                 val grid: @Composable (List<List<String>>) -> Unit = { rows ->
@@ -2140,55 +2139,33 @@ private fun FilterSelectionBottomSheet(
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 20.dp)
             ) {
-                Row(
+                ExpressiveSheetHeader(
+                    icon = Icons.Rounded.Tune,
+                    title = Strings.filtersAndSorting(lang),
+                    polygon = MaterialShapes.Cookie9Sided,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                TextButton(
+                    onClick = {
+                        tempContentTypes = emptySet()
+                        tempSortOrder = SortOrder.NEWEST
+                        tempSafeMode = false
+                        tempExcludeSafe = false
+                        tempNoAi = false
+                        tempRecRatio = 0.5f
+                    },
+                    shape = CircleShape,
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = 8.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            shape = ShapeTokens.Medium,
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Rounded.Tune,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = Strings.filtersAndSorting(lang),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-    
-                    TextButton(
-                        onClick = {
-                            tempContentTypes = emptySet()
-                            tempSortOrder = SortOrder.NEWEST
-                            tempSafeMode = false
-                            tempExcludeSafe = false
-                            tempNoAi = false
-                            tempRecRatio = 0.5f
-                        },
-                        shape = CircleShape
-                    ) {
-                        Text(
-                            text = Strings.resetFilters(lang),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    Text(
+                        text = Strings.resetFilters(lang),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
     
                 ToggleGroupColors {

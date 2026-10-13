@@ -779,43 +779,24 @@ private fun FolderPickerSheet(
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 20.dp)
             ) {
-                Row(
+                ExpressiveSheetHeader(
+                    icon = Icons.Rounded.FolderOpen,
+                    title = Strings.tr(lang, "Folders", "Папки", "フォルダ", "文件夹", "폴더", "المجلدات"),
+                    polygon = MaterialShapes.Clover4Leaf,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                FilledTonalButton(
+                    onClick = onCreate,
+                    shapes = ButtonDefaults.shapes(),
+                    contentPadding = PaddingValues(horizontal = 14.dp),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = 16.dp)
                 ) {
-                    Surface(
-                        shape = ShapeTokens.Medium,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Rounded.FolderOpen,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        text = Strings.tr(lang, "Folders", "Папки", "フォルダ", "文件夹", "폴더", "المجلدات"),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f)
-                    )
-                    FilledTonalButton(
-                        onClick = onCreate,
-                        shapes = ButtonDefaults.shapes(),
-                        contentPadding = PaddingValues(horizontal = 14.dp)
-                    ) {
-                        Icon(Icons.Rounded.CreateNewFolder, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(Strings.newFolder(lang), style = MaterialTheme.typography.labelLarge)
-                    }
+                    Icon(Icons.Rounded.CreateNewFolder, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text(Strings.newFolder(lang), style = MaterialTheme.typography.labelLarge)
                 }
 
                 Column(
@@ -931,52 +912,29 @@ private fun FavoritesFilterBottomSheet(
                     .padding(bottom = 20.dp)
                     .verticalScroll(rememberScrollState())
             ) {
-                Row(
+                ExpressiveSheetHeader(
+                    icon = Icons.Rounded.Tune,
+                    title = Strings.tr(lang, "Sort & Filters", "Сортировка и фильтры", "並べ替えとフィルター", "排序与筛选", "정렬 및 필터", "الترتيب والفلاتر"),
+                    polygon = MaterialShapes.Cookie6Sided,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                TextButton(
+                    onClick = {
+                        draftSort = FavoriteSortOrder.NEWEST
+                        draftType = FavoriteMediaTypeFilter.ALL
+                    },
+                    shapes = ButtonDefaults.shapes(shape = CircleShape, pressedShape = ButtonDefaults.pressedShape),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .align(Alignment.CenterHorizontally)
+                        .padding(bottom = 8.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Surface(
-                            shape = ShapeTokens.Medium,
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(38.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Rounded.Tune,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = Strings.tr(lang, "Sort & Filters", "Сортировка и фильтры", "並べ替えとフィルター", "排序与筛选", "정렬 및 필터", "الترتيب والفلاتر"),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-    
-                    TextButton(
-                        onClick = {
-                            draftSort = FavoriteSortOrder.NEWEST
-                            draftType = FavoriteMediaTypeFilter.ALL
-                        },
-                        shapes = ButtonDefaults.shapes(shape = CircleShape, pressedShape = ButtonDefaults.pressedShape),
-                        modifier = Modifier
-                    ) {
-                        Text(
-                            text = Strings.resetFilters(lang),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
+                    Text(
+                        text = Strings.resetFilters(lang),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
                 }
     
                 Surface(
@@ -1186,43 +1144,22 @@ private fun CreateFolderBottomSheet(
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 24.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(start = 4.dp, bottom = 16.dp)
-                ) {
-                    Surface(
-                        shape = ShapeTokens.Medium,
-                        color = MaterialTheme.colorScheme.tertiaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Rounded.CreateNewFolder, contentDescription = null, modifier = Modifier.size(22.dp))
-                        }
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = Strings.newFolder(lang),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = Strings.tr(
-                                lang,
-                                "${existingNames.size} collections",
-                                "Коллекций: ${existingNames.size}",
-                                "コレクション: ${existingNames.size}",
-                                "收藏夹：${existingNames.size}",
-                                "컬렉션 ${existingNames.size}개",
-                                "المجموعات: ${existingNames.size}"
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                ExpressiveSheetHeader(
+                    icon = Icons.Rounded.CreateNewFolder,
+                    title = Strings.newFolder(lang),
+                    subtitle = Strings.tr(
+                        lang,
+                        "${existingNames.size} collections",
+                        "Коллекций: ${existingNames.size}",
+                        "コレクション: ${existingNames.size}",
+                        "收藏夹：${existingNames.size}",
+                        "컬렉션 ${existingNames.size}개",
+                        "المجموعات: ${existingNames.size}"
+                    ),
+                    polygon = MaterialShapes.Puffy,
+                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                )
 
                 val fieldColor by animateColorAsState(
                     targetValue = if (isDuplicate) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceContainerHighest,
@@ -1359,32 +1296,13 @@ private fun DeleteFolderBottomSheet(
                     .padding(horizontal = 24.dp)
                     .padding(bottom = 32.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        modifier = Modifier.size(42.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Rounded.DeleteOutline,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onErrorContainer,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        text = Strings.tr(lang, "Delete collection?", "Удалить коллекцию?", "コレクションを削除しますか？", "删除此收藏夹？", "컬렉션을 삭제할까요?", "حذف المجموعة؟"),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
+                ExpressiveSheetHeader(
+                    icon = Icons.Rounded.DeleteOutline,
+                    title = Strings.tr(lang, "Delete collection?", "Удалить коллекцию?", "コレクションを削除しますか？", "删除此收藏夹？", "컬렉션을 삭제할까요?", "حذف المجموعة؟"),
+                    polygon = MaterialShapes.Burst,
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                )
     
                 Text(
                     text = Strings.tr(
@@ -1397,7 +1315,9 @@ private fun DeleteFolderBottomSheet(
                         "ستتم إزالة المجموعة \"$folderName\". ستبقى الوسائط في المفضلة."
                     ),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
                 )
     
                 Spacer(Modifier.height(24.dp))

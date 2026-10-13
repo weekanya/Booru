@@ -224,6 +224,8 @@ private fun MediaDetailSheetContent(
         isCurrentPageZoomed = false
     }
 
+    SettlePagerWhenIdle(pagerState)
+
     LaunchedEffect(pagerState.currentPage, mediaList.size) {
         if (onLoadMore != null && pagerState.currentPage >= mediaList.size - 4) {
             onLoadMore()
@@ -564,6 +566,13 @@ private fun MediaDetailSheetContent(
                                     .padding(horizontal = 16.dp)
                                     .padding(bottom = 24.dp)
                             ) {
+                                ExpressiveSheetHeader(
+                                    icon = Icons.Rounded.MoreHoriz,
+                                    title = Strings.tr(lang, "More", "Ещё", "その他", "更多", "더보기", "المزيد"),
+                                    polygon = MaterialShapes.SoftBurst,
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                )
                                 val actions = if (currentMedia.isVideo) listOf(4, 2, 1, 3) else listOf(4, 2, 0, 1, 3)
                                 actions.forEachIndexed { index, action ->
                                     TagActionItem(
@@ -866,36 +875,13 @@ private fun MediaDetailSheetContent(
                         .padding(bottom = 28.dp),
                     verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.primaryContainer,
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        Icons.Rounded.Wallpaper,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                text = Strings.setWallpaperTitle(lang),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
+                    ExpressiveSheetHeader(
+                        icon = Icons.Rounded.Wallpaper,
+                        title = Strings.setWallpaperTitle(lang),
+                        polygon = MaterialShapes.Flower,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
     
                     Column(modifier = Modifier.fillMaxWidth()) {
                         TagActionItem(
@@ -962,35 +948,14 @@ private fun MediaDetailSheetContent(
                         .padding(horizontal = 16.dp)
                         .padding(bottom = 24.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(start = 4.dp, bottom = 16.dp)
-                    ) {
-                        Surface(
-                            shape = ShapeTokens.Medium,
-                            color = MaterialTheme.colorScheme.tertiaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                            modifier = Modifier.size(40.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(Icons.Rounded.CreateNewFolder, contentDescription = null, modifier = Modifier.size(22.dp))
-                            }
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = Strings.addToFolder(lang),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = currentFolder ?: Strings.allFavoritesFolder(lang),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    ExpressiveSheetHeader(
+                        icon = Icons.Rounded.CreateNewFolder,
+                        title = Strings.addToFolder(lang),
+                        subtitle = currentFolder ?: Strings.allFavoritesFolder(lang),
+                        polygon = MaterialShapes.Clover4Leaf,
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                    )
 
                     val folderOptions = listOf<String?>(null) + vm.customFolders.toList()
                     val folderCounts = remember(vm.favoritesList, vm.favoriteFolders, vm.customFolders) {
@@ -1117,62 +1082,41 @@ private fun MediaDetailSheetContent(
                         .padding(horizontal = 16.dp)
                         .padding(bottom = 24.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.padding(start = 4.dp, end = 4.dp, bottom = 16.dp)
+                    val headerColor by animateColorAsState(
+                        targetValue = if (isBlacklisted) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
+                        animationSpec = Motion.effectsDefault(),
+                        label = "tagHeaderColor"
+                    )
+                    ExpressiveSheetHeader(
+                        icon = if (isBlacklisted) Icons.Rounded.Block else Icons.Rounded.Tag,
+                        title = currentActionTag.replace('_', ' '),
+                        polygon = MaterialShapes.Gem,
+                        containerColor = headerColor,
+                        contentColor = if (isBlacklisted) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = isBlacklisted,
+                        enter = fadeIn(Motion.effectsDefault()) + expandVertically(Motion.spatialDefault()),
+                        exit = fadeOut(Motion.effectsFast()) + shrinkVertically(Motion.spatialDefault()),
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
                     ) {
-                        val headerColor by animateColorAsState(
-                            targetValue = if (isBlacklisted) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.primaryContainer,
-                            animationSpec = Motion.effectsDefault(),
-                            label = "tagHeaderColor"
-                        )
                         Surface(
                             shape = CircleShape,
-                            color = headerColor,
-                            contentColor = if (isBlacklisted) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(44.dp)
+                            color = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(bottom = 16.dp)
                         ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    imageVector = if (isBlacklisted) Icons.Rounded.Block else Icons.Rounded.Tag,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-                        }
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = currentActionTag.replace('_', ' '),
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            androidx.compose.animation.AnimatedVisibility(
-                                visible = isBlacklisted,
-                                enter = fadeIn(Motion.effectsDefault()) + expandVertically(Motion.spatialDefault()),
-                                exit = fadeOut(Motion.effectsFast()) + shrinkVertically(Motion.spatialDefault())
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = MaterialTheme.colorScheme.errorContainer,
-                                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                                    modifier = Modifier.padding(top = 6.dp)
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                    ) {
-                                        Icon(Icons.Rounded.Block, contentDescription = null, modifier = Modifier.size(14.dp))
-                                        Spacer(Modifier.width(6.dp))
-                                        Text(
-                                            text = Strings.tagBlacklistedStatus(lang),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    }
-                                }
+                                Icon(Icons.Rounded.Block, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = Strings.tagBlacklistedStatus(lang),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
                     }
@@ -2405,6 +2349,21 @@ internal fun rememberViewerList(source: List<RemoteMedia>): List<RemoteMedia> {
         }
     }
     return list
+}
+
+@Composable
+internal fun SettlePagerWhenIdle(state: androidx.compose.foundation.pager.PagerState) {
+    LaunchedEffect(state) {
+        androidx.compose.runtime.snapshotFlow { state.isScrollInProgress }
+            .collect { scrolling ->
+                if (!scrolling && kotlin.math.abs(state.currentPageOffsetFraction) > 0.001f) {
+                    kotlinx.coroutines.delay(60)
+                    if (!state.isScrollInProgress && kotlin.math.abs(state.currentPageOffsetFraction) > 0.001f) {
+                        state.animateScrollToPage(state.currentPage, animationSpec = Motion.pageSwitch())
+                    }
+                }
+            }
+    }
 }
 
 @Composable

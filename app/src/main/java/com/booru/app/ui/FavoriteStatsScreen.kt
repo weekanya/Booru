@@ -1130,32 +1130,13 @@ private fun StatsPeriodSheet(
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 20.dp)
             ) {
-                Row(
-                    modifier = Modifier.padding(bottom = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        shape = ShapeTokens.Medium,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                Icons.Rounded.DateRange,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Text(
-                        text = Strings.tr(lang, "Period", "Период", "期間", "时间范围", "기간", "الفترة"),
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
+                ExpressiveSheetHeader(
+                    icon = Icons.Rounded.DateRange,
+                    title = Strings.tr(lang, "Period", "Период", "期間", "时间范围", "기간", "الفترة"),
+                    polygon = MaterialShapes.Pill,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
                 val periods = StatsPeriod.entries
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     periods.forEachIndexed { index, item ->

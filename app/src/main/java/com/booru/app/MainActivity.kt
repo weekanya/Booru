@@ -703,7 +703,7 @@ fun BooruApp(
                         Text(
                             text = if (upToDate) Strings.upToDateTitle(lang) else Strings.updateCheckFailedTitle(lang),
                             style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.SemiBold,
+                            fontWeight = FontWeight.Bold,
                             color = scheme.onSurface,
                             textAlign = TextAlign.Center
                         )
@@ -1017,7 +1017,7 @@ private fun UpdateBottomSheet(
                     Text(
                         text = Strings.updateHeadline(lang),
                         style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.SemiBold,
+                        fontWeight = FontWeight.Bold,
                         color = scheme.onSurface,
                         textAlign = TextAlign.Center
                     )

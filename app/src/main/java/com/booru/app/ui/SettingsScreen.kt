@@ -155,31 +155,15 @@ fun SettingsScreen(
                         .padding(bottom = 32.dp)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    ) {
-                        SettingIconBadge(
-                            icon = Icons.Rounded.Public,
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Column {
-                            Text(
-                                text = Strings.feedSourcesTitle(lang),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            val toggleable = vm.toggleableSources
-                            Text(
-                                text = Strings.feedSourcesCount(toggleable.count { vm.isSourceEnabled(it) }, toggleable.size, lang),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
                     val toggleableSources = vm.toggleableSources
+                    ExpressiveSheetHeader(
+                        icon = Icons.Rounded.Public,
+                        title = Strings.feedSourcesTitle(lang),
+                        subtitle = Strings.feedSourcesCount(toggleableSources.count { vm.isSourceEnabled(it) }, toggleableSources.size, lang),
+                        polygon = MaterialShapes.Sunny,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
                     ChoiceGrid(count = toggleableSources.size) { index, corners, modifier ->
                         val src = toggleableSources[index]
                         ChoiceGridTile(
@@ -299,32 +283,13 @@ fun SettingsScreen(
                         .padding(horizontal = 20.dp)
                         .padding(bottom = 24.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Icon(
-                                    Icons.Rounded.HighQuality,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = Strings.imageQualityTitle(lang),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
+                    ExpressiveSheetHeader(
+                        icon = Icons.Rounded.HighQuality,
+                        title = Strings.imageQualityTitle(lang),
+                        polygon = MaterialShapes.Cookie6Sided,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
     
                     val autoSelected = vm.dataSaverOnMobile
                     data class QualityOption(val quality: ImageQuality?, val title: String, val hint: String, val icon: ImageVector)
@@ -408,7 +373,8 @@ fun SettingsScreen(
                     SheetHeader(
                         icon = if (isEditing) Icons.Rounded.Edit else Icons.Rounded.AddLink,
                         title = if (isEditing) Strings.editSourceTitle(lang) else Strings.addSourceTitle(lang),
-                        subtitle = Strings.tr(lang, "HTTPS only", "Только HTTPS", "HTTPSのみ", "仅限 HTTPS", "HTTPS만", "HTTPS فقط")
+                        subtitle = Strings.tr(lang, "HTTPS only", "Только HTTPS", "HTTPSのみ", "仅限 HTTPS", "HTTPS만", "HTTPS فقط"),
+                        polygon = MaterialShapes.Clover4Leaf
                     )
 
                     Column {
@@ -589,7 +555,8 @@ fun SettingsScreen(
                         title = Strings.tagBlacklistTitle(lang),
                         subtitle = Strings.tagBlacklistDesc(lang),
                         containerColor = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        polygon = MaterialShapes.Burst
                     )
 
                     Row(
@@ -865,30 +832,14 @@ fun SettingsScreen(
                         .padding(horizontal = 16.dp)
                         .padding(bottom = 24.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(start = 4.dp, bottom = 16.dp)
-                    ) {
-                        SettingIconBadge(
-                            icon = Icons.Rounded.Palette,
-                            containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = Strings.colorPaletteTitle(lang),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = vm.palette.localizedTitle(lang),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                    ExpressiveSheetHeader(
+                        icon = Icons.Rounded.Palette,
+                        title = Strings.colorPaletteTitle(lang),
+                        subtitle = vm.palette.localizedTitle(lang),
+                        polygon = MaterialShapes.Flower,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
 
                     Surface(
                         shape = ShapeTokens.ExtraLarge,
@@ -1905,40 +1856,14 @@ private fun LanguageSelectionBottomSheet(
                     .padding(horizontal = 20.dp)
                     .padding(bottom = 24.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(42.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Rounded.Translate,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(14.dp))
-                    Column {
-                        Text(
-                            text = Strings.chooseLanguageTitle(currentLanguage),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = Strings.languageTitle(currentLanguage),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                ExpressiveSheetHeader(
+                    icon = Icons.Rounded.Translate,
+                    title = Strings.chooseLanguageTitle(currentLanguage),
+                    subtitle = Strings.languageTitle(currentLanguage),
+                    polygon = MaterialShapes.SoftBurst,
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
     
                 ChoiceGrid(count = AppLanguage.entries.size) { index, corners, modifier ->
                     val langOption = AppLanguage.entries[index]
@@ -2154,27 +2079,17 @@ private fun SheetHeader(
     title: String,
     subtitle: String? = null,
     containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
-    contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer
+    contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    polygon: androidx.graphics.shapes.RoundedPolygon = MaterialShapes.Cookie9Sided
 ) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp)) {
-        SettingIconBadge(icon = icon, containerColor = containerColor, contentColor = contentColor)
-        Spacer(Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            if (subtitle != null) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
+    ExpressiveSheetHeader(
+        icon = icon,
+        title = title,
+        subtitle = subtitle,
+        polygon = polygon,
+        containerColor = containerColor,
+        contentColor = contentColor
+    )
 }
 
 @Composable
@@ -2280,7 +2195,7 @@ private fun ApiKeyForm(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        SheetHeader(icon = Icons.Rounded.Key, title = title, subtitle = description)
+        SheetHeader(icon = Icons.Rounded.Key, title = title, subtitle = description, polygon = MaterialShapes.Gem)
         Column {
             GroupedField(
                 lang = lang,
