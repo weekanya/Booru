@@ -1716,7 +1716,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun resolveVideoUrl(media: RemoteMedia): String {
         if (!media.isVideo) return resolveMediaUrl(media)
-        return when (imageQuality) {
+        return when (effectiveImageQuality) {
             ImageQuality.ORIGINAL -> media.url.ifBlank { media.sample }
             ImageQuality.SAMPLE, ImageQuality.SAVER -> {
                 val sampleClean = media.sample.substringBefore("?").lowercase()

@@ -698,8 +698,8 @@ fun SettingsScreen(
                     }
 
                     Surface(
-                        shape = ShapeTokens.LargeIncreased,
-                        color = MaterialTheme.colorScheme.surfaceContainer,
+                        shape = ShapeTokens.ExtraLarge,
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         if (vm.tagBlacklist.isEmpty()) {
@@ -771,8 +771,8 @@ fun SettingsScreen(
                                         )
                                     } else {
                                         FlowRow(
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(8.dp),
                                             modifier = Modifier.fillMaxWidth()
                                         ) {
                                             filteredBlacklist.forEach { tag ->
@@ -2003,32 +2003,32 @@ private fun BlacklistTagChip(
         )
     ) {
         Surface(
-            shape = ShapeTokens.Small,
-            color = MaterialTheme.colorScheme.surfaceContainerHighest
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.55f),
+            contentColor = MaterialTheme.colorScheme.onErrorContainer
         ) {
             Row(
                 modifier = Modifier
-                    .heightIn(min = 36.dp)
-                    .padding(start = 12.dp, end = 2.dp),
+                    .heightIn(min = 38.dp)
+                    .padding(start = 12.dp, end = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                Text(
-                    text = "#",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
+                Icon(
+                    Icons.Rounded.Block,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp)
                 )
                 Text(
-                    text = tag,
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    text = tag.replace('_', ' '),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
                 )
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
+                        .size(28.dp)
                         .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
                         .clickable {
                             if (visibleState.targetState) {
                                 visibleState.targetState = false
@@ -2043,8 +2043,8 @@ private fun BlacklistTagChip(
                     Icon(
                         Icons.Rounded.Close,
                         contentDescription = Strings.tr(lang, "Remove", "Удалить", "削除", "移除", "삭제", "إزالة"),
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }

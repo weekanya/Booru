@@ -1137,12 +1137,12 @@ object Strings {
     }
 
     fun getKeyFromSite(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Получить ключ на сайте"
-        AppLanguage.JAPANESE -> "サイトからキーを取得"
-        AppLanguage.CHINESE -> "前往官网获取密钥"
-        AppLanguage.KOREAN -> "사이트에서 키 가져오기"
-        AppLanguage.ARABIC -> "الحصول على المفتاح من الموقع"
-        else -> "Get key from website"
+        AppLanguage.RUSSIAN -> "Получить ключ"
+        AppLanguage.JAPANESE -> "キーを取得"
+        AppLanguage.CHINESE -> "获取密钥"
+        AppLanguage.KOREAN -> "키 받기"
+        AppLanguage.ARABIC -> "احصل على المفتاح"
+        else -> "Get key"
     }
 
     fun tapToEnterKeys(lang: AppLanguage) = when (lang) {

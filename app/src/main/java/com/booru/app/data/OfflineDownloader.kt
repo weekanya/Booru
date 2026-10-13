@@ -99,6 +99,10 @@ object OfflineDownloader {
         }
     }
 
+    fun clearLastAdded() {
+        lastAdded = -1
+    }
+
     fun cancel() {
         OfflineStore.cancelActive()
         job?.cancel()

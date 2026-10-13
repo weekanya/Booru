@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridS
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -107,6 +108,13 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                     .padding(bottom = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                val added = com.booru.app.data.OfflineDownloader.lastAdded
+                LaunchedEffect(added) {
+                    if (added >= 0) {
+                        kotlinx.coroutines.delay(4000)
+                        com.booru.app.data.OfflineDownloader.clearLastAdded()
+                    }
+                }
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
                     OfflineHeroBadge(
                         state = when {
@@ -116,13 +124,64 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                         }
                     )
                     Spacer(Modifier.width(14.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            offlineTitle(lang),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = scheme.onSurface
-                        )
+                    Text(
+                        offlineTitle(lang),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = scheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                    AnimatedVisibility(
+                        visible = added > 0 && !downloading,
+                        enter = fadeIn(Motion.effectsDefault()) + androidx.compose.animation.scaleIn(Motion.spatialFast(), initialScale = 0.6f),
+                        exit = fadeOut(Motion.effectsDefault()) + androidx.compose.animation.scaleOut(Motion.spatialDefault(), targetScale = 0.6f)
+                    ) {
+                        Surface(shape = CircleShape, color = scheme.tertiaryContainer, contentColor = scheme.onTertiaryContainer) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                                Icon(Icons.Rounded.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("+${added.coerceAtLeast(0)}", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
+                }
+
+                AnimatedVisibility(
+                    visible = saved > 0,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    Column(modifier = Modifier.padding(bottom = 16.dp)) {
+                        Surface(
+                            onClick = {
+                                onDismiss()
+                                vm.openOfflinePosts()
+                            },
+                            shape = ShapeTokens.ExtraLarge,
+                            color = scheme.secondaryContainer,
+                            contentColor = scheme.onSecondaryContainer,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.padding(start = 16.dp, end = 12.dp, top = 14.dp, bottom = 14.dp)
+                            ) {
+                                ThumbStack(OfflineStore.posts.take(4))
+                                Spacer(Modifier.width(14.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        Strings.tr(lang, "$saved posts", "Постов: $saved", "$saved 件", "$saved 个帖子", "게시물 ${saved}개", "$saved منشور"),
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        BooruCacheManager.formatBytes(OfflineStore.sizeBytes),
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                                Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = Strings.tr(lang, "Open offline posts", "Открыть офлайн-посты", "オフライン投稿を開く", "打开离线帖子", "오프라인 게시물 열기", "فتح المنشورات بلا إنترنت"))
+                            }
+                        }
                     }
                 }
 
@@ -151,87 +210,46 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                     }
                                 }
                             }
-                            val added = com.booru.app.data.OfflineDownloader.lastAdded
-                            if (added >= 0 && vm.offlineError == null) {
-                                Surface(shape = ShapeTokens.Large, color = scheme.secondaryContainer, contentColor = scheme.onSecondaryContainer) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-                                        Icon(Icons.Rounded.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
-                                        Spacer(Modifier.width(10.dp))
-                                        Text(
-                                            Strings.tr(lang, "Added $added new posts", "Добавлено новых постов: $added", "新しい投稿を $added 件追加", "已添加 $added 个新帖子", "새 게시물 ${added}개 추가됨", "تمت إضافة $added منشور جديد"),
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    }
-                                }
-                            }
                             vm.offlineError?.let { error ->
                                 Text(error, style = MaterialTheme.typography.bodySmall, color = scheme.error, modifier = Modifier.padding(start = 4.dp))
                             }
                             val complete = saved >= count
-                            Button(
-                                onClick = startDownload,
-                                enabled = !complete,
-                                shapes = ButtonDefaults.shapes(),
-                                contentPadding = PaddingValues(horizontal = 24.dp),
-                                modifier = Modifier.fillMaxWidth().height(64.dp)
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
                             ) {
-                                Icon(if (complete) Icons.Rounded.CheckCircle else Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(22.dp))
-                                Spacer(Modifier.width(10.dp))
-                                Text(
-                                    if (complete) {
-                                        Strings.tr(lang, "All $count saved", "Все $count сохранены", "$count 件すべて保存済み", "已全部保存 $count 个", "${count}개 모두 저장됨", "تم حفظ $count كلها")
-                                    } else if (saved > 0) {
-                                        Strings.tr(lang, "Download ${count - saved} more to $count", "Докачать ${count - saved} до $count", "残り ${count - saved} 件を取得", "再下载 ${count - saved} 个，共 $count", "${count - saved}개 더 받아 ${count}개로", "تنزيل ${count - saved} أخرى للوصول إلى $count")
-                                    } else {
-                                        Strings.tr(lang, "Download $count posts", "Скачать $count постов", "$count 件をダウンロード", "下载 $count 个帖子", "${count}개 다운로드", "تنزيل $count منشور")
-                                    },
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                }
-
-                AnimatedVisibility(
-                    visible = saved > 0,
-                    enter = fadeIn() + expandVertically(),
-                    exit = fadeOut() + shrinkVertically()
-                ) {
-                    Column {
-                        Spacer(Modifier.height(20.dp))
-                        Surface(shape = ShapeTokens.ExtraLarge, color = scheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    ThumbStack(OfflineStore.posts.take(4))
-                                    Spacer(Modifier.width(14.dp))
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            Strings.tr(lang, "Saved on this phone", "Сохранено на телефоне", "この端末に保存済み", "已保存到本机", "이 기기에 저장됨", "محفوظ على هذا الهاتف"),
-                                            style = MaterialTheme.typography.labelMedium,
-                                            color = scheme.onSurfaceVariant
-                                        )
-                                        Text(offlineSubtitle(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = scheme.onSurface)
-                                    }
+                                Button(
+                                    onClick = startDownload,
+                                    enabled = !complete,
+                                    shape = if (saved > 0) androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 8.dp, bottomEnd = 8.dp) else CircleShape,
+                                    contentPadding = PaddingValues(horizontal = 20.dp),
+                                    modifier = Modifier.weight(1f).height(60.dp)
+                                ) {
+                                    Icon(if (complete) Icons.Rounded.CheckCircle else Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(22.dp))
+                                    Spacer(Modifier.width(10.dp))
+                                    Text(
+                                        if (complete) {
+                                            Strings.tr(lang, "All $count saved", "Все $count сохранены", "$count 件すべて保存済み", "已全部保存 $count 个", "${count}개 모두 저장됨", "تم حفظ $count كلها")
+                                        } else if (saved > 0) {
+                                            Strings.tr(lang, "Download ${count - saved} more", "Докачать ${count - saved}", "残り ${count - saved} 件を取得", "再下载 ${count - saved} 个", "${count - saved}개 더 받기", "تنزيل ${count - saved} أخرى")
+                                        } else {
+                                            Strings.tr(lang, "Download $count", "Скачать $count", "$count 件をダウンロード", "下载 $count 个", "${count}개 다운로드", "تنزيل $count")
+                                        },
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        maxLines = 1
+                                    )
+                                }
+                                if (saved > 0) {
                                     AnimatedConfirmDeleteButton(
                                         onConfirmed = { vm.deleteOfflinePosts() },
                                         lang = lang,
-                                        compact = true
+                                        height = 60.dp,
+                                        idleContainerColor = scheme.errorContainer,
+                                        idleContentColor = scheme.onErrorContainer,
+                                        shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 28.dp, bottomEnd = 28.dp)
                                     )
-                                }
-                                Spacer(Modifier.height(14.dp))
-                                FilledTonalButton(
-                                    onClick = {
-                                        onDismiss()
-                                        vm.openOfflinePosts()
-                                    },
-                                    shapes = ButtonDefaults.shapes(),
-                                    modifier = Modifier.fillMaxWidth().height(56.dp)
-                                ) {
-                                    Icon(Icons.Rounded.VideoLibrary, contentDescription = null, modifier = Modifier.size(20.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(Strings.tr(lang, "Open offline posts", "Открыть офлайн-посты", "オフライン投稿を開く", "打开离线帖子", "오프라인 게시물 열기", "فتح المنشورات بلا إنترنت"), fontWeight = FontWeight.Bold)
                                 }
                             }
                         }
@@ -535,16 +553,24 @@ fun OfflinePostsScreen(vm: GalleryViewModel, lang: AppLanguage, onClose: () -> U
             )
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
             ) {
-                options.forEach { (value, label, icon) ->
+                options.forEachIndexed { index, (value, label, icon) ->
                     val selected = filter == value
-                    val corner by androidx.compose.animation.core.animateDpAsState(if (selected) 16.dp else 28.dp, Motion.spatialFast(), label = "filterCorner")
+                    val outer by androidx.compose.animation.core.animateDpAsState(if (selected) 36.dp else 20.dp, Motion.spatialFast(), label = "filterOuter")
+                    val inner by androidx.compose.animation.core.animateDpAsState(if (selected) 36.dp else 6.dp, Motion.spatialFast(), label = "filterInner")
+                    val first = index == 0
+                    val last = index == options.lastIndex
                     val container by androidx.compose.animation.animateColorAsState(if (selected) scheme.primary else scheme.surfaceContainerHigh, Motion.effectsDefault(), label = "filterColor")
                     val content by androidx.compose.animation.animateColorAsState(if (selected) scheme.onPrimary else scheme.onSurface, Motion.effectsDefault(), label = "filterContent")
                     Surface(
                         onClick = { filter = value },
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(corner),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(
+                            topStart = if (first) outer else inner,
+                            bottomStart = if (first) outer else inner,
+                            topEnd = if (last) outer else inner,
+                            bottomEnd = if (last) outer else inner
+                        ),
                         color = container,
                         contentColor = content,
                         modifier = Modifier.weight(1f).height(72.dp).semantics { role = Role.Tab }

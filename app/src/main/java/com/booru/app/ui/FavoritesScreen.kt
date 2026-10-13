@@ -784,20 +784,20 @@ private fun FolderPickerSheet(
                     title = Strings.tr(lang, "Folders", "Папки", "フォルダ", "文件夹", "폴더", "المجلدات"),
                     polygon = MaterialShapes.Clover4Leaf,
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    action = {
+                        FilledTonalButton(
+                            onClick = onCreate,
+                            shapes = ButtonDefaults.shapes(),
+                            contentPadding = PaddingValues(start = 12.dp, end = 16.dp),
+                            modifier = Modifier.height(44.dp)
+                        ) {
+                            Icon(Icons.Rounded.CreateNewFolder, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(Strings.newFolder(lang), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                        }
+                    }
                 )
-                FilledTonalButton(
-                    onClick = onCreate,
-                    shapes = ButtonDefaults.shapes(),
-                    contentPadding = PaddingValues(horizontal = 14.dp),
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(bottom = 16.dp)
-                ) {
-                    Icon(Icons.Rounded.CreateNewFolder, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(6.dp))
-                    Text(Strings.newFolder(lang), style = MaterialTheme.typography.labelLarge)
-                }
 
                 Column(
                     modifier = Modifier
@@ -1044,7 +1044,7 @@ private fun FavoritesFilterBottomSheet(
     
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween, Alignment.End),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     AnimatedConfirmDeleteButton(
@@ -1053,11 +1053,11 @@ private fun FavoritesFilterBottomSheet(
                         initialIcon = Icons.Rounded.DeleteSweep,
                         initialText = Strings.tr(lang, "Clear all", "Очистить", "すべて消去", "全部清除", "모두 지우기", "مسح الكل"),
                         confirmText = Strings.confirmDeleteAction(lang),
-                        height = 56.dp,
+                        height = 52.dp,
                         contentPadding = 18.dp,
                         idleContainerColor = MaterialTheme.colorScheme.errorContainer,
                         idleContentColor = MaterialTheme.colorScheme.onErrorContainer,
-                        shape = CircleShape
+                        shape = RoundedCornerShape(topStart = 26.dp, bottomStart = 26.dp, topEnd = 8.dp, bottomEnd = 8.dp)
                     )
                     Button(
                         onClick = {
@@ -1065,14 +1065,13 @@ private fun FavoritesFilterBottomSheet(
                             onTypeSelected(draftType)
                             scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                         },
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 26.dp, bottomEnd = 26.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
                         ),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp)
+                        contentPadding = PaddingValues(horizontal = 22.dp),
+                        modifier = Modifier.height(52.dp)
                     ) {
                         Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))

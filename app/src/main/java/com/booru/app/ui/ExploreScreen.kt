@@ -747,21 +747,23 @@ fun ExploreScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.Rounded.Search,
+                    if (vm.isIncognito) Icons.Rounded.VisibilityOff else Icons.Rounded.Search,
                     contentDescription = "Search",
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = if (vm.isIncognito) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp)
                 )
                 Spacer(Modifier.width(14.dp))
                 Text(
-                    text = if (vm.query.isNotBlank()) vm.query else Strings.searchPlaceholder(lang),
+                    text = if (vm.query.isNotBlank()) vm.query else if (vm.isIncognito) {
+                        Strings.tr(lang, "Incognito search…", "Поиск инкогнито…", "シークレット検索…", "无痕搜索…", "시크릿 검색…", "بحث متخفٍ…")
+                    } else Strings.searchPlaceholder(lang),
                     style = MaterialTheme.typography.bodyLarge,
                     color = if (vm.query.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                if (vm.isIncognito) {
+                if (vm.isIncognito && vm.query.isNotBlank()) {
                     Surface(
                         shape = CircleShape,
                         color = MaterialTheme.colorScheme.tertiaryContainer,
@@ -926,9 +928,15 @@ fun ExploreScreen(
                                     Box(contentAlignment = Alignment.CenterStart) {
                                         if (localQuery.text.isEmpty()) {
                                             Text(
-                                                text = Strings.searchPlaceholder(lang),
+                                                text = if (vm.isIncognito) {
+                                                    Strings.tr(lang, "Incognito search…", "Поиск инкогнито…", "シークレット検索…", "无痕搜索…", "시크릿 검색…", "بحث متخفٍ…")
+                                                } else {
+                                                    Strings.searchPlaceholder(lang)
+                                                },
                                                 style = MaterialTheme.typography.bodyLarge,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = if (vm.isIncognito) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
                                             )
                                         }
                                         innerTextField()
@@ -2126,8 +2134,7 @@ private fun FilterSelectionBottomSheet(
     var tempNoAi by remember { mutableStateOf(vm.noAi) }
     var tempNoFurry by remember { mutableStateOf(vm.noFurry) }
     var tempRecRatio by remember { mutableFloatStateOf(vm.recommendationRatio) }
-    val filterPagerState = rememberPagerState(initialPage = 0) { 2 }
-    val filterTabController = rememberTabPagerController(filterPagerState)
+    var filterTab by rememberSaveable { mutableIntStateOf(0) }
 
     SheetMotion {
         ModalBottomSheet(
@@ -2172,11 +2179,10 @@ private fun FilterSelectionBottomSheet(
                             Pair(Strings.tr(lang, "Content & Rating", "Контент и рейтинг", "コンテンツと評価", "内容与分级", "콘텐츠 및 등급", "المحتوى والتصنيف"), Icons.Rounded.Category),
                             Pair(Strings.tr(lang, "Sorting & Feed", "Сортировка и лента", "並べ替えとフィード", "排序与推送", "정렬 및 피드", "الترتيب والخلاصة"), Icons.Rounded.AutoAwesome)
                         )
-                        val targetFilterIndex = filterTabController.selectedPage
                         tabs.forEachIndexed { index, (title, icon) ->
                             ToggleButton(
-                                checked = targetFilterIndex == index,
-                                onCheckedChange = { filterTabController.select(index) },
+                                checked = filterTab == index,
+                                onCheckedChange = { filterTab = index },
                                 shapes = groupPosition(index, tabs.size).toggleShapes(),
                                 contentPadding = PaddingValues(horizontal = 8.dp),
                                 modifier = Modifier
@@ -2202,23 +2208,22 @@ private fun FilterSelectionBottomSheet(
 
                 Spacer(Modifier.height(8.dp))
     
-                val filterPagerHeight by androidx.compose.animation.core.animateDpAsState(
-                    if (filterTabController.selectedPage == 0) 330.dp else 266.dp,
-                    Motion.spatialDefault(),
-                    label = "filterPagerHeight"
-                )
-                HorizontalPager(
-                    state = filterPagerState,
-                    beyondViewportPageCount = 1,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(filterPagerHeight)
-                        .tabTransition(filterTabController)
+                AnimatedContent(
+                    targetState = filterTab,
+                    transitionSpec = {
+                        val dir = if (targetState > initialState) 1 else -1
+                        (androidx.compose.animation.slideInHorizontally(Motion.spatialDefault()) { it / 8 * dir } + fadeIn(Motion.effectsDefault())) togetherWith
+                            (androidx.compose.animation.slideOutHorizontally(Motion.spatialDefault()) { -it / 8 * dir } + fadeOut(Motion.effectsFast())) using
+                            androidx.compose.animation.SizeTransform(clip = false) { _, _ -> Motion.spatialDefault() }
+                    },
+                    label = "filterTab",
+                    modifier = Modifier.fillMaxWidth()
                 ) { page ->
                     if (page == 0) {
                         Column(
                             modifier = Modifier
-                                .fillMaxSize()
+                                .fillMaxWidth()
+                                .heightIn(max = 440.dp)
                                 .verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
@@ -2470,7 +2475,8 @@ private fun FilterSelectionBottomSheet(
                         } else {
                             Column(
                                 modifier = Modifier
-                                    .fillMaxSize()
+                                    .fillMaxWidth()
+                                    .heightIn(max = 440.dp)
                                     .verticalScroll(rememberScrollState()),
                                 verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {

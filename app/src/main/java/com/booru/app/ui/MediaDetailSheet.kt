@@ -2347,10 +2347,15 @@ internal fun SettlePagerWhenIdle(state: androidx.compose.foundation.pager.PagerS
     LaunchedEffect(state) {
         androidx.compose.runtime.snapshotFlow { state.isScrollInProgress }
             .collect { scrolling ->
-                if (!scrolling && kotlin.math.abs(state.currentPageOffsetFraction) > 0.001f) {
-                    kotlinx.coroutines.delay(60)
-                    if (!state.isScrollInProgress && kotlin.math.abs(state.currentPageOffsetFraction) > 0.001f) {
-                        state.animateScrollToPage(state.currentPage, animationSpec = Motion.pageSwitch())
+                if (!scrolling) {
+                    kotlinx.coroutines.delay(120)
+                    val offset = kotlin.math.abs(state.currentPageOffsetFraction)
+                    if (!state.isScrollInProgress) {
+                        if (offset > 0.03f) {
+                            state.animateScrollToPage(state.currentPage, animationSpec = Motion.pageSwitch())
+                        } else if (offset > 0.0005f) {
+                            state.scrollToPage(state.currentPage)
+                        }
                     }
                 }
             }
