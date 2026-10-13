@@ -80,8 +80,6 @@ data class SearchPage(
 )
 
 class BooruRepository(
-    @Volatile private var realbooruPageSize = 0
-
     private val client: OkHttpClient = NetworkClient.baseClient.newBuilder()
         .connectTimeout(5, TimeUnit.SECONDS)
         .readTimeout(6, TimeUnit.SECONDS)
@@ -116,6 +114,8 @@ class BooruRepository(
         }
         .build()
 ) {
+    @Volatile private var realbooruPageSize = 0
+
 
     companion object {
         const val TAG = "BooruRepo"
