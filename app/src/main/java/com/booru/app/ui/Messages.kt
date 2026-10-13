@@ -88,7 +88,7 @@ fun FlatSnackbar(data: SnackbarData, modifier: Modifier = Modifier) {
                     onClick = { data.dismiss() },
                     shapes = IconButtonDefaults.shapes()
                 ) {
-                    Icon(Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Rounded.Close, contentDescription = androidx.compose.ui.res.stringResource(android.R.string.cancel), modifier = Modifier.size(20.dp))
                 }
             }
         }

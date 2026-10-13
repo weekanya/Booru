@@ -347,7 +347,7 @@ fun FavoritesScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Surface(
-                    shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 8.dp, bottomEnd = 8.dp),
+                    shape = ShapeTokens.ConnectedStart,
                     color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     modifier = Modifier
                         .weight(1f)
@@ -1062,7 +1062,7 @@ private fun FavoritesFilterBottomSheet(
                             onTypeSelected(draftType)
                             scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                         },
-                        shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 8.dp, bottomEnd = 8.dp),
+                        shape = ShapeTokens.ConnectedStart,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
@@ -1089,7 +1089,7 @@ private fun FavoritesFilterBottomSheet(
                         contentPadding = 18.dp,
                         idleContainerColor = MaterialTheme.colorScheme.errorContainer,
                         idleContentColor = MaterialTheme.colorScheme.onErrorContainer,
-                        shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 28.dp, bottomEnd = 28.dp)
+                        shape = ShapeTokens.ConnectedEnd
                     )
                 }
             }
@@ -1172,7 +1172,7 @@ private fun CreateFolderBottomSheet(
                     label = "folderFieldColor"
                 )
                 val createCorner by animateDpAsState(
-                    targetValue = if (canCreate) 28.dp else 6.dp,
+                    targetValue = if (canCreate) 28.dp else 8.dp,
                     animationSpec = Motion.spatialDefault(),
                     label = "folderCreateCorner"
                 )
@@ -1181,7 +1181,7 @@ private fun CreateFolderBottomSheet(
                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     Surface(
-                        shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 6.dp, bottomEnd = 6.dp),
+                        shape = ShapeTokens.ConnectedStart,
                         color = fieldColor,
                         modifier = Modifier
                             .weight(1f)

@@ -259,7 +259,7 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                 Button(
                                     onClick = startDownload,
                                     enabled = !complete,
-                                    shape = if (saved > 0) androidx.compose.foundation.shape.RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 8.dp, bottomEnd = 8.dp) else CircleShape,
+                                    shape = if (saved > 0) ShapeTokens.ConnectedStart else CircleShape,
                                     contentPadding = PaddingValues(horizontal = 20.dp),
                                     modifier = Modifier.weight(1f).height(56.dp)
                                 ) {
@@ -285,7 +285,7 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                         height = 56.dp,
                                         idleContainerColor = scheme.errorContainer,
                                         idleContentColor = scheme.onErrorContainer,
-                                        shape = androidx.compose.foundation.shape.RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 28.dp, bottomEnd = 28.dp)
+                                        shape = ShapeTokens.ConnectedEnd
                                     )
                                 }
                             }

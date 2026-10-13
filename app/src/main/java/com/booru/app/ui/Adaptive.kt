@@ -10,12 +10,16 @@ import androidx.compose.ui.unit.dp
 enum class WindowWidthClass(val extraGridColumns: Int) {
     Compact(0),
     Medium(1),
-    Expanded(2);
+    Expanded(2),
+    Large(3),
+    ExtraLarge(4);
 
     val usesNavigationRail: Boolean get() = this != Compact
 
     companion object {
         fun fromWidth(width: Dp): WindowWidthClass = when {
+            width >= 1600.dp -> ExtraLarge
+            width >= 1200.dp -> Large
             width >= 840.dp -> Expanded
             width >= 600.dp -> Medium
             else -> Compact

@@ -711,7 +711,7 @@ fun SettingsScreen(
                                             )
                                         }
                                         if (searching) {
-                                            IconButton(onClick = { blacklistFilterQuery = "" }, modifier = Modifier.size(40.dp)) {
+                                            IconButton(onClick = { blacklistFilterQuery = "" }, modifier = Modifier.size(48.dp)) {
                                                 Icon(Icons.Rounded.Close, contentDescription = Strings.tr(lang, "Clear", "Очистить", "クリア", "清除", "지우기", "مسح"), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                                             }
                                         } else {
@@ -2256,7 +2256,7 @@ private fun ApiKeyForm(
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp), modifier = Modifier.fillMaxWidth()) {
             FilledTonalButton(
                 onClick = onGetKey,
-                shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 8.dp, bottomEnd = 8.dp),
+                shape = ShapeTokens.ConnectedStart,
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 modifier = Modifier
                     .weight(1f)
@@ -2289,7 +2289,7 @@ private fun ApiKeyForm(
                     contentPadding = 16.dp,
                     idleContainerColor = MaterialTheme.colorScheme.errorContainer,
                     idleContentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 28.dp, bottomEnd = 28.dp)
+                    shape = ShapeTokens.ConnectedEnd
                 )
             }
         }

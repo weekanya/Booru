@@ -796,7 +796,7 @@ fun ExploreScreen(
                             vm.clearTagSuggestions()
                             vm.search(vm.source, "", vm.safeMode)
                         },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             Icons.Rounded.Close,
@@ -808,7 +808,7 @@ fun ExploreScreen(
                 }
                 IconButton(
                     onClick = { vm.toggleIncognito() },
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = if (vm.isIncognito) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
@@ -962,7 +962,7 @@ fun ExploreScreen(
                                     )
                                 }
                             }
-                            IconButton(onClick = { vm.toggleIncognito() }, modifier = Modifier.size(40.dp)) {
+                            IconButton(onClick = { vm.toggleIncognito() }, modifier = Modifier.size(48.dp)) {
                                 Icon(
                                     imageVector = if (vm.isIncognito) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
                                     contentDescription = "Incognito",
@@ -988,7 +988,7 @@ fun ExploreScreen(
                             contentPadding = 16.dp,
                             idleContainerColor = MaterialTheme.colorScheme.errorContainer,
                             idleContentColor = MaterialTheme.colorScheme.onErrorContainer,
-                            shape = RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp, topEnd = 28.dp, bottomEnd = 28.dp)
+                            shape = ShapeTokens.ConnectedEnd
                         )
                     }
                     }
@@ -1037,7 +1037,7 @@ fun ExploreScreen(
                                 ) {
                                     IconButton(
                                         onClick = { applySuggestion(suggestion.value, submit = true) },
-                                        modifier = Modifier.size(40.dp)
+                                        modifier = Modifier.size(48.dp)
                                     ) {
                                         Icon(
                                             Icons.Rounded.Search,
@@ -1073,7 +1073,7 @@ fun ExploreScreen(
                                 ) {
                                     IconButton(
                                         onClick = { vm.removeFromHistory(hist) },
-                                        modifier = Modifier.size(40.dp)
+                                        modifier = Modifier.size(48.dp)
                                     ) {
                                         Icon(
                                             Icons.Rounded.Close,

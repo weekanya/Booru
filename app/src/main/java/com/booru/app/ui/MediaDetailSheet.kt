@@ -92,6 +92,8 @@ import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
@@ -999,7 +1001,7 @@ private fun MediaDetailSheetContent(
                         horizontalArrangement = Arrangement.spacedBy(2.dp)
                     ) {
                         Surface(
-                            shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 6.dp, bottomEnd = 6.dp),
+                            shape = ShapeTokens.ConnectedStart,
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
                             modifier = Modifier
                                 .weight(1f)
@@ -1039,7 +1041,7 @@ private fun MediaDetailSheetContent(
                             }
                         }
                         val createCorner by animateDpAsState(
-                            targetValue = if (canCreate) 28.dp else 6.dp,
+                            targetValue = if (canCreate) 28.dp else 8.dp,
                             animationSpec = Motion.spatialDefault(),
                             label = "createFolderCorner"
                         )
@@ -2155,6 +2157,7 @@ fun BooruVideoPlayer(
                             ),
                             modifier = Modifier
                                 .size(40.dp)
+                                .semantics { contentDescription = Strings.tr(lang, "Playback speed", "Скорость воспроизведения", "再生速度", "播放速度", "재생 속도", "سرعة التشغيل") }
                         ) {
                             val text = if (playbackSpeed == 1f) "1x" else if (playbackSpeed == 2f) "2x" else "${playbackSpeed}x"
                             Text(
