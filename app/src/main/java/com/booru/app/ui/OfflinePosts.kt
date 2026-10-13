@@ -11,6 +11,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
@@ -45,8 +49,6 @@ import com.booru.app.data.BooruCacheManager
 import com.booru.app.data.OfflineStore
 import com.booru.app.data.Strings
 
-private val OFFLINE_COUNTS = listOf(100, 200, 300, 500)
-
 fun offlineTitle(lang: AppLanguage) =
     Strings.tr(lang, "Offline posts", "Офлайн-посты", "オフライン投稿", "离线帖子", "오프라인 게시물", "منشورات بلا إنترنت")
 
@@ -60,87 +62,95 @@ fun offlineSubtitle(lang: AppLanguage): String {
     }
 }
 
+private data class CountOption(val count: Int, val label: (AppLanguage) -> String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
+
+private val OFFLINE_OPTIONS = listOf(
+    CountOption(100, { Strings.tr(it, "Quick look", "Быстро", "サクッと", "快速", "가볍게", "نظرة سريعة") }, Icons.Rounded.Bolt),
+    CountOption(200, { Strings.tr(it, "For the evening", "На вечер", "夜のお供", "晚上看", "저녁용", "للمساء") }, Icons.Rounded.Bedtime),
+    CountOption(300, { Strings.tr(it, "For a trip", "В дорогу", "移動用", "旅途用", "이동용", "للسفر") }, Icons.Rounded.Flight),
+    CountOption(500, { Strings.tr(it, "Maximum", "Максимум", "最大", "最多", "최대", "الحد الأقصى") }, Icons.Rounded.AllInclusive)
+)
+
 @Composable
 fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit) {
     var count by rememberSaveable { mutableIntStateOf(200) }
     val saved = OfflineStore.posts.size
+    val downloading = vm.offlineDownloading
     val scheme = MaterialTheme.colorScheme
     SheetMotion {
         ModalBottomSheet(
             onDismissRequest = onDismiss,
             sheetState = rememberExpandedSheetState(),
             containerColor = scheme.surfaceContainerLow,
-            shape = ShapeTokens.ExtraLargeTop
+            shape = ShapeTokens.ExtraLargeIncreasedTop
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(shape = ShapeTokens.Medium, color = scheme.primaryContainer, modifier = Modifier.size(40.dp)) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Rounded.DownloadForOffline, contentDescription = null, tint = scheme.onPrimaryContainer, modifier = Modifier.size(22.dp))
-                        }
+                OfflineHeroBadge(
+                    state = when {
+                        downloading -> 1
+                        saved > 0 -> 2
+                        else -> 0
                     }
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(offlineTitle(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = scheme.onSurface)
-                        Text(
-                            Strings.tr(lang, "From your current feed, search and filters", "Из текущей ленты, поиска и фильтров", "現在のフィード・検索・フィルターから", "来自当前的推荐、搜索和筛选", "현재 피드, 검색, 필터 기준", "من خلاصتك وبحثك وعوامل التصفية الحالية"),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = scheme.onSurfaceVariant
-                        )
-                    }
-                }
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    offlineTitle(lang),
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = scheme.onSurface
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    Strings.tr(lang, "Posts from your current feed, search and filters, saved to watch without internet", "Посты из текущей ленты, поиска и фильтров, чтобы смотреть без интернета", "現在のフィード・検索・フィルターの投稿をオフラインで見られるよう保存", "保存当前推荐、搜索和筛选中的帖子，离线观看", "현재 피드·검색·필터의 게시물을 저장해 인터넷 없이 보기", "منشورات من خلاصتك وبحثك وعوامل التصفية لمشاهدتها بلا إنترنت"),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = scheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(20.dp))
 
                 AnimatedContent(
-                    targetState = vm.offlineDownloading,
-                    transitionSpec = { fadeIn(Motion.effectsDefault()) togetherWith fadeOut(Motion.effectsDefault()) },
+                    targetState = downloading,
+                    transitionSpec = {
+                        (fadeIn(Motion.effectsDefault()) + androidx.compose.animation.scaleIn(Motion.spatialDefault(), initialScale = 0.92f)) togetherWith
+                            (fadeOut(Motion.effectsDefault()) + androidx.compose.animation.scaleOut(Motion.spatialDefault(), targetScale = 0.92f))
+                    },
                     label = "offlineState"
-                ) { downloading ->
-                    if (downloading) {
+                ) { isDownloading ->
+                    if (isDownloading) {
                         DownloadProgress(vm, lang)
                     } else {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(
-                                Strings.tr(lang, "How many posts", "Сколько постов", "投稿数", "帖子数量", "게시물 수", "عدد المنشورات"),
-                                style = MaterialTheme.typography.labelLarge,
-                                color = scheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = 4.dp)
-                            )
-                            ToggleGroupColors {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
-                                ) {
-                                    OFFLINE_COUNTS.forEachIndexed { index, value ->
-                                        ToggleButton(
-                                            checked = count == value,
-                                            onCheckedChange = { count = value },
-                                            shapes = groupPosition(index, OFFLINE_COUNTS.size).toggleShapes(),
-                                            modifier = Modifier
-                                                .weight(1f)
-                                                .heightIn(min = 48.dp)
-                                                .semantics { role = Role.RadioButton }
-                                        ) {
-                                            Text(value.toString(), fontWeight = if (count == value) FontWeight.Bold else FontWeight.Medium)
-                                        }
+                            OFFLINE_OPTIONS.chunked(2).forEach { row ->
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    row.forEach { option ->
+                                        CountTile(
+                                            option = option,
+                                            lang = lang,
+                                            selected = count == option.count,
+                                            onClick = { count = option.count },
+                                            modifier = Modifier.weight(1f)
+                                        )
                                     }
                                 }
                             }
                             if (vm.isMeteredNetwork) {
-                                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(start = 4.dp)) {
-                                    Icon(Icons.Rounded.SignalCellularAlt, contentDescription = null, tint = scheme.tertiary, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(6.dp))
-                                    Text(
-                                        Strings.tr(lang, "You're on mobile data. Videos can be large.", "Вы в мобильной сети. Видео могут весить много.", "モバイルデータ通信中です。動画は容量が大きい場合があります。", "正在使用移动数据，视频可能较大。", "모바일 데이터 사용 중입니다. 동영상은 용량이 클 수 있습니다.", "أنت على بيانات الجوال. قد تكون مقاطع الفيديو كبيرة."),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = scheme.onSurfaceVariant
-                                    )
+                                Surface(shape = ShapeTokens.Large, color = scheme.tertiaryContainer, contentColor = scheme.onTertiaryContainer) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                                        Icon(Icons.Rounded.SignalCellularAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(Modifier.width(10.dp))
+                                        Text(
+                                            Strings.tr(lang, "You're on mobile data. Videos can be large.", "Вы в мобильной сети. Видео могут весить много.", "モバイルデータ通信中です。動画は容量が大きい場合があります。", "正在使用移动数据，视频可能较大。", "모바일 데이터 사용 중입니다. 동영상은 용량이 클 수 있습니다.", "أنت على بيانات الجوال. قد تكون مقاطع الفيديو كبيرة."),
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
                                 }
                             }
                             vm.offlineError?.let { error ->
@@ -149,17 +159,28 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                             Button(
                                 onClick = { vm.startOfflineDownload(count) },
                                 shapes = ButtonDefaults.shapes(),
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                                contentPadding = PaddingValues(horizontal = 24.dp),
+                                modifier = Modifier.fillMaxWidth().height(64.dp)
                             ) {
-                                Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(8.dp))
+                                Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(22.dp))
+                                Spacer(Modifier.width(10.dp))
                                 Text(
                                     if (saved > 0) {
-                                        Strings.tr(lang, "Replace with $count posts", "Заменить на $count постов", "$count 件で置き換え", "替换为 $count 个帖子", "${count}개로 교체", "استبدال بـ $count منشور")
+                                        Strings.tr(lang, "Update to $count posts", "Обновить до $count постов", "$count 件に更新", "更新为 $count 个帖子", "${count}개로 업데이트", "تحديث إلى $count منشور")
                                     } else {
                                         Strings.tr(lang, "Download $count posts", "Скачать $count постов", "$count 件をダウンロード", "下载 $count 个帖子", "${count}개 다운로드", "تنزيل $count منشور")
                                     },
+                                    style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.Bold
+                                )
+                            }
+                            if (saved > 0) {
+                                Text(
+                                    Strings.tr(lang, "Posts you already have are kept and not downloaded again.", "Уже скачанные посты сохранятся и не будут качаться заново.", "保存済みの投稿は再ダウンロードされません。", "已下载的帖子会保留，不会重新下载。", "이미 받은 게시물은 다시 받지 않습니다.", "المنشورات المحفوظة لن تُنزَّل مرة أخرى."),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = scheme.onSurfaceVariant,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
@@ -171,42 +192,180 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                     enter = fadeIn() + expandVertically(),
                     exit = fadeOut() + shrinkVertically()
                 ) {
-                    Surface(shape = ShapeTokens.ExtraLarge, color = scheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    Strings.tr(lang, "Saved on this phone", "Сохранено на телефоне", "この端末に保存済み", "已保存到本机", "이 기기에 저장됨", "محفوظ على هذا الهاتف"),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = scheme.onSurfaceVariant
-                                )
-                                Text(offlineSubtitle(lang), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, color = scheme.onSurface)
+                    Column {
+                        Spacer(Modifier.height(20.dp))
+                        Surface(shape = ShapeTokens.ExtraLarge, color = scheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    ThumbStack(OfflineStore.posts.take(4))
+                                    Spacer(Modifier.width(14.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            Strings.tr(lang, "Saved on this phone", "Сохранено на телефоне", "この端末に保存済み", "已保存到本机", "이 기기에 저장됨", "محفوظ على هذا الهاتف"),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = scheme.onSurfaceVariant
+                                        )
+                                        Text(offlineSubtitle(lang), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = scheme.onSurface)
+                                    }
+                                    AnimatedConfirmDeleteButton(
+                                        onConfirmed = { vm.deleteOfflinePosts() },
+                                        lang = lang,
+                                        compact = true
+                                    )
+                                }
+                                Spacer(Modifier.height(14.dp))
+                                FilledTonalButton(
+                                    onClick = {
+                                        onDismiss()
+                                        vm.openOfflinePosts()
+                                    },
+                                    shapes = ButtonDefaults.shapes(),
+                                    modifier = Modifier.fillMaxWidth().height(56.dp)
+                                ) {
+                                    Icon(Icons.Rounded.VideoLibrary, contentDescription = null, modifier = Modifier.size(20.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(Strings.tr(lang, "Open offline posts", "Открыть офлайн-посты", "オフライン投稿を開く", "打开离线帖子", "오프라인 게시물 열기", "فتح المنشورات بلا إنترنت"), fontWeight = FontWeight.Bold)
+                                }
                             }
-                            AnimatedConfirmDeleteButton(
-                                onConfirmed = { vm.deleteOfflinePosts() },
-                                lang = lang,
-                                compact = true
-                            )
                         }
                     }
                 }
+            }
+        }
+    }
+}
 
-                FilledTonalButton(
-                    onClick = {
-                        onDismiss()
-                        vm.openOfflinePosts()
-                    },
-                    enabled = saved > 0,
-                    shapes = ButtonDefaults.shapes(),
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
-                ) {
-                    Icon(Icons.Rounded.VideoLibrary, contentDescription = null, modifier = Modifier.size(20.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(Strings.tr(lang, "Open offline posts", "Открыть офлайн-посты", "オフライン投稿を開く", "打开离线帖子", "오프라인 게시물 열기", "فتح المنشورات بلا إنترنت"), fontWeight = FontWeight.Bold)
+@Composable
+private fun OfflineHeroBadge(state: Int) {
+    val scheme = MaterialTheme.colorScheme
+    val polygon = when (state) {
+        1 -> MaterialShapes.SoftBurst
+        2 -> MaterialShapes.Sunny
+        else -> MaterialShapes.Cookie9Sided
+    }
+    var from by remember { mutableStateOf(polygon) }
+    var to by remember { mutableStateOf(polygon) }
+    val morphProgress = remember { androidx.compose.animation.core.Animatable(1f) }
+    LaunchedEffect(polygon) {
+        if (polygon !== to) {
+            from = to
+            to = polygon
+            morphProgress.snapTo(0f)
+            morphProgress.animateTo(1f, Motion.spatialDefault())
+        }
+    }
+    val morph = remember(from, to) { androidx.graphics.shapes.Morph(from, to) }
+    val spin = androidx.compose.animation.core.rememberInfiniteTransition(label = "heroSpin")
+    val angle by spin.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(6000, easing = androidx.compose.animation.core.LinearEasing)),
+        label = "heroAngle"
+    )
+    val container by androidx.compose.animation.animateColorAsState(
+        when (state) {
+            1 -> scheme.secondaryContainer
+            2 -> scheme.tertiaryContainer
+            else -> scheme.primaryContainer
+        },
+        Motion.effectsDefault(),
+        label = "heroContainer"
+    )
+    val content = when (state) {
+        1 -> scheme.onSecondaryContainer
+        2 -> scheme.onTertiaryContainer
+        else -> scheme.onPrimaryContainer
+    }
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(104.dp)) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { rotationZ = if (state == 1) angle else 0f }
+                .background(container, MorphShape(morph, morphProgress.value.coerceIn(0f, 1f)))
+        )
+        AnimatedContent(
+            targetState = state,
+            transitionSpec = {
+                (fadeIn(Motion.effectsDefault()) + androidx.compose.animation.scaleIn(Motion.spatialDefault(), initialScale = 0.6f)) togetherWith
+                    (fadeOut(Motion.effectsDefault()) + androidx.compose.animation.scaleOut(Motion.spatialDefault(), targetScale = 0.6f))
+            },
+            label = "heroIcon"
+        ) { s ->
+            Icon(
+                when (s) {
+                    1 -> Icons.Rounded.Downloading
+                    2 -> Icons.Rounded.OfflinePin
+                    else -> Icons.Rounded.DownloadForOffline
+                },
+                contentDescription = null,
+                tint = content,
+                modifier = Modifier.size(44.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CountTile(option: CountOption, lang: AppLanguage, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    val corner by androidx.compose.animation.core.animateDpAsState(if (selected) 32.dp else 16.dp, Motion.spatialFast(), label = "tileCorner")
+    val container by androidx.compose.animation.animateColorAsState(if (selected) scheme.primaryContainer else scheme.surfaceContainerHigh, Motion.effectsDefault(), label = "tileColor")
+    val content by androidx.compose.animation.animateColorAsState(if (selected) scheme.onPrimaryContainer else scheme.onSurface, Motion.effectsDefault(), label = "tileContent")
+    val checkScale by androidx.compose.animation.core.animateFloatAsState(if (selected) 1f else 0f, Motion.spatialFast(), label = "tileCheck")
+    Surface(
+        onClick = onClick,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(corner),
+        color = container,
+        contentColor = content,
+        modifier = modifier
+            .height(104.dp)
+            .semantics { role = Role.RadioButton }
+    ) {
+        Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+            Icon(option.icon, contentDescription = null, modifier = Modifier.size(20.dp).align(Alignment.TopStart))
+            Surface(
+                shape = CircleShape,
+                color = scheme.primary,
+                contentColor = scheme.onPrimary,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(24.dp)
+                    .graphicsLayer {
+                        scaleX = checkScale
+                        scaleY = checkScale
+                        alpha = checkScale.coerceIn(0f, 1f)
+                    }
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(16.dp))
                 }
             }
+            Column(modifier = Modifier.align(Alignment.BottomStart)) {
+                Text(option.count.toString(), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black)
+                Text(option.label(lang), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThumbStack(items: List<RemoteMedia>) {
+    val context = LocalContext.current
+    val scheme = MaterialTheme.colorScheme
+    Box(modifier = Modifier.width((40 + (items.size - 1).coerceAtLeast(0) * 18).dp).height(40.dp)) {
+        items.forEachIndexed { index, media ->
+            val url = media.preview.ifBlank { media.sample }
+            AsyncImage(
+                model = remember(url) { ImageRequest.Builder(context).data(url).crossfade(150).build() },
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .offset(x = (index * 18).dp)
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(scheme.surfaceContainerHighest)
+                    .border(2.dp, scheme.surfaceContainerHigh, CircleShape)
+            )
         }
     }
 }
@@ -216,39 +375,71 @@ private fun DownloadProgress(vm: GalleryViewModel, lang: AppLanguage) {
     val scheme = MaterialTheme.colorScheme
     val collecting = vm.offlinePhase == 0
     val target = vm.offlineTarget.coerceAtLeast(1)
-    Surface(shape = ShapeTokens.ExtraLarge, color = scheme.surfaceContainerHigh, modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        if (collecting) {
-                            Strings.tr(lang, "Finding posts…", "Подбираем посты…", "投稿を探しています…", "正在查找帖子…", "게시물 찾는 중…", "جارٍ البحث عن المنشورات…")
-                        } else {
-                            Strings.tr(lang, "Downloading…", "Скачиваем…", "ダウンロード中…", "正在下载…", "다운로드 중…", "جارٍ التنزيل…")
-                        },
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = scheme.onSurface
-                    )
-                    Text(
-                        "${vm.offlineDone} / ${vm.offlineTarget}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = scheme.onSurfaceVariant
-                    )
-                }
-                OutlinedButton(onClick = { vm.cancelOfflineDownload() }, shapes = ButtonDefaults.shapes()) {
-                    Text(Strings.tr(lang, "Stop", "Стоп", "停止", "停止", "중지", "إيقاف"))
-                }
+    val fraction by androidx.compose.animation.core.animateFloatAsState(
+        (vm.offlineDone.toFloat() / target).coerceIn(0f, 1f),
+        Motion.effectsDefault(),
+        label = "offlineProgress"
+    )
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(176.dp)) {
+            if (collecting) {
+                CircularWavyProgressIndicator(modifier = Modifier.fillMaxSize())
+            } else {
+                CircularWavyProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxSize())
             }
-            LinearWavyProgressIndicator(
-                progress = { (vm.offlineDone.toFloat() / target).coerceIn(0f, 1f) },
-                modifier = Modifier.fillMaxWidth()
-            )
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    if (collecting) "${vm.offlineDone}" else "${(fraction * 100).toInt()}%",
+                    style = MaterialTheme.typography.displaySmall,
+                    fontWeight = FontWeight.Black,
+                    color = scheme.onSurface
+                )
+                Text(
+                    if (collecting) {
+                        Strings.tr(lang, "found", "найдено", "件見つかりました", "已找到", "찾음", "تم العثور")
+                    } else {
+                        "${vm.offlineDone} / ${vm.offlineTarget}"
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                    color = scheme.onSurfaceVariant
+                )
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            if (collecting) {
+                Strings.tr(lang, "Finding posts…", "Подбираем посты…", "投稿を探しています…", "正在查找帖子…", "게시물 찾는 중…", "جارٍ البحث عن المنشورات…")
+            } else {
+                Strings.tr(lang, "Downloading…", "Скачиваем…", "ダウンロード中…", "正在下载…", "다운로드 중…", "جارٍ التنزيل…")
+            },
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = scheme.onSurface
+        )
+        if (!collecting) {
             Text(
-                Strings.tr(lang, "Keep the app open until it finishes.", "Не закрывайте приложение до конца загрузки.", "完了までアプリを開いたままにしてください。", "完成前请保持应用打开。", "완료될 때까지 앱을 열어 두세요.", "أبقِ التطبيق مفتوحاً حتى ينتهي."),
-                style = MaterialTheme.typography.bodySmall,
+                BooruCacheManager.formatBytes(vm.offlineBytes),
+                style = MaterialTheme.typography.bodyMedium,
                 color = scheme.onSurfaceVariant
             )
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            Strings.tr(lang, "Keep the app open until it finishes.", "Не закрывайте приложение до конца загрузки.", "完了までアプリを開いたままにしてください。", "完成前请保持应用打开。", "완료될 때까지 앱을 열어 두세요.", "أبقِ التطبيق مفتوحاً حتى ينتهي."),
+            style = MaterialTheme.typography.bodySmall,
+            color = scheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+        Spacer(Modifier.height(16.dp))
+        FilledTonalButton(
+            onClick = { vm.cancelOfflineDownload() },
+            shapes = ButtonDefaults.shapes(),
+            colors = ButtonDefaults.filledTonalButtonColors(containerColor = scheme.errorContainer, contentColor = scheme.onErrorContainer),
+            modifier = Modifier.fillMaxWidth().height(56.dp)
+        ) {
+            Icon(Icons.Rounded.Stop, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(Strings.tr(lang, "Stop", "Остановить", "停止", "停止", "중지", "إيقاف"), fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -275,41 +466,78 @@ fun OfflinePostsScreen(vm: GalleryViewModel, lang: AppLanguage, onClose: () -> U
     Surface(color = scheme.surface, modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp, top = 8.dp, bottom = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp, top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
                     Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = Strings.tr(lang, "Back", "Назад", "戻る", "返回", "뒤로", "رجوع"))
                 }
-                Column(modifier = Modifier.weight(1f).padding(start = 4.dp)) {
-                    Text(offlineTitle(lang), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = scheme.onSurface)
-                    Text(offlineSubtitle(lang), style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant)
+                Spacer(Modifier.weight(1f))
+                Surface(shape = CircleShape, color = scheme.secondaryContainer, contentColor = scheme.onSecondaryContainer) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                        Icon(Icons.Rounded.OfflinePin, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text(BooruCacheManager.formatBytes(OfflineStore.sizeBytes), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                    }
                 }
-                Icon(Icons.Rounded.CloudOff, contentDescription = null, tint = scheme.primary, modifier = Modifier.size(22.dp))
             }
-            val labels = listOf(
-                OfflineFilter.ALL to Strings.tr(lang, "All", "Все", "すべて", "全部", "전체", "الكل"),
-                OfflineFilter.IMAGES to Strings.tr(lang, "Images", "Картинки", "画像", "图片", "이미지", "صور"),
-                OfflineFilter.GIFS to "GIF",
-                OfflineFilter.VIDEOS to Strings.tr(lang, "Videos", "Видео", "動画", "视频", "동영상", "فيديو")
+            Text(
+                offlineTitle(lang),
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = scheme.onSurface,
+                modifier = Modifier.padding(start = 20.dp, top = 4.dp)
             )
-            ToggleGroupColors {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
-                ) {
-                    labels.forEachIndexed { index, (value, label) ->
-                        ToggleButton(
-                            checked = filter == value,
-                            onCheckedChange = { filter = value },
-                            shapes = groupPosition(index, labels.size).toggleShapes(),
-                            modifier = Modifier.weight(1f).semantics { role = Role.Tab }
+            Text(
+                Strings.tr(lang, "Works without internet", "Работает без интернета", "インターネットなしで閲覧可能", "无需网络即可浏览", "인터넷 없이 볼 수 있어요", "يعمل بلا إنترنت"),
+                style = MaterialTheme.typography.bodyMedium,
+                color = scheme.onSurfaceVariant,
+                modifier = Modifier.padding(start = 20.dp, bottom = 8.dp)
+            )
+            val counts = remember(all) {
+                mapOf(
+                    OfflineFilter.ALL to all.size,
+                    OfflineFilter.IMAGES to all.count { !it.isVideo && !it.isGif },
+                    OfflineFilter.GIFS to all.count { it.isGif },
+                    OfflineFilter.VIDEOS to all.count { it.isVideo }
+                )
+            }
+            val options = listOf(
+                Triple(OfflineFilter.ALL, Strings.tr(lang, "All", "Все", "すべて", "全部", "전체", "الكل"), Icons.Rounded.GridView),
+                Triple(OfflineFilter.IMAGES, Strings.tr(lang, "Images", "Фото", "画像", "图片", "이미지", "صور"), Icons.Rounded.Image),
+                Triple(OfflineFilter.GIFS, "GIF", Icons.Rounded.Gif),
+                Triple(OfflineFilter.VIDEOS, Strings.tr(lang, "Videos", "Видео", "動画", "视频", "동영상", "فيديو"), Icons.Rounded.PlayCircle)
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                options.forEach { (value, label, icon) ->
+                    val selected = filter == value
+                    val corner by androidx.compose.animation.core.animateDpAsState(if (selected) 16.dp else 28.dp, Motion.spatialFast(), label = "filterCorner")
+                    val container by androidx.compose.animation.animateColorAsState(if (selected) scheme.primary else scheme.surfaceContainerHigh, Motion.effectsDefault(), label = "filterColor")
+                    val content by androidx.compose.animation.animateColorAsState(if (selected) scheme.onPrimary else scheme.onSurface, Motion.effectsDefault(), label = "filterContent")
+                    Surface(
+                        onClick = { filter = value },
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(corner),
+                        color = container,
+                        contentColor = content,
+                        modifier = Modifier.weight(1f).height(72.dp).semantics { role = Role.Tab }
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.fillMaxSize()
                         ) {
-                            Text(label, maxLines = 1, style = MaterialTheme.typography.labelLarge)
+                            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.height(2.dp))
+                            Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
+                            Text("${counts[value] ?: 0}", style = MaterialTheme.typography.labelSmall, maxLines = 1)
                         }
                     }
                 }
             }
+            Spacer(Modifier.height(4.dp))
             if (items.isEmpty()) {
                 Column(
                     modifier = Modifier.fillMaxSize().padding(32.dp),

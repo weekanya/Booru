@@ -12,7 +12,11 @@ import com.booru.app.RemoteMedia
 import com.booru.app.data.network.NetworkClient
 import com.booru.app.data.network.await
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
@@ -29,24 +33,27 @@ import java.io.IOException
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 object OfflineStore {
     private const val TAG = "OfflineStore"
     private const val DIR_NAME = "offline_media"
     private const val INDEX_NAME = "offline_index.json"
     private const val MAX_FILE_BYTES = 80L * 1024 * 1024
-    private const val PARALLELISM = 3
+    private const val PARALLELISM = 4
 
     private val client by lazy {
         NetworkClient.baseClient.newBuilder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
-            .callTimeout(3, TimeUnit.MINUTES)
+            .callTimeout(5, TimeUnit.MINUTES)
             .build()
     }
     private val urlToFile = ConcurrentHashMap<String, String>()
     private val entryFiles = ConcurrentHashMap<String, Map<String, String>>()
     private val indexMutex = Mutex()
+    private val activeCalls = ConcurrentHashMap.newKeySet<okhttp3.Call>()
     @Volatile private var dir: File? = null
     @Volatile private var indexFile: File? = null
 
@@ -101,40 +108,72 @@ object OfflineStore {
         }
     }
 
-    suspend fun download(items: List<RemoteMedia>, onProgress: suspend (done: Int, saved: Int) -> Unit) = coroutineScope {
-        clear()
+    fun cancelActive() {
+        activeCalls.forEach { runCatching { it.cancel() } }
+    }
+
+    suspend fun download(
+        items: List<RemoteMedia>,
+        onProgress: suspend (done: Int, bytes: Long) -> Unit
+    ) = coroutineScope {
+        val folder = dir ?: return@coroutineScope
+        val previous = posts
+        val completedKeys = ConcurrentHashMap.newKeySet<String>()
+        val bytes = AtomicLong(0L)
+        val doneCount = AtomicInteger(0)
         val permits = Semaphore(PARALLELISM)
-        var done = 0
-        var saved = 0
-        val progressLock = Mutex()
-        items.map { media ->
-            async(Dispatchers.IO) {
-                val ok = permits.withPermit { savePost(media) }
-                progressLock.withLock {
-                    done++
-                    if (ok) saved++
-                    if (ok) {
-                        withContext(Dispatchers.Main) { posts = posts + media }
-                        if (saved % 10 == 0) persist()
-                    }
-                    onProgress(done, saved)
-                }
+        val ticker = launch {
+            while (isActive) {
+                onProgress(doneCount.get(), bytes.get())
+                delay(250)
             }
-        }.awaitAll()
+        }
+        try {
+            items.map { media ->
+                async(Dispatchers.IO) {
+                    val reused = entryFiles[media.mediaKey]?.values?.all { File(folder, it).let { f -> f.exists() && f.length() > 0 } } == true
+                    val ok = reused || permits.withPermit { savePost(media, bytes) }
+                    if (ok) completedKeys.add(media.mediaKey)
+                    doneCount.incrementAndGet()
+                }
+            }.awaitAll()
+        } finally {
+            ticker.cancel()
+            withContext(NonCancellable) {
+                val finished = items.filter { it.mediaKey in completedKeys }
+                val cancelled = doneCount.get() < items.size
+                val keep = if (cancelled) previous.filter { it.mediaKey !in completedKeys } else emptyList()
+                val result = finished + keep
+                commit(result)
+                onProgress(doneCount.get(), bytes.get())
+            }
+        }
+    }
+
+    private suspend fun commit(result: List<RemoteMedia>) {
+        val keys = result.mapTo(HashSet()) { it.mediaKey }
+        entryFiles.keys.retainAll(keys)
+        urlToFile.clear()
+        entryFiles.values.forEach { files -> files.forEach { (url, name) -> urlToFile[url] = name } }
+        withContext(Dispatchers.Main) { posts = result }
         persist()
+        withContext(Dispatchers.IO) {
+            val referenced = urlToFile.values.toHashSet()
+            dir?.listFiles()?.forEach { file -> if (file.name !in referenced) file.delete() }
+        }
         refreshSize()
     }
 
-    private suspend fun savePost(media: RemoteMedia): Boolean {
+    private suspend fun savePost(media: RemoteMedia, bytes: AtomicLong): Boolean {
         val folder = dir ?: return false
         val animated = media.isVideo || media.isGif
         val mainUrl = if (animated) media.url else media.sample.ifBlank { media.url }
         if (mainUrl.isBlank()) return false
-        val mainName = fetch(mainUrl, folder) ?: return false
+        val mainName = fetch(mainUrl, folder, bytes) ?: return false
         val files = HashMap<String, String>()
         files[mainUrl] = mainName
         if (media.url.isNotBlank()) files.putIfAbsent(media.url, mainName)
-        val previewName = media.preview.takeIf { it.isNotBlank() && it != mainUrl }?.let { fetch(it, folder) }
+        val previewName = media.preview.takeIf { it.isNotBlank() && it != mainUrl }?.let { fetch(it, folder, bytes) }
         if (previewName != null) files[media.preview] = previewName
         if (media.sample.isNotBlank() && media.sample !in files) {
             val sampleExt = media.sample.substringBefore('?').substringAfterLast('.').lowercase()
@@ -147,7 +186,7 @@ object OfflineStore {
         return true
     }
 
-    private suspend fun fetch(url: String, folder: File): String? {
+    private suspend fun fetch(url: String, folder: File, bytes: AtomicLong): String? {
         val name = hash(url) + "." + url.substringBefore('?').substringAfterLast('.', "jpg").take(5).lowercase()
         val target = File(folder, name)
         if (target.exists() && target.length() > 0) return name
@@ -158,7 +197,10 @@ object OfflineStore {
                 .header("User-Agent", BooruRepository.USER_AGENT)
                 .header("Referer", BooruVideoCache.refererFor(url))
                 .build()
-            client.newCall(request).await().use { response ->
+            val call = client.newCall(request)
+            activeCalls.add(call)
+            try {
+            call.await().use { response ->
                 if (!response.isSuccessful) return null
                 val body = response.body ?: return null
                 if (body.contentLength() > MAX_FILE_BYTES) return null
@@ -172,10 +214,14 @@ object OfflineStore {
                             total += read
                             if (total > MAX_FILE_BYTES) throw IOException("File too large")
                             out.write(buffer, 0, read)
+                            bytes.addAndGet(read.toLong())
                             kotlin.coroutines.coroutineContext.ensureActive()
                         }
                     }
                 }
+            }
+            } finally {
+                activeCalls.remove(call)
             }
             if (temp.length() > 0 && temp.renameTo(target)) name else null
         } catch (c: kotlinx.coroutines.CancellationException) {

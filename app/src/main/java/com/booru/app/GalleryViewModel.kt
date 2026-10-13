@@ -10,6 +10,7 @@ import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.FileProvider
@@ -1759,6 +1760,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var offlineDone by mutableIntStateOf(0); private set
     var offlineTarget by mutableIntStateOf(0); private set
     var offlinePhase by mutableIntStateOf(0); private set
+    var offlineBytes by mutableLongStateOf(0L); private set
     var offlineError by mutableStateOf<String?>(null); private set
     var showOfflinePosts by mutableStateOf(false); private set
     private var offlineJob: Job? = null
@@ -1775,18 +1777,32 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         if (offlineDownloading) return
         offlineError = null
         offlineDone = 0
+        offlineBytes = 0L
         offlineTarget = count
         offlinePhase = 0
         offlineDownloading = true
         val params = snapshotParams(source, query, safeMode)
+        val previousJob = offlineJob
         offlineJob = viewModelScope.launch {
+            val ownJob = coroutineContext[Job]
             try {
+                previousJob?.cancelAndJoin()
                 val collected = LinkedHashMap<String, RemoteMedia>()
                 var page = 0
                 var hasMoreFeed = true
                 var emptyStreak = 0
-                while (collected.size < count && hasMoreFeed && page < OFFLINE_MAX_PAGES) {
-                    val batch = params.fetchFeed(page, collected.keys.toSet(), null)
+                var failures = 0
+                val deadline = System.currentTimeMillis() + OFFLINE_COLLECT_MS
+                while (collected.size < count && hasMoreFeed && page < OFFLINE_MAX_PAGES && System.currentTimeMillis() < deadline) {
+                    val batch = try {
+                        params.fetchFeed(page, collected.keys.toSet(), null)
+                    } catch (c: CancellationException) {
+                        throw c
+                    } catch (e: Exception) {
+                        if (++failures >= 3 || collected.isEmpty()) throw e
+                        page++
+                        continue
+                    }
                     val fresh = batch.items.filter { item ->
                         item.mediaKey !in notInterestedKeys &&
                             !(params.noAi && com.booru.app.data.AiImageScanner.cachedVerdict(item) == true)
@@ -1806,29 +1822,43 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 offlineTarget = chosen.size
                 offlineDone = 0
                 offlinePhase = 1
-                com.booru.app.data.OfflineStore.download(chosen) { done, _ ->
-                    withContext(Dispatchers.Main) { offlineDone = done }
+                com.booru.app.data.OfflineStore.download(chosen) { done, bytes ->
+                    withContext(Dispatchers.Main) {
+                        if (offlineJob === ownJob) {
+                            offlineDone = done
+                            offlineBytes = bytes
+                        }
+                    }
                 }
             } catch (c: CancellationException) {
                 throw c
             } catch (e: Exception) {
-                offlineError = e.message ?: "Download failed"
+                if (offlineJob === ownJob) offlineError = e.message ?: "Download failed"
             } finally {
                 withContext(kotlinx.coroutines.NonCancellable + Dispatchers.Main) {
-                    offlineDownloading = false
-                    offlinePhase = 0
+                    if (offlineJob === ownJob) {
+                        offlineDownloading = false
+                        offlinePhase = 0
+                    }
                 }
             }
         }
     }
 
     fun cancelOfflineDownload() {
+        com.booru.app.data.OfflineStore.cancelActive()
         offlineJob?.cancel()
+        offlineDownloading = false
+        offlinePhase = 0
     }
 
     fun deleteOfflinePosts() {
-        offlineJob?.cancel()
-        viewModelScope.launch { com.booru.app.data.OfflineStore.clear() }
+        val job = offlineJob
+        cancelOfflineDownload()
+        viewModelScope.launch {
+            job?.join()
+            com.booru.app.data.OfflineStore.clear()
+        }
     }
 
     fun recordViewed(media: RemoteMedia) {
@@ -2000,6 +2030,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         private const val TAG = "GalleryViewModel"
         private const val SEARCH_DEDUPE_MS = 10 * 60 * 1000L
         private const val OFFLINE_MAX_PAGES = 80
+        private const val OFFLINE_COLLECT_MS = 90_000L
         private const val HISTORY_RETENTION_MS = 400L * 24 * 60 * 60 * 1000
         private const val HISTORY_MAX_ENTRIES = 100_000
         private const val SUGGESTION_DEBOUNCE_MS = 220L
