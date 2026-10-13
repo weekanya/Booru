@@ -62,6 +62,7 @@ object TagClassifier {
         "md5_mismatch", "duplicate", "watermark", "sample", "poor_quality"
     )
 
+    private val RES_META_REGEX = Regex("^(low|high|absurd|superabsurd|incredibly_absurd|huge|ultra)res$")
     private val COUNT_PERSON_REGEX = Regex("""^(\d+\+?|multiple|no)[\s_]*(girls?|boys?|females?|males?|others?)$""")
 
     private val COMMON_GENERAL_DESCRIPTORS = setOf(
@@ -79,7 +80,7 @@ object TagClassifier {
         if (lower.length <= 1 || lower.contains(":") || lower.startsWith("-")) return false
         if (COUNT_PERSON_REGEX.matches(lower)) return false
         if (lower in COMMON_GENERAL_DESCRIPTORS) return false
-        if (lower.endsWith("res") || lower.contains("resolution") || lower.contains("filesize")) return false
+        if (RES_META_REGEX.matches(lower) || lower.contains("resolution") || lower.contains("filesize")) return false
         if (lower.endsWith("_request") || lower.contains("commentary") || lower.contains("translated")) return false
         if (lower in KNOWN_META_TAGS) return false
         return true
@@ -101,7 +102,7 @@ object TagClassifier {
             lower.startsWith("copyright:") || lower.startsWith("series:") || lower.startsWith("copy:") || lower.endsWith("_(series)") || lower.endsWith("_(franchise)") || lower.endsWith("_(game)") || lower.endsWith("_(anime)") -> TagCategory.COPYRIGHT
             lower.startsWith("meta:") || lower.startsWith("metadata:") || lower in KNOWN_META_TAGS -> TagCategory.META
             lower.endsWith("_request") || lower.contains("commentary") || lower.contains("translated") -> TagCategory.META
-            lower.endsWith("res") || lower.contains("filesize") -> TagCategory.META
+            RES_META_REGEX.matches(lower) || lower.contains("filesize") -> TagCategory.META
             lower.contains("_(") && lower.endsWith(")") -> TagCategory.CHARACTER
             else -> TagCategory.GENERAL
         }

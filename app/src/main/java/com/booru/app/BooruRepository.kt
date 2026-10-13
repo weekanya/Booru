@@ -83,6 +83,7 @@ class BooruRepository(
     private val client: OkHttpClient = NetworkClient.baseClient.newBuilder()
         .connectTimeout(5, TimeUnit.SECONDS)
         .readTimeout(6, TimeUnit.SECONDS)
+        .callTimeout(9, TimeUnit.SECONDS)
         .followRedirects(true)
         .addNetworkInterceptor { chain ->
             val request = chain.request()
@@ -529,6 +530,7 @@ class BooruRepository(
         val parts = mutableListOf<String>()
 
         val cleaned = normalizeUserTags(userTags)
+        val cleanedTokens = cleaned.split(' ').filter { it.isNotBlank() }.toSet()
         if (cleaned.isNotBlank()) {
             parts.add(cleaned)
         }
@@ -541,14 +543,14 @@ class BooruRepository(
             val wantsGifs = contentTypes.contains(ContentType.GIFS)
 
             if (wantsGifs && !wantsVideos && !wantsPhotos) {
-                if (!cleaned.contains("animated")) {
+                if ("animated" !in cleanedTokens) {
                     when (key) {
                         "rule34", "gelbooru", "safebooru", "tbib", "realbooru" -> parts.add("animated")
                         else -> if (custom != null) parts.add("animated")
                     }
                 }
             } else if (wantsVideos && !wantsGifs && !wantsPhotos) {
-                if (!cleaned.contains("video")) {
+                if ("video" !in cleanedTokens) {
                     when (key) {
                         "rule34", "gelbooru", "realbooru" -> parts.add("video")
                         else -> {
@@ -564,21 +566,21 @@ class BooruRepository(
             } else if (wantsPhotos && !wantsVideos && !wantsGifs) {
                 when (key) {
                     "rule34", "gelbooru", "tbib", "realbooru" -> {
-                        if (!cleaned.contains("-video")) parts.add("-video")
-                        if (!cleaned.contains("-animated")) parts.add("-animated")
+                        if ("-video" !in cleanedTokens) parts.add("-video")
+                        if ("-animated" !in cleanedTokens) parts.add("-animated")
                     }
                     "safebooru" -> {
-                        if (!cleaned.contains("-animated")) parts.add("-animated")
+                        if ("-animated" !in cleanedTokens) parts.add("-animated")
                     }
                     else -> {
                         if (custom != null) {
-                            if (!cleaned.contains("-video")) parts.add("-video")
-                            if (!cleaned.contains("-animated")) parts.add("-animated")
+                            if ("-video" !in cleanedTokens) parts.add("-video")
+                            if ("-animated" !in cleanedTokens) parts.add("-animated")
                         }
                     }
                 }
             } else if (wantsVideos && wantsGifs && !wantsPhotos) {
-                if (!cleaned.contains("animated")) {
+                if ("animated" !in cleanedTokens) {
                     when (key) {
                         "rule34", "gelbooru", "safebooru", "tbib", "realbooru" -> parts.add("animated")
                         else -> if (custom != null) parts.add("animated")
@@ -635,7 +637,7 @@ class BooruRepository(
 
         if (noAi && !isStrictTagLimit) {
             for (queryTag in com.booru.app.data.AiFilter.EXCLUDE_QUERY_TAGS) {
-                if (!cleaned.contains(queryTag)) {
+                if (queryTag !in cleanedTokens) {
                     parts.add(queryTag)
                 }
             }
@@ -853,6 +855,9 @@ class BooruRepository(
                     if (code == 429) {
                         val retryAfter = parseRetryAfter(response.header("Retry-After"))
                         throw BooruHttpException(sourceKey = custom.id, statusCode = code, retryAfterSec = retryAfter, message = "Rate limited by ${custom.name}")
+                    }
+                    if (code == 401 || code == 403) {
+                        throw BooruAuthException(custom.id, code, "Access denied by ${custom.name} ($code)")
                     }
                     throw BooruHttpException(sourceKey = custom.id, statusCode = code, message = "HTTP $code from ${custom.name}")
                 }

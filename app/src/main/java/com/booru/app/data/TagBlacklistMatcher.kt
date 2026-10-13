@@ -49,10 +49,9 @@ object TagBlacklistMatcher {
                 }
             } else {
                 if (hasColon) {
-                    val rawCleanPrefix = clean.substringBefore(":")
                     val rawCleanSuffix = clean.substringAfter(":")
                     mediaTags.any { tag ->
-                        matchesTag(clean, tag) || (tag.contains(":") && matchesTag(rawCleanSuffix, tag.substringAfter(":")))
+                        matchesTag(clean, tag) || matchesTag(rawCleanSuffix, tag.substringAfter(":"))
                     }
                 } else {
                     mediaTags.any { tag -> matchesTag(clean, tag) } ||

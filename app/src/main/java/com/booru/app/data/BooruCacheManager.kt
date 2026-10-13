@@ -1,5 +1,7 @@
 package com.booru.app.data
 
+import kotlinx.coroutines.ensureActive
+import com.booru.app.data.network.await
 import android.content.Context
 import android.util.Log
 import com.booru.app.RemoteMedia
@@ -62,6 +64,7 @@ object BooruCacheManager {
         }.filter { it.isNotBlank() }.distinct()
 
         for (url in urlsToCache) {
+            coroutineContext.ensureActive()
             val hash = urlToHash(url)
             val ext = url.substringAfterLast(".").substringBefore("?").ifBlank { "jpg" }
             val targetFile = File(getFavoritesMediaDir(context), "$hash.$ext")
@@ -86,7 +89,7 @@ object BooruCacheManager {
                     .header("Referer", referer)
                     .build()
 
-                httpClient.newCall(req).execute().use { resp ->
+                httpClient.newCall(req).await().use { resp ->
                     if (resp.isSuccessful && resp.body != null) {
                         val body = resp.body!!
                         val contentLength = body.contentLength()
@@ -99,6 +102,7 @@ object BooruCacheManager {
                             var bytesRead: Int
                             var totalBytes = 0L
                             while (input.read(buffer).also { bytesRead = it } != -1) {
+                                coroutineContext.ensureActive()
                                 totalBytes += bytesRead
                                 if (totalBytes > MAX_MEDIA_CACHE_BYTES) {
                                     throw IOException("Media exceeds max download size limit")
@@ -106,6 +110,7 @@ object BooruCacheManager {
                                 out.write(buffer, 0, bytesRead)
                             }
                         }
+                        coroutineContext.ensureActive()
                         if (tempFile.exists() && tempFile.length() > 0) {
                             tempFile.renameTo(targetFile)
                         }

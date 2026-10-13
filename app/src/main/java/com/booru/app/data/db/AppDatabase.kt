@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-@Database(entities = [FavoriteEntity::class], version = 2, exportSchema = false)
+@Database(entities = [FavoriteEntity::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun favoriteDao(): FavoriteDao
@@ -51,6 +51,12 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("UPDATE OR REPLACE favorites SET mediaKey = 'yande_' || substr(mediaKey, 10) WHERE substr(mediaKey, 1, 9) = 'yande.re_'")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -58,7 +64,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "booru_database"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                 INSTANCE = instance
                 instance

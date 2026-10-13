@@ -225,6 +225,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             biometricLockEnabled = prefs.biometricLockEnabled.first()
             biometricLockTimeoutMin = prefs.biometricLockTimeoutMin.first()
             favoriteFolders = prefs.favoriteFolders.first()
+            val legacyYandeFolders = favoriteFolders.filterKeys { it.startsWith("yande.re_") }
+            if (legacyYandeFolders.isNotEmpty()) {
+                for ((legacyKey, folder) in legacyYandeFolders) {
+                    prefs.setMediaFolder(legacyKey, null)
+                    prefs.setMediaFolder("yande_" + legacyKey.removePrefix("yande.re_"), folder)
+                }
+                favoriteFolders = prefs.favoriteFolders.first()
+            }
             customFolders = prefs.customFolders.first()
             gridColumnsCount = prefs.gridColumnsCount.first()
             imageQuality = prefs.imageQuality.first()
