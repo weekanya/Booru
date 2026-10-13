@@ -1855,10 +1855,13 @@ fun BooruVideoPlayer(
     }
 
     val exoPlayer = remember(videoUrl) {
-        val cacheDataSourceFactory = com.booru.app.BooruVideoCache.playerDataSourceFactory(context, videoUrl)
-
-        val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(context)
-            .setDataSourceFactory(cacheDataSourceFactory)
+        val offlineFile = com.booru.app.data.OfflineStore.fileForUrl(videoUrl)
+        val mediaSourceFactory = if (offlineFile != null) {
+            androidx.media3.exoplayer.source.DefaultMediaSourceFactory(context)
+        } else {
+            androidx.media3.exoplayer.source.DefaultMediaSourceFactory(context)
+                .setDataSourceFactory(com.booru.app.BooruVideoCache.playerDataSourceFactory(context, videoUrl))
+        }
 
         val loadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
             .setBufferDurationsMs(
@@ -1874,7 +1877,7 @@ fun BooruVideoPlayer(
             .setMediaSourceFactory(mediaSourceFactory)
             .setLoadControl(loadControl)
             .build().apply {
-                val mediaItem = MediaItem.fromUri(videoUrl)
+                val mediaItem = if (offlineFile != null) MediaItem.fromUri(android.net.Uri.fromFile(offlineFile)) else MediaItem.fromUri(videoUrl)
                 setMediaItem(mediaItem)
                 repeatMode = Player.REPEAT_MODE_ALL
                 playWhenReady = activeState.value
@@ -1907,7 +1910,7 @@ fun BooruVideoPlayer(
     }
 
     LaunchedEffect(exoPlayer, isActive) {
-        if (isActive && allowPrefetch) com.booru.app.BooruVideoCache.prefetchParallel(context, videoUrl)
+        if (isActive && allowPrefetch && com.booru.app.data.OfflineStore.fileForUrl(videoUrl) == null) com.booru.app.BooruVideoCache.prefetchParallel(context, videoUrl)
     }
 
     LaunchedEffect(playbackSpeed, exoPlayer) {

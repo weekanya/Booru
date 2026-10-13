@@ -473,6 +473,21 @@ fun ExploreScreen(
                                 }
                                 Spacer(Modifier.width(8.dp))
                             } else {
+                                if (vm.isNetworkError && com.booru.app.data.OfflineStore.posts.isNotEmpty()) {
+                                    Button(
+                                        onClick = { vm.openOfflinePosts() },
+                                        shape = CircleShape,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.error,
+                                            contentColor = MaterialTheme.colorScheme.onError
+                                        )
+                                    ) {
+                                        Icon(Icons.Rounded.DownloadForOffline, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(offlineTitle(lang))
+                                    }
+                                    Spacer(Modifier.width(8.dp))
+                                }
                                 TextButton(onClick = { vm.search(vm.source, vm.query, vm.safeMode) }) {
                                     Text(Strings.retryBtn(lang), color = MaterialTheme.colorScheme.onErrorContainer)
                                 }

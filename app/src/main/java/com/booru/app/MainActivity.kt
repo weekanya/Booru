@@ -91,6 +91,7 @@ import com.booru.app.ui.ExploreScreen
 import com.booru.app.ui.FavoritesScreen
 import com.booru.app.ui.FullscreenMediaViewer
 import com.booru.app.ui.Motion
+import com.booru.app.ui.OfflinePostsScreen
 import com.booru.app.ui.SettingsScreen
 import com.booru.app.ui.SheetMotion
 import com.booru.app.ui.rememberExpandedSheetState
@@ -629,6 +630,13 @@ fun BooruApp(
 
                     Box(modifier = Modifier.fillMaxSize()) {
                         mainContent()
+                        AnimatedVisibility(
+                            visible = vm.showOfflinePosts,
+                            enter = fadeIn(Motion.effectsDefault()) + androidx.compose.animation.slideInVertically(Motion.spatialDefault()) { it / 6 },
+                            exit = fadeOut(Motion.effectsDefault()) + androidx.compose.animation.slideOutVertically(Motion.spatialDefault()) { it / 6 }
+                        ) {
+                            OfflinePostsScreen(vm = vm, lang = lang, onClose = { vm.closeOfflinePosts() })
+                        }
                         if (state != null) {
                             key(state.openId) {
                                 FullscreenMediaViewer(

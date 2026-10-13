@@ -1755,6 +1755,82 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    var offlineDownloading by mutableStateOf(false); private set
+    var offlineDone by mutableIntStateOf(0); private set
+    var offlineTarget by mutableIntStateOf(0); private set
+    var offlinePhase by mutableIntStateOf(0); private set
+    var offlineError by mutableStateOf<String?>(null); private set
+    var showOfflinePosts by mutableStateOf(false); private set
+    private var offlineJob: Job? = null
+
+    fun openOfflinePosts() {
+        showOfflinePosts = true
+    }
+
+    fun closeOfflinePosts() {
+        showOfflinePosts = false
+    }
+
+    fun startOfflineDownload(count: Int) {
+        if (offlineDownloading) return
+        offlineError = null
+        offlineDone = 0
+        offlineTarget = count
+        offlinePhase = 0
+        offlineDownloading = true
+        val params = snapshotParams(source, query, safeMode)
+        offlineJob = viewModelScope.launch {
+            try {
+                val collected = LinkedHashMap<String, RemoteMedia>()
+                var page = 0
+                var hasMoreFeed = true
+                var emptyStreak = 0
+                while (collected.size < count && hasMoreFeed && page < OFFLINE_MAX_PAGES) {
+                    val batch = params.fetchFeed(page, collected.keys.toSet(), null)
+                    val fresh = batch.items.filter { item ->
+                        item.mediaKey !in notInterestedKeys &&
+                            !(params.noAi && com.booru.app.data.AiImageScanner.cachedVerdict(item) == true)
+                    }
+                    fresh.forEach { collected.putIfAbsent(it.mediaKey, it) }
+                    offlineDone = collected.size.coerceAtMost(count)
+                    emptyStreak = if (fresh.isEmpty()) emptyStreak + 1 else 0
+                    if (emptyStreak >= 3) break
+                    hasMoreFeed = batch.hasMore
+                    page = batch.lastPage + 1
+                }
+                val chosen = collected.values.take(count)
+                if (chosen.isEmpty()) {
+                    offlineError = com.booru.app.data.Strings.tr(language, "Nothing matched your filters", "Под ваши фильтры ничего не нашлось", "フィルターに合う投稿がありません", "没有符合筛选的帖子", "필터에 맞는 게시물이 없습니다", "لا شيء يطابق عوامل التصفية")
+                    return@launch
+                }
+                offlineTarget = chosen.size
+                offlineDone = 0
+                offlinePhase = 1
+                com.booru.app.data.OfflineStore.download(chosen) { done, _ ->
+                    withContext(Dispatchers.Main) { offlineDone = done }
+                }
+            } catch (c: CancellationException) {
+                throw c
+            } catch (e: Exception) {
+                offlineError = e.message ?: "Download failed"
+            } finally {
+                withContext(kotlinx.coroutines.NonCancellable + Dispatchers.Main) {
+                    offlineDownloading = false
+                    offlinePhase = 0
+                }
+            }
+        }
+    }
+
+    fun cancelOfflineDownload() {
+        offlineJob?.cancel()
+    }
+
+    fun deleteOfflinePosts() {
+        offlineJob?.cancel()
+        viewModelScope.launch { com.booru.app.data.OfflineStore.clear() }
+    }
+
     fun recordViewed(media: RemoteMedia) {
         if (isIncognito || !viewedForHistory.add(media.mediaKey)) return
         recordHistory(com.booru.app.data.db.HistoryEntity.fromMedia(com.booru.app.data.db.HistoryEntity.KIND_VIEW, media))
@@ -1923,6 +1999,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     companion object {
         private const val TAG = "GalleryViewModel"
         private const val SEARCH_DEDUPE_MS = 10 * 60 * 1000L
+        private const val OFFLINE_MAX_PAGES = 80
         private const val HISTORY_RETENTION_MS = 400L * 24 * 60 * 60 * 1000
         private const val HISTORY_MAX_ENTRIES = 100_000
         private const val SUGGESTION_DEBOUNCE_MS = 220L

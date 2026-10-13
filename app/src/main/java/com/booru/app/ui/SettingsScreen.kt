@@ -134,6 +134,7 @@ fun SettingsScreen(
     var newBlacklistTag by remember { mutableStateOf("") }
     var showLanguageBottomSheet by remember { mutableStateOf(false) }
     var showStatsScreen by remember { mutableStateOf(false) }
+    var showOfflineSheet by remember { mutableStateOf(false) }
     var showFeedSourcesSheet by remember { mutableStateOf(false) }
     var blacklistFilterQuery by remember { mutableStateOf("") }
     var editingCustomSource by remember { mutableStateOf<CustomBooruSource?>(null) }
@@ -940,6 +941,10 @@ fun SettingsScreen(
         }
     }
 
+    if (showOfflineSheet) {
+        OfflineSheet(vm = vm, lang = lang, onDismiss = { showOfflineSheet = false })
+    }
+
     if (showStatsScreen) {
         FavoriteStatsScreen(
             lang = lang,
@@ -1292,6 +1297,17 @@ fun SettingsScreen(
                                 },
                                 icon = Icons.Rounded.HighQuality,
                                 onClick = { showQualityDialog = true }
+                            )
+
+                            SettingsDivider()
+
+                            SettingRowItem(
+                                title = offlineTitle(lang),
+                                subtitle = if (vm.offlineDownloading) {
+                                    Strings.tr(lang, "Downloading ${vm.offlineDone} / ${vm.offlineTarget}", "Скачивается ${vm.offlineDone} / ${vm.offlineTarget}", "ダウンロード中 ${vm.offlineDone} / ${vm.offlineTarget}", "下载中 ${vm.offlineDone} / ${vm.offlineTarget}", "다운로드 중 ${vm.offlineDone} / ${vm.offlineTarget}", "جارٍ التنزيل ${vm.offlineDone} / ${vm.offlineTarget}")
+                                } else offlineSubtitle(lang),
+                                icon = Icons.Rounded.DownloadForOffline,
+                                onClick = { showOfflineSheet = true }
                             )
 
                             SettingsDivider()

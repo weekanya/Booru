@@ -34,6 +34,8 @@ class BooruApplication : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
         com.booru.app.data.TagCategoryCache.init(this)
+        com.booru.app.data.OfflineStore.init(this)
+        CoroutineScope(Dispatchers.IO).launch { com.booru.app.data.OfflineStore.load() }
         CoroutineScope(Dispatchers.IO).launch { com.booru.app.data.TagCategoryCache.ensureLoaded() }
         val trash = BooruCacheManager.moveBrowsingCacheToTrash(this)
         CoroutineScope(Dispatchers.IO).launch {
@@ -50,6 +52,7 @@ class BooruApplication : Application(), SingletonImageLoader.Factory {
                 val url = originalRequest.url.toString()
 
                 val favFile = BooruCacheManager.getFavoriteFileForUrl(this, url)
+                    ?: com.booru.app.data.OfflineStore.fileForUrl(url)
                 if (favFile != null && favFile.exists() && favFile.length() > 0) {
                     val mediaType = (favFile.name.substringAfterLast(".").let { ext ->
                         when (ext.lowercase()) {
@@ -57,6 +60,7 @@ class BooruApplication : Application(), SingletonImageLoader.Factory {
                             "gif" -> "image/gif"
                             "webp" -> "image/webp"
                             "mp4" -> "video/mp4"
+                            "webm" -> "video/webm"
                             else -> "image/jpeg"
                         }
                     }).toMediaType()

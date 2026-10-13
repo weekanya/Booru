@@ -124,6 +124,16 @@
 </details>
 
 <details>
+<summary><b>Offline posts</b></summary>
+<br>
+
+- Download 100 to 500 posts from your current feed, search and filters, including GIFs and videos.
+- Watch them later without internet, with filters for images, GIFs and videos.
+- Find it in **Settings → Content → Offline posts**, or open it from the error card when there is no connection.
+
+</details>
+
+<details>
 <summary><b>Data and quality</b></summary>
 <br>
 
