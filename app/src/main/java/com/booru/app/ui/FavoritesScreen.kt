@@ -715,6 +715,7 @@ fun FavoritesScreen(
                             quality = vm.effectiveImageQuality,
                             folder = mediaFolder,
                             lang = lang,
+                            modifier = Modifier.edgeReveal(pageGridState, media.mediaKey),
                             onRemove = {
                                 vm.toggleFavorite(media)
                                 scope.launch {
@@ -1448,7 +1449,8 @@ private fun FavoriteCard(
     folder: String?,
     lang: AppLanguage,
     onRemove: () -> Unit,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var showHeartBurst by remember { mutableStateOf(false) }
@@ -1486,7 +1488,7 @@ private fun FavoriteCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest
         ),
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .graphicsLayer {
                 scaleX = animatedScale

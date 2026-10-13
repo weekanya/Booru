@@ -668,11 +668,13 @@ fun ExploreScreen(
                                 quality = vm.effectiveImageQuality,
                                 onFavoriteClick = { vm.toggleFavorite(media) },
                                 onClick = { vm.openFullscreen(vm.results, index) },
-                                modifier = Modifier.animateItem(
-                                    fadeInSpec = Motion.effectsDefault(),
-                                    placementSpec = null,
-                                    fadeOutSpec = null
-                                )
+                                modifier = Modifier
+                                    .animateItem(
+                                        fadeInSpec = Motion.effectsDefault(),
+                                        placementSpec = null,
+                                        fadeOutSpec = null
+                                    )
+                                    .edgeReveal(gridState, media.mediaKey)
                             )
                         }
 
