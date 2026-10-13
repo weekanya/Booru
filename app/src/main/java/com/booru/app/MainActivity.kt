@@ -220,7 +220,7 @@ class MainActivity : ComponentActivity() {
             )
         } catch (e: Exception) {
             activeSignal = null
-            unlock()
+            vm.postMessage(Strings.biometricUnavailable(vm.language))
         }
     }
 }

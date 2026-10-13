@@ -93,7 +93,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var excludeSafe by mutableStateOf(false); private set
     var noAi by mutableStateOf(false); private set
     var dataSaverOnMobile by mutableStateOf(false); private set
-    var isMeteredNetwork by mutableStateOf(false); private set
+    var isMeteredNetwork by mutableStateOf(
+        runCatching { application.getSystemService(android.net.ConnectivityManager::class.java)?.isActiveNetworkMetered == true }.getOrDefault(false)
+    ); private set
 
     val isDataSaverActive: Boolean get() = dataSaverOnMobile && isMeteredNetwork
 
@@ -1353,6 +1355,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun setBiometricLock(enabled: Boolean, timeoutMin: Int = biometricLockTimeoutMin) {
         biometricLockEnabled = enabled
         biometricLockTimeoutMin = timeoutMin
+        if (enabled) markSessionUnlocked(android.os.SystemClock.elapsedRealtime())
         viewModelScope.launch {
             prefs.setBiometricLockEnabled(enabled)
             prefs.setBiometricLockTimeoutMin(timeoutMin)
