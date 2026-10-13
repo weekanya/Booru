@@ -266,6 +266,12 @@ private fun OfflineHeroBadge(state: Int) {
         animationSpec = androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(6000, easing = androidx.compose.animation.core.LinearEasing)),
         label = "heroAngle"
     )
+    val slowAngle by spin.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(16000, easing = androidx.compose.animation.core.LinearEasing)),
+        label = "heroSlowAngle"
+    )
     val container by androidx.compose.animation.animateColorAsState(
         when (state) {
             1 -> scheme.secondaryContainer
@@ -284,7 +290,7 @@ private fun OfflineHeroBadge(state: Int) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer { rotationZ = if (state == 1) angle else 0f }
+                .graphicsLayer { rotationZ = if (state == 1) angle else slowAngle }
                 .background(container, MorphShape(morph, morphProgress.value.coerceIn(0f, 1f)))
         )
         AnimatedContent(

@@ -917,25 +917,17 @@ private fun FavoritesFilterBottomSheet(
                     title = Strings.tr(lang, "Sort & Filters", "Сортировка и фильтры", "並べ替えとフィルター", "排序与筛选", "정렬 및 필터", "الترتيب والفلاتر"),
                     polygon = MaterialShapes.Cookie6Sided,
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    action = {
+                        SheetResetButton(
+                            enabled = draftSort != FavoriteSortOrder.NEWEST || draftType != FavoriteMediaTypeFilter.ALL,
+                            contentDescription = Strings.resetFilters(lang)
+                        ) {
+                            draftSort = FavoriteSortOrder.NEWEST
+                            draftType = FavoriteMediaTypeFilter.ALL
+                        }
+                    }
                 )
-                TextButton(
-                    onClick = {
-                        draftSort = FavoriteSortOrder.NEWEST
-                        draftType = FavoriteMediaTypeFilter.ALL
-                    },
-                    shapes = ButtonDefaults.shapes(shape = CircleShape, pressedShape = ButtonDefaults.pressedShape),
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(bottom = 8.dp)
-                ) {
-                    Text(
-                        text = Strings.resetFilters(lang),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
     
                 Surface(
                     shape = segmentedListShape(0, 2),

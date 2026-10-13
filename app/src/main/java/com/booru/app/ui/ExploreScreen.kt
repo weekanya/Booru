@@ -2142,35 +2142,26 @@ private fun FilterSelectionBottomSheet(
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 20.dp)
             ) {
+                val canReset = tempContentTypes.isNotEmpty() || tempSortOrder != SortOrder.NEWEST || tempSafeMode ||
+                    tempExcludeSafe || tempNoAi || tempNoFurry || kotlin.math.abs(tempRecRatio - 0.5f) > 0.01f
                 ExpressiveSheetHeader(
                     icon = Icons.Rounded.Tune,
                     title = Strings.filtersAndSorting(lang),
                     polygon = MaterialShapes.Cookie9Sided,
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    action = {
+                        SheetResetButton(enabled = canReset, contentDescription = Strings.resetFilters(lang)) {
+                            tempContentTypes = emptySet()
+                            tempSortOrder = SortOrder.NEWEST
+                            tempSafeMode = false
+                            tempExcludeSafe = false
+                            tempNoAi = false
+                            tempNoFurry = false
+                            tempRecRatio = 0.5f
+                        }
+                    }
                 )
-                TextButton(
-                    onClick = {
-                        tempContentTypes = emptySet()
-                        tempSortOrder = SortOrder.NEWEST
-                        tempSafeMode = false
-                        tempExcludeSafe = false
-                        tempNoAi = false
-                        tempNoFurry = false
-                        tempRecRatio = 0.5f
-                    },
-                    shape = CircleShape,
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(bottom = 8.dp)
-                ) {
-                    Text(
-                        text = Strings.resetFilters(lang),
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
     
                 ToggleGroupColors {
                     Row(
@@ -2211,12 +2202,17 @@ private fun FilterSelectionBottomSheet(
 
                 Spacer(Modifier.height(8.dp))
     
+                val filterPagerHeight by androidx.compose.animation.core.animateDpAsState(
+                    if (filterTabController.selectedPage == 0) 330.dp else 266.dp,
+                    Motion.spatialDefault(),
+                    label = "filterPagerHeight"
+                )
                 HorizontalPager(
                     state = filterPagerState,
                     beyondViewportPageCount = 1,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(330.dp)
+                        .height(filterPagerHeight)
                         .tabTransition(filterTabController)
                 ) { page ->
                     if (page == 0) {

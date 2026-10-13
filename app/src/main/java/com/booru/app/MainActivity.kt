@@ -32,6 +32,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
@@ -772,14 +773,27 @@ private fun ExpressiveBadge(
         }
     }
     val morph = remember(from, to) { androidx.graphics.shapes.Morph(from, to) }
+    val idleSpin = androidx.compose.animation.core.rememberInfiniteTransition(label = "badgeSpin")
+    val badgeTurn by idleSpin.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            androidx.compose.animation.core.tween(16000, easing = androidx.compose.animation.core.LinearEasing)
+        ),
+        label = "badgeTurn"
+    )
     val container by animateColorAsState(containerColor, Motion.effectsDefault(), label = "badgeContainer")
     val content by animateColorAsState(contentColor, Motion.effectsDefault(), label = "badgeContent")
     Box(
         contentAlignment = Alignment.Center,
-        modifier = modifier
-            .size(size)
-            .background(container, com.booru.app.ui.MorphShape(morph, progress.value.coerceIn(0f, 1f)))
+        modifier = modifier.size(size)
     ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer { rotationZ = badgeTurn }
+                .background(container, com.booru.app.ui.MorphShape(morph, progress.value.coerceIn(0f, 1f)))
+        )
         AnimatedContent(
             targetState = icon,
             transitionSpec = {
