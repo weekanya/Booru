@@ -506,8 +506,6 @@ fun FavoritesScreen(
                     val deleteIdx = folders.indexOf(toDelete)
                     if (pagerState.currentPage == deleteIdx) {
                         scope.launch { pagerState.animateScrollToPage(0) }
-                    } else if (pagerState.currentPage > deleteIdx) {
-                        scope.launch { pagerState.scrollToPage(pagerState.currentPage - 1) }
                     }
                     vm.removeCustomFolder(toDelete)
                     folderToDelete = null
@@ -532,7 +530,7 @@ fun FavoritesScreen(
             state = pagerState,
             beyondViewportPageCount = 1,
             modifier = Modifier.fillMaxSize(),
-            key = { page -> folders.getOrNull(page) ?: "all_favorites" }
+            key = { page -> folders.getOrNull(page)?.let { "folder:$it" } ?: "all" }
         ) { page ->
             val currentFolder = folders.getOrNull(page)
             val pageList = remember(vm.favoritesList, filterText, mediaTypeFilter, sortOrder, currentFolder, vm.favoriteFolders) {
@@ -716,6 +714,7 @@ fun FavoritesScreen(
                             aspectRatio = ratio,
                             quality = vm.effectiveImageQuality,
                             folder = mediaFolder,
+                            lang = lang,
                             onRemove = {
                                 vm.toggleFavorite(media)
                                 scope.launch {
@@ -726,8 +725,8 @@ fun FavoritesScreen(
                                         withDismissAction = true,
                                         duration = SnackbarDuration.Short
                                     )
-                                    if (result == SnackbarResult.ActionPerformed && !vm.isFavorite(media)) {
-                                        vm.toggleFavorite(media)
+                                    if (result == SnackbarResult.ActionPerformed) {
+                                        vm.restoreFavorite(media)
                                     }
                                 }
                             },
@@ -1447,6 +1446,7 @@ private fun FavoriteCard(
     aspectRatio: Float,
     quality: ImageQuality,
     folder: String?,
+    lang: AppLanguage,
     onRemove: () -> Unit,
     onClick: () -> Unit
 ) {
@@ -1624,7 +1624,7 @@ private fun FavoriteCard(
             ) {
                 Icon(
                     Icons.Rounded.Favorite,
-                    contentDescription = "Remove from favorites",
+                    contentDescription = Strings.tr(lang, "Remove from favorites", "Убрать из избранного", "お気に入りから削除", "从收藏中移除", "즐겨찾기에서 제거", "إزالة من المفضلة"),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
                 )

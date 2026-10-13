@@ -21,6 +21,9 @@ interface FavoriteDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(favorite: FavoriteEntity)
 
+    @Query("SELECT * FROM favorites WHERE mediaKey = :key LIMIT 1")
+    suspend fun getByKey(key: String): FavoriteEntity?
+
     @Query("DELETE FROM favorites WHERE mediaKey = :key")
     suspend fun deleteByKey(key: String)
 

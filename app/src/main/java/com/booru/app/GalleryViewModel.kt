@@ -1002,6 +1002,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         currentPage = 0
         hasMore = true
         val keepResults = isPullRefresh && results.isNotEmpty()
+        if (!isPullRefresh && fullscreenState?.isFromResults == true) fullscreenState = null
         if (isPullRefresh) {
             isRefreshing = true
         } else {
@@ -1197,7 +1198,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     private val favoriteMediaJobs = HashMap<String, Job>()
 
-    fun toggleFavorite(media: RemoteMedia) {
+    private val removedFavorites = HashMap<String, FavoriteEntity>()
+
+    fun restoreFavorite(media: RemoteMedia) {
+        if (media.mediaKey !in favoriteKeys) toggleFavorite(media, restore = true)
+    }
+
+    fun toggleFavorite(media: RemoteMedia, restore: Boolean = false) {
         val key = media.mediaKey
         val wasFav = key in favoriteKeys
         if (wasFav) {
@@ -1212,9 +1219,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             favoriteMutex.withLock {
                 if (wasFav) {
+                    favoriteDao.getByKey(key)?.let { removedFavorites[key] = it }
                     favoriteDao.deleteByKey(key)
                 } else {
-                    favoriteDao.insert(FavoriteEntity.fromRemoteMedia(media))
+                    val previous = removedFavorites.remove(key)
+                    favoriteDao.insert(if (restore && previous != null) previous else FavoriteEntity.fromRemoteMedia(media))
                 }
             }
             if (recordTags) prefs.recordFavoriteTags(media.tags)

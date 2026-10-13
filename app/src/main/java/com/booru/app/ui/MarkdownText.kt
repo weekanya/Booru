@@ -94,7 +94,7 @@ fun MarkdownText(
                     )
                 }
                 trimmed.startsWith("#") -> {
-                    val headerMatch = Regex("^(#{1,6})\\s*(.*?)(?:\\s*#+)?$").matchEntire(trimmed)
+                    val headerMatch = Regex("^(#{1,6})\\s*(.*?)(?:\\s+#+)?$").matchEntire(trimmed)
                     if (headerMatch != null && (headerMatch.groupValues[1].length > 1 || trimmed.startsWith("# "))) {
                         val level = headerMatch.groupValues[1].length
                         val headerText = headerMatch.groupValues[2].trim()

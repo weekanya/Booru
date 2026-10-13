@@ -1142,6 +1142,7 @@ fun SettingsScreen(
                                     customEngine = BooruEngine.GELBOORU
                                     customApiKey = ""
                                     customUserId = ""
+                                    customNameError = null; customUrlError = null; customAccessError = null
                                     showAddCustomSourceDialog = true
                                 }
                             )
@@ -1159,6 +1160,7 @@ fun SettingsScreen(
                                                 customEngine = customSource.engine
                                                 customApiKey = vm.getCustomSourceApiKey(customSource.id)
                                                 customUserId = vm.getCustomSourceUserId(customSource.id)
+                                                customNameError = null; customUrlError = null; customAccessError = null
                                                 showAddCustomSourceDialog = true
                                             }
                                             .padding(horizontal = 20.dp, vertical = 12.dp),
@@ -1204,12 +1206,13 @@ fun SettingsScreen(
                                                 customEngine = customSource.engine
                                                 customApiKey = vm.getCustomSourceApiKey(customSource.id)
                                                 customUserId = vm.getCustomSourceUserId(customSource.id)
+                                                customNameError = null; customUrlError = null; customAccessError = null
                                                 showAddCustomSourceDialog = true
                                             }
                                         ) {
                                             Icon(
                                                 Icons.Rounded.Edit,
-                                                contentDescription = "Edit",
+                                                contentDescription = Strings.tr(lang, "Edit", "Изменить", "編集", "编辑", "편집", "تعديل"),
                                                 tint = MaterialTheme.colorScheme.primary
                                             )
                                         }
@@ -1274,7 +1277,7 @@ fun SettingsScreen(
 
                             SettingRowItem(
                                 title = Strings.tagBlacklistTitle(lang),
-                                subtitle = if (vm.tagBlacklist.isEmpty()) Strings.noBlacklistedTags(lang) else "${vm.tagBlacklist.size} tags blocked",
+                                subtitle = if (vm.tagBlacklist.isEmpty()) Strings.noBlacklistedTags(lang) else Strings.tr(lang, "${vm.tagBlacklist.size} tags blocked", "Заблокировано тегов: ${vm.tagBlacklist.size}", "ブロック中のタグ: ${vm.tagBlacklist.size}", "已屏蔽标签：${vm.tagBlacklist.size}", "차단된 태그: ${vm.tagBlacklist.size}", "وسوم محظورة: ${vm.tagBlacklist.size}"),
                                 icon = Icons.Rounded.Block,
                                 onClick = { showBlacklistDialog = true }
                             )

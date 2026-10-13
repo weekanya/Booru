@@ -219,8 +219,11 @@ private fun MediaDetailSheetContent(
         vm.updateFullscreenIndex(pagerState.currentPage)
     }
 
-    LaunchedEffect(pagerState.currentPage, mediaList.size) {
+    LaunchedEffect(pagerState.currentPage) {
         isCurrentPageZoomed = false
+    }
+
+    LaunchedEffect(pagerState.currentPage, mediaList.size) {
         if (onLoadMore != null && pagerState.currentPage >= mediaList.size - 4) {
             onLoadMore()
         }
@@ -1833,11 +1836,11 @@ fun BooruVideoPlayer(
     var isPlaying by remember { mutableStateOf(true) }
     var userPaused by remember(videoUrl) { mutableStateOf(false) }
     var isMuted by remember { mutableStateOf(false) }
-    var isReady by remember { mutableStateOf(false) }
+    var isReady by remember(videoUrl) { mutableStateOf(false) }
     var internalShowControls by remember { mutableStateOf(true) }
     val effectiveShowControls = if (isExternalControls) externalShowControls else internalShowControls
-    var currentPosMs by remember { mutableLongStateOf(0L) }
-    var durationMs by remember { mutableLongStateOf(0L) }
+    var currentPosMs by remember(videoUrl) { mutableLongStateOf(0L) }
+    var durationMs by remember(videoUrl) { mutableLongStateOf(0L) }
     var isSeeking by remember { mutableStateOf(false) }
     var seekRatio by remember { mutableFloatStateOf(0f) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
@@ -1989,6 +1992,7 @@ fun BooruVideoPlayer(
                     )
                 }
             },
+            update = { view -> if (view.player !== exoPlayer) view.player = exoPlayer },
             modifier = Modifier.fillMaxSize()
         )
 
