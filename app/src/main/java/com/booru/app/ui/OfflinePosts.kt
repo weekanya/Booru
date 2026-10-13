@@ -107,21 +107,24 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                     .padding(bottom = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                OfflineHeroBadge(
-                    state = when {
-                        downloading -> 1
-                        saved > 0 -> 2
-                        else -> 0
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+                    OfflineHeroBadge(
+                        state = when {
+                            downloading -> 1
+                            saved > 0 -> 2
+                            else -> 0
+                        }
+                    )
+                    Spacer(Modifier.width(14.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            offlineTitle(lang),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = scheme.onSurface
+                        )
                     }
-                )
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    offlineTitle(lang),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = scheme.onSurface
-                )
-                Spacer(Modifier.height(20.dp))
+                }
 
                 AnimatedContent(
                     targetState = downloading,
@@ -286,7 +289,7 @@ private fun OfflineHeroBadge(state: Int) {
         2 -> scheme.onTertiaryContainer
         else -> scheme.onPrimaryContainer
     }
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(104.dp)) {
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(52.dp)) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -309,7 +312,7 @@ private fun OfflineHeroBadge(state: Int) {
                 },
                 contentDescription = null,
                 tint = content,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
     }
@@ -412,12 +415,13 @@ private fun DownloadProgress(vm: GalleryViewModel, lang: AppLanguage) {
                     modifier = Modifier.fillMaxSize(),
                     stroke = stroke,
                     trackStroke = stroke,
+                    amplitude = { 1f },
                     wavelength = 36.dp
                 )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    if (collecting) "${vm.offlineDone}" else "${vm.offlineBase + vm.offlineDone}",
+                    if (collecting) "${vm.offlineDone}" else "${OfflineStore.posts.size}",
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Black,
                     color = scheme.onSurface

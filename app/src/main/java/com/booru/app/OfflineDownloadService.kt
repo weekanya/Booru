@@ -89,7 +89,7 @@ class OfflineDownloadService : Service() {
         val text = if (collecting) {
             "${OfflineDownloader.done}"
         } else {
-            "${OfflineDownloader.base + OfflineDownloader.done} / ${OfflineDownloader.goal} · ${BooruCacheManager.formatBytes(OfflineDownloader.bytes)}"
+            "${com.booru.app.data.OfflineStore.posts.size} / ${OfflineDownloader.goal} · ${BooruCacheManager.formatBytes(com.booru.app.data.OfflineStore.sizeBytes)}"
         }
         val stopIntent = PendingIntent.getService(
             this,

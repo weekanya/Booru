@@ -1241,7 +1241,7 @@ fun SettingsScreen(
                             SettingRowItem(
                                 title = offlineTitle(lang),
                                 subtitle = if (vm.offlineDownloading) {
-                                    Strings.tr(lang, "Downloading ${vm.offlineBase + vm.offlineDone} / ${vm.offlineGoal}", "Скачивается ${vm.offlineBase + vm.offlineDone} / ${vm.offlineGoal}", "ダウンロード中 ${vm.offlineBase + vm.offlineDone} / ${vm.offlineGoal}", "下载中 ${vm.offlineBase + vm.offlineDone} / ${vm.offlineGoal}", "다운로드 중 ${vm.offlineBase + vm.offlineDone} / ${vm.offlineGoal}", "جارٍ التنزيل ${vm.offlineBase + vm.offlineDone} / ${vm.offlineGoal}")
+                                    Strings.tr(lang, "Downloading ${com.booru.app.data.OfflineStore.posts.size} / ${vm.offlineGoal}", "Скачивается ${com.booru.app.data.OfflineStore.posts.size} / ${vm.offlineGoal}", "ダウンロード中 ${com.booru.app.data.OfflineStore.posts.size} / ${vm.offlineGoal}", "下载中 ${com.booru.app.data.OfflineStore.posts.size} / ${vm.offlineGoal}", "다운로드 중 ${com.booru.app.data.OfflineStore.posts.size} / ${vm.offlineGoal}", "جارٍ التنزيل ${com.booru.app.data.OfflineStore.posts.size} / ${vm.offlineGoal}")
                                 } else offlineSubtitle(lang),
                                 icon = Icons.Rounded.DownloadForOffline,
                                 onClick = { showOfflineSheet = true }

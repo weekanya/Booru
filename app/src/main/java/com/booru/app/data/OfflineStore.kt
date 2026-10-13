@@ -130,22 +130,22 @@ object OfflineStore {
         val doneCount = AtomicInteger(0)
         val permits = Semaphore(PARALLELISM)
         fun snapshot() = fresh.filter { it.mediaKey in completedKeys } + previous
+        val baseSize = sizeBytes
         val ticker = launch {
             var lastSaved = 0
-            var tick = 0
             while (isActive) {
-                onProgress(doneCount.get(), bytes.get())
                 val completed = completedKeys.size
-                if (completed != posts.size - previous.size) {
-                    val live = snapshot()
-                    withContext(Dispatchers.Main) { posts = live }
+                val live = if (completed != posts.size - previous.size) snapshot() else null
+                withContext(Dispatchers.Main) {
+                    if (live != null) posts = live
+                    sizeBytes = baseSize + bytes.get()
                 }
+                onProgress(doneCount.get(), bytes.get())
                 if (completed - lastSaved >= 10) {
                     lastSaved = completed
                     persist()
                 }
-                if (++tick % 4 == 0) refreshSize()
-                delay(250)
+                delay(200)
             }
         }
         try {

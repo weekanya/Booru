@@ -7,6 +7,8 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,7 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.rounded.RestartAlt
@@ -45,7 +47,7 @@ fun ExpressiveSheetHeader(
     polygon: RoundedPolygon = MaterialShapes.Cookie9Sided,
     containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
     contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
-    badgeSize: Dp = 72.dp,
+    badgeSize: Dp = 52.dp,
     action: (@Composable () -> Unit)? = null
 ) {
     val appear = remember { Animatable(0f) }
@@ -64,12 +66,11 @@ fun ExpressiveSheetHeader(
         ),
         label = "sheetBadgeTurn"
     )
-    Box(modifier = modifier.fillMaxWidth()) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
             .fillMaxWidth()
-            .padding(bottom = 20.dp)
+            .padding(bottom = 16.dp)
     ) {
         Box(
             contentAlignment = Alignment.Center,
@@ -88,29 +89,31 @@ fun ExpressiveSheetHeader(
                     .graphicsLayer { rotationZ = spin.value + turn }
                     .background(containerColor, shape)
             )
-            Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(badgeSize * 0.42f))
+            Icon(icon, contentDescription = null, tint = contentColor, modifier = Modifier.size(badgeSize * 0.46f))
         }
-        Spacer(Modifier.height(14.dp))
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface,
-            textAlign = TextAlign.Center
-        )
-        if (subtitle != null) {
-            Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 8.dp)
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
+            if (subtitle != null) {
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
         }
-    }
         if (action != null) {
-            Box(modifier = Modifier.align(Alignment.TopEnd)) { action() }
+            Spacer(Modifier.width(8.dp))
+            action()
         }
     }
 }
