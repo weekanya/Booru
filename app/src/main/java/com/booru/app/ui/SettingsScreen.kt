@@ -412,6 +412,7 @@ fun SettingsScreen(
 
                     Column {
                         GroupedField(
+                            lang = lang,
                             value = customName,
                             onValueChange = { customName = it; customNameError = null },
                             label = Strings.sourceNameHint(lang),
@@ -420,6 +421,7 @@ fun SettingsScreen(
                             error = customNameError
                         )
                         GroupedField(
+                            lang = lang,
                             value = customUrl,
                             onValueChange = { customUrl = it; customUrlError = null },
                             label = Strings.sourceUrlHint(lang),
@@ -463,6 +465,7 @@ fun SettingsScreen(
                         )
                         Column {
                             GroupedField(
+                                lang = lang,
                                 value = customUserId,
                                 onValueChange = { customUserId = it; customAccessError = null },
                                 label = Strings.tr(lang, "User ID / Login", "ID / Логин", "ユーザーID / ログイン", "用户 ID / 登录名", "사용자 ID / 로그인", "المعرّف / اسم الدخول"),
@@ -470,6 +473,7 @@ fun SettingsScreen(
                                 shape = segmentedListShape(0, 2)
                             )
                             GroupedField(
+                                lang = lang,
                                 value = customApiKey,
                                 onValueChange = { customApiKey = it; customAccessError = null },
                                 label = Strings.tr(lang, "API key", "API-ключ", "APIキー", "API 密钥", "API 키", "مفتاح API"),
@@ -702,7 +706,7 @@ fun SettingsScreen(
                                     }
                                     if (blacklistFilterQuery.isNotEmpty()) {
                                         IconButton(onClick = { blacklistFilterQuery = "" }, modifier = Modifier.size(32.dp)) {
-                                            Icon(Icons.Rounded.Close, contentDescription = "Clear", tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
+                                            Icon(Icons.Rounded.Close, contentDescription = Strings.tr(lang, "Clear", "Очистить", "クリア", "清除", "지우기", "مسح"), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                                         }
                                     }
                                 }
@@ -806,6 +810,7 @@ fun SettingsScreen(
                                             filteredBlacklist.forEach { tag ->
                                                 key(tag) {
                                                     BlacklistTagChip(
+                                                        lang = lang,
                                                         tag = tag,
                                                         animateEnter = tag !in initialBlacklistTags,
                                                         onRemove = { vm.removeBlacklistedTag(tag) }
@@ -2030,6 +2035,7 @@ private fun ChoiceGridTile(
 @Composable
 private fun BlacklistTagChip(
     tag: String,
+    lang: AppLanguage,
     animateEnter: Boolean = false,
     onRemove: () -> Unit
 ) {
@@ -2093,7 +2099,7 @@ private fun BlacklistTagChip(
                 ) {
                     Icon(
                         Icons.Rounded.Close,
-                        contentDescription = "Remove",
+                        contentDescription = Strings.tr(lang, "Remove", "Удалить", "削除", "移除", "삭제", "إزالة"),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -2141,6 +2147,7 @@ private fun SheetHeader(
 
 @Composable
 private fun GroupedField(
+    lang: AppLanguage,
     value: String,
     onValueChange: (String) -> Unit,
     label: String,
@@ -2173,7 +2180,7 @@ private fun GroupedField(
             value.isNotEmpty() -> {
                 {
                     IconButton(onClick = { onValueChange("") }) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Clear", modifier = Modifier.size(18.dp))
+                        Icon(Icons.Rounded.Close, contentDescription = Strings.tr(lang, "Clear", "Очистить", "クリア", "清除", "지우기", "مسح"), modifier = Modifier.size(18.dp))
                     }
                 }
             }
@@ -2244,6 +2251,7 @@ private fun ApiKeyForm(
         SheetHeader(icon = Icons.Rounded.Key, title = title, subtitle = description)
         Column {
             GroupedField(
+                lang = lang,
                 value = user,
                 onValueChange = { onUserChange(it.trim()) },
                 label = Strings.tr(lang, "User ID", "ID пользователя", "ユーザーID", "用户 ID", "사용자 ID", "معرّف المستخدم"),
@@ -2253,6 +2261,7 @@ private fun ApiKeyForm(
                 keyboardType = androidx.compose.ui.text.input.KeyboardType.Number
             )
             GroupedField(
+                lang = lang,
                 value = key,
                 onValueChange = { onKeyChange(it.trim()) },
                 label = Strings.tr(lang, "API key", "API-ключ", "APIキー", "API 密钥", "API 키", "مفتاح API"),

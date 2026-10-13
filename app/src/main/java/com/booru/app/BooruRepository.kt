@@ -80,6 +80,8 @@ data class SearchPage(
 )
 
 class BooruRepository(
+    @Volatile private var realbooruPageSize = 0
+
     private val client: OkHttpClient = NetworkClient.baseClient.newBuilder()
         .connectTimeout(5, TimeUnit.SECONDS)
         .readTimeout(6, TimeUnit.SECONDS)
@@ -870,7 +872,7 @@ class BooruRepository(
                 addQueryParameter("page", "post")
                 addQueryParameter("s", "list")
                 if (tagQuery.isNotBlank()) addQueryParameter("tags", tagQuery)
-                addQueryParameter("pid", (page * PAGE_SIZE).toString())
+                addQueryParameter("pid", (page * (realbooruPageSize.takeIf { it > 0 } ?: PAGE_SIZE)).toString())
             }
             val fullUrl = urlBuilder.build()
             logSanitized(key, fullUrl)
@@ -894,7 +896,9 @@ class BooruRepository(
                     }
                     throw BooruHttpException(sourceKey = "realbooru", statusCode = code, message = "HTTP $code from Realbooru")
                 }
-                RealbooruHtmlParser.parse(body, false)
+                RealbooruHtmlParser.parse(body, false).also { items ->
+                    if (items.size > realbooruPageSize) realbooruPageSize = items.size
+                }
             }
         }
 

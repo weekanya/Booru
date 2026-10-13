@@ -556,13 +556,19 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun installApk(context: Context, file: File) {
         val context: Context = context.applicationContext
-        try {
-            if (!verifyApkSignature(context, file)) {
-                if (file.exists()) file.delete()
+        viewModelScope.launch {
+            val verified = withContext(Dispatchers.IO) { verifyApkSignature(context, file) }
+            if (!verified) {
+                withContext(Dispatchers.IO) { if (file.exists()) file.delete() }
                 updateDownloadError = "APK signature verification failed"
-                return
+                return@launch
             }
+            launchApkInstaller(context, file)
+        }
+    }
 
+    private fun launchApkInstaller(context: Context, file: File) {
+        try {
             val apkUri = FileProvider.getUriForFile(
                 context,
                 "${context.packageName}.fileprovider",
