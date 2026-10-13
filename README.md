@@ -68,7 +68,7 @@
     </td>
     <td valign="top">
       <h3>❤️ Favorites and stats</h3>
-      Saved offline, sorted into folders. Stats show your top characters, artists, series and tags, and your activity by month.
+      Favorites are saved offline and sorted into folders. Stats cover everything you view, save, download and search: top characters, artists and series, activity by day and hour, and the tags shaping your feed.
     </td>
   </tr>
   <tr>
@@ -115,10 +115,13 @@
 
 - Stored on the device, so they work offline.
 - Folders, search by tag, and filters by type.
-- Stats for all time, this year or this month:
-  - top characters, artists, series and tags;
-  - activity by month and your longest streak;
+- Stats for all time, this year or this month, built from everything you view, favorite, download and search:
+  - posts viewed, favorited and downloaded, and how much of what you open you save;
+  - top characters, artists, series, tags and searches;
+  - the tags your recommendations lean on right now;
+  - activity by day or month, by time of day, and your longest streak;
   - content mix.
+- History stays on the device, is not recorded in incognito mode, and can be cleared in settings.
 
 </details>
 

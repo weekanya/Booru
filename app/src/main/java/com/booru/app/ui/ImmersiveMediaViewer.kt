@@ -141,6 +141,7 @@ fun ImmersiveMediaViewer(
     var backProgress by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(pagerState.currentPage) {
+        mediaList.getOrNull(pagerState.currentPage)?.let { vm.recordViewed(it) }
         isPageZoomed = false
         if (onLoadMore != null && pagerState.currentPage >= mediaList.size - 4) {
             onLoadMore()

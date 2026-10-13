@@ -63,6 +63,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     val prefs = BooruPreferences(application)
     private val secureStorage = SecureCredentialsStorage(application)
     private val favoriteDao = AppDatabase.getDatabase(application).favoriteDao()
+    private val historyDao = AppDatabase.getDatabase(application).historyDao()
+    private val viewedForHistory = HashSet<String>()
+    private var lastRecordedSearch: Pair<String, Long>? = null
 
     var updateInfo by mutableStateOf<AppUpdateInfo?>(null); private set
     var isCheckingUpdate by mutableStateOf(false); private set
@@ -241,6 +244,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             search(source, "", safeMode)
 
             startLongLivedObservers()
+            pruneHistory()
 
             if (initialFavorites != null) {
                 launch(Dispatchers.IO) {
@@ -1043,6 +1047,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             tagSuggestions.find { it.value.equals(trimmedTags, ignoreCase = true) }?.count ?: 0
         } else 0
 
+        if (trimmedTags.isNotEmpty() && !isIncognito && !isPullRefresh) {
+            val now = System.currentTimeMillis()
+            val last = lastRecordedSearch
+            if (last == null || !last.first.equals(trimmedTags, ignoreCase = true) || now - last.second > SEARCH_DEDUPE_MS) {
+                lastRecordedSearch = trimmedTags to now
+                recordHistory(com.booru.app.data.db.HistoryEntity.search(trimmedTags))
+            }
+        }
         if (trimmedTags.isNotEmpty() && !isIncognito) {
             viewModelScope.launch {
                 prefs.saveSearchQuery(trimmedTags)
@@ -1736,6 +1748,41 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    private fun recordHistory(entry: com.booru.app.data.db.HistoryEntity) {
+        if (isIncognito) return
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching { historyDao.insert(entry) }.onFailure { Log.w(TAG, "History write failed: ${it.message}") }
+        }
+    }
+
+    fun recordViewed(media: RemoteMedia) {
+        if (isIncognito || !viewedForHistory.add(media.mediaKey)) return
+        recordHistory(com.booru.app.data.db.HistoryEntity.fromMedia(com.booru.app.data.db.HistoryEntity.KIND_VIEW, media))
+    }
+
+    fun clearUsageHistory() {
+        viewedForHistory.clear()
+        lastRecordedSearch = null
+        viewModelScope.launch(Dispatchers.IO) { runCatching { historyDao.clear() } }
+    }
+
+    fun topInterests(limit: Int = 12): List<Pair<String, Float>> =
+        recordedRecTagsMap.entries
+            .filter { it.value > 0f && it.key !in tagBlacklist }
+            .sortedByDescending { it.value }
+            .take(limit)
+            .map { it.key to it.value }
+
+    private fun pruneHistory() {
+        viewModelScope.launch(Dispatchers.IO) {
+            runCatching {
+                historyDao.deleteOlderThan(System.currentTimeMillis() - HISTORY_RETENTION_MS)
+                val excess = historyDao.count() - HISTORY_MAX_ENTRIES
+                if (excess > 0) historyDao.deleteOldest(excess)
+            }
+        }
+    }
+
     private fun recordOpenedForRecommendations(media: RemoteMedia) {
         if (isIncognito || media.tags.isBlank()) return
         if (!viewedForRecommendations.add(media.mediaKey)) return
@@ -1825,7 +1872,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try {
                 com.booru.app.ui.MediaActionHandler.downloadMedia(getApplication(), media, ImageQuality.ORIGINAL)
-                    .onSuccess { filename -> toast("${com.booru.app.data.Strings.downloadSuccess(lang)}: $filename") }
+                    .onSuccess { filename ->
+                        recordHistory(com.booru.app.data.db.HistoryEntity.fromMedia(com.booru.app.data.db.HistoryEntity.KIND_DOWNLOAD, media))
+                        toast("${com.booru.app.data.Strings.downloadSuccess(lang)}: $filename")
+                    }
                     .onFailure { e -> toast("${com.booru.app.data.Strings.downloadFailed(lang)}: ${e.message}") }
             } catch (c: CancellationException) {
                 throw c
@@ -1872,6 +1922,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     companion object {
         private const val TAG = "GalleryViewModel"
+        private const val SEARCH_DEDUPE_MS = 10 * 60 * 1000L
+        private const val HISTORY_RETENTION_MS = 400L * 24 * 60 * 60 * 1000
+        private const val HISTORY_MAX_ENTRIES = 100_000
         private const val SUGGESTION_DEBOUNCE_MS = 220L
         private const val REC_TAGS_PER_PAGE = 4
         private const val REC_ACTIVE_POOL = 24

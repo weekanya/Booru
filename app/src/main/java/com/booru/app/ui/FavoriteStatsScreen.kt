@@ -68,6 +68,9 @@ import com.booru.app.data.TagCategory
 import com.booru.app.data.TagCategoryCache
 import com.booru.app.data.db.AppDatabase
 import com.booru.app.data.db.FavoriteEntity
+import com.booru.app.data.db.HistoryEntity
+import com.booru.app.data.PostRef
+import com.booru.app.data.BucketSize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -82,6 +85,7 @@ import java.util.Locale
 fun FavoriteStatsScreen(
     lang: AppLanguage,
     allowTagLookup: Boolean,
+    interests: List<Pair<String, Float>>,
     onDismiss: () -> Unit
 ) {
     Dialog(
@@ -107,18 +111,19 @@ fun FavoriteStatsScreen(
                 clip = backProgress > 0f
             }
         ) {
-            FavoriteStatsContent(lang, allowTagLookup, onDismiss)
+            FavoriteStatsContent(lang, allowTagLookup, interests, onDismiss)
         }
     }
 }
 
 @Composable
-private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onDismiss: () -> Unit) {
+private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, interests: List<Pair<String, Float>>, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val locale = remember(lang) { Locale.forLanguageTag(lang.code) }
 
     var favorites by remember { mutableStateOf<List<FavoriteEntity>?>(null) }
+    var history by remember { mutableStateOf<List<HistoryEntity>>(emptyList()) }
     var period by rememberSaveable { mutableStateOf(StatsPeriod.ALL_TIME) }
     var lookupProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     var showPeriodSheet by remember { mutableStateOf(false) }
@@ -126,19 +131,22 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
     var lookupAttempt by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
-        val list = withContext(Dispatchers.IO) {
-            AppDatabase.getDatabase(context).favoriteDao().getAllFavoritesList()
+        val db = AppDatabase.getDatabase(context)
+        val (favs, events) = withContext(Dispatchers.IO) {
+            db.favoriteDao().getAllFavoritesList() to runCatching { db.historyDao().since(0L) }.getOrDefault(emptyList())
         }
         TagCategoryCache.ensureLoaded()
-        favorites = list
+        history = events
+        favorites = favs
     }
 
     LaunchedEffect(favorites, lookupAttempt) {
         val list = favorites ?: return@LaunchedEffect
-        if (!allowTagLookup || list.isEmpty()) return@LaunchedEffect
+        val tags = FavoriteStats.allTags(list, history)
+        if (!allowTagLookup || tags.isEmpty()) return@LaunchedEffect
         lookupProgress = 0 to 1
         try {
-            TagCategoryCache.resolve(FavoriteStats.allTags(list)) { done, total ->
+            TagCategoryCache.resolve(tags) { done, total ->
                 lookupProgress = done to total
             }
         } finally {
@@ -147,13 +155,13 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
     }
 
     val cacheVersion = TagCategoryCache.version
-    val stats by produceState<FavoriteStats?>(null, favorites, period, cacheVersion) {
+    val stats by produceState<FavoriteStats?>(null, favorites, history, period, cacheVersion) {
         val list = favorites ?: return@produceState
-        value = withContext(Dispatchers.Default) { FavoriteStats.compute(list, period) }
+        value = withContext(Dispatchers.Default) { FavoriteStats.compute(list, history, period) }
     }
     val tabs = listOf(
         Strings.tr(lang, "Overview", "Обзор", "概要", "概览", "개요", "نظرة عامة") to Icons.Rounded.Insights,
-        Strings.tr(lang, "Favorites", "Любимое", "お気に入り", "最爱", "최애", "المفضلة") to Icons.Rounded.FavoriteBorder,
+        Strings.tr(lang, "Interests", "Интересы", "好み", "兴趣", "관심사", "الاهتمامات") to Icons.Rounded.FavoriteBorder,
         Strings.tr(lang, "Activity", "Активность", "アクティビティ", "活跃度", "활동", "النشاط") to Icons.Rounded.BarChart
     )
     val pagerState = rememberPagerState(pageCount = { tabs.size })
@@ -305,7 +313,7 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, onD
                             ) {
                                 when (page) {
                                     0 -> OverviewPage(current, period, lang, locale)
-                                    1 -> FavoritesPage(current, lang)
+                                    1 -> InterestsPage(current, interests, lang)
                                     else -> ActivityPage(current, lang, locale)
                                 }
                             }
@@ -366,18 +374,27 @@ private fun OverviewPage(stats: FavoriteStats, period: StatsPeriod, lang: AppLan
 }
 
 @Composable
-private fun FavoritesPage(stats: FavoriteStats, lang: AppLanguage) {
+private fun InterestsPage(stats: FavoriteStats, interests: List<Pair<String, Float>>, lang: AppLanguage) {
     val groups = listOf(
         Triple(TagCategory.CHARACTER, Strings.tr(lang, "Characters", "Персонажи", "キャラクター", "角色", "캐릭터", "الشخصيات"), stats.topCharacters),
         Triple(TagCategory.ARTIST, Strings.tr(lang, "Artists", "Авторы", "絵師", "画师", "작가", "الفنانون"), stats.topArtists),
         Triple(TagCategory.COPYRIGHT, Strings.tr(lang, "Series", "Франшизы", "作品", "作品", "작품", "الأعمال"), stats.topCopyrights)
     ).filter { it.third.isNotEmpty() }
 
+    if (interests.isNotEmpty()) {
+        StatsCard(
+            Icons.Rounded.AutoAwesome,
+            Strings.tr(lang, "Shaping your feed", "Сейчас влияет на ленту", "フィードに影響中", "正在影响推荐", "피드에 반영 중", "يشكّل خلاصتك"),
+            Strings.tr(lang, "Tags your recommendations lean on right now", "Теги, на которые сейчас опираются рекомендации", "現在おすすめが重視しているタグ", "推荐当前依赖的标签", "현재 추천에 반영되는 태그", "الوسوم التي تعتمد عليها التوصيات الآن")
+        ) {
+            InterestBars(interests.take(8))
+        }
+    }
     if (stats.topTags.isNotEmpty()) {
         StatsCard(
             Icons.Rounded.Tag,
             Strings.tr(lang, "Your vibe", "Ваш вайб", "あなたの好み", "你的口味", "나의 취향", "ذوقك"),
-            Strings.tr(lang, "Most common tags in your favorites", "Самые частые теги в избранном", "お気に入りで多いタグ", "收藏中最常见的标签", "즐겨찾기에서 가장 많은 태그", "الوسوم الأكثر تكراراً في مفضلتك")
+            Strings.tr(lang, "Most common tags in what you view and save", "Самые частые теги в том, что вы смотрите и сохраняете", "閲覧・保存した投稿で多いタグ", "浏览和收藏中最常见的标签", "보고 저장한 게시물에서 많은 태그", "الوسوم الأكثر تكراراً فيما تشاهده وتحفظه")
         ) {
             TagCloud(stats.topTags)
         }
@@ -386,59 +403,84 @@ private fun FavoritesPage(stats: FavoriteStats, lang: AppLanguage) {
         StatsCard(
             category.icon,
             title,
-            Strings.tr(lang, "Posts in favorites with each one", "Сколько постов с ними в избранном", "お気に入りの投稿数", "收藏中的作品数", "즐겨찾기 게시물 수", "عدد المنشورات في المفضلة")
+            Strings.tr(lang, "Posts you viewed or saved with each one", "Сколько постов с ними вы смотрели или сохранили", "閲覧・保存した投稿数", "浏览或收藏的作品数", "보거나 저장한 게시물 수", "عدد المنشورات التي شاهدتها أو حفظتها")
         ) {
             RankedBars(entries.take(8), MaterialTheme.colorScheme.primary)
+        }
+    }
+    if (stats.topSearches.isNotEmpty()) {
+        StatsCard(
+            Icons.Rounded.Search,
+            Strings.tr(lang, "Top searches", "Частые запросы", "よく使う検索", "常用搜索", "자주 찾은 검색어", "عمليات البحث الأكثر"),
+            Strings.tr(lang, "What you search for most", "Что вы ищете чаще всего", "よく検索するキーワード", "你最常搜索的内容", "가장 많이 검색한 항목", "ما تبحث عنه أكثر")
+        ) {
+            RankedBars(stats.topSearches.take(8), MaterialTheme.colorScheme.tertiary)
         }
     }
     if (stats.topSources.size > 1) {
         StatsCard(
             Icons.Rounded.Public,
             Strings.tr(lang, "Sources", "Источники", "ソース", "来源", "소스", "المصادر"),
-            Strings.tr(lang, "Where your favorites come from", "Откуда вы чаще всего добавляете", "お気に入りの取得元", "收藏来自哪里", "즐겨찾기 출처", "مصادر مفضلتك")
+            Strings.tr(lang, "Where the posts you like come from", "Откуда посты, которые вы смотрите", "閲覧した投稿の取得元", "你浏览的帖子来自哪里", "본 게시물의 출처", "مصادر المنشورات التي تشاهدها")
         ) {
             RankedBars(stats.topSources.take(5), MaterialTheme.colorScheme.primary, prettify = false)
         }
     }
-    if (groups.isEmpty() && stats.topTags.isEmpty()) EmptyStats(lang)
+    if (groups.isEmpty() && stats.topTags.isEmpty() && interests.isEmpty() && stats.topSearches.isEmpty()) EmptyStats(lang)
 }
 
 @Composable
 private fun ActivityPage(stats: FavoriteStats, lang: AppLanguage, locale: Locale) {
-    if (stats.monthly.size > 1) {
+    if (stats.buckets.size > 1) {
         StatsCard(
             Icons.Rounded.BarChart,
-            Strings.tr(lang, "By month", "По месяцам", "月別", "按月", "월별", "حسب الشهر"),
-            Strings.tr(lang, "Favorites added each month", "Сколько добавлено за каждый месяц", "月ごとの追加数", "每月新增收藏", "월별 추가 수", "المضاف كل شهر")
+            if (stats.bucketSize == BucketSize.DAY) {
+                Strings.tr(lang, "By day", "По дням", "日別", "按天", "일별", "حسب اليوم")
+            } else {
+                Strings.tr(lang, "By month", "По месяцам", "月別", "按月", "월별", "حسب الشهر")
+            },
+            Strings.tr(lang, "Posts viewed and favorited", "Просмотрено и добавлено в избранное", "閲覧数とお気に入り数", "浏览与收藏", "본 게시물과 즐겨찾기", "المنشورات المشاهدة والمفضلة")
         ) {
             ActivityChart(stats, locale, lang)
         }
     }
 
-    StatsCard(
-        Icons.Rounded.PieChart,
-        Strings.tr(lang, "Mix", "Состав", "内訳", "构成", "구성", "التركيبة"),
-        Strings.tr(lang, "File types and ratings", "Типы файлов и рейтинг", "ファイル形式とレーティング", "文件类型与分级", "파일 형식과 등급", "أنواع الملفات والتصنيفات")
-    ) {
-        val primary = MaterialTheme.colorScheme.primary
-        val tertiary = MaterialTheme.colorScheme.tertiary
-        val secondary = MaterialTheme.colorScheme.secondary
-        SplitBar(
-            listOf(
-                Triple(Strings.tr(lang, "Images", "Картинки", "画像", "图片", "이미지", "صور"), stats.images, primary),
-                Triple("GIF", stats.gifs, tertiary),
-                Triple(Strings.tr(lang, "Videos", "Видео", "動画", "视频", "동영상", "فيديو"), stats.videos, secondary)
-            )
-        )
-        if (stats.safe + stats.questionable + stats.explicit > 0) {
-            Spacer(Modifier.height(16.dp))
+    if (stats.hours.any { it > 0 }) {
+        StatsCard(
+            Icons.Rounded.Schedule,
+            Strings.tr(lang, "Time of day", "Время суток", "時間帯", "时段", "시간대", "وقت اليوم"),
+            Strings.tr(lang, "When you use the app", "Когда вы пользуетесь приложением", "アプリを使う時間", "你使用应用的时间", "앱을 사용하는 시간", "متى تستخدم التطبيق")
+        ) {
+            HourChart(stats.hours, lang)
+        }
+    }
+
+    if (stats.images + stats.gifs + stats.videos > 0) {
+        StatsCard(
+            Icons.Rounded.PieChart,
+            Strings.tr(lang, "Mix", "Состав", "内訳", "构成", "구성", "التركيبة"),
+            Strings.tr(lang, "File types and ratings", "Типы файлов и рейтинг", "ファイル形式とレーティング", "文件类型与分级", "파일 형식과 등급", "أنواع الملفات والتصنيفات")
+        ) {
+            val primary = MaterialTheme.colorScheme.primary
+            val tertiary = MaterialTheme.colorScheme.tertiary
+            val secondary = MaterialTheme.colorScheme.secondary
             SplitBar(
                 listOf(
-                    Triple(Strings.tr(lang, "Safe", "Безопасно", "全年齢", "安全", "안전", "آمن"), stats.safe, tertiary),
-                    Triple(Strings.tr(lang, "Questionable", "Сомнительно", "センシティブ", "可疑", "민감", "مشكوك"), stats.questionable, secondary),
-                    Triple(Strings.tr(lang, "Explicit", "Откровенно", "成人向け", "露骨", "성인", "صريح"), stats.explicit, primary)
+                    Triple(Strings.tr(lang, "Images", "Картинки", "画像", "图片", "이미지", "صور"), stats.images, primary),
+                    Triple("GIF", stats.gifs, tertiary),
+                    Triple(Strings.tr(lang, "Videos", "Видео", "動画", "视频", "동영상", "فيديو"), stats.videos, secondary)
                 )
             )
+            if (stats.safe + stats.questionable + stats.explicit > 0) {
+                Spacer(Modifier.height(16.dp))
+                SplitBar(
+                    listOf(
+                        Triple(Strings.tr(lang, "Safe", "Безопасно", "全年齢", "安全", "안전", "آمن"), stats.safe, tertiary),
+                        Triple(Strings.tr(lang, "Questionable", "Сомнительно", "センシティブ", "可疑", "민감", "مشكوك"), stats.questionable, secondary),
+                        Triple(Strings.tr(lang, "Explicit", "Откровенно", "成人向け", "露骨", "성인", "صريح"), stats.explicit, primary)
+                    )
+                )
+            }
         }
     }
 
@@ -446,7 +488,7 @@ private fun ActivityPage(stats: FavoriteStats, lang: AppLanguage, locale: Locale
         StatsCard(
             Icons.Rounded.EmojiEvents,
             Strings.tr(lang, "Highest score", "Самый высокий рейтинг", "最高スコア", "最高评分", "최고 점수", "أعلى تقييم"),
-            Strings.tr(lang, "Your favorite with the most votes on its site", "Пост с наибольшим рейтингом на сайте", "サイトで最も評価された投稿", "在站点评分最高的收藏", "사이트 점수가 가장 높은 게시물", "المنشور الأعلى تقييماً")
+            Strings.tr(lang, "The post with the most votes on its site", "Пост с наибольшим рейтингом на сайте", "サイトで最も評価された投稿", "在站点评分最高的帖子", "사이트 점수가 가장 높은 게시물", "المنشور الأعلى تقييماً")
         ) {
             TopScoredRow(top)
         }
@@ -469,24 +511,22 @@ private fun SummaryCard(stats: FavoriteStats, period: StatsPeriod, lang: AppLang
             )
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
-                    text = stats.total.toString(),
+                    text = stats.viewed.toString(),
                     style = MaterialTheme.typography.displayMedium,
                     fontWeight = FontWeight.Bold,
                     color = scheme.primary
                 )
                 Spacer(Modifier.width(10.dp))
                 Text(
-                    text = Strings.tr(lang, "favorites", "в избранном", "件", "个收藏", "개", "مفضلة"),
+                    text = Strings.tr(lang, "posts viewed", "постов просмотрено", "件閲覧", "个帖子已浏览", "개 게시물 봄", "منشور تمت مشاهدته"),
                     style = MaterialTheme.typography.titleMedium,
                     color = scheme.onSurface,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
-            stats.firstSavedAt?.let { first ->
-                val date = Instant.ofEpochMilli(first).atZone(ZoneId.systemDefault()).toLocalDate()
-                val formatted = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).format(date)
+            stats.likeRate?.let { rate ->
                 Text(
-                    text = Strings.tr(lang, "since $formatted", "с $formatted", "$formatted から", "自 $formatted 起", "${formatted}부터", "منذ $formatted"),
+                    text = Strings.tr(lang, "You save $rate% of what you open", "Вы сохраняете $rate% того, что открываете", "開いた投稿の $rate% を保存", "你收藏了打开内容的 $rate%", "연 게시물의 $rate%를 저장", "تحفظ $rate% مما تفتحه"),
                     style = MaterialTheme.typography.bodyMedium,
                     color = scheme.onSurfaceVariant
                 )
@@ -494,9 +534,9 @@ private fun SummaryCard(stats: FavoriteStats, period: StatsPeriod, lang: AppLang
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(3.dp), modifier = Modifier.fillMaxWidth()) {
                 val items = listOf(
-                    Triple(Icons.Rounded.Image, stats.images, Strings.tr(lang, "Images", "Картинки", "画像", "图片", "이미지", "صور")),
-                    Triple(Icons.Rounded.Gif, stats.gifs, "GIF"),
-                    Triple(Icons.Rounded.Videocam, stats.videos, Strings.tr(lang, "Videos", "Видео", "動画", "视频", "동영상", "فيديو"))
+                    Triple(Icons.Rounded.Favorite, stats.favorited, Strings.tr(lang, "Favorited", "В избранное", "お気に入り", "收藏", "즐겨찾기", "مفضلة")),
+                    Triple(Icons.Rounded.Download, stats.downloaded, Strings.tr(lang, "Downloaded", "Скачано", "保存", "下载", "다운로드", "تنزيل")),
+                    Triple(Icons.Rounded.Search, stats.searches, Strings.tr(lang, "Searches", "Поисков", "検索", "搜索", "검색", "عمليات بحث"))
                 )
                 items.forEachIndexed { index, (icon, count, label) ->
                     val outer = 16.dp
@@ -515,6 +555,20 @@ private fun SummaryCard(stats: FavoriteStats, period: StatsPeriod, lang: AppLang
                         }
                     }
                 }
+            }
+            val since = stats.historySince
+            val trackingText = if (since == null) {
+                Strings.tr(lang, "Views, downloads and searches are counted from now on.", "Просмотры, скачивания и поиски считаются с этого момента.", "閲覧・保存・検索は今後カウントされます。", "浏览、下载和搜索将从现在开始统计。", "보기, 다운로드, 검색은 지금부터 집계됩니다.", "تُحتسب المشاهدات والتنزيلات وعمليات البحث من الآن.")
+            } else {
+                val date = Instant.ofEpochMilli(since).atZone(ZoneId.systemDefault()).toLocalDate()
+                val formatted = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).format(date)
+                Strings.tr(lang, "Views, downloads and searches counted since $formatted", "Просмотры, скачивания и поиски считаются с $formatted", "閲覧・保存・検索は $formatted から集計", "浏览、下载和搜索自 $formatted 起统计", "보기, 다운로드, 검색은 ${formatted}부터 집계", "تُحتسب المشاهدات والتنزيلات وعمليات البحث منذ $formatted")
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Rounded.Info, contentDescription = null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(trackingText, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant)
             }
         }
     }
@@ -574,7 +628,7 @@ private fun SpotlightRow(category: TagCategory, title: String, entry: CountEntry
                     overflow = TextOverflow.Ellipsis
                 )
                 Text(
-                    text = Strings.tr(lang, "${entry.count} in favorites", "${entry.count} в избранном", "お気に入り ${entry.count} 件", "收藏 ${entry.count} 个", "즐겨찾기 ${entry.count}개", "${entry.count} في المفضلة"),
+                    text = Strings.tr(lang, "${entry.count} posts", "Постов: ${entry.count}", "${entry.count} 件", "${entry.count} 个帖子", "게시물 ${entry.count}개", "${entry.count} منشور"),
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold,
                     color = tint
@@ -585,9 +639,9 @@ private fun SpotlightRow(category: TagCategory, title: String, entry: CountEntry
 }
 
 @Composable
-private fun Thumbnail(favorite: FavoriteEntity?, modifier: Modifier) {
+private fun Thumbnail(post: PostRef?, modifier: Modifier) {
     val context = LocalContext.current
-    val url = favorite?.let { it.preview.ifBlank { it.sample.ifBlank { it.url } } }
+    val url = post?.let { it.preview.ifBlank { it.url } }
     Box(modifier = modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest)) {
         if (!url.isNullOrBlank()) {
             AsyncImage(
@@ -672,7 +726,7 @@ private fun FactTile(icon: ImageVector, value: String, label: String, modifier: 
 }
 
 @Composable
-private fun RankedBars(entries: List<CountEntry>, accent: Color, startRank: Int = 1, prettify: Boolean = true) {
+private fun RankedBars(entries: List<CountEntry>, accent: Color, startRank: Int = 1, prettify: Boolean = true, suffix: String = "") {
     val max = entries.maxOfOrNull { it.count }?.coerceAtLeast(1) ?: 1
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         entries.forEachIndexed { index, entry ->
@@ -713,7 +767,7 @@ private fun RankedBars(entries: List<CountEntry>, accent: Color, startRank: Int 
                             modifier = Modifier.weight(1f)
                         )
                         Text(
-                            text = entry.count.toString(),
+                            text = "${entry.count}$suffix",
                             style = MaterialTheme.typography.labelLarge,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -769,14 +823,20 @@ private fun TagCloud(entries: List<CountEntry>) {
 
 @Composable
 private fun ActivityChart(stats: FavoriteStats, locale: Locale, lang: AppLanguage) {
-    val max = stats.monthly.maxOfOrNull { it.second }?.coerceAtLeast(1) ?: 1
-    val peak = stats.monthly.maxByOrNull { it.second }?.takeIf { it.second > 0 }
+    val scheme = MaterialTheme.colorScheme
+    val buckets = stats.buckets
+    val max = buckets.maxOfOrNull { maxOf(it.views, it.favorites) }?.coerceAtLeast(1) ?: 1
+    val peak = buckets.maxByOrNull { it.views + it.favorites }?.takeIf { it.views + it.favorites > 0 }
+    val daily = stats.bucketSize == BucketSize.DAY
+    fun bucketName(date: java.time.LocalDate, style: TextStyle) =
+        if (daily) date.dayOfMonth.toString() else date.month.getDisplayName(style, locale).replaceFirstChar { it.titlecase(locale) }
     if (peak != null) {
-        val monthName = peak.first.month.getDisplayName(TextStyle.FULL_STANDALONE, locale).replaceFirstChar { it.titlecase(locale) }
+        val name = bucketName(peak.start, TextStyle.FULL_STANDALONE)
+        val total = peak.views + peak.favorites
         Text(
-            text = Strings.tr(lang, "Peak: $monthName · ${peak.second}", "Пик: $monthName · ${peak.second}", "ピーク：$monthName · ${peak.second}", "高峰：$monthName · ${peak.second}", "최고: $monthName · ${peak.second}", "الذروة: $monthName · ${peak.second}"),
+            text = Strings.tr(lang, "Peak: $name · $total", "Пик: $name · $total", "ピーク：$name · $total", "高峰：$name · $total", "최고: $name · $total", "الذروة: $name · $total"),
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = scheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 12.dp)
         )
     }
@@ -784,12 +844,13 @@ private fun ActivityChart(stats: FavoriteStats, locale: Locale, lang: AppLanguag
         modifier = Modifier
             .fillMaxWidth()
             .height(140.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(if (daily) 2.dp else 6.dp),
         verticalAlignment = Alignment.Bottom
     ) {
-        stats.monthly.forEach { (month, count) ->
-            val fraction by animateFloatAsState((count.toFloat() / max).coerceIn(0f, 1f), Motion.effectsDefault(), label = "monthBar")
-            val isPeak = peak != null && month == peak.first
+        buckets.forEachIndexed { index, bucket ->
+            val viewFraction by animateFloatAsState((bucket.views.toFloat() / max).coerceIn(0f, 1f), Motion.effectsDefault(), label = "viewBar")
+            val favFraction by animateFloatAsState((bucket.favorites.toFloat() / max).coerceIn(0f, 1f), Motion.effectsDefault(), label = "favBar")
+            val showLabel = !daily || index == 0 || (index + 1) % 5 == 0 || index == buckets.lastIndex
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -797,32 +858,108 @@ private fun ActivityChart(stats: FavoriteStats, locale: Locale, lang: AppLanguag
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Bottom
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f, fill = false)
-                        .fillMaxHeight(fraction.coerceAtLeast(0.04f))
-                        .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomStart = 3.dp, bottomEnd = 3.dp))
-                        .background(
-                            when {
-                                isPeak -> MaterialTheme.colorScheme.primary
-                                count > 0 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
-                                else -> MaterialTheme.colorScheme.surfaceContainerHighest
-                            }
-                        )
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(1.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(viewFraction.coerceAtLeast(0.03f))
+                            .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 2.dp, bottomEnd = 2.dp))
+                            .background(if (bucket.views > 0) scheme.primary.copy(alpha = 0.35f) else scheme.surfaceContainerHighest)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(favFraction.coerceAtLeast(0.03f))
+                            .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp, bottomStart = 2.dp, bottomEnd = 2.dp))
+                            .background(if (bucket.favorites > 0) scheme.primary else scheme.surfaceContainerHighest)
+                    )
+                }
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = month.month.getDisplayName(TextStyle.NARROW_STANDALONE, locale),
+                    text = if (showLabel) bucketName(bucket.start, TextStyle.NARROW_STANDALONE) else "",
                     style = MaterialTheme.typography.labelSmall,
-                    fontWeight = if (isPeak) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isPeak) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = scheme.onSurfaceVariant,
                     maxLines = 1,
                     softWrap = false
                 )
             }
         }
     }
+    Spacer(Modifier.height(12.dp))
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        LegendDot(scheme.primary.copy(alpha = 0.35f), Strings.tr(lang, "Viewed", "Просмотрено", "閲覧", "浏览", "봄", "مشاهدة"))
+        LegendDot(scheme.primary, Strings.tr(lang, "Favorited", "В избранное", "お気に入り", "收藏", "즐겨찾기", "مفضلة"))
+    }
+}
+
+@Composable
+private fun LegendDot(color: Color, label: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(color))
+        Spacer(Modifier.width(6.dp))
+        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
+private fun HourChart(hours: List<Int>, lang: AppLanguage) {
+    val scheme = MaterialTheme.colorScheme
+    val max = hours.maxOrNull()?.coerceAtLeast(1) ?: 1
+    val peakHour = hours.indices.maxByOrNull { hours[it] } ?: 0
+    val part = when (peakHour) {
+        in 5..11 -> Strings.tr(lang, "Mostly in the morning", "Чаще всего утром", "主に朝", "多在早上", "주로 아침", "غالباً في الصباح")
+        in 12..17 -> Strings.tr(lang, "Mostly in the afternoon", "Чаще всего днём", "主に昼", "多在下午", "주로 낮", "غالباً بعد الظهر")
+        in 18..22 -> Strings.tr(lang, "Mostly in the evening", "Чаще всего вечером", "主に夜", "多在晚上", "주로 저녁", "غالباً في المساء")
+        else -> Strings.tr(lang, "Mostly at night", "Чаще всего ночью", "主に深夜", "多在深夜", "주로 밤", "غالباً في الليل")
+    }
+    Text(
+        text = "$part · ${"%02d".format(peakHour)}:00",
+        style = MaterialTheme.typography.labelLarge,
+        color = scheme.onSurfaceVariant,
+        modifier = Modifier.padding(bottom = 12.dp)
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth().height(72.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        hours.forEachIndexed { hour, count ->
+            val fraction by animateFloatAsState((count.toFloat() / max).coerceIn(0f, 1f), Motion.effectsDefault(), label = "hourBar")
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight(fraction.coerceAtLeast(0.05f))
+                    .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp, bottomStart = 2.dp, bottomEnd = 2.dp))
+                    .background(
+                        when {
+                            hour == peakHour && count > 0 -> scheme.primary
+                            count > 0 -> scheme.primary.copy(alpha = 0.4f)
+                            else -> scheme.surfaceContainerHighest
+                        }
+                    )
+            )
+        }
+    }
+    Spacer(Modifier.height(6.dp))
+    Row(modifier = Modifier.fillMaxWidth()) {
+        listOf("00", "06", "12", "18").forEach { label ->
+            Text(label, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun InterestBars(interests: List<Pair<String, Float>>) {
+    val max = interests.maxOfOrNull { it.second }?.takeIf { it > 0f } ?: 1f
+    RankedBars(
+        entries = interests.map { (tag, weight) -> CountEntry(tag, Math.round(weight * 100f / max)) },
+        accent = MaterialTheme.colorScheme.tertiary,
+        suffix = "%"
+    )
 }
 
 @Composable
@@ -868,7 +1005,7 @@ private fun SplitBar(parts: List<Triple<String, Int, Color>>) {
 }
 
 @Composable
-private fun TopScoredRow(top: FavoriteEntity) {
+private fun TopScoredRow(top: PostRef) {
     val media = remember(top) { top.toRemoteMedia() }
     Row(verticalAlignment = Alignment.CenterVertically) {
         Thumbnail(top, Modifier.size(88.dp).clip(ShapeTokens.Large))
@@ -918,12 +1055,12 @@ private fun EmptyStats(lang: AppLanguage) {
         Text(
             text = Strings.tr(
                 lang,
-                "No favorites in this period",
-                "За этот период избранного нет",
-                "この期間のお気に入りはありません",
-                "此期间没有收藏",
-                "이 기간에는 즐겨찾기가 없습니다",
-                "لا توجد مفضلات في هذه الفترة"
+                "Nothing here for this period yet",
+                "За этот период пока ничего нет",
+                "この期間のデータはまだありません",
+                "此期间暂无数据",
+                "이 기간에는 아직 데이터가 없습니다",
+                "لا يوجد شيء في هذه الفترة بعد"
             ),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -942,12 +1079,12 @@ fun statsTitle(lang: AppLanguage) =
 
 fun statsSubtitle(lang: AppLanguage) = Strings.tr(
     lang,
-    "Favorite characters, artists, tags and activity",
-    "Любимые персонажи, авторы, теги и активность",
-    "推しキャラ、絵師、タグ、アクティビティ",
-    "最爱角色、画师、标签和活跃度",
-    "최애 캐릭터, 작가, 태그와 활동",
-    "الشخصيات والفنانون والوسوم والنشاط"
+    "What you view, save and search, and your favorite characters and artists",
+    "Что вы смотрите, сохраняете и ищете, любимые персонажи и авторы",
+    "閲覧・保存・検索の傾向、推しキャラと絵師",
+    "你的浏览、收藏和搜索，以及最爱的角色和画师",
+    "보고, 저장하고, 검색한 것과 최애 캐릭터·작가",
+    "ما تشاهده وتحفظه وتبحث عنه، وشخصياتك وفنانيك المفضلون"
 )
 
 private fun periodLabel(period: StatsPeriod, lang: AppLanguage) = when (period) {

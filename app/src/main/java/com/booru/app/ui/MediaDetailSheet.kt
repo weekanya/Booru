@@ -217,6 +217,7 @@ private fun MediaDetailSheetContent(
 
     LaunchedEffect(pagerState.currentPage) {
         vm.updateFullscreenIndex(pagerState.currentPage)
+        mediaList.getOrNull(pagerState.currentPage)?.let { vm.recordViewed(it) }
     }
 
     LaunchedEffect(pagerState.currentPage) {
