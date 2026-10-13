@@ -137,7 +137,7 @@ fun FavoritesScreen(
         val idx = folders.indexOf(target)
         if (idx >= 0) {
             pendingFolder = null
-            pagerState.animateScrollToPage(idx)
+            pagerState.animateScrollToPage(idx, animationSpec = Motion.pageSwitch())
         }
     }
 
@@ -213,7 +213,11 @@ fun FavoritesScreen(
             lang = lang,
             onSelect = { index ->
                 showFolderSheet = false
-                folderTabController.select(index)
+                if (kotlin.math.abs(index - pagerState.currentPage) > 1) {
+                    scope.launch { pagerState.scrollToPage(index) }
+                } else {
+                    folderTabController.select(index)
+                }
             },
             onCreate = {
                 showFolderSheet = false
@@ -505,7 +509,7 @@ fun FavoritesScreen(
                     val toDelete = folderToDelete ?: return@DeleteFolderBottomSheet
                     val deleteIdx = folders.indexOf(toDelete)
                     if (pagerState.currentPage == deleteIdx) {
-                        scope.launch { pagerState.animateScrollToPage(0) }
+                        scope.launch { pagerState.animateScrollToPage(0, animationSpec = Motion.pageSwitch()) }
                     }
                     vm.removeCustomFolder(toDelete)
                     folderToDelete = null
@@ -628,7 +632,7 @@ fun FavoritesScreen(
                             Spacer(Modifier.height(20.dp))
                             OutlinedButton(
                                 onClick = {
-                                    scope.launch { pagerState.animateScrollToPage(0) }
+                                    scope.launch { pagerState.animateScrollToPage(0, animationSpec = Motion.pageSwitch()) }
                                 },
                                 shapes = ButtonDefaults.shapes(shape = ShapeTokens.LargeIncreased, pressedShape = ButtonDefaults.pressedShape),
                                 modifier = Modifier

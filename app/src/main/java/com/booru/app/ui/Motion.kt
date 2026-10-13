@@ -36,7 +36,7 @@ object Motion {
 
     fun <T> spatialDefault() = spring<T>(dampingRatio = 0.8f, stiffness = 380f)
 
-    fun <T> pageSwitch() = tween<T>(durationMillis = 520, easing = CubicBezierEasing(0.3f, 0.0f, 0.0f, 1.0f))
+    fun <T> pageSwitch() = spring<T>(dampingRatio = 1f, stiffness = 400f)
     fun <T> spatialFast() = spring<T>(dampingRatio = 0.6f, stiffness = 800f)
     fun <T> spatialSlow() = spring<T>(dampingRatio = 0.8f, stiffness = 200f)
     fun <T> effectsDefault() = spring<T>(dampingRatio = 1f, stiffness = 1600f)
