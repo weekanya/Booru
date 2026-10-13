@@ -46,8 +46,6 @@
   </tr>
 </table>
 
-<p align="center"><sub>Tap a screenshot to open it at full size.</sub></p>
-
 ## Highlights
 
 <table>
@@ -155,7 +153,3 @@
 - Built-in updater from GitHub Releases. It checks the APK signature before installing.
 
 </details>
-
-## License
-
-Booru is free software under the [GPL-3.0](LICENSE) license.
