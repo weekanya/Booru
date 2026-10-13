@@ -158,6 +158,9 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun canUseDeviceAuth(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+            return getSystemService(android.app.KeyguardManager::class.java)?.isDeviceSecure == true
+        }
         val manager = getSystemService(BiometricManager::class.java) ?: return false
         return manager.canAuthenticate(
             BiometricManager.Authenticators.BIOMETRIC_STRONG or
@@ -184,13 +187,18 @@ class MainActivity : ComponentActivity() {
         }
         if (activeSignal != null) return
         try {
-            val prompt = BiometricPrompt.Builder(this)
+            val builder = BiometricPrompt.Builder(this)
                 .setTitle(Strings.biometricLockTitle(vm.language))
-                .setAllowedAuthenticators(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                builder.setAllowedAuthenticators(
                     BiometricManager.Authenticators.BIOMETRIC_STRONG or
                         BiometricManager.Authenticators.DEVICE_CREDENTIAL
                 )
-                .build()
+            } else {
+                @Suppress("DEPRECATION")
+                builder.setDeviceCredentialAllowed(true)
+            }
+            val prompt = builder.build()
             val signal = CancellationSignal()
             activeSignal = signal
             prompt.authenticate(

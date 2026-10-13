@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/weekanya/Booru/releases/latest"><img src="https://img.shields.io/github/v/release/weekanya/Booru?style=for-the-badge&color=7B5BEA&label=release" alt="Latest release"></a>
-  <img src="https://img.shields.io/badge/Android-12%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 12+">
+  <img src="https://img.shields.io/badge/Android-10%2B-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Android 10+">
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-4C6FD6?style=for-the-badge" alt="GPL-3.0"></a>
 </p>
 
@@ -152,24 +152,6 @@
 - Built-in updater from GitHub Releases. It checks the APK signature before installing.
 
 </details>
-
-## Install
-
-1. Download the latest APK from [Releases](https://github.com/weekanya/Booru/releases/latest).
-2. Open it and allow installs from your browser or file manager if Android asks.
-3. Later updates can be installed from **Settings → System** inside the app.
-
-Requires Android 12 or newer.
-
-## Build from source
-
-```bash
-git clone https://github.com/weekanya/Booru.git
-cd Booru
-./gradlew assembleDebug
-```
-
-The APK is written to `app/build/outputs/apk/debug/`.
 
 ## License
 
