@@ -34,6 +34,7 @@ object MediaActionHandler {
     private val httpClient = NetworkClient.baseClient.newBuilder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
+        .callTimeout(5, TimeUnit.MINUTES)
         .followRedirects(true)
         .build()
 
@@ -42,10 +43,7 @@ object MediaActionHandler {
         media: RemoteMedia,
         quality: ImageQuality
     ): Result<String> = withContext(Dispatchers.IO) {
-        val outcome = withTimeoutOrNull(60_000L) {
-            executeDownload(context, media, quality)
-        }
-        outcome ?: Result.failure(IOException("Download timed out after 60 seconds"))
+        executeDownload(context, media, quality)
     }
 
     private fun sanitizeFilenamePart(value: String): String {
@@ -106,6 +104,8 @@ object MediaActionHandler {
                 val resolvedExt = when {
                     mimeFromHeader.contains("mp4") -> "mp4"
                     mimeFromHeader.contains("webm") -> "webm"
+                    mimeFromHeader.contains("quicktime") -> "mov"
+                    mimeFromHeader.contains("matroska") -> "mkv"
                     mimeFromHeader.contains("gif") -> "gif"
                     mimeFromHeader.contains("png") -> "png"
                     mimeFromHeader.contains("webp") -> "webp"
@@ -113,16 +113,18 @@ object MediaActionHandler {
                     else -> originalExt
                 }
 
+                val isVideoMedia = media.isVideo || resolvedExt in listOf("mp4", "webm", "mov", "mkv")
                 val mimeType = when (resolvedExt) {
                     "mp4" -> "video/mp4"
                     "webm" -> "video/webm"
+                    "mov" -> "video/quicktime"
+                    "mkv" -> "video/x-matroska"
                     "gif" -> "image/gif"
                     "png" -> "image/png"
                     "webp" -> "image/webp"
-                    else -> "image/jpeg"
+                    "jpg", "jpeg" -> "image/jpeg"
+                    else -> if (isVideoMedia) "video/mp4" else "image/jpeg"
                 }
-
-                val isVideoMedia = media.isVideo || resolvedExt in listOf("mp4", "webm")
                 val safeSource = sanitizeFilenamePart(media.source.lowercase().trim())
                 val safeId = sanitizeFilenamePart(media.id.trim())
                 val filename = "booru_${safeSource}_${safeId}_${System.currentTimeMillis()}.$resolvedExt"

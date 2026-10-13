@@ -140,6 +140,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var isIncognito by mutableStateOf(false); private set
     var recommendationRatio by mutableFloatStateOf(0.5f); private set
     var biometricLockEnabled by mutableStateOf(false); private set
+    var lockStateLoaded by mutableStateOf(false); private set
     var biometricLockTimeoutMin by mutableIntStateOf(0); private set
     var favoriteFolders by mutableStateOf<Map<String, String>>(emptyMap()); private set
     var customFolders by mutableStateOf<Set<String>>(emptySet()); private set
@@ -165,6 +166,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         viewModelScope.launch {
+            runCatching {
+                biometricLockEnabled = prefs.biometricLockEnabled.first()
+                biometricLockTimeoutMin = prefs.biometricLockTimeoutMin.first()
+            }
+            lockStateLoaded = true
             if (secureStorage.isSecureStorageAvailable) {
                 prefs.migrateLegacyCredentialsAndCustomSources(secureStorage)
             }

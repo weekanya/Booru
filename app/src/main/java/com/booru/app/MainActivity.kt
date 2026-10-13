@@ -179,7 +179,7 @@ class MainActivity : ComponentActivity() {
         if (!canUseDeviceAuth()) {
             vm.setBiometricLock(false)
             unlock()
-            vm.postMessage(Strings.biometricUnavailable(vm.language))
+            Toast.makeText(this, Strings.biometricUnavailable(vm.language), Toast.LENGTH_LONG).show()
             return
         }
         if (activeSignal != null) return
@@ -220,7 +220,7 @@ class MainActivity : ComponentActivity() {
             )
         } catch (e: Exception) {
             activeSignal = null
-            vm.postMessage(Strings.biometricUnavailable(vm.language))
+            Toast.makeText(this, Strings.biometricUnavailable(vm.language), Toast.LENGTH_LONG).show()
         }
     }
 }
@@ -250,7 +250,12 @@ fun BooruApp(
         }
     }
 
-    if (isAppLocked) {
+    if (!vm.lockStateLoaded) {
+        Box(modifier = Modifier.fillMaxSize())
+        return
+    }
+
+    if (isAppLocked || (vm.biometricLockEnabled && !vm.hasUnlockedSession)) {
         val context = LocalContext.current
         BackHandler(enabled = true) {
             (context as? Activity)?.finish()
@@ -378,7 +383,6 @@ fun BooruApp(
                 color = MaterialTheme.colorScheme.surface
             ) {
                 BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                    val isWideScreen = WindowWidthClass.fromWidth(maxWidth) == WindowWidthClass.Expanded
                     val widthClass = WindowWidthClass.fromWidth(maxWidth)
                     val onNavSelect: (Int) -> Unit = { index ->
                         haptic.performHapticFeedback(HapticFeedbackType.SegmentTick)
@@ -446,6 +450,7 @@ fun BooruApp(
                                                 modifier = Modifier.fillMaxSize(),
                                                 color = MaterialTheme.colorScheme.surface
                                             ) {
+                                                tabStateHolder.SaveableStateProvider(tab) {
                                                 when (tab) {
                                                     0 -> ExploreScreen(
                                                         vm = vm,
@@ -458,6 +463,7 @@ fun BooruApp(
                                                     2 -> SettingsScreen(
                                                         vm = vm
                                                     )
+                                                }
                                                 }
                                             }
                                         }
@@ -613,44 +619,10 @@ fun BooruApp(
                             }
                     }
 
-                    if (isWideScreen) {
-                        Row(modifier = Modifier.fillMaxSize()) {
-                            Box(
-                                modifier = Modifier
-                                    .weight(if (state != null) 0.42f else 1f)
-                                    .fillMaxHeight()
-                            ) {
-                                mainContent()
-                            }
-                            if (state != null) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(1.dp)
-                                        .fillMaxHeight()
-                                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                                )
-                                Box(
-                                    modifier = Modifier
-                                        .weight(0.58f)
-                                        .fillMaxHeight()
-                                ) {
-                                    key(state.openId) {
-                                        FullscreenMediaViewer(
-                                            initialIndex = state.index,
-                                            mediaList = if (state.isFromResults) vm.results else state.list,
-                                            vm = vm,
-                                            onDismiss = { vm.closeFullscreen() },
-                                            onLoadMore = if (state.isFromResults) { { vm.loadMore() } } else null,
-                                            onNavigateToExplore = { selectedTab = 0 }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            mainContent()
-                            if (state != null) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        mainContent()
+                        if (state != null) {
+                            key(state.openId) {
                                 FullscreenMediaViewer(
                                     initialIndex = state.index,
                                     mediaList = if (state.isFromResults) vm.results else state.list,
@@ -662,7 +634,7 @@ fun BooruApp(
                             }
                         }
                     }
-                
+
                     FlatSnackbarHost(
                         hostState = appSnackbarHostState,
                         modifier = Modifier

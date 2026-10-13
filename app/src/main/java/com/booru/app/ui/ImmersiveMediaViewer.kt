@@ -2,7 +2,6 @@
 
 package com.booru.app.ui
 
-import android.app.Activity
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -111,8 +110,6 @@ fun ImmersiveMediaViewer(
         return
     }
 
-    val context = LocalContext.current
-    val view = LocalView.current
     val safeInitial = initialIndex.coerceIn(0, mediaList.size - 1)
     val pagerState = rememberPagerState(
         initialPage = safeInitial,
@@ -164,8 +161,9 @@ fun ImmersiveMediaViewer(
             decorFitsSystemWindows = false
         )
     ) {
+        val dialogView = LocalView.current
         DisposableEffect(Unit) {
-            var parent = view.parent
+            var parent = dialogView.parent
             var targetWindow: android.view.Window? = null
             while (parent != null) {
                 if (parent is DialogWindowProvider) {
@@ -174,7 +172,7 @@ fun ImmersiveMediaViewer(
                 }
                 parent = parent.parent
             }
-            val window = targetWindow ?: (context as? Activity)?.window
+            val window = targetWindow
             if (window != null) {
                 window.setDimAmount(0f)
                 window.setBackgroundDrawableResource(android.R.color.transparent)
