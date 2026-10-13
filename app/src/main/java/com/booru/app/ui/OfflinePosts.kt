@@ -74,7 +74,20 @@ private val OFFLINE_OPTIONS = listOf(
 
 @Composable
 fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit) {
-    var count by rememberSaveable { mutableIntStateOf(200) }
+    val count = vm.offlineCount
+    val context = LocalContext.current
+    val notificationPermission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+    ) { vm.startOfflineDownload(vm.offlineCount) }
+    val startDownload = {
+        val needsPermission = android.os.Build.VERSION.SDK_INT >= 33 &&
+            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (needsPermission) {
+            notificationPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            vm.startOfflineDownload(count)
+        }
+    }
     val saved = OfflineStore.posts.size
     val downloading = vm.offlineDownloading
     val scheme = MaterialTheme.colorScheme
@@ -136,7 +149,7 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                             option = option,
                                             lang = lang,
                                             selected = count == option.count,
-                                            onClick = { count = option.count },
+                                            onClick = { vm.updateOfflineCount(option.count) },
                                             modifier = Modifier.weight(1f)
                                         )
                                     }
@@ -168,11 +181,25 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                     color = scheme.onSurfaceVariant
                                 )
                             }
+                            val added = com.booru.app.data.OfflineDownloader.lastAdded
+                            if (added >= 0 && vm.offlineError == null) {
+                                Surface(shape = ShapeTokens.Large, color = scheme.secondaryContainer, contentColor = scheme.onSecondaryContainer) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+                                        Icon(Icons.Rounded.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
+                                        Spacer(Modifier.width(10.dp))
+                                        Text(
+                                            Strings.tr(lang, "Added $added new posts", "Добавлено новых постов: $added", "新しい投稿を $added 件追加", "已添加 $added 个新帖子", "새 게시물 ${added}개 추가됨", "تمت إضافة $added منشور جديد"),
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                            }
                             vm.offlineError?.let { error ->
                                 Text(error, style = MaterialTheme.typography.bodySmall, color = scheme.error, modifier = Modifier.padding(start = 4.dp))
                             }
                             Button(
-                                onClick = { vm.startOfflineDownload(count) },
+                                onClick = startDownload,
                                 shapes = ButtonDefaults.shapes(),
                                 contentPadding = PaddingValues(horizontal = 24.dp),
                                 modifier = Modifier.fillMaxWidth().height(64.dp)
@@ -395,16 +422,37 @@ private fun DownloadProgress(vm: GalleryViewModel, lang: AppLanguage) {
         Motion.effectsDefault(),
         label = "offlineProgress"
     )
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val stroke = remember(density) {
+        androidx.compose.ui.graphics.drawscope.Stroke(
+            width = with(density) { 7.dp.toPx() },
+            cap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
+    }
+    val saved = OfflineStore.posts.size
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(176.dp)) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(168.dp)) {
             if (collecting) {
-                CircularWavyProgressIndicator(modifier = Modifier.fillMaxSize())
+                CircularWavyProgressIndicator(
+                    modifier = Modifier.fillMaxSize(),
+                    stroke = stroke,
+                    trackStroke = stroke,
+                    amplitude = 0.5f,
+                    wavelength = 52.dp
+                )
             } else {
-                CircularWavyProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxSize())
+                CircularWavyProgressIndicator(
+                    progress = { fraction },
+                    modifier = Modifier.fillMaxSize(),
+                    stroke = stroke,
+                    trackStroke = stroke,
+                    amplitude = { 0.5f },
+                    wavelength = 52.dp
+                )
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    if (collecting) "${vm.offlineDone}" else "${(fraction * 100).toInt()}%",
+                    if (collecting) "${vm.offlineDone}" else "$saved",
                     style = MaterialTheme.typography.displaySmall,
                     fontWeight = FontWeight.Black,
                     color = scheme.onSurface
@@ -413,7 +461,7 @@ private fun DownloadProgress(vm: GalleryViewModel, lang: AppLanguage) {
                     if (collecting) {
                         Strings.tr(lang, "found", "найдено", "件見つかりました", "已找到", "찾음", "تم العثور")
                     } else {
-                        "${vm.offlineDone} / ${vm.offlineTarget}"
+                        Strings.tr(lang, "saved", "сохранено", "保存済み", "已保存", "저장됨", "محفوظ")
                     },
                     style = MaterialTheme.typography.labelLarge,
                     color = scheme.onSurfaceVariant
@@ -433,14 +481,14 @@ private fun DownloadProgress(vm: GalleryViewModel, lang: AppLanguage) {
         )
         if (!collecting) {
             Text(
-                BooruCacheManager.formatBytes(vm.offlineBytes),
+                Strings.tr(lang, "+${vm.offlineDone} of ${vm.offlineTarget} new", "+${vm.offlineDone} из ${vm.offlineTarget} новых", "新規 ${vm.offlineDone} / ${vm.offlineTarget}", "新增 ${vm.offlineDone} / ${vm.offlineTarget}", "새 게시물 ${vm.offlineDone} / ${vm.offlineTarget}", "+${vm.offlineDone} من ${vm.offlineTarget} جديدة") + " · " + BooruCacheManager.formatBytes(vm.offlineBytes),
                 style = MaterialTheme.typography.bodyMedium,
                 color = scheme.onSurfaceVariant
             )
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            Strings.tr(lang, "Keep the app open until it finishes.", "Не закрывайте приложение до конца загрузки.", "完了までアプリを開いたままにしてください。", "完成前请保持应用打开。", "완료될 때까지 앱을 열어 두세요.", "أبقِ التطبيق مفتوحاً حتى ينتهي."),
+            Strings.tr(lang, "You can leave the app, the download continues in the background.", "Можно выйти из приложения, загрузка продолжится в фоне.", "アプリを閉じてもバックグラウンドで続きます。", "可以离开应用，下载会在后台继续。", "앱을 나가도 백그라운드에서 계속됩니다.", "يمكنك مغادرة التطبيق، سيستمر التنزيل في الخلفية."),
             style = MaterialTheme.typography.bodySmall,
             color = scheme.onSurfaceVariant,
             textAlign = TextAlign.Center

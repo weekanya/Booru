@@ -2,4 +2,6 @@
 <full-backup-content>
     <exclude domain="sharedpref" path="booru_secure_credentials.xml" />
     <exclude domain="file" path="favorites_media" />
+    <exclude domain="file" path="offline_media" />
+    <exclude domain="file" path="offline_index.json" />
 </full-backup-content>
