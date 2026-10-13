@@ -49,7 +49,7 @@ fun ExpressiveSheetHeader(
         launch { appear.animateTo(1f, Motion.spatialFast()) }
         spin.animateTo(0f, Motion.spatialDefault())
     }
-    val shape = remember(polygon) { polygon.normalized().toShape() }
+    val shape = polygon.toShape()
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = modifier
