@@ -146,11 +146,17 @@ fun ImmersiveMediaViewer(
         mediaList.getOrNull(pagerState.settledPage)?.let { vm.recordViewed(it) }
     }
 
-    LaunchedEffect(pagerState.currentPage) {
-        isPageZoomed = false
-        if (onLoadMore != null && pagerState.currentPage >= mediaList.size - 4) {
-            onLoadMore()
-        }
+    val latestLoadMore by rememberUpdatedState(onLoadMore)
+    LaunchedEffect(pagerState, mediaList) {
+        var lastPage = pagerState.currentPage
+        androidx.compose.runtime.snapshotFlow { pagerState.currentPage to mediaList.size }
+            .collect { (page, size) ->
+                if (page != lastPage) {
+                    lastPage = page
+                    isPageZoomed = false
+                }
+                if (page >= size - 4) latestLoadMore?.invoke()
+            }
     }
 
     LaunchedEffect(showControls) {
@@ -412,7 +418,7 @@ fun ImmersiveMediaViewer(
                 }
             }
 
-            val currentMediaItem = mediaList.getOrNull(pagerState.currentPage)
+            val currentMediaItem = mediaList.getOrNull(pagerState.settledPage)
             AnimatedVisibility(
                 visible = showControls && isContentVisible && (currentMediaItem?.isVideo == false) && abs(dragDismissOffsetY) < 25f,
                 enter = fadeIn() + slideInVertically { it },

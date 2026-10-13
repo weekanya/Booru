@@ -934,8 +934,6 @@ private fun FavoritesFilterBottomSheet(
                         ) {
                             draftSort = FavoriteSortOrder.NEWEST
                             draftType = FavoriteMediaTypeFilter.ALL
-                            onSortSelected(draftSort)
-                            onTypeSelected(draftType)
                         }
                     }
                 )
@@ -1055,7 +1053,7 @@ private fun FavoritesFilterBottomSheet(
     
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Button(
@@ -1064,7 +1062,7 @@ private fun FavoritesFilterBottomSheet(
                             onTypeSelected(draftType)
                             scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
                         },
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 8.dp, bottomEnd = 8.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
                             contentColor = MaterialTheme.colorScheme.onPrimary
@@ -1076,7 +1074,7 @@ private fun FavoritesFilterBottomSheet(
                         Icon(Icons.Rounded.Done, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = Strings.tr(lang, "Done", "Готово", "完了", "完成", "완료", "تم"),
+                            text = Strings.applyFilters(lang),
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.labelLarge
                         )
@@ -1091,7 +1089,7 @@ private fun FavoritesFilterBottomSheet(
                         contentPadding = 18.dp,
                         idleContainerColor = MaterialTheme.colorScheme.errorContainer,
                         idleContentColor = MaterialTheme.colorScheme.onErrorContainer,
-                        shape = CircleShape
+                        shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 28.dp, bottomEnd = 28.dp)
                     )
                 }
             }
@@ -1111,13 +1109,15 @@ private fun CreateFolderBottomSheet(
     val sheetState = keyboardSheet.state
     val scope = rememberCoroutineScope()
     var folderName by remember { mutableStateOf("") }
+    var submitted by remember { mutableStateOf(false) }
     val trimmedName = folderName.trim()
     val reserved = remember(lang) { setOf("all", "все", Strings.allFavoritesFolder(lang).lowercase()) }
-    val isDuplicate = trimmedName.isNotEmpty() &&
+    val isDuplicate = !submitted && trimmedName.isNotEmpty() &&
         (existingNames.any { it.equals(trimmedName, ignoreCase = true) } || trimmedName.lowercase() in reserved)
     val canCreate = trimmedName.isNotEmpty() && !isDuplicate
     val submit: () -> Unit = {
-        if (canCreate) {
+        if (canCreate && !submitted) {
+            submitted = true
             onConfirm(trimmedName)
             scope.launch { keyboardSheet.hide() }.invokeOnCompletion { onDismiss() }
         }

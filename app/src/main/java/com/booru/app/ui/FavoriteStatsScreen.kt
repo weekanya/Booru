@@ -135,37 +135,14 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, int
     var confirmClear by remember { mutableStateOf(false) }
 
     if (confirmClear) {
-        AlertDialog(
-            onDismissRequest = { confirmClear = false },
-            icon = { Icon(Icons.Rounded.DeleteSweep, contentDescription = null) },
-            title = { Text(Strings.tr(lang, "Clear history?", "Очистить историю?", "履歴を消去しますか？", "清除历史？", "기록을 지울까요?", "مسح السجل؟")) },
-            text = {
-                Text(
-                    Strings.tr(
-                        lang,
-                        "Views, downloads and searches will be removed from stats. Favorites stay.",
-                        "Просмотры, скачивания и поиски пропадут из статистики. Избранное останется.",
-                        "閲覧・保存・検索の記録を統計から削除します。お気に入りは残ります。",
-                        "浏览、下载和搜索记录将从统计中删除，收藏会保留。",
-                        "보기, 다운로드, 검색 기록이 통계에서 지워집니다. 즐겨찾기는 유지됩니다.",
-                        "ستُحذف المشاهدات والتنزيلات وعمليات البحث من الإحصائيات. تبقى المفضلة."
-                    )
-                )
+        ClearHistorySheet(
+            entries = history.size,
+            lang = lang,
+            onConfirm = {
+                onClearHistory()
+                history = emptyList()
             },
-            confirmButton = {
-                TextButton(onClick = {
-                    confirmClear = false
-                    onClearHistory()
-                    history = emptyList()
-                }) {
-                    Text(Strings.tr(lang, "Clear", "Очистить", "消去", "清除", "지우기", "مسح"), color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { confirmClear = false }) {
-                    Text(Strings.tr(lang, "Cancel", "Отмена", "キャンセル", "取消", "취소", "إلغاء"))
-                }
-            }
+            onDismiss = { confirmClear = false }
         )
     }
 
@@ -231,6 +208,12 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, int
                         .weight(1f)
                         .padding(start = 4.dp)
                 )
+                IconButton(onClick = { confirmClear = true }, shapes = IconButtonDefaults.shapes()) {
+                    Icon(
+                        Icons.Rounded.DeleteSweep,
+                        contentDescription = Strings.tr(lang, "Clear history", "Очистить историю", "履歴を消去", "清除历史", "기록 지우기", "مسح السجل")
+                    )
+                }
             }
 
             ToggleGroupColors {
@@ -362,10 +345,7 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, int
                                 when (page) {
                                     0 -> OverviewPage(current, period, lang, locale)
                                     1 -> InterestsPage(current, interests, lang)
-                                    else -> {
-                                        ActivityPage(current, lang, locale)
-                                        ClearHistoryCard(history.size, lang) { confirmClear = true }
-                                    }
+                                    else -> ActivityPage(current, lang, locale)
                                 }
                             }
                         }
@@ -783,59 +763,79 @@ private fun StatsCard(icon: ImageVector, title: String, subtitle: String? = null
 }
 
 @Composable
-private fun ClearHistoryCard(entries: Int, lang: AppLanguage, onClear: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Surface(
-        shape = ShapeTokens.ExtraLarge,
-        color = scheme.surfaceContainerHigh,
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 20.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)
+private fun ClearHistorySheet(entries: Int, lang: AppLanguage, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    val sheetState = rememberExpandedSheetState()
+    val scope = rememberCoroutineScope()
+    val close: (() -> Unit) -> Unit = { after ->
+        scope.launch { sheetState.hide() }.invokeOnCompletion {
+            after()
+            onDismiss()
+        }
+    }
+    SheetMotion {
+        ModalBottomSheet(
+            onDismissRequest = onDismiss,
+            sheetState = sheetState,
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = ShapeTokens.ExtraLargeTop
         ) {
-            Surface(shape = ShapeTokens.Medium, color = scheme.errorContainer, modifier = Modifier.size(32.dp)) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(Icons.Rounded.History, contentDescription = null, tint = scheme.onErrorContainer, modifier = Modifier.size(18.dp))
-                }
-            }
-            Spacer(Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = Strings.tr(lang, "History", "История", "履歴", "历史", "기록", "السجل"),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = scheme.onSurface
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 32.dp)
+            ) {
+                ExpressiveSheetHeader(
+                    icon = Icons.Rounded.DeleteSweep,
+                    title = Strings.tr(lang, "Clear history?", "Очистить историю?", "履歴を消去しますか？", "清除历史？", "기록을 지울까요?", "مسح السجل؟"),
+                    subtitle = Strings.tr(lang, "Entries: $entries", "Записей: $entries", "記録: $entries", "记录：$entries", "기록 ${entries}개", "السجلات: $entries"),
+                    polygon = MaterialShapes.Burst,
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer
                 )
                 Text(
                     text = Strings.tr(
                         lang,
-                        "$entries views, downloads and searches",
-                        "Просмотры, скачивания и поиски: $entries",
-                        "閲覧・保存・検索: $entries",
-                        "浏览、下载和搜索：$entries",
-                        "보기, 다운로드, 검색: $entries",
-                        "المشاهدات والتنزيلات وعمليات البحث: $entries"
+                        "Views, downloads and searches will be removed from stats. Favorites stay.",
+                        "Просмотры, скачивания и поиски пропадут из статистики. Избранное останется.",
+                        "閲覧・保存・検索の記録を統計から削除します。お気に入りは残ります。",
+                        "浏览、下载和搜索记录将从统计中删除，收藏会保留。",
+                        "보기, 다운로드, 검색 기록이 통계에서 지워집니다. 즐겨찾기는 유지됩니다.",
+                        "ستُحذف المشاهدات والتنزيلات وعمليات البحث من الإحصائيات. تبقى المفضلة."
                     ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = scheme.onSurfaceVariant
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
                 )
-            }
-            Spacer(Modifier.width(12.dp))
-            FilledTonalButton(
-                onClick = onClear,
-                enabled = entries > 0,
-                shapes = ButtonDefaults.shapes(),
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = scheme.errorContainer,
-                    contentColor = scheme.onErrorContainer
-                ),
-                contentPadding = PaddingValues(start = 12.dp, end = 16.dp),
-                modifier = Modifier.heightIn(min = 40.dp)
-            ) {
-                Icon(Icons.Rounded.DeleteSweep, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(Strings.tr(lang, "Clear", "Очистить", "消去", "清除", "지우기", "مسح"), style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                Spacer(Modifier.height(24.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { close {} },
+                        shapes = ButtonDefaults.shapes(shape = ShapeTokens.Large, pressedShape = ButtonDefaults.pressedShape),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                    ) {
+                        Text(Strings.tr(lang, "Cancel", "Отмена", "キャンセル", "取消", "취소", "إلغاء"))
+                    }
+                    Button(
+                        onClick = { close(onConfirm) },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError
+                        ),
+                        shapes = ButtonDefaults.shapes(shape = ShapeTokens.Large, pressedShape = ButtonDefaults.pressedShape),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(48.dp)
+                    ) {
+                        Text(Strings.tr(lang, "Clear", "Очистить", "消去", "清除", "지우기", "مسح"))
+                    }
+                }
             }
         }
     }

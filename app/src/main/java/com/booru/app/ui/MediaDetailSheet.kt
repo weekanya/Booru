@@ -211,7 +211,7 @@ private fun MediaDetailSheetContent(
         }
     }
 
-    val currentMedia = mediaList.getOrNull(pagerState.currentPage) ?: mediaList.first()
+    val currentMedia = mediaList.getOrNull(pagerState.settledPage) ?: mediaList.first()
     val isDownloading = currentMedia.mediaKey in vm.activeDownloads
     val isSettingWallpaper = vm.isSettingWallpaper
 
@@ -220,16 +220,16 @@ private fun MediaDetailSheetContent(
         mediaList.getOrNull(pagerState.settledPage)?.let { vm.recordViewed(it) }
     }
 
-    LaunchedEffect(pagerState.currentPage) {
-        isCurrentPageZoomed = false
+    LaunchedEffect(pagerState) {
+        androidx.compose.runtime.snapshotFlow { pagerState.currentPage }.collect { isCurrentPageZoomed = false }
     }
 
     SettlePagerWhenIdle(pagerState)
 
-    LaunchedEffect(pagerState.currentPage, mediaList.size) {
-        if (onLoadMore != null && pagerState.currentPage >= mediaList.size - 4) {
-            onLoadMore()
-        }
+    val latestLoadMore by rememberUpdatedState(onLoadMore)
+    LaunchedEffect(pagerState, mediaList) {
+        androidx.compose.runtime.snapshotFlow { pagerState.currentPage to mediaList.size }
+            .collect { (page, size) -> if (page >= size - 4) latestLoadMore?.invoke() }
     }
 
     fun downloadCurrentMedia(media: RemoteMedia) {
@@ -2351,7 +2351,7 @@ internal fun SettlePagerWhenIdle(state: androidx.compose.foundation.pager.PagerS
             .collect { scrolling ->
                 if (!scrolling) {
                     kotlinx.coroutines.delay(48)
-                    if (!state.isScrollInProgress && kotlin.math.abs(state.currentPageOffsetFraction) > 0.002f) {
+                    if (!state.isScrollInProgress && kotlin.math.abs(state.currentPageOffsetFraction) > 0.02f) {
                         state.animateScrollToPage(
                             state.currentPage,
                             animationSpec = androidx.compose.animation.core.spring(

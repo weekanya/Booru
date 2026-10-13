@@ -2182,7 +2182,6 @@ private fun FilterSelectionBottomSheet(
                             tempNoAi = false
                             tempNoFurry = false
                             tempRecRatio = 0.5f
-                            applyTemp()
                         }
                     }
                 )

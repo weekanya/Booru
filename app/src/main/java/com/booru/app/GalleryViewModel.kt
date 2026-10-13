@@ -1744,6 +1744,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     var fullscreenState by mutableStateOf<FullscreenState?>(null)
         private set
+    private var fullscreenViewedIndex = -1
     private var fullscreenOpenCounter = 0L
 
     fun openFullscreen(list: List<RemoteMedia>, index: Int) {
@@ -1755,6 +1756,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 openId = ++fullscreenOpenCounter
             )
             fullscreenState = state
+            fullscreenViewedIndex = state.index
             resolveTagCategories(list[state.index])
             if (state.isFromResults) recordOpenedForRecommendations(list[state.index])
         }
@@ -1976,9 +1978,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun updateFullscreenIndex(index: Int) {
         val state = fullscreenState ?: return
-        if (state.index != index && index >= 0) {
-            fullscreenState = state.copy(index = index)
-            state.list.getOrNull(index)?.let { resolveTagCategories(it) }
+        if (fullscreenViewedIndex != index && index >= 0) {
+            fullscreenViewedIndex = index
+            (if (state.isFromResults) results else state.list).getOrNull(index)?.let { resolveTagCategories(it) }
         }
     }
 
