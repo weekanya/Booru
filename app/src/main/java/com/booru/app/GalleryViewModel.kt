@@ -35,6 +35,7 @@ import com.booru.app.ui.ThemeMode
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.awaitAll
@@ -374,7 +375,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun cancelUpdateDownload() {
         updateDownloadJob?.cancel()
-        updateDownloadJob = null
         isDownloadingUpdate = false
         updateDownloadProgress = 0f
         updateDownloadProgressText = "0%"
@@ -401,8 +401,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val targetFile = File(downloadDir, "booru_${info.latestVersion}.apk")
         val tempFile = File(downloadDir, "booru_${info.latestVersion}.apk.tmp")
 
-        updateDownloadJob?.cancel()
+        val previousJob = updateDownloadJob
         updateDownloadJob = viewModelScope.launch(Dispatchers.IO) {
+            previousJob?.cancelAndJoin()
+            val ownJob = coroutineContext[Job]
             try {
                 withTimeoutOrNull(180_000L) {
                     if (targetFile.exists()) {
@@ -518,19 +520,21 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 if (tempFile.exists()) tempFile.delete()
                 if (targetFile.exists()) targetFile.delete()
                 withContext(kotlinx.coroutines.NonCancellable + Dispatchers.Main) {
-                    isDownloadingUpdate = false
+                    if (updateDownloadJob === ownJob) isDownloadingUpdate = false
                 }
                 throw c
             } catch (e: Exception) {
                 if (tempFile.exists()) tempFile.delete()
                 if (targetFile.exists()) targetFile.delete()
                 withContext(Dispatchers.Main) {
-                    isDownloadingUpdate = false
-                    updateDownloadError = e.message ?: "Download failed"
+                    if (updateDownloadJob === ownJob) {
+                        isDownloadingUpdate = false
+                        updateDownloadError = e.message ?: "Download failed"
+                    }
                 }
             } finally {
-                withContext(Dispatchers.Main) {
-                    isDownloadingUpdate = false
+                withContext(kotlinx.coroutines.NonCancellable + Dispatchers.Main) {
+                    if (updateDownloadJob === ownJob) isDownloadingUpdate = false
                 }
             }
         }
@@ -936,10 +940,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val maxExtraPages = if (contentTypes.isNotEmpty()) 10 else 3
         var extraPages = 0
         var dryPages = 0
+        val extraSort = if (recTags != null && sortOrder != SortOrder.RANDOM) SortOrder.NEWEST else sortOrder
         while (hasMore && collected.size < target && extraPages < maxExtraPages && dryPages < 3) {
             lastPage++
             extraPages++
-            val next = page(tags = tags, page = lastPage)
+            val next = page(tags = tags, page = lastPage, sort = extraSort)
             hasMore = next.rawCount > 0
             if (absorb(next.items) == 0) dryPages++ else dryPages = 0
         }
@@ -979,6 +984,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         isPullRefresh: Boolean = false
     ) {
         val searchGen = ++currentSearchGeneration
+        val previousPage = currentPage
+        val previousHasMore = hasMore
+        val previousRecTagPages = HashMap(recTagPages)
         recTagPages.clear()
         searchJob?.cancel()
         loadMoreJob?.cancel()
@@ -1054,7 +1062,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             } catch (c: CancellationException) {
                 throw c
             } catch (e: Exception) {
-                if (searchGen == currentSearchGeneration) applyFailure(e, keepResults)
+                if (searchGen == currentSearchGeneration) {
+                    if (keepResults) {
+                        currentPage = previousPage
+                        hasMore = previousHasMore
+                        recTagPages.clear()
+                        recTagPages.putAll(previousRecTagPages)
+                    }
+                    applyFailure(e, keepResults)
+                }
             } finally {
                 if (searchGen == currentSearchGeneration) {
                     loading = false
