@@ -401,15 +401,6 @@ object Strings {
         else -> "Check for Updates"
     }
 
-    fun checkUpdatesDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Нажмите для проверки свежих релизов"
-        AppLanguage.JAPANESE -> "GitHubで新しいリリースを確認"
-        AppLanguage.CHINESE -> "点击检查GitHub最新发布"
-        AppLanguage.KOREAN -> "GitHub에서 새 릴리스 확인"
-        AppLanguage.ARABIC -> "انقر للتحقق من الإصدارات الجديدة على GitHub"
-        else -> "Tap to check GitHub for new releases"
-    }
-
     fun updateHeadline(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Доступно обновление"
         AppLanguage.JAPANESE -> "アップデートがあります"
@@ -525,15 +516,6 @@ object Strings {
         AppLanguage.KOREAN -> "즐겨찾기가 비어 있습니다"
         AppLanguage.ARABIC -> "المفضلة فارغة"
         else -> "Favorites is empty"
-    }
-
-    fun favoritesEmptyDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Нажмите на иконку сердечка на карточке любого поста, чтобы сохранить его сюда насовсем."
-        AppLanguage.JAPANESE -> "ハートアイコンをタップして保存できます。"
-        AppLanguage.CHINESE -> "点击帖子上的心形图标将其永久保存在这里。"
-        AppLanguage.KOREAN -> "게시물의 하트 아이콘을 탭하여 여기에 저장하세요."
-        AppLanguage.ARABIC -> "اضغط على أيقونة القلب في أي منشور لحفظه هنا بشكل دائم."
-        else -> "Tap the heart icon on any post to save it here permanently."
     }
 
     fun goToExplore(lang: AppLanguage) = when (lang) {
@@ -884,24 +866,6 @@ object Strings {
         else -> "Source"
     }
 
-    fun rule34DialogDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Укажите User ID и API Key для поиска на Rule34."
-        AppLanguage.JAPANESE -> "Rule34の検索にはUser IDとAPI Keyが必要です。"
-        AppLanguage.CHINESE -> "搜索 Rule34 需要提供 User ID 和 API Key。"
-        AppLanguage.KOREAN -> "Rule34 검색을 위해 User ID와 API Key를 입력하세요。"
-        AppLanguage.ARABIC -> "أدخل User ID و API Key للبحث في Rule34."
-        else -> "Provide User ID and API Key to search Rule34."
-    }
-
-    fun gelbooruDialogDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Укажите User ID и API Key для поиска на Gelbooru."
-        AppLanguage.JAPANESE -> "Gelbooruの検索にはUser IDとAPI Keyが必要です。"
-        AppLanguage.CHINESE -> "搜索 Gelbooru 需要提供 User ID 和 API Key。"
-        AppLanguage.KOREAN -> "Gelbooru 검색을 위해 User ID와 API Key를 입력하세요。"
-        AppLanguage.ARABIC -> "أدخل User ID و API Key للبحث في Gelbooru."
-        else -> "Provide User ID and API Key to search Gelbooru."
-    }
-
     fun getKeyFromSite(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Получить ключ"
         AppLanguage.JAPANESE -> "キーを取得"
@@ -974,15 +938,6 @@ object Strings {
         else -> "Tag Blacklist"
     }
 
-    fun tagBlacklistDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Скрывать посты с указанными тегами из поиска"
-        AppLanguage.JAPANESE -> "指定したタグを含む投稿を非表示にします"
-        AppLanguage.CHINESE -> "在搜索结果中隐藏包含特定标签的内容"
-        AppLanguage.KOREAN -> "특정 태그가 포함된 게시물을 결과에서 숨깁니다"
-        AppLanguage.ARABIC -> "إخفاء المنشورات التي تحتوي على وسوم محددة"
-        else -> "Hide posts containing specific tags from results"
-    }
-
     fun addTagBtn(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Добавить"
         AppLanguage.JAPANESE -> "追加"
@@ -1026,15 +981,6 @@ object Strings {
         AppLanguage.KOREAN -> "태그 필터링..."
         AppLanguage.ARABIC -> "تصفية الوسوم..."
         else -> "Filter tags..."
-    }
-
-    fun emptyBlacklistHint(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Введите теги выше, чтобы скрыть нежелательные посты"
-        AppLanguage.JAPANESE -> "タグを入力して不要な投稿を非表示にできます"
-        AppLanguage.CHINESE -> "在上方输入标签以隐藏不喜欢的帖子"
-        AppLanguage.KOREAN -> "원하지 않는 게시물을 숨기려면 위에 태그를 입력하세요"
-        AppLanguage.ARABIC -> "اكتب وسوماً أعلاه لإخفاء المنشورات غير المرغوب فيها"
-        else -> "Type tags above to hide unwanted posts"
     }
 
     fun setWallpaperTitle(lang: AppLanguage) = when (lang) {
@@ -1170,15 +1116,6 @@ object Strings {
         AppLanguage.KOREAN -> "추천 기록 초기화"
         AppLanguage.ARABIC -> "مسح ذاكرة التوصيات"
         else -> "Clear recommendation memory"
-    }
-
-    fun clearRecommendationsDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Сбросить историю предпочтений и память тегов"
-        AppLanguage.JAPANESE -> "スマートタグの関心と検索の好みをリセット"
-        AppLanguage.CHINESE -> "重置标签偏好与搜索历史记忆"
-        AppLanguage.KOREAN -> "스마트 태그 관심사 및 검색 설정 초기화"
-        AppLanguage.ARABIC -> "إعادة ضبط اهتمامات الوسوم الذكية وتفضيلات البحث"
-        else -> "Reset smart tag interests and search preferences"
     }
 
     fun contentTypeTitle(lang: AppLanguage) = when (lang) {

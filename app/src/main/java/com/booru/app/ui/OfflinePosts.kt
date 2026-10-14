@@ -40,7 +40,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -133,27 +132,6 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                             color = scheme.onSurface,
                             maxLines = 1
                         )
-                        AnimatedContent(
-                            targetState = when {
-                                downloading -> 1
-                                saved > 0 -> 2
-                                else -> 0
-                            },
-                            transitionSpec = { fadeIn(Motion.effectsDefault()) togetherWith fadeOut(Motion.effectsFast()) },
-                            label = "offlineSubtitle"
-                        ) { state ->
-                            Text(
-                                when (state) {
-                                    1 -> Strings.tr(lang, "Keeps going in the background", "Продолжится в фоне", "バックグラウンドで続行します", "会在后台继续", "백그라운드에서 계속됩니다", "يستمر في الخلفية")
-                                    2 -> Strings.tr(lang, "Ready to watch without internet", "Можно смотреть без интернета", "インターネットなしで見られます", "无需网络即可查看", "인터넷 없이 볼 수 있어요", "جاهزة للمشاهدة بلا إنترنت")
-                                    else -> Strings.tr(lang, "From your feed, search and filters", "Из вашей ленты, поиска и фильтров", "フィード・検索・フィルターから", "来自你的推送、搜索和筛选", "피드, 검색, 필터에서 가져옵니다", "من خلاصتك وبحثك وعوامل التصفية")
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = scheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
                     }
                     AnimatedVisibility(
                         visible = added > 0 && !downloading,
@@ -567,13 +545,7 @@ fun OfflinePostsScreen(vm: GalleryViewModel, lang: AppLanguage, onClose: () -> U
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = scheme.onSurface,
-                modifier = Modifier.padding(start = 20.dp, top = 4.dp)
-            )
-            Text(
-                Strings.tr(lang, "Works without internet", "Работает без интернета", "インターネットなしで閲覧可能", "无需网络即可浏览", "인터넷 없이 볼 수 있어요", "يعمل بلا إنترنت"),
-                style = MaterialTheme.typography.bodyMedium,
-                color = scheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 20.dp, bottom = 8.dp)
+                modifier = Modifier.padding(start = 20.dp, top = 4.dp, bottom = 8.dp)
             )
             val counts = remember(all) {
                 mapOf(

@@ -583,13 +583,6 @@ fun FavoritesScreen(
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
                         )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            Strings.favoritesEmptyDesc(lang),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
-                        )
                         Spacer(Modifier.height(24.dp))
                         Button(
                             onClick = onNavigateToExplore,
@@ -628,13 +621,6 @@ fun FavoritesScreen(
                                 Strings.tr(lang, "This collection is empty", "В этой коллекции пока ничего нет", "このコレクションは空です", "此收藏夹为空", "이 컬렉션은 비어 있습니다", "هذه المجموعة فارغة"),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                Strings.tr(lang, "Add posts to this collection via details menu", "Добавьте посты в коллекцию через меню деталей", "詳細メニューから投稿を追加できます", "通过详情菜单将帖子添加到此收藏夹", "상세 메뉴에서 게시물을 추가하세요", "أضف منشورات عبر قائمة التفاصيل"),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
                             )
                             Spacer(Modifier.height(20.dp))
@@ -1165,15 +1151,6 @@ private fun CreateFolderBottomSheet(
                 ExpressiveSheetHeader(
                     icon = Icons.Rounded.CreateNewFolder,
                     title = Strings.newFolder(lang),
-                    subtitle = Strings.tr(
-                        lang,
-                        "${existingNames.size} collections",
-                        "Коллекций: ${existingNames.size}",
-                        "コレクション: ${existingNames.size}",
-                        "收藏夹：${existingNames.size}",
-                        "컬렉션 ${existingNames.size}개",
-                        "المجموعات: ${existingNames.size}"
-                    ),
                     polygon = MaterialShapes.Puffy,
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer
@@ -1319,26 +1296,11 @@ private fun DeleteFolderBottomSheet(
                     title = Strings.tr(lang, "Delete collection?", "Удалить коллекцию?", "コレクションを削除しますか？", "删除此收藏夹？", "컬렉션을 삭제할까요?", "حذف المجموعة؟"),
                     polygon = MaterialShapes.Burst,
                     containerColor = MaterialTheme.colorScheme.errorContainer,
-                    contentColor = MaterialTheme.colorScheme.onErrorContainer
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    subtitle = folderName
                 )
     
-                Text(
-                    text = Strings.tr(
-                        lang,
-                        "Collection \"$folderName\" will be removed. Media items will remain in favorites.",
-                        "Коллекция «$folderName» будет удалена. Медиафайлы останутся в общем избранном.",
-                        "コレクション「$folderName」を削除します。メディアはお気に入りに残ります。",
-                        "将删除收藏夹「$folderName」。媒体仍保留在收藏中。",
-                        "컬렉션 \"$folderName\"이(가) 삭제됩니다. 미디어는 즐겨찾기에 남습니다.",
-                        "ستتم إزالة المجموعة \"$folderName\". ستبقى الوسائط في المفضلة."
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
-    
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(8.dp))
     
                 Row(
                     modifier = Modifier.fillMaxWidth(),

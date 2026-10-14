@@ -77,10 +77,6 @@ import com.booru.app.data.BucketSize
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
 import java.time.format.TextStyle
 import java.util.Locale
 
@@ -415,8 +411,7 @@ private fun InterestsPage(stats: FavoriteStats, interests: List<Pair<String, Flo
     if (interests.isNotEmpty()) {
         StatsCard(
             Icons.Rounded.AutoAwesome,
-            Strings.tr(lang, "Shaping your feed", "Сейчас влияет на ленту", "フィードに影響中", "正在影响推荐", "피드에 반영 중", "يشكّل خلاصتك"),
-            Strings.tr(lang, "Tags your recommendations lean on right now", "Теги, на которые сейчас опираются рекомендации", "現在おすすめが重視しているタグ", "推荐当前依赖的标签", "현재 추천에 반영되는 태그", "الوسوم التي تعتمد عليها التوصيات الآن")
+            Strings.tr(lang, "Shaping your feed", "Сейчас влияет на ленту", "フィードに影響中", "正在影响推荐", "피드에 반영 중", "يشكّل خلاصتك")
         ) {
             InterestBars(interests.take(8))
         }
@@ -424,8 +419,7 @@ private fun InterestsPage(stats: FavoriteStats, interests: List<Pair<String, Flo
     if (stats.topTags.isNotEmpty()) {
         StatsCard(
             Icons.Rounded.Tag,
-            Strings.tr(lang, "Your vibe", "Ваш вайб", "あなたの好み", "你的口味", "나의 취향", "ذوقك"),
-            Strings.tr(lang, "Most common tags in what you view and save", "Самые частые теги в том, что вы смотрите и сохраняете", "閲覧・保存した投稿で多いタグ", "浏览和收藏中最常见的标签", "보고 저장한 게시물에서 많은 태그", "الوسوم الأكثر تكراراً فيما تشاهده وتحفظه")
+            Strings.tr(lang, "Your vibe", "Ваш вайб", "あなたの好み", "你的口味", "나의 취향", "ذوقك")
         ) {
             TagCloud(stats.topTags)
         }
@@ -433,8 +427,7 @@ private fun InterestsPage(stats: FavoriteStats, interests: List<Pair<String, Flo
     groups.forEach { (category, title, entries) ->
         StatsCard(
             category.icon,
-            title,
-            Strings.tr(lang, "Posts you viewed or saved with each one", "Сколько постов с ними вы смотрели или сохранили", "閲覧・保存した投稿数", "浏览或收藏的作品数", "보거나 저장한 게시물 수", "عدد المنشورات التي شاهدتها أو حفظتها")
+            title
         ) {
             RankedBars(entries.take(8), MaterialTheme.colorScheme.primary)
         }
@@ -442,8 +435,7 @@ private fun InterestsPage(stats: FavoriteStats, interests: List<Pair<String, Flo
     if (stats.topSearches.isNotEmpty()) {
         StatsCard(
             Icons.Rounded.Search,
-            Strings.tr(lang, "Top searches", "Частые запросы", "よく使う検索", "常用搜索", "자주 찾은 검색어", "عمليات البحث الأكثر"),
-            Strings.tr(lang, "What you search for most", "Что вы ищете чаще всего", "よく検索するキーワード", "你最常搜索的内容", "가장 많이 검색한 항목", "ما تبحث عنه أكثر")
+            Strings.tr(lang, "Top searches", "Частые запросы", "よく使う検索", "常用搜索", "자주 찾은 검색어", "عمليات البحث الأكثر")
         ) {
             RankedBars(stats.topSearches.take(8), MaterialTheme.colorScheme.tertiary)
         }
@@ -451,8 +443,7 @@ private fun InterestsPage(stats: FavoriteStats, interests: List<Pair<String, Flo
     if (stats.topSources.size > 1) {
         StatsCard(
             Icons.Rounded.Public,
-            Strings.tr(lang, "Sources", "Источники", "ソース", "来源", "소스", "المصادر"),
-            Strings.tr(lang, "Where the posts you like come from", "Откуда посты, которые вы смотрите", "閲覧した投稿の取得元", "你浏览的帖子来自哪里", "본 게시물의 출처", "مصادر المنشورات التي تشاهدها")
+            Strings.tr(lang, "Sources", "Источники", "ソース", "来源", "소스", "المصادر")
         ) {
             RankedBars(stats.topSources.take(5), MaterialTheme.colorScheme.primary, prettify = false)
         }
@@ -469,8 +460,7 @@ private fun ActivityPage(stats: FavoriteStats, lang: AppLanguage, locale: Locale
                 BucketSize.HOUR -> Strings.tr(lang, "By hour", "По часам", "時間別", "按小时", "시간별", "حسب الساعة")
                 BucketSize.DAY -> Strings.tr(lang, "By day", "По дням", "日別", "按天", "일별", "حسب اليوم")
                 BucketSize.MONTH -> Strings.tr(lang, "By month", "По месяцам", "月別", "按月", "월별", "حسب الشهر")
-            },
-            Strings.tr(lang, "Posts viewed and favorited", "Просмотрено и добавлено в избранное", "閲覧数とお気に入り数", "浏览与收藏", "본 게시물과 즐겨찾기", "المنشورات المشاهدة والمفضلة")
+            }
         ) {
             ActivityChart(stats, locale, lang)
         }
@@ -479,8 +469,7 @@ private fun ActivityPage(stats: FavoriteStats, lang: AppLanguage, locale: Locale
     if (stats.bucketSize != BucketSize.HOUR && stats.hours.any { it > 0 }) {
         StatsCard(
             Icons.Rounded.Schedule,
-            Strings.tr(lang, "Time of day", "Время суток", "時間帯", "时段", "시간대", "وقت اليوم"),
-            Strings.tr(lang, "When you use the app", "Когда вы пользуетесь приложением", "アプリを使う時間", "你使用应用的时间", "앱을 사용하는 시간", "متى تستخدم التطبيق")
+            Strings.tr(lang, "Time of day", "Время суток", "時間帯", "时段", "시간대", "وقت اليوم")
         ) {
             HourChart(stats.hours, lang)
         }
@@ -489,8 +478,7 @@ private fun ActivityPage(stats: FavoriteStats, lang: AppLanguage, locale: Locale
     if (stats.images + stats.gifs + stats.videos > 0) {
         StatsCard(
             Icons.Rounded.PieChart,
-            Strings.tr(lang, "Mix", "Состав", "内訳", "构成", "구성", "التركيبة"),
-            Strings.tr(lang, "File types and ratings", "Типы файлов и рейтинг", "ファイル形式とレーティング", "文件类型与分级", "파일 형식과 등급", "أنواع الملفات والتصنيفات")
+            Strings.tr(lang, "Mix", "Состав", "内訳", "构成", "구성", "التركيبة")
         ) {
             val primary = MaterialTheme.colorScheme.primary
             val tertiary = MaterialTheme.colorScheme.tertiary
@@ -518,8 +506,7 @@ private fun ActivityPage(stats: FavoriteStats, lang: AppLanguage, locale: Locale
     stats.topScored?.let { top ->
         StatsCard(
             Icons.Rounded.EmojiEvents,
-            Strings.tr(lang, "Highest score", "Самый высокий рейтинг", "最高スコア", "最高评分", "최고 점수", "أعلى تقييم"),
-            Strings.tr(lang, "The post with the most votes on its site", "Пост с наибольшим рейтингом на сайте", "サイトで最も評価された投稿", "在站点评分最高的帖子", "사이트 점수가 가장 높은 게시물", "المنشور الأعلى تقييماً")
+            Strings.tr(lang, "Highest score", "Самый высокий рейтинг", "最高スコア", "最高评分", "최고 점수", "أعلى تقييم")
         ) {
             TopScoredRow(top)
         }
@@ -590,20 +577,6 @@ private fun SummaryCard(stats: FavoriteStats, period: StatsPeriod, lang: AppLang
                         }
                     }
                 }
-            }
-            val since = stats.historySince
-            val trackingText = if (since == null) {
-                Strings.tr(lang, "Views, downloads and searches are counted from now on.", "Просмотры, скачивания и поиски считаются с этого момента.", "閲覧・保存・検索は今後カウントされます。", "浏览、下载和搜索将从现在开始统计。", "보기, 다운로드, 검색은 지금부터 집계됩니다.", "تُحتسب المشاهدات والتنزيلات وعمليات البحث من الآن.")
-            } else {
-                val date = Instant.ofEpochMilli(since).atZone(ZoneId.systemDefault()).toLocalDate()
-                val formatted = DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).format(date)
-                Strings.tr(lang, "Views, downloads and searches counted since $formatted", "Просмотры, скачивания и поиски считаются с $formatted", "閲覧・保存・検索は $formatted から集計", "浏览、下载和搜索自 $formatted 起统计", "보기, 다운로드, 검색은 ${formatted}부터 집계", "تُحتسب المشاهدات والتنزيلات وعمليات البحث منذ $formatted")
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Rounded.Info, contentDescription = null, tint = scheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(6.dp))
-                Text(trackingText, style = MaterialTheme.typography.labelSmall, color = scheme.onSurfaceVariant)
             }
         }
     }
@@ -1235,16 +1208,6 @@ private fun prettyTag(tag: String) = tag.replace('_', ' ')
 
 fun statsTitle(lang: AppLanguage) =
     Strings.tr(lang, "Your stats", "Ваша статистика", "あなたの統計", "你的统计", "내 통계", "إحصائياتك")
-
-fun statsSubtitle(lang: AppLanguage) = Strings.tr(
-    lang,
-    "What you view, save and search, and your favorite characters and artists",
-    "Что вы смотрите, сохраняете и ищете, любимые персонажи и авторы",
-    "閲覧・保存・検索の傾向、推しキャラと絵師",
-    "你的浏览、收藏和搜索，以及最爱的角色和画师",
-    "보고, 저장하고, 검색한 것과 최애 캐릭터·작가",
-    "ما تشاهده وتحفظه وتبحث عنه، وشخصياتك وفنانيك المفضلون"
-)
 
 private fun periodShortLabel(period: StatsPeriod, lang: AppLanguage) = when (period) {
     StatsPeriod.DAY -> Strings.tr(lang, "Day", "День", "日", "日", "일", "يوم")

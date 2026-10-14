@@ -207,7 +207,7 @@ fun SettingsScreen(
                 KeyboardSheetEffects(keyboardSheet, onDismiss = { showRule34Dialog = false })
                 ApiKeyForm(
                     title = "Rule34 API",
-                    description = Strings.rule34DialogDesc(lang),
+                    description = null,
                     user = rule34User,
                     onUserChange = { rule34User = it },
                     key = rule34Key,
@@ -247,7 +247,7 @@ fun SettingsScreen(
                 KeyboardSheetEffects(keyboardSheet, onDismiss = { showGelbooruDialog = false })
                 ApiKeyForm(
                     title = "Gelbooru API",
-                    description = Strings.gelbooruDialogDesc(lang),
+                    description = null,
                     user = gelbooruUser,
                     onUserChange = { gelbooruUser = it },
                     key = gelbooruKey,
@@ -560,7 +560,6 @@ fun SettingsScreen(
                     SheetHeader(
                         icon = Icons.Rounded.Block,
                         title = Strings.tagBlacklistTitle(lang),
-                        subtitle = Strings.tagBlacklistDesc(lang),
                         containerColor = MaterialTheme.colorScheme.errorContainer,
                         contentColor = MaterialTheme.colorScheme.onErrorContainer,
                         polygon = MaterialShapes.Burst
@@ -751,38 +750,12 @@ fun SettingsScreen(
                         }
                     }
 
-                    Surface(
+                    if (vm.tagBlacklist.isNotEmpty()) Surface(
                         shape = ShapeTokens.LargeIncreased,
                         color = MaterialTheme.colorScheme.surfaceContainer,
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        if (vm.tagBlacklist.isEmpty()) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 24.dp, horizontal = 16.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                SettingIconBadge(
-                                    icon = Icons.Rounded.Shield,
-                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
-                                )
-                                Text(
-                                    text = Strings.noBlacklistedTags(lang),
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = Strings.emptyBlacklistHint(lang),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                            }
-                        } else {
+                        run {
                             Column(modifier = Modifier.padding(12.dp)) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
@@ -1271,7 +1244,7 @@ fun SettingsScreen(
                         SettingsGroupCard {
                             SettingRowItem(
                                 title = statsTitle(lang),
-                                subtitle = statsSubtitle(lang),
+                                subtitle = null,
                                 icon = Icons.Rounded.Insights,
                                 onClick = { showStatsScreen = true }
                             )
@@ -1317,7 +1290,7 @@ fun SettingsScreen(
 
                             SettingRowItem(
                                 title = Strings.clearRecommendationsTitle(lang),
-                                subtitle = Strings.clearRecommendationsDesc(lang),
+                                subtitle = null,
                                 icon = Icons.Rounded.AutoAwesome,
                                 trailing = {
                                     AnimatedConfirmDeleteButton(
@@ -1340,7 +1313,7 @@ fun SettingsScreen(
                         SettingsGroupCard {
                             SettingSwitchItem(
                                 title = Strings.biometricLockTitle(lang),
-                                subtitle = Strings.biometricLockSubtitle(lang),
+                                subtitle = null,
                                 icon = Icons.Rounded.Fingerprint,
                                 checked = vm.biometricLockEnabled,
                                 onCheckedChange = { vm.setBiometricLock(it) }
@@ -1410,7 +1383,7 @@ fun SettingsScreen(
 
                             SettingRowItem(
                                 title = Strings.tr(lang, "Website", "Сайт", "ウェブサイト", "网站", "웹사이트", "الموقع"),
-                                subtitle = "booru.weebio.ru",
+                                subtitle = null,
                                 icon = Icons.Rounded.Language,
                                 trailing = {
                                     FilledTonalButton(
@@ -1444,7 +1417,7 @@ fun SettingsScreen(
 
                             SettingRowItem(
                                 title = Strings.checkUpdatesTitle(lang),
-                                subtitle = Strings.checkUpdatesDesc(lang),
+                                subtitle = null,
                                 icon = Icons.Rounded.SystemUpdate,
                                 trailing = {
                                     FilledTonalButton(
@@ -1692,7 +1665,7 @@ private fun SettingsGroupCard(
 @Composable
 private fun SettingRowItem(
     title: String,
-    subtitle: String,
+    subtitle: String?,
     icon: ImageVector,
     onClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null
@@ -1723,12 +1696,14 @@ private fun SettingRowItem(
                     fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (subtitle != null) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
@@ -1912,7 +1887,7 @@ private fun LanguageSelectionBottomSheet(
                     val langOption = AppLanguage.entries[index]
                     ChoiceGridTile(
                         title = langOption.displayName,
-                        supporting = langOption.englishName,
+                        supporting = null,
                         selected = langOption == currentLanguage,
                         corners = corners,
                         onClick = {
@@ -2202,7 +2177,7 @@ private fun GroupedField(
 @Composable
 private fun ApiKeyForm(
     title: String,
-    description: String,
+    description: String?,
     user: String,
     onUserChange: (String) -> Unit,
     key: String,
