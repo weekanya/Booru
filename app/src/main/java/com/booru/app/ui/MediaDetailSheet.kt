@@ -200,6 +200,7 @@ private fun MediaDetailSheetContent(
     var isTagsExpanded by remember { mutableStateOf(false) }
     var showTrueFullscreen by remember { mutableStateOf(false) }
     var showMoreMenu by remember { mutableStateOf(false) }
+    val videoPositions = remember { HashMap<String, Long>() }
 
     val sheetState = rememberExpandedSheetState()
     var isDismissingSheet by remember { mutableStateOf(false) }
@@ -218,8 +219,10 @@ private fun MediaDetailSheetContent(
     val isSettingWallpaper = vm.isSettingWallpaper
 
     LaunchedEffect(pagerState.settledPage) {
-        vm.updateFullscreenIndex(pagerState.settledPage)
-        mediaList.getOrNull(pagerState.settledPage)?.let { vm.recordViewed(it) }
+        mediaList.getOrNull(pagerState.settledPage)?.let {
+            vm.updateFullscreenMedia(it)
+            vm.recordViewed(it)
+        }
     }
 
     LaunchedEffect(pagerState) {
@@ -303,7 +306,8 @@ private fun MediaDetailSheetContent(
                                 modifier = Modifier.fillMaxSize(),
                                 isActive = pagerState.settledPage == page && !showTrueFullscreen && !isDismissingSheet,
                                 onFullscreen = { showTrueFullscreen = true },
-                                allowPrefetch = !vm.isDataSaverActive
+                                allowPrefetch = !vm.isDataSaverActive,
+                                positionHandoff = videoPositions
                             )
                         } else {
                             DetailZoomableImage(
@@ -1178,7 +1182,8 @@ private fun MediaDetailSheetContent(
                 }
             },
             onDownload = { downloadCurrentMedia(it) },
-            onLoadMore = onLoadMore
+            onLoadMore = onLoadMore,
+            videoPositions = videoPositions
         )
     }
 }
@@ -1768,10 +1773,15 @@ fun BooruVideoPlayer(
     externalShowControls: Boolean = true,
     onToggleControls: (() -> Unit)? = null,
     onFullscreen: (() -> Unit)? = null,
-    allowPrefetch: Boolean = true
+    allowPrefetch: Boolean = true,
+    onUserInteraction: (() -> Unit)? = null,
+    onSeekingChanged: ((Boolean) -> Unit)? = null,
+    positionHandoff: MutableMap<String, Long>? = null
 ) {
     val context = LocalContext.current
     val activeState = rememberUpdatedState(isActive)
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    val lifecycleOwnerState = rememberUpdatedState(lifecycleOwner)
     var playbackError by remember(videoUrl) { mutableStateOf(false) }
     var isPlaying by remember { mutableStateOf(true) }
     var userPaused by remember(videoUrl) { mutableStateOf(false) }
@@ -1784,6 +1794,7 @@ fun BooruVideoPlayer(
     var isSeeking by remember { mutableStateOf(false) }
     var seekRatio by remember { mutableFloatStateOf(0f) }
     var playbackSpeed by remember { mutableFloatStateOf(1f) }
+    var interactionTick by remember { mutableIntStateOf(0) }
 
     fun toggleControls() {
         if (isExternalControls) {
@@ -1793,8 +1804,23 @@ fun BooruVideoPlayer(
         }
     }
 
-    val exoPlayer = remember(videoUrl) {
-        val offlineFile = com.booru.app.data.OfflineStore.fileForUrl(videoUrl)
+    fun noteInteraction() {
+        interactionTick++
+        onUserInteraction?.invoke()
+    }
+
+    fun canPlay(): Boolean = activeState.value &&
+        lifecycleOwnerState.value.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
+
+    // The player is created lazily, only once this page is active (settled), so that swiping
+    // past neighbour video pages never builds/prepares an ExoPlayer on the main thread mid-swipe.
+    var playerState by remember(videoUrl) { mutableStateOf<ExoPlayer?>(null) }
+    val exoPlayer = playerState
+
+    LaunchedEffect(videoUrl, isActive) {
+        if (!isActive || playerState != null) return@LaunchedEffect
+        withFrameNanos { }
+        val offlineFile = withContext(Dispatchers.IO) { com.booru.app.data.OfflineStore.fileForUrl(videoUrl) }
         val mediaSourceFactory = if (offlineFile != null) {
             androidx.media3.exoplayer.source.DefaultMediaSourceFactory(context)
         } else {
@@ -1812,24 +1838,31 @@ fun BooruVideoPlayer(
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
 
-        ExoPlayer.Builder(context)
+        playerState = ExoPlayer.Builder(context)
             .setMediaSourceFactory(mediaSourceFactory)
             .setLoadControl(loadControl)
             .build().apply {
                 val mediaItem = if (offlineFile != null) MediaItem.fromUri(android.net.Uri.fromFile(offlineFile)) else MediaItem.fromUri(videoUrl)
                 setMediaItem(mediaItem)
                 repeatMode = Player.REPEAT_MODE_ALL
-                playWhenReady = activeState.value
+                if (isMuted) volume = 0f
+                playWhenReady = canPlay() && !userPaused
                 setSeekParameters(androidx.media3.exoplayer.SeekParameters.CLOSEST_SYNC)
+                positionHandoff?.remove(videoUrl)?.let { resumeAt ->
+                    if (resumeAt > 0L) {
+                        seekTo(resumeAt)
+                        currentPosMs = resumeAt
+                    }
+                }
                 addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
                         if (playbackState == Player.STATE_READY) {
                             isReady = true
                             playbackError = false
                             if (duration > 0L) durationMs = duration
-                            if (activeState.value && !userPaused && !isPlaying) {
+                            if (canPlay() && !userPaused && !isPlaying) {
                                 play()
-                            } else if (!activeState.value && isPlaying) {
+                            } else if (!canPlay() && isPlaying) {
                                 pause()
                             }
                         }
@@ -1848,15 +1881,31 @@ fun BooruVideoPlayer(
             }
     }
 
-    LaunchedEffect(exoPlayer, isActive) {
-        if (isActive && allowPrefetch && com.booru.app.data.OfflineStore.fileForUrl(videoUrl) == null) com.booru.app.BooruVideoCache.prefetchParallel(context, videoUrl)
+    DisposableEffect(exoPlayer) {
+        val player = exoPlayer
+        if (player != null) com.booru.app.BooruVideoCache.acquirePlayer()
+        onDispose {
+            if (player != null) {
+                val pos = player.currentPosition
+                if (pos > 0L) positionHandoff?.set(videoUrl, pos)
+                player.release()
+                com.booru.app.BooruVideoCache.releasePlayer()
+            }
+        }
+    }
+
+    LaunchedEffect(videoUrl, isActive) {
+        if (isActive && allowPrefetch &&
+            withContext(Dispatchers.IO) { com.booru.app.data.OfflineStore.fileForUrl(videoUrl) } == null
+        ) com.booru.app.BooruVideoCache.prefetchParallel(context, videoUrl)
     }
 
     LaunchedEffect(playbackSpeed, exoPlayer) {
-        exoPlayer.setPlaybackSpeed(playbackSpeed)
+        exoPlayer?.setPlaybackSpeed(playbackSpeed)
     }
 
     LaunchedEffect(exoPlayer, isPlaying, isActive) {
+        if (exoPlayer == null) return@LaunchedEffect
         while (isActive && isPlaying) {
             if (!isSeeking) {
                 currentPosMs = exoPlayer.currentPosition.coerceAtLeast(0L)
@@ -1870,40 +1919,63 @@ fun BooruVideoPlayer(
         }
     }
 
-    LaunchedEffect(internalShowControls, isPlaying, isSeeking, isExternalControls) {
+    LaunchedEffect(internalShowControls, isPlaying, isSeeking, isExternalControls, interactionTick) {
         if (!isExternalControls && internalShowControls && isPlaying && !isSeeking) {
             delay(4000)
             internalShowControls = false
         }
     }
 
+    val latestOnSeekingChanged by rememberUpdatedState(onSeekingChanged)
+    DisposableEffect(isSeeking) {
+        val seeking = isSeeking
+        if (seeking) latestOnSeekingChanged?.invoke(true)
+        onDispose { if (seeking) latestOnSeekingChanged?.invoke(false) }
+    }
+
     LaunchedEffect(isActive, exoPlayer, userPaused) {
+        if (exoPlayer == null) return@LaunchedEffect
         if (!isActive) {
             exoPlayer.pause()
-        } else if (!userPaused) {
-            exoPlayer.playWhenReady = true
-            if (exoPlayer.playbackState == Player.STATE_ENDED) {
-                exoPlayer.seekTo(0L)
+            val pos = exoPlayer.currentPosition
+            if (pos > 0L) positionHandoff?.set(videoUrl, pos)
+        } else {
+            positionHandoff?.remove(videoUrl)?.let { resumeAt ->
+                if (abs(resumeAt - exoPlayer.currentPosition) > 500L) {
+                    exoPlayer.seekTo(resumeAt)
+                    currentPosMs = resumeAt
+                }
             }
-            exoPlayer.play()
+            if (!userPaused && canPlay()) {
+                exoPlayer.playWhenReady = true
+                if (exoPlayer.playbackState == Player.STATE_ENDED) {
+                    exoPlayer.seekTo(0L)
+                }
+                exoPlayer.play()
+            }
         }
     }
 
-    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    DisposableEffect(exoPlayer, lifecycleOwner) {
-        com.booru.app.BooruVideoCache.acquirePlayer()
+    DisposableEffect(lifecycleOwner, exoPlayer) {
+        if (exoPlayer == null) return@DisposableEffect onDispose { }
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
-            if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE || event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
-                if (exoPlayer.isPlaying) {
-                    exoPlayer.pause()
+            when (event) {
+                androidx.lifecycle.Lifecycle.Event.ON_PAUSE,
+                androidx.lifecycle.Lifecycle.Event.ON_STOP -> exoPlayer.pause()
+                androidx.lifecycle.Lifecycle.Event.ON_RESUME -> {
+                    if (activeState.value && !userPaused) {
+                        if (exoPlayer.playbackState == Player.STATE_ENDED) {
+                            exoPlayer.seekTo(0L)
+                        }
+                        exoPlayer.play()
+                    }
                 }
+                else -> Unit
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            exoPlayer.release()
-            com.booru.app.BooruVideoCache.releasePlayer()
         }
     }
 
@@ -1923,21 +1995,23 @@ fun BooruVideoPlayer(
             )
         }
 
-        AndroidView(
-            factory = { ctx ->
-                PlayerView(ctx).apply {
-                    player = exoPlayer
-                    useController = false
-                    setOnClickListener { toggleControls() }
-                    layoutParams = ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        ViewGroup.LayoutParams.MATCH_PARENT
-                    )
-                }
-            },
-            update = { view -> if (view.player !== exoPlayer) view.player = exoPlayer },
-            modifier = Modifier.fillMaxSize()
-        )
+        if (exoPlayer != null) {
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        player = exoPlayer
+                        useController = false
+                        setOnClickListener { toggleControls() }
+                        layoutParams = ViewGroup.LayoutParams(
+                            ViewGroup.LayoutParams.MATCH_PARENT,
+                            ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                    }
+                },
+                update = { view -> if (view.player !== exoPlayer) view.player = exoPlayer },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
 
         Box(
             modifier = Modifier
@@ -1976,8 +2050,8 @@ fun BooruVideoPlayer(
                     FilledTonalButton(
                         onClick = {
                             playbackError = false
-                            exoPlayer.prepare()
-                            exoPlayer.playWhenReady = activeState.value
+                            exoPlayer?.prepare()
+                            exoPlayer?.playWhenReady = canPlay() && !userPaused
                         },
                         shape = CircleShape
                     ) {
@@ -2000,9 +2074,12 @@ fun BooruVideoPlayer(
             ) {
                 FilledTonalIconButton(
                     onClick = {
-                        val target = (exoPlayer.currentPosition - 10000L).coerceAtLeast(0L)
-                        exoPlayer.seekTo(target)
-                        currentPosMs = target
+                        noteInteraction()
+                        if (exoPlayer != null) {
+                            val target = (exoPlayer.currentPosition - 10000L).coerceAtLeast(0L)
+                            exoPlayer.seekTo(target)
+                            currentPosMs = target
+                        }
                     },
                     modifier = Modifier
                         .size(46.dp),
@@ -2021,11 +2098,12 @@ fun BooruVideoPlayer(
 
                 FilledTonalIconButton(
                     onClick = {
-                        if (exoPlayer.isPlaying) {
+                        noteInteraction()
+                        if (exoPlayer != null && exoPlayer.isPlaying) {
                             userPaused = true
                             exoPlayer.pause()
                             isPlaying = false
-                        } else {
+                        } else if (exoPlayer != null) {
                             userPaused = false
                             exoPlayer.playWhenReady = true
                             if (exoPlayer.playbackState == Player.STATE_ENDED) {
@@ -2052,10 +2130,13 @@ fun BooruVideoPlayer(
 
                 FilledTonalIconButton(
                     onClick = {
-                        val dur = if (durationMs > 0) durationMs else Long.MAX_VALUE
-                        val target = (exoPlayer.currentPosition + 10000L).coerceAtMost(dur)
-                        exoPlayer.seekTo(target)
-                        currentPosMs = target
+                        noteInteraction()
+                        if (exoPlayer != null) {
+                            val dur = if (durationMs > 0) durationMs else Long.MAX_VALUE
+                            val target = (exoPlayer.currentPosition + 10000L).coerceAtMost(dur)
+                            exoPlayer.seekTo(target)
+                            currentPosMs = target
+                        }
                     },
                     modifier = Modifier
                         .size(46.dp),
@@ -2101,15 +2182,24 @@ fun BooruVideoPlayer(
                     else -> 0f
                 }
 
+                DisposableEffect(Unit) {
+                    onDispose {
+                        // Slider left composition mid-drag: cancel the pending seek.
+                        if (isSeeking) isSeeking = false
+                    }
+                }
+
                 ExpressiveSlider(
                     value = sliderPosition,
                     onValueChange = {
+                        if (!isSeeking) noteInteraction()
                         isSeeking = true
                         seekRatio = it
                     },
                     onValueChangeFinished = {
                         isSeeking = false
-                        if (durationMs > 0L) {
+                        noteInteraction()
+                        if (durationMs > 0L && exoPlayer != null) {
                             val target = (seekRatio * durationMs).toLong()
                             exoPlayer.seekTo(target)
                             currentPosMs = target
@@ -2147,6 +2237,7 @@ fun BooruVideoPlayer(
                         val speedOptions = listOf(1f, 1.25f, 1.5f, 2f, 0.5f)
                         FilledTonalIconButton(
                             onClick = {
+                                noteInteraction()
                                 val idx = speedOptions.indexOf(playbackSpeed)
                                 val nextIdx = if (idx in 0 until speedOptions.size - 1) idx + 1 else 0
                                 playbackSpeed = speedOptions[nextIdx]
@@ -2170,8 +2261,9 @@ fun BooruVideoPlayer(
 
                         FilledTonalIconButton(
                             onClick = {
+                                noteInteraction()
                                 isMuted = !isMuted
-                                exoPlayer.volume = if (isMuted) 0f else 1f
+                                exoPlayer?.volume = if (isMuted) 0f else 1f
                             },
                             shapes = IconButtonDefaults.shapes(shape = CircleShape, pressedShape = IconButtonDefaults.smallPressedShape),
                             colors = IconButtonDefaults.filledTonalIconButtonColors(
@@ -2190,7 +2282,13 @@ fun BooruVideoPlayer(
 
                         if (onFullscreen != null) {
                             FilledTonalIconButton(
-                                onClick = onFullscreen,
+                                onClick = {
+                                    if (exoPlayer != null) {
+                                        val pos = exoPlayer.currentPosition
+                                        if (pos > 0L) positionHandoff?.set(videoUrl, pos)
+                                    }
+                                    onFullscreen()
+                                },
                                 shapes = IconButtonDefaults.shapes(shape = CircleShape, pressedShape = IconButtonDefaults.smallPressedShape),
                                 colors = IconButtonDefaults.filledTonalIconButtonColors(
                                     containerColor = Color.Black.copy(alpha = 0.5f)
@@ -2355,13 +2453,19 @@ internal fun SettlePagerWhenIdle(state: androidx.compose.foundation.pager.PagerS
                 if (!scrolling) {
                     kotlinx.coroutines.delay(48)
                     if (!state.isScrollInProgress && kotlin.math.abs(state.currentPageOffsetFraction) > 0.02f) {
-                        state.animateScrollToPage(
-                            state.currentPage,
-                            animationSpec = androidx.compose.animation.core.spring(
-                                dampingRatio = 1f,
-                                stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                        try {
+                            state.animateScrollToPage(
+                                state.currentPage,
+                                animationSpec = androidx.compose.animation.core.spring(
+                                    dampingRatio = 1f,
+                                    stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                                )
                             )
-                        )
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            // A user drag interrupts the settle animation (MutationInterruptedException);
+                            // keep collecting unless this effect itself was cancelled.
+                            if (!kotlinx.coroutines.currentCoroutineContext().isActive) throw e
+                        }
                     }
                 }
             }

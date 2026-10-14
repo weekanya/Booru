@@ -89,6 +89,7 @@ import com.booru.app.data.AppLanguage
 import com.booru.app.data.ImageQuality
 import com.booru.app.data.Strings
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -117,6 +118,15 @@ fun FavoritesScreen(
     val scope = rememberCoroutineScope()
 
     var filterText by rememberSaveable { mutableStateOf("") }
+    // Debounced copy of filterText that actually drives the (expensive) list filtering,
+    // so typing doesn't re-filter every composed page and the count chip on each keystroke.
+    var appliedFilter by remember { mutableStateOf(filterText) }
+    LaunchedEffect(Unit) {
+        snapshotFlow { filterText }.collectLatest { text ->
+            if (text.isNotBlank()) delay(200)
+            appliedFilter = text
+        }
+    }
     var mediaTypeFilter by rememberSaveable { mutableStateOf(FavoriteMediaTypeFilter.ALL) }
     var sortOrder by rememberSaveable { mutableStateOf(FavoriteSortOrder.NEWEST) }
     var showCreateFolderDialog by remember { mutableStateOf(false) }
@@ -182,7 +192,7 @@ fun FavoritesScreen(
             }
         }
 
-        val trimmed = filterText.trim().lowercase()
+        val trimmed = appliedFilter.trim().lowercase()
         if (trimmed.isNotBlank()) {
             val tokens = trimmed.split("\\s+".toRegex()).filter { it.isNotBlank() }
             val excluded = tokens.filter { it.length > 1 && it.startsWith("-") }.map { it.drop(1) }
@@ -204,17 +214,20 @@ fun FavoritesScreen(
     }
 
     if (showFolderSheet) {
+        val folderCounts = remember(vm.favoritesList, vm.favoriteFolders) {
+            vm.favoritesList.groupingBy { vm.getMediaFolder(it) }.eachCount()
+        }
         FolderPickerSheet(
             folders = folders,
             selectedIndex = folderTabController.selectedPage,
             countFor = { folder ->
                 if (folder == null) vm.favoritesList.size
-                else vm.favoritesList.count { vm.getMediaFolder(it) == folder }
+                else folderCounts[folder] ?: 0
             },
             lang = lang,
             onSelect = { index ->
-                showFolderSheet = false
                 folderTabController.select(index)
+                showFolderSheet = false
             },
             onCreate = {
                 showFolderSheet = false
@@ -241,8 +254,8 @@ fun FavoritesScreen(
             onSortSelected = { sortOrder = it },
             onTypeSelected = { mediaTypeFilter = it },
             onClearAll = {
-                showFilterSheet = false
                 vm.clearFavorites()
+                showFilterSheet = false
             },
             onDismiss = { showFilterSheet = false }
         )
@@ -448,7 +461,7 @@ fun FavoritesScreen(
 
             if (filterText.isNotBlank()) {
                 val currentFolder = folders.getOrNull(pagerState.currentPage)
-                val currentCount = remember(vm.favoritesList, filterText, mediaTypeFilter, sortOrder, currentFolder, vm.favoriteFolders) {
+                val currentCount = remember(vm.favoritesList, appliedFilter, mediaTypeFilter, sortOrder, currentFolder, vm.favoriteFolders) {
                     getFolderMediaList(currentFolder).size
                 }
                 Surface(
@@ -534,7 +547,7 @@ fun FavoritesScreen(
             key = { page -> folders.getOrNull(page)?.let { "folder:$it" } ?: "all" }
         ) { page ->
             val currentFolder = folders.getOrNull(page)
-            val pageList = remember(vm.favoritesList, filterText, mediaTypeFilter, sortOrder, currentFolder, vm.favoriteFolders) {
+            val pageList = remember(vm.favoritesList, appliedFilter, mediaTypeFilter, sortOrder, currentFolder, vm.favoriteFolders) {
                 getFolderMediaList(currentFolder)
             }
             val pageGridState = rememberLazyStaggeredGridState()
@@ -597,7 +610,7 @@ fun FavoritesScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.padding(horizontal = 32.dp)
                     ) {
-                        if (currentFolder != null && filterText.isBlank() && mediaTypeFilter == FavoriteMediaTypeFilter.ALL) {
+                        if (currentFolder != null && appliedFilter.isBlank() && mediaTypeFilter == FavoriteMediaTypeFilter.ALL) {
                             Surface(
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.primaryContainer,
@@ -825,7 +838,7 @@ private fun FolderPickerSheet(
                             else -> RoundedCornerShape(inner)
                         }
                         Surface(
-                            onClick = { onSelect(index) },
+                            onClick = { closeThen { onSelect(index) } },
                             shape = shape,
                             color = if (selected) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                             contentColor = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface,
@@ -1080,7 +1093,9 @@ private fun FavoritesFilterBottomSheet(
                         )
                     }
                     AnimatedConfirmDeleteButton(
-                        onConfirmed = onClearAll,
+                        onConfirmed = {
+                            scope.launch { sheetState.hide() }.invokeOnCompletion { onClearAll() }
+                        },
                         lang = lang,
                         initialIcon = Icons.Rounded.DeleteSweep,
                         initialText = Strings.tr(lang, "Clear all", "Очистить", "すべて消去", "全部清除", "모두 지우기", "مسح الكل"),
@@ -1345,8 +1360,10 @@ private fun DeleteFolderBottomSheet(
     
                     Button(
                         onClick = {
-                            onConfirm()
-                            scope.launch { sheetState.hide() }.invokeOnCompletion { onDismiss() }
+                            scope.launch { sheetState.hide() }.invokeOnCompletion {
+                                onConfirm()
+                                onDismiss()
+                            }
                         },
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.error,

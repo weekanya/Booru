@@ -16,6 +16,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,12 +32,15 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+private val HorizontalRuleRegex = Regex("^[-*_]{3,}$")
+private val HeaderRegex = Regex("^(#{1,6})\\s*(.*?)(?:\\s+#+)?$")
+
 @Composable
 fun MarkdownText(
     markdown: String,
     modifier: Modifier = Modifier
 ) {
-    val lines = markdown.lines()
+    val lines = remember(markdown) { markdown.lines() }
     val linkColor = MaterialTheme.colorScheme.primary
 
     Column(
@@ -48,7 +52,28 @@ fun MarkdownText(
 
         for (rawLine in lines) {
             val line = rawLine.trimEnd()
-            if (line.trim().startsWith("```")) {
+            val fenceTrimmed = line.trim()
+            // A single-line fence (```code```) is a self-contained code line, not a block toggle.
+            if (!inCodeBlock && fenceTrimmed.length > 6 && fenceTrimmed.startsWith("```") && fenceTrimmed.endsWith("```")) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(ShapeTokens.Small)
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                        .padding(8.dp)
+                ) {
+                    Text(
+                        text = fenceTrimmed.substring(3, fenceTrimmed.length - 3),
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 11.sp
+                        ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                continue
+            }
+            if (fenceTrimmed.startsWith("```")) {
                 if (inCodeBlock) {
                     Box(
                         modifier = Modifier
@@ -84,7 +109,7 @@ fun MarkdownText(
                 trimmed.isEmpty() -> {
                     Spacer(Modifier.height(2.dp))
                 }
-                trimmed.matches("^[-*_]{3,}$".toRegex()) -> {
+                trimmed.matches(HorizontalRuleRegex) -> {
                     HorizontalDivider(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -94,7 +119,7 @@ fun MarkdownText(
                     )
                 }
                 trimmed.startsWith("#") -> {
-                    val headerMatch = Regex("^(#{1,6})\\s*(.*?)(?:\\s+#+)?$").matchEntire(trimmed)
+                    val headerMatch = HeaderRegex.matchEntire(trimmed)
                     if (headerMatch != null && (headerMatch.groupValues[1].length > 1 || trimmed.startsWith("# "))) {
                         val level = headerMatch.groupValues[1].length
                         val headerText = headerMatch.groupValues[2].trim()

@@ -23,6 +23,7 @@ class TabPagerController(val pagerState: PagerState, private val scope: Coroutin
     var pendingPage by mutableStateOf<Int?>(null)
         private set
     private var job: Job? = null
+    private var generation = 0
     internal val enter = Animatable(1f)
     internal var direction by mutableIntStateOf(0)
         private set
@@ -35,6 +36,7 @@ class TabPagerController(val pagerState: PagerState, private val scope: Coroutin
         val from = pagerState.currentPage
         pendingPage = page
         job?.cancel()
+        val token = ++generation
         job = scope.launch {
             try {
                 direction = if (page >= from) 1 else -1
@@ -44,6 +46,11 @@ class TabPagerController(val pagerState: PagerState, private val scope: Coroutin
                 enter.animateTo(1f, tween(durationMillis = 320, easing = Motion.EmphasizedDecelerate))
             } finally {
                 if (pendingPage == page) pendingPage = null
+                // If the scroll was interrupted (e.g. user drag took priority), the content
+                // would stay invisible at enter=0. Restore it unless a newer select() owns it.
+                if (token == generation && enter.value < 1f) {
+                    scope.launch { enter.snapTo(1f) }
+                }
             }
         }
     }

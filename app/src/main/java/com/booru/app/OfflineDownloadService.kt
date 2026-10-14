@@ -27,38 +27,66 @@ import kotlinx.coroutines.launch
 class OfflineDownloadService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var watching = false
+    private var foreground = false
+    private var latestStartId = 0
 
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onCreate() {
         super.onCreate()
         createChannel()
+        promote()
+    }
+
+    // Without the foreground state the download can't run in the background, so give up instead of looking stuck.
+    private fun promote(): Boolean {
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0
-        runCatching { ServiceCompat.startForeground(this, PROGRESS_ID, buildProgress(), type) }
-            .onFailure { stopSelf() }
+        foreground = runCatching { ServiceCompat.startForeground(this, PROGRESS_ID, buildProgress(), type) }.isSuccess
+        if (!foreground) {
+            OfflineDownloader.cancel()
+            stopSelf()
+        }
+        return foreground
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        latestStartId = startId
         if (intent?.action == ACTION_STOP) {
             OfflineDownloader.cancel()
         }
         if (!watching) {
+            // finish() drops the foreground state, so a start that lands after it has to promote again.
+            if (!foreground && intent?.action != ACTION_STOP && !promote()) return START_NOT_STICKY
             watching = true
             scope.launch {
                 delay(300)
-                while (isActive && OfflineDownloader.downloading) {
-                    runCatching { NotificationManagerCompat.from(this@OfflineDownloadService).notify(PROGRESS_ID, buildProgress()) }
-                    delay(700)
-                }
+                // A new download can start right after a cancel; keep watching it instead of stopping under it.
+                do {
+                    while (isActive && OfflineDownloader.downloading) {
+                        runCatching { NotificationManagerCompat.from(this@OfflineDownloadService).notify(PROGRESS_ID, buildProgress()) }
+                        delay(700)
+                    }
+                    delay(300)
+                } while (isActive && OfflineDownloader.downloading)
+                watching = false
                 finish()
             }
         }
         return START_NOT_STICKY
     }
 
+    // Android 15+ limits dataSync foreground time; stop cleanly rather than let the system crash the app.
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        OfflineDownloader.cancel()
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        foreground = false
+        stopSelf()
+    }
+
     private fun finish() {
         val added = OfflineDownloader.lastAdded
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        foreground = false
         if (added > 0 && NotificationManagerCompat.from(this).areNotificationsEnabled()) {
             val lang = OfflineDownloader.language
             val done = NotificationCompat.Builder(this, CHANNEL_ID)
@@ -70,7 +98,8 @@ class OfflineDownloadService : Service() {
                 .build()
             runCatching { NotificationManagerCompat.from(this).notify(DONE_ID, done) }
         }
-        stopSelf()
+        // Only stops if no newer start arrived meanwhile; that one then starts its own watch.
+        stopSelfResult(latestStartId)
     }
 
     override fun onDestroy() {

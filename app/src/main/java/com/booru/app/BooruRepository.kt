@@ -231,7 +231,8 @@ class BooruRepository(
                 if (credentials.gelbooruApiKey.isBlank()) add("gelbooru")
             }
         }
-        val targets = allTargets.filterNot { it in excludeSources || it in keyless }.ifEmpty { allTargets }
+        val targets = allTargets.filterNot { it in excludeSources || it in keyless }
+            .ifEmpty { allTargets.filterNot { it in excludeSources } }
 
         if (targets.isEmpty()) {
             return@withContext SearchPage(emptyList(), 0)

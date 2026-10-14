@@ -251,6 +251,8 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                 }
                             }
                             val complete = saved >= count
+                            // Show the real saved total when more than the selected count is stored.
+                            val savedShown = maxOf(saved, count)
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -267,7 +269,7 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                     Spacer(Modifier.width(10.dp))
                                     Text(
                                         if (complete) {
-                                            Strings.tr(lang, "All $count saved", "Все $count сохранены", "$count 件すべて保存済み", "已全部保存 $count 个", "${count}개 모두 저장됨", "تم حفظ $count كلها")
+                                            Strings.tr(lang, "All $savedShown saved", "Все $savedShown сохранены", "$savedShown 件すべて保存済み", "已全部保存 $savedShown 个", "${savedShown}개 모두 저장됨", "تم حفظ $savedShown كلها")
                                         } else if (saved > 0) {
                                             Strings.tr(lang, "Download ${count - saved} more", "Докачать ${count - saved}", "残り ${count - saved} 件を取得", "再下载 ${count - saved} 个", "${count - saved}개 더 받기", "تنزيل ${count - saved} أخرى")
                                         } else {

@@ -766,10 +766,14 @@ private fun StatsCard(icon: ImageVector, title: String, subtitle: String? = null
 private fun ClearHistorySheet(entries: Int, lang: AppLanguage, onConfirm: () -> Unit, onDismiss: () -> Unit) {
     val sheetState = rememberExpandedSheetState()
     val scope = rememberCoroutineScope()
+    var closing by remember { mutableStateOf(false) }
     val close: (() -> Unit) -> Unit = { after ->
-        scope.launch { sheetState.hide() }.invokeOnCompletion {
-            after()
-            onDismiss()
+        if (!closing) {
+            closing = true
+            scope.launch { sheetState.hide() }.invokeOnCompletion {
+                after()
+                onDismiss()
+            }
         }
     }
     SheetMotion {
@@ -1000,10 +1004,12 @@ private fun ActivityChart(stats: FavoriteStats, locale: Locale, lang: AppLanguag
         buckets.forEachIndexed { index, bucket ->
             val viewFraction by animateFloatAsState((bucket.views.toFloat() / max).coerceIn(0f, 1f), Motion.effectsDefault(), label = "viewBar")
             val favFraction by animateFloatAsState((bucket.favorites.toFloat() / max).coerceIn(0f, 1f), Motion.effectsDefault(), label = "favBar")
+            // Columns get very narrow with many buckets (e.g. 30 days), so only label every 5th
+            // column plus the last, skipping a 5th label that would collide with the last one.
             val showLabel = when {
                 stats.bucketSize == BucketSize.HOUR -> index % 6 == 0
-                weekly || !daily -> true
-                else -> index == 0 || (index + 1) % 5 == 0 || index == buckets.lastIndex
+                weekly || buckets.size <= 14 -> true
+                else -> index == 0 || ((index + 1) % 5 == 0 && index <= buckets.lastIndex - 3) || index == buckets.lastIndex
             }
             Column(
                 modifier = Modifier
@@ -1038,7 +1044,8 @@ private fun ActivityChart(stats: FavoriteStats, locale: Locale, lang: AppLanguag
                     style = MaterialTheme.typography.labelSmall,
                     color = scheme.onSurfaceVariant,
                     maxLines = 1,
-                    softWrap = false
+                    softWrap = false,
+                    modifier = Modifier.wrapContentWidth(Alignment.CenterHorizontally, unbounded = true)
                 )
             }
         }

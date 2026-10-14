@@ -23,7 +23,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 object Motion {
@@ -222,9 +224,16 @@ fun KeyboardSheetEffects(sheet: KeyboardSheetState, onDismiss: () -> Unit) {
         androidx.compose.runtime.snapshotFlow { sheet.dismissRequested }
             .collect { requested ->
                 if (requested) {
+                    // Reset first so a later request (after an interrupted hide) re-emits.
                     sheet.dismissRequested = false
-                    sheet.hide()
-                    latestOnDismiss.value()
+                    try {
+                        sheet.hide()
+                        latestOnDismiss.value()
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        // The hide animation is cancelled when the user grabs the sheet mid-close;
+                        // only rethrow when the effect itself is being cancelled, otherwise keep collecting.
+                        if (!currentCoroutineContext().isActive) throw e
+                    }
                 }
             }
     }

@@ -103,7 +103,8 @@ fun ImmersiveMediaViewer(
     vm: GalleryViewModel,
     onDismiss: (Int) -> Unit,
     onDownload: (RemoteMedia) -> Unit,
-    onLoadMore: (() -> Unit)? = null
+    onLoadMore: (() -> Unit)? = null,
+    videoPositions: MutableMap<String, Long>? = null
 ) {
     if (mediaList.isEmpty()) {
         LaunchedEffect(Unit) { onDismiss(0) }
@@ -117,6 +118,8 @@ fun ImmersiveMediaViewer(
     )
 
     var showControls by remember { mutableStateOf(true) }
+    var controlsInteractionTick by remember { mutableIntStateOf(0) }
+    var isVideoSeeking by remember { mutableStateOf(false) }
     var isPageZoomed by remember { mutableStateOf(false) }
     var resetZoomKey by remember { mutableIntStateOf(0) }
 
@@ -159,8 +162,8 @@ fun ImmersiveMediaViewer(
             }
     }
 
-    LaunchedEffect(showControls) {
-        if (showControls) {
+    LaunchedEffect(showControls, controlsInteractionTick, isVideoSeeking) {
+        if (showControls && !isVideoSeeking) {
             delay(4000)
             showControls = false
         }
@@ -296,7 +299,13 @@ fun ImmersiveMediaViewer(
                             externalShowControls = showControls,
                             onToggleControls = {
                                 showControls = !showControls
-                            }
+                            },
+                            onUserInteraction = {
+                                controlsInteractionTick++
+                                showControls = true
+                            },
+                            onSeekingChanged = { seeking -> isVideoSeeking = seeking },
+                            positionHandoff = videoPositions
                         )
                     } else {
                         FullscreenZoomableImage(

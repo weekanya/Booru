@@ -42,6 +42,7 @@ object OfflineStore {
     private const val INDEX_NAME = "offline_index.json"
     private const val MAX_FILE_BYTES = 80L * 1024 * 1024
     private const val PARALLELISM = 4
+    private val EXTENSION = Regex("[a-z0-9]{1,5}")
 
     private val client by lazy {
         NetworkClient.baseClient.newBuilder()
@@ -56,6 +57,8 @@ object OfflineStore {
     private val activeCalls = ConcurrentHashMap.newKeySet<okhttp3.Call>()
     @Volatile private var dir: File? = null
     @Volatile private var indexFile: File? = null
+    // Completed once the saved index has been read; commits must not run before it or they would delete the saved files.
+    private val indexLoaded = kotlinx.coroutines.CompletableDeferred<Unit>()
 
     var posts by mutableStateOf<List<RemoteMedia>>(emptyList())
         private set
@@ -68,7 +71,15 @@ object OfflineStore {
         indexFile = File(base, INDEX_NAME)
     }
 
-    suspend fun load() = withContext(Dispatchers.IO) {
+    suspend fun load() {
+        try {
+            loadIndex()
+        } finally {
+            indexLoaded.complete(Unit)
+        }
+    }
+
+    private suspend fun loadIndex() = withContext(Dispatchers.IO) {
         val file = indexFile ?: return@withContext
         if (!file.exists()) return@withContext
         runCatching {
@@ -85,7 +96,10 @@ object OfflineStore {
             }
             withContext(Dispatchers.Main) { posts = loaded }
             refreshSize()
-        }.onFailure { Log.w(TAG, "Failed to read offline index", it) }
+        }.onFailure {
+            if (it is kotlinx.coroutines.CancellationException) throw it
+            Log.w(TAG, "Failed to read offline index", it)
+        }
     }
 
     fun fileForUrl(url: String): File? {
@@ -96,6 +110,7 @@ object OfflineStore {
     }
 
     suspend fun clear() = withContext(Dispatchers.IO) {
+        indexLoaded.await()
         indexMutex.withLock {
             urlToFile.clear()
             entryFiles.clear()
@@ -119,6 +134,7 @@ object OfflineStore {
         preferOriginal: Boolean,
         onProgress: suspend (done: Int, bytes: Long) -> Unit
     ) = coroutineScope {
+        indexLoaded.await()
         val previous = posts
         val known = previous.mapTo(HashSet()) { it.mediaKey }
         val knownUrls = previous.mapTo(HashSet()) { it.url }
@@ -192,7 +208,7 @@ object OfflineStore {
         val previewName = media.preview.takeIf { it.isNotBlank() && it != mainUrl }?.let { fetch(it, folder, bytes) }
         if (previewName != null) files[media.preview] = previewName
         if (media.sample.isNotBlank() && media.sample !in files) {
-            val sampleExt = media.sample.substringBefore('?').substringAfterLast('.').lowercase()
+            val sampleExt = extensionOf(media.sample, "")
             val sampleIsMotion = sampleExt in setOf("mp4", "webm", "mkv", "mov", "gif")
             files[media.sample] = if (animated && !sampleIsMotion) previewName ?: mainName else mainName
         }
@@ -203,10 +219,16 @@ object OfflineStore {
     }
 
     private suspend fun fetch(url: String, folder: File, bytes: AtomicLong): String? {
-        val name = hash(url) + "." + url.substringBefore('?').substringAfterLast('.', "jpg").take(5).lowercase()
+        val name = hash(url) + "." + extensionOf(url, "jpg")
         val target = File(folder, name)
         if (target.exists() && target.length() > 0) return name
-        val temp = File(folder, "$name.tmp")
+        // Unique per call so two downloads of the same URL never write into one temp file.
+        val temp = try {
+            File.createTempFile(name, ".tmp", folder)
+        } catch (e: IOException) {
+            Log.d(TAG, "Offline temp file failed: ${e.javaClass.simpleName}")
+            return null
+        }
         return try {
             val request = Request.Builder()
                 .url(url)
@@ -239,7 +261,12 @@ object OfflineStore {
             } finally {
                 activeCalls.remove(call)
             }
-            if (temp.length() > 0 && temp.renameTo(target)) name else null
+            when {
+                temp.length() <= 0 -> { temp.delete(); null }
+                target.exists() && target.length() > 0 -> { temp.delete(); name }
+                temp.renameTo(target) -> name
+                else -> { temp.delete(); null }
+            }
         } catch (c: kotlinx.coroutines.CancellationException) {
             temp.delete()
             throw c
@@ -272,6 +299,12 @@ object OfflineStore {
     private suspend fun refreshSize() {
         val total = withContext(Dispatchers.IO) { dir?.listFiles()?.sumOf { it.length() } ?: 0L }
         withContext(Dispatchers.Main) { sizeBytes = total }
+    }
+
+    // Extension of the last path segment only, so extensionless URLs never yield a path like "com/img/123".
+    private fun extensionOf(url: String, fallback: String): String {
+        val ext = url.substringBefore('?').substringBefore('#').substringAfterLast('/').substringAfterLast('.', "").lowercase()
+        return if (EXTENSION.matches(ext)) ext else fallback
     }
 
     private fun hash(value: String): String =

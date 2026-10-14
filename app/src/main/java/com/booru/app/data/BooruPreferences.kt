@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.retryWhen
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import java.io.IOException
@@ -40,9 +42,15 @@ enum class ImageQuality(val code: String) {
 
 class BooruPreferences(private val context: Context) {
 
-    private val safeData: Flow<Preferences> = context.dataStore.data.catch { e ->
-        if (e is IOException) emit(emptyPreferences()) else throw e
-    }
+    // Retry transient read errors first: the fallback below emits once and completes, which would pin every setting
+    // (safe mode included) to its default until the app restarts.
+    private val safeData: Flow<Preferences> = context.dataStore.data
+        .retryWhen { cause, attempt ->
+            (cause is IOException && attempt < 3).also { if (it) delay(200L * (attempt + 1)) }
+        }
+        .catch { e ->
+            if (e is IOException) emit(emptyPreferences()) else throw e
+        }
 
     private fun <T> read(transform: suspend (Preferences) -> T): Flow<T> =
         safeData.map(transform).distinctUntilChanged().flowOn(Dispatchers.Default)
@@ -656,11 +664,21 @@ class BooruPreferences(private val context: Context) {
                     tags = obj.optString("tags"),
                     score = obj.optInt("score", 0),
                     source = obj.optString("source"),
-                    rating = obj.optString("rating", "s"),
+                    rating = obj.optString("rating", "u"),
                     width = obj.optInt("width", 0),
                     height = obj.optInt("height", 0)
                 )
             }
         }.getOrDefault(emptyList())
+    }
+
+    private val keyIncognito = booleanPreferencesKey("incognito_mode")
+
+    val incognitoFlow: Flow<Boolean> = read { prefs ->
+        prefs[keyIncognito] ?: false
+    }
+
+    suspend fun setIncognito(enabled: Boolean) {
+        context.dataStore.edit { it[keyIncognito] = enabled }
     }
 }

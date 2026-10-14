@@ -598,9 +598,17 @@ fun ExploreScreen(
                             else -> StaggeredGridCells.Adaptive(minSize = 175.dp)
                         }
 
-                        val pinchScaleAnim = remember { Animatable(1f) }
+                        var pinchScale by remember { mutableFloatStateOf(1f) }
                         var pinchPivot by remember { mutableStateOf(TransformOrigin.Center) }
 
+                        // Shorter double-tap window so single taps on cards open without the ~300 ms delay.
+                        val baseViewConfiguration = androidx.compose.ui.platform.LocalViewConfiguration.current
+                        val snappyViewConfiguration = remember(baseViewConfiguration) {
+                            object : androidx.compose.ui.platform.ViewConfiguration by baseViewConfiguration {
+                                override val doubleTapTimeoutMillis: Long = 170L
+                            }
+                        }
+                        androidx.compose.runtime.CompositionLocalProvider(androidx.compose.ui.platform.LocalViewConfiguration provides snappyViewConfiguration) {
                         LazyVerticalStaggeredGrid(
                             columns = gridCells,
                             state = gridState,
@@ -610,21 +618,23 @@ fun ExploreScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .pointerInput(Unit) {
+                                    var settleJob: kotlinx.coroutines.Job? = null
                                     awaitEachGesture {
                                         var isPinching = false
                                         var currentZoom = 1f
                                         do {
-                                            val event = awaitPointerEvent()
+                                            // Initial pass: see (and consume) multi-touch before the grid's scroll does.
+                                            val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
                                             val downCount = event.changes.count { it.pressed }
                                             if (downCount >= 2) {
                                                 if (!isPinching) {
                                                     isPinching = true
                                                     currentZoom = 1f
+                                                    settleJob?.cancel()
                                                 }
                                                 val zoom = event.calculateZoom()
                                                 currentZoom = (currentZoom * zoom).coerceIn(0.65f, 1.55f)
-                                                val visualScale = (1f + (currentZoom - 1f) * 0.45f).coerceIn(0.88f, 1.12f)
-                                                scope.launch { pinchScaleAnim.snapTo(visualScale) }
+                                                pinchScale = (1f + (currentZoom - 1f) * 0.45f).coerceIn(0.88f, 1.12f)
                                                 val centroid = event.calculateCentroid()
                                                 if (size.width > 0 && size.height > 0) {
                                                     pinchPivot = TransformOrigin(
@@ -632,6 +642,9 @@ fun ExploreScreen(
                                                         (centroid.y / size.height).coerceIn(0f, 1f)
                                                     )
                                                 }
+                                                event.changes.forEach { it.consume() }
+                                            } else if (isPinching) {
+                                                // Remaining finger after a pinch must not scroll or click the grid.
                                                 event.changes.forEach { it.consume() }
                                             }
                                         } while (event.changes.any { it.pressed })
@@ -644,18 +657,20 @@ fun ExploreScreen(
                                             } else if (finalZoom < 0.84f && cur < 3) {
                                                 vm.setGridColumns(cur + 1)
                                             }
-                                            scope.launch {
-                                                pinchScaleAnim.animateTo(
-                                                    1f,
-                                                    Motion.spatialDefault()
-                                                )
+                                            val fromScale = pinchScale
+                                            settleJob = scope.launch {
+                                                animate(
+                                                    initialValue = fromScale,
+                                                    targetValue = 1f,
+                                                    animationSpec = Motion.spatialDefault()
+                                                ) { value, _ -> pinchScale = value }
                                             }
                                         }
                                     }
                                 }
                                 .graphicsLayer {
-                                    scaleX = pinchScaleAnim.value
-                                    scaleY = pinchScaleAnim.value
+                                    scaleX = pinchScale
+                                    scaleY = pinchScale
                                     transformOrigin = pinchPivot
                                     translationY = pullOffset.value.dp.toPx()
                                 }
@@ -683,7 +698,7 @@ fun ExploreScreen(
                                 isFavorite = vm.isFavorite(media),
                                 quality = vm.effectiveImageQuality,
                                 onFavoriteClick = { vm.toggleFavorite(media) },
-                                onClick = { vm.openFullscreen(vm.results, index) },
+                                onClick = { vm.openFullscreen(vm.results, index, fromResults = true) },
                                 modifier = Modifier
                                     .animateItem(
                                         fadeInSpec = Motion.effectsDefault(),
@@ -704,6 +719,7 @@ fun ExploreScreen(
                             )
                         }
                     }
+                        }
                 }
 
                 SleekTopProgressIndicator(

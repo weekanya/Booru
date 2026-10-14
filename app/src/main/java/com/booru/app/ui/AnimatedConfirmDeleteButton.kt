@@ -1,5 +1,6 @@
 package com.booru.app.ui
 
+import android.os.SystemClock
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.animateColorAsState
@@ -34,6 +35,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,6 +49,8 @@ import androidx.compose.ui.unit.dp
 import com.booru.app.data.AppLanguage
 import com.booru.app.data.Strings
 import kotlinx.coroutines.delay
+
+private const val ConfirmArmGuardMs = 450L
 
 @Composable
 fun AnimatedConfirmDeleteButton(
@@ -66,6 +70,9 @@ fun AnimatedConfirmDeleteButton(
     fillContentWidth: Boolean = false
 ) {
     var isConfirming by remember { mutableStateOf(false) }
+    // Uptime at which the button was armed; confirm taps arriving faster than a deliberate
+    // second tap (e.g. an accidental double tap) are ignored so destructive actions need intent.
+    var armedAt by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(isConfirming) {
         if (isConfirming) {
@@ -90,9 +97,12 @@ fun AnimatedConfirmDeleteButton(
     Surface(
         onClick = {
             if (isConfirming) {
-                isConfirming = false
-                onConfirmed()
+                if (SystemClock.uptimeMillis() - armedAt >= ConfirmArmGuardMs) {
+                    isConfirming = false
+                    onConfirmed()
+                }
             } else {
+                armedAt = SystemClock.uptimeMillis()
                 isConfirming = true
             }
         },

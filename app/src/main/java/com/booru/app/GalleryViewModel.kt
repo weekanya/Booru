@@ -40,14 +40,16 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import com.booru.app.data.network.NetworkClient
@@ -142,6 +144,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var scrollToTopTrigger by mutableStateOf(0L); private set
     var refreshSeed by mutableStateOf(0); private set
     var isIncognito by mutableStateOf(false); private set
+    // Until the persisted incognito flag is read, suppress history/recommendation recording.
+    private var incognitoLoaded = false
+    private val suppressRecording: Boolean get() = isIncognito || !incognitoLoaded
     var recommendationRatio by mutableFloatStateOf(0.5f); private set
     var biometricLockEnabled by mutableStateOf(false); private set
     var lockStateLoaded by mutableStateOf(false); private set
@@ -151,6 +156,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var gridColumnsCount by mutableIntStateOf(0); private set
 
     private var currentPage = 0
+    // Paging state of the last successful search/loadMore, used to restore after a failed refresh.
+    private var committedPage = 0
+    private var committedHasMore = true
+    private val committedRecTagPages = HashMap<String, Int>()
     var hasMore by mutableStateOf(true); private set
     var activeTagCount by mutableStateOf(0); private set
     private var searchJob: Job? = null
@@ -168,22 +177,40 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         runCatching { connectivity?.registerDefaultNetworkCallback(networkCallback) }
     }
 
+    private suspend fun <T> readPref(flow: Flow<T>, fallback: T): T = try {
+        flow.first()
+    } catch (c: CancellationException) {
+        throw c
+    } catch (e: Exception) {
+        Log.w(TAG, "Failed to read preference: ${e.message}", e)
+        fallback
+    }
+
     init {
         viewModelScope.launch {
-            runCatching {
-                biometricLockEnabled = prefs.biometricLockEnabled.first()
-                biometricLockTimeoutMin = prefs.biometricLockTimeoutMin.first()
+            val persistedIncognito = readPref(prefs.incognitoFlow, false)
+            if (!incognitoLoaded) {
+                isIncognito = persistedIncognito
+                incognitoLoaded = true
             }
+            biometricLockEnabled = readPref(prefs.biometricLockEnabled, false)
+            biometricLockTimeoutMin = readPref(prefs.biometricLockTimeoutMin, 0)
             lockStateLoaded = true
-            if (secureStorage.isSecureStorageAvailable) {
-                prefs.migrateLegacyCredentialsAndCustomSources(secureStorage)
+            try {
+                if (secureStorage.isSecureStorageAvailable) {
+                    prefs.migrateLegacyCredentialsAndCustomSources(secureStorage)
+                }
+            } catch (c: CancellationException) {
+                throw c
+            } catch (e: Exception) {
+                Log.w(TAG, "Credential migration failed: ${e.message}", e)
             }
             rule34UserId = secureStorage.getRule34UserId()
             rule34ApiKey = secureStorage.getRule34ApiKey()
             gelbooruUserId = secureStorage.getGelbooruUserId()
             gelbooruApiKey = secureStorage.getGelbooruApiKey()
 
-            runCatching {
+            try {
                 val legacyFavs = prefs.favorites.first()
                 if (legacyFavs.isNotEmpty()) {
                     legacyFavs.forEach { fav ->
@@ -191,22 +218,31 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     }
                     prefs.clearLegacyFavorites()
                 }
+            } catch (c: CancellationException) {
+                throw c
+            } catch (e: Exception) {
+                Log.w(TAG, "Legacy favorites migration failed: ${e.message}", e)
             }
 
-            val initialSource = prefs.defaultSource.first()
-            val initialSafe = prefs.safeMode.first()
-            val initialExcludeSafe = prefs.excludeSafe.first()
-            val initialNoAi = prefs.noAiFilter.first()
-            val initialLang = prefs.language.first()
-            val initialTheme = prefs.themeMode.first()
-            val initialPalette = prefs.palette.first()
-            val initialCustom = prefs.customSources.first()
-            val initialBlacklist = prefs.tagBlacklist.first()
-            val initialRecMap = prefs.recommendationTags.first()
+            val initialSource = readPref(prefs.defaultSource, BooruRepository.SOURCE_ALL)
+            val initialSafe = readPref(prefs.safeMode, false)
+            val initialExcludeSafe = readPref(prefs.excludeSafe, false)
+            val initialNoAi = readPref(prefs.noAiFilter, false)
+            val initialLang = readPref(prefs.language, AppLanguage.ENGLISH)
+            val initialTheme = readPref(prefs.themeMode, ThemeMode.SYSTEM)
+            val initialPalette = readPref(prefs.palette, AppPalette.MONET)
+            val initialCustom = readPref(prefs.customSources, emptyList())
+            val initialBlacklist = readPref(prefs.tagBlacklist, emptyList())
+            val initialRecMap = readPref(prefs.recommendationTags, emptyMap())
             recordedRecTagsMap = initialRecMap
-            val initialFavorites = runCatching {
+            val initialFavorites = try {
                 withContext(Dispatchers.IO) { favoriteDao.getAllFavoritesList().map { it.toRemoteMedia() } }
-            }.getOrNull()
+            } catch (c: CancellationException) {
+                throw c
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to load favorites: ${e.message}", e)
+                null
+            }
             if (initialFavorites != null) {
                 favoritesList = initialFavorites
                 favoriteKeys = initialFavorites.mapTo(HashSet()) { it.mediaKey }
@@ -218,7 +254,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             safeMode = initialSafe
             excludeSafe = initialExcludeSafe
             noAi = initialNoAi
-            noFurry = prefs.noFurryFilter.first()
+            noFurry = readPref(prefs.noFurryFilter, false)
             repo.excludeFurry = noFurry
             language = initialLang
             themeMode = initialTheme
@@ -227,23 +263,29 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             recommendationTags = withContext(Dispatchers.Default) {
                 computeRecommendationTags(favoritesList, tagBlacklist, recordedRecTagsMap)
             }
-            recommendationRatio = prefs.recommendationRatio.first()
-            biometricLockEnabled = prefs.biometricLockEnabled.first()
-            biometricLockTimeoutMin = prefs.biometricLockTimeoutMin.first()
-            favoriteFolders = prefs.favoriteFolders.first()
+            recommendationRatio = readPref(prefs.recommendationRatio, 0.5f)
+            biometricLockEnabled = readPref(prefs.biometricLockEnabled, biometricLockEnabled)
+            biometricLockTimeoutMin = readPref(prefs.biometricLockTimeoutMin, biometricLockTimeoutMin)
+            favoriteFolders = readPref(prefs.favoriteFolders, emptyMap())
             val legacyYandeFolders = favoriteFolders.filterKeys { it.startsWith("yande.re_") }
             if (legacyYandeFolders.isNotEmpty()) {
-                for ((legacyKey, folder) in legacyYandeFolders) {
-                    prefs.setMediaFolder(legacyKey, null)
-                    prefs.setMediaFolder("yande_" + legacyKey.removePrefix("yande.re_"), folder)
+                try {
+                    for ((legacyKey, folder) in legacyYandeFolders) {
+                        prefs.setMediaFolder(legacyKey, null)
+                        prefs.setMediaFolder("yande_" + legacyKey.removePrefix("yande.re_"), folder)
+                    }
+                } catch (c: CancellationException) {
+                    throw c
+                } catch (e: Exception) {
+                    Log.w(TAG, "Folder migration failed: ${e.message}", e)
                 }
-                favoriteFolders = prefs.favoriteFolders.first()
+                favoriteFolders = readPref(prefs.favoriteFolders, favoriteFolders)
             }
-            customFolders = prefs.customFolders.first()
-            gridColumnsCount = prefs.gridColumnsCount.first()
-            imageQuality = prefs.imageQuality.first()
-            offlineCount = prefs.offlineCount.first()
-            disabledSources = prefs.disabledSources.first()
+            customFolders = readPref(prefs.customFolders, emptySet())
+            gridColumnsCount = readPref(prefs.gridColumnsCount, 0)
+            imageQuality = readPref(prefs.imageQuality, ImageQuality.SAMPLE)
+            offlineCount = readPref(prefs.offlineCount, 200)
+            disabledSources = readPref(prefs.disabledSources, emptySet())
 
             search(source, "", safeMode)
 
@@ -428,116 +470,113 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             previousJob?.cancelAndJoin()
             val ownJob = coroutineContext[Job]
             try {
-                withTimeoutOrNull(180_000L) {
-                    if (targetFile.exists()) {
-                        targetFile.delete()
-                    }
-                    if (tempFile.exists()) {
-                        tempFile.delete()
-                    }
+                if (targetFile.exists()) {
+                    targetFile.delete()
+                }
+                if (tempFile.exists()) {
+                    tempFile.delete()
+                }
 
-                    val downloadUrl = info.apkDownloadUrl
-                    val parsedUri = Uri.parse(downloadUrl)
-                    val scheme = parsedUri.scheme ?: ""
-                    val host = parsedUri.host?.lowercase() ?: ""
-                    if (!scheme.equals("https", ignoreCase = true)) {
-                        throw SecurityException("Insecure download protocol: $scheme")
-                    }
-                    val isTrustedHost = host == "github.com" || host.endsWith(".github.com") ||
-                            host == "objects.githubusercontent.com" || host.endsWith(".githubusercontent.com")
-                    if (!isTrustedHost) {
-                        throw SecurityException("Untrusted download host: $host")
-                    }
+                val downloadUrl = info.apkDownloadUrl
+                val parsedUri = Uri.parse(downloadUrl)
+                val scheme = parsedUri.scheme ?: ""
+                val host = parsedUri.host?.lowercase() ?: ""
+                if (!scheme.equals("https", ignoreCase = true)) {
+                    throw SecurityException("Insecure download protocol: $scheme")
+                }
+                val isTrustedHost = host == "github.com" || host.endsWith(".github.com") ||
+                        host == "objects.githubusercontent.com" || host.endsWith(".githubusercontent.com")
+                if (!isTrustedHost) {
+                    throw SecurityException("Untrusted download host: $host")
+                }
 
-                    val client = NetworkClient.baseClient.newBuilder()
-                        .connectTimeout(20, TimeUnit.SECONDS)
-                        .readTimeout(30, TimeUnit.SECONDS)
-                        .followRedirects(true)
-                        .followSslRedirects(true)
-                        .addNetworkInterceptor { chain ->
-                            val reqUrl = chain.request().url
-                            if (!reqUrl.isHttps) {
-                                throw IOException("Insecure HTTP redirect blocked: $reqUrl")
-                            }
-                            val redirectHost = reqUrl.host.lowercase()
-                            val allowedRedirect = redirectHost == "github.com" || redirectHost.endsWith(".github.com") ||
-                                    redirectHost == "objects.githubusercontent.com" || redirectHost.endsWith(".githubusercontent.com")
-                            if (!allowedRedirect) {
-                                throw IOException("Redirect to untrusted host blocked: $redirectHost")
-                            }
-                            chain.proceed(chain.request())
+                val client = NetworkClient.baseClient.newBuilder()
+                    .connectTimeout(20, TimeUnit.SECONDS)
+                    .readTimeout(30, TimeUnit.SECONDS)
+                    .followRedirects(true)
+                    .followSslRedirects(true)
+                    .addNetworkInterceptor { chain ->
+                        val reqUrl = chain.request().url
+                        if (!reqUrl.isHttps) {
+                            throw IOException("Insecure HTTP redirect blocked: $reqUrl")
                         }
-                        .build()
-
-                    val request = Request.Builder()
-                        .url(downloadUrl)
-                        .header("User-Agent", "BooruApp/${info.latestVersion}")
-                        .build()
-
-                    client.newCall(request).execute().use { response ->
-                        if (!response.isSuccessful) {
-                            throw IOException("HTTP error: ${response.code}")
+                        val redirectHost = reqUrl.host.lowercase()
+                        val allowedRedirect = redirectHost == "github.com" || redirectHost.endsWith(".github.com") ||
+                                redirectHost == "objects.githubusercontent.com" || redirectHost.endsWith(".githubusercontent.com")
+                        if (!allowedRedirect) {
+                            throw IOException("Redirect to untrusted host blocked: $redirectHost")
                         }
+                        chain.proceed(chain.request())
+                    }
+                    .build()
 
-                        val body = response.body ?: throw IOException("Empty response body")
-                        val contentLength = body.contentLength()
-                        val maxAllowedBytes = 100L * 1024L * 1024L
-                        if (contentLength > maxAllowedBytes) {
-                            throw SecurityException("Update package Content-Length $contentLength exceeds limit of $maxAllowedBytes bytes")
-                        }
+                val request = Request.Builder()
+                    .url(downloadUrl)
+                    .header("User-Agent", "BooruApp/${info.latestVersion}")
+                    .build()
 
-                        val inputStream = body.byteStream()
-                        val outputStream = tempFile.outputStream()
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        throw IOException("HTTP error: ${response.code}")
+                    }
 
-                        val buffer = ByteArray(8192)
-                        var bytesRead = 0
-                        var totalRead = 0L
-                        var lastUpdateMs = System.currentTimeMillis()
+                    val body = response.body ?: throw IOException("Empty response body")
+                    val contentLength = body.contentLength()
+                    val maxAllowedBytes = 100L * 1024L * 1024L
+                    if (contentLength > maxAllowedBytes) {
+                        throw SecurityException("Update package Content-Length $contentLength exceeds limit of $maxAllowedBytes bytes")
+                    }
 
-                        outputStream.use { out ->
-                            inputStream.use { input ->
-                                while (isActive && input.read(buffer).also { bytesRead = it } != -1) {
-                                    totalRead += bytesRead
-                                    if (totalRead > maxAllowedBytes) {
-                                        throw SecurityException("Update package exceeds maximum allowed size")
+                    val inputStream = body.byteStream()
+                    val outputStream = tempFile.outputStream()
+
+                    val buffer = ByteArray(8192)
+                    var bytesRead = 0
+                    var totalRead = 0L
+                    var lastUpdateMs = System.currentTimeMillis()
+
+                    outputStream.use { out ->
+                        inputStream.use { input ->
+                            while (isActive && input.read(buffer).also { bytesRead = it } != -1) {
+                                totalRead += bytesRead
+                                if (totalRead > maxAllowedBytes) {
+                                    throw SecurityException("Update package exceeds maximum allowed size")
+                                }
+                                out.write(buffer, 0, bytesRead)
+                                val now = System.currentTimeMillis()
+                                if (contentLength > 0 && now - lastUpdateMs > 100) {
+                                    val progress = (totalRead.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f)
+                                    val readMb = String.format(java.util.Locale.US, "%.1f", totalRead / (1024f * 1024f))
+                                    val totalMb = String.format(java.util.Locale.US, "%.1f", contentLength / (1024f * 1024f))
+                                    withContext(Dispatchers.Main) {
+                                        updateDownloadProgress = progress
+                                        updateDownloadProgressText = "${(progress * 100).toInt()}% ($readMb MB / $totalMb MB)"
                                     }
-                                    out.write(buffer, 0, bytesRead)
-                                    val now = System.currentTimeMillis()
-                                    if (contentLength > 0 && now - lastUpdateMs > 100) {
-                                        val progress = (totalRead.toFloat() / contentLength.toFloat()).coerceIn(0f, 1f)
-                                        val readMb = String.format(java.util.Locale.US, "%.1f", totalRead / (1024f * 1024f))
-                                        val totalMb = String.format(java.util.Locale.US, "%.1f", contentLength / (1024f * 1024f))
-                                        withContext(Dispatchers.Main) {
-                                            updateDownloadProgress = progress
-                                            updateDownloadProgressText = "${(progress * 100).toInt()}% ($readMb MB / $totalMb MB)"
-                                        }
-                                        lastUpdateMs = now
-                                    }
+                                    lastUpdateMs = now
                                 }
                             }
                         }
-
-                        ensureActive()
-
-                        if (!tempFile.exists() || tempFile.length() == 0L) {
-                            throw IOException("Downloaded APK file is empty")
-                        }
-
-                        if (targetFile.exists()) targetFile.delete()
-                        if (!tempFile.renameTo(targetFile)) {
-                            throw IOException("Failed to rename temporary APK to target file")
-                        }
-
-                        withContext(Dispatchers.Main) {
-                            updateDownloadProgress = 1f
-                            updateDownloadProgressText = "100%"
-                            downloadedApkFile = targetFile
-                            isDownloadingUpdate = false
-                            installApk(context, targetFile)
-                        }
                     }
-                    true
-                } ?: throw IOException("Download timed out")
+
+                    ensureActive()
+
+                    if (!tempFile.exists() || tempFile.length() == 0L) {
+                        throw IOException("Downloaded APK file is empty")
+                    }
+
+                    if (targetFile.exists()) targetFile.delete()
+                    if (!tempFile.renameTo(targetFile)) {
+                        throw IOException("Failed to rename temporary APK to target file")
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        updateDownloadProgress = 1f
+                        updateDownloadProgressText = "100%"
+                        downloadedApkFile = targetFile
+                        isDownloadingUpdate = false
+                        installApk(context, targetFile)
+                    }
+                }
             } catch (c: CancellationException) {
                 if (tempFile.exists()) tempFile.delete()
                 if (targetFile.exists()) targetFile.delete()
@@ -551,7 +590,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 withContext(Dispatchers.Main) {
                     if (updateDownloadJob === ownJob) {
                         isDownloadingUpdate = false
-                        updateDownloadError = e.message ?: "Download failed"
+                        // OkHttp's readTimeout acts as a stall watchdog: it fires only when no bytes arrive for 30 s.
+                        updateDownloadError = if (e is java.io.InterruptedIOException) "Download timed out" else e.message ?: "Download failed"
                     }
                 }
             } finally {
@@ -1015,9 +1055,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         isPullRefresh: Boolean = false
     ) {
         val searchGen = ++currentSearchGeneration
-        val previousPage = currentPage
-        val previousHasMore = hasMore
-        val previousRecTagPages = HashMap(recTagPages)
         recTagPages.clear()
         searchJob?.cancel()
         loadMoreJob?.cancel()
@@ -1054,18 +1091,22 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             tagSuggestions.find { it.value.equals(trimmedTags, ignoreCase = true) }?.count ?: 0
         } else 0
 
-        if (trimmedTags.isNotEmpty() && !isIncognito && !isPullRefresh) {
+        if (trimmedTags.isNotEmpty() && !suppressRecording && !isPullRefresh) {
             val now = System.currentTimeMillis()
             val last = lastRecordedSearch
             if (last == null || !last.first.equals(trimmedTags, ignoreCase = true) || now - last.second > SEARCH_DEDUPE_MS) {
                 lastRecordedSearch = trimmedTags to now
                 recordHistory(com.booru.app.data.db.HistoryEntity.search(trimmedTags))
-            }
-        }
-        if (trimmedTags.isNotEmpty() && !isIncognito) {
-            viewModelScope.launch {
-                prefs.saveSearchQuery(trimmedTags)
-                prefs.recordSearchTags(trimmedTags.split(Regex("[\\s,]+")))
+                viewModelScope.launch {
+                    try {
+                        prefs.saveSearchQuery(trimmedTags)
+                        prefs.recordSearchTags(trimmedTags.split(Regex("[\\s,]+")))
+                    } catch (c: CancellationException) {
+                        throw c
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to record search: ${e.message}", e)
+                    }
+                }
             }
         }
         if (trimmedTags.isNotEmpty() && activeTagCount == 0 && !trimmedTags.contains(" ")) {
@@ -1097,6 +1138,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 currentPage = batch.lastPage
                 results = batch.items.filterNot { it.mediaKey in notInterestedKeys }
                 hasMore = batch.hasMore
+                commitPaging()
                 resultsEpoch++
                 scanForAiTraces(batch.items, searchGen)
             } catch (c: CancellationException) {
@@ -1104,10 +1146,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             } catch (e: Exception) {
                 if (searchGen == currentSearchGeneration) {
                     if (keepResults) {
-                        currentPage = previousPage
-                        hasMore = previousHasMore
+                        currentPage = committedPage
+                        hasMore = committedHasMore
                         recTagPages.clear()
-                        recTagPages.putAll(previousRecTagPages)
+                        recTagPages.putAll(committedRecTagPages)
                     }
                     applyFailure(e, keepResults)
                 }
@@ -1120,6 +1162,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 }
             }
         }
+    }
+
+    private fun commitPaging() {
+        committedPage = currentPage
+        committedHasMore = hasMore
+        committedRecTagPages.clear()
+        committedRecTagPages.putAll(recTagPages)
     }
 
     fun loadMore() {
@@ -1157,6 +1206,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     emptyLoadMoreStreak++
                     hasMore = batch.hasMore && emptyLoadMoreStreak < 3
                 }
+                commitPaging()
             } catch (c: CancellationException) {
                 throw c
             } catch (e: Exception) {
@@ -1238,6 +1288,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private val favoriteMediaJobs = HashMap<String, Job>()
 
     private val removedFavorites = HashMap<String, FavoriteEntity>()
+    private val removedFavoriteIndices = HashMap<String, Int>()
+
+    private fun insertFavoriteAt(media: RemoteMedia, index: Int?) {
+        val list = favoritesList.toMutableList()
+        list.add((index ?: 0).coerceIn(0, list.size), media)
+        favoritesList = list
+    }
 
     fun restoreFavorite(media: RemoteMedia) {
         if (media.mediaKey !in favoriteKeys) toggleFavorite(media, restore = true)
@@ -1247,25 +1304,51 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val key = media.mediaKey
         val wasFav = key in favoriteKeys
         if (wasFav) {
+            val index = favoritesList.indexOfFirst { it.mediaKey == key }
+            if (index >= 0) removedFavoriteIndices[key] = index
             favoriteKeys = favoriteKeys - key
             favoritesList = favoritesList.filterNot { it.mediaKey == key }
         } else {
+            val restoreIndex = removedFavoriteIndices.remove(key)
             favoriteKeys = favoriteKeys + key
-            favoritesList = listOf(media) + favoritesList
+            insertFavoriteAt(media, if (restore) restoreIndex else null)
         }
-        val recordTags = !wasFav && !isIncognito
+        val recordTags = !wasFav && !suppressRecording
         if (recordTags) resolveTagCategories(media)
         viewModelScope.launch {
-            favoriteMutex.withLock {
-                if (wasFav) {
-                    favoriteDao.getByKey(key)?.let { removedFavorites[key] = it }
-                    favoriteDao.deleteByKey(key)
-                } else {
-                    val previous = removedFavorites.remove(key)
-                    favoriteDao.insert(if (restore && previous != null) previous else FavoriteEntity.fromRemoteMedia(media))
+            try {
+                favoriteMutex.withLock {
+                    if (wasFav) {
+                        favoriteDao.getByKey(key)?.let { removedFavorites[key] = it }
+                        favoriteDao.deleteByKey(key)
+                    } else {
+                        val previous = removedFavorites.remove(key)
+                        favoriteDao.insert(if (restore && previous != null) previous else FavoriteEntity.fromRemoteMedia(media))
+                    }
+                }
+            } catch (c: CancellationException) {
+                throw c
+            } catch (e: Exception) {
+                Log.w(TAG, "Favorite update failed: ${e.message}", e)
+                if (wasFav && key !in favoriteKeys) {
+                    favoriteKeys = favoriteKeys + key
+                    insertFavoriteAt(media, removedFavoriteIndices.remove(key))
+                } else if (!wasFav && key in favoriteKeys) {
+                    favoriteKeys = favoriteKeys - key
+                    favoritesList = favoritesList.filterNot { it.mediaKey == key }
+                }
+                postMessage(favoriteErrorMessage())
+                return@launch
+            }
+            if (recordTags) {
+                try {
+                    prefs.recordFavoriteTags(media.tags)
+                } catch (c: CancellationException) {
+                    throw c
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to record favorite tags: ${e.message}", e)
                 }
             }
-            if (recordTags) prefs.recordFavoriteTags(media.tags)
         }
         favoriteMediaJobs.remove(key)?.cancel()
         val job = viewModelScope.launch {
@@ -1292,21 +1375,50 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         favoriteMediaJobs.clear()
         viewModelScope.launch {
             favoriteMutex.withLock {
-                favoriteDao.clearAll()
+                try {
+                    favoriteDao.clearAll()
+                } catch (c: CancellationException) {
+                    throw c
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to clear favorites: ${e.message}", e)
+                    postMessage(favoriteErrorMessage())
+                    return@withLock
+                }
                 favoritesList = emptyList()
                 favoriteKeys = emptySet()
-                BooruCacheManager.pruneOrphanedFavoritesMedia(getApplication(), emptyList())
+                try {
+                    BooruCacheManager.pruneOrphanedFavoritesMedia(getApplication(), emptyList())
+                } catch (c: CancellationException) {
+                    throw c
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to prune favorites media: ${e.message}", e)
+                }
                 updateCacheSize()
             }
         }
     }
 
+    private fun favoriteErrorMessage(): String = com.booru.app.data.Strings.tr(
+        language,
+        "Couldn't update favorites",
+        "Не удалось обновить избранное",
+        "お気に入りを更新できませんでした",
+        "无法更新收藏",
+        "즐겨찾기를 업데이트할 수 없습니다",
+        "تعذّر تحديث المفضلة"
+    )
+
+    private suspend fun computeCacheSizes(): Pair<String, String> = withContext(Dispatchers.IO) {
+        val browsingBytes = BooruCacheManager.getBrowsingCacheSizeBytes(getApplication())
+        val favsBytes = BooruCacheManager.getFavoritesStorageSizeBytes(getApplication())
+        BooruCacheManager.formatBytes(browsingBytes) to BooruCacheManager.formatBytes(favsBytes)
+    }
+
     fun updateCacheSize() {
-        viewModelScope.launch(Dispatchers.IO) {
-            val browsingBytes = BooruCacheManager.getBrowsingCacheSizeBytes(getApplication())
-            val favsBytes = BooruCacheManager.getFavoritesStorageSizeBytes(getApplication())
-            cacheSizeFormatted = BooruCacheManager.formatBytes(browsingBytes)
-            favoritesStorageSizeFormatted = BooruCacheManager.formatBytes(favsBytes)
+        viewModelScope.launch {
+            val (browsing, favs) = computeCacheSizes()
+            cacheSizeFormatted = browsing
+            favoritesStorageSizeFormatted = favs
         }
     }
 
@@ -1315,12 +1427,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             isClearingCache = true
             BooruCacheManager.clearBrowsingCache(getApplication())
-            withContext(Dispatchers.IO) {
-                val browsingBytes = BooruCacheManager.getBrowsingCacheSizeBytes(getApplication())
-                val favsBytes = BooruCacheManager.getFavoritesStorageSizeBytes(getApplication())
-                cacheSizeFormatted = BooruCacheManager.formatBytes(browsingBytes)
-                favoritesStorageSizeFormatted = BooruCacheManager.formatBytes(favsBytes)
-            }
+            val (browsing, favs) = computeCacheSizes()
+            cacheSizeFormatted = browsing
+            favoritesStorageSizeFormatted = favs
             isClearingCache = false
             onComplete()
         }
@@ -1388,7 +1497,18 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun toggleIncognito() {
-        isIncognito = !isIncognito
+        val enabled = !isIncognito
+        isIncognito = enabled
+        incognitoLoaded = true
+        viewModelScope.launch {
+            try {
+                prefs.setIncognito(enabled)
+            } catch (c: CancellationException) {
+                throw c
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to persist incognito mode: ${e.message}", e)
+            }
+        }
     }
 
     fun updateRecommendationRatio(ratio: Float) {
@@ -1745,25 +1865,27 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var fullscreenState by mutableStateOf<FullscreenState?>(null)
         private set
     private var fullscreenViewedIndex = -1
+    private var fullscreenViewedKey: String? = null
     private var fullscreenOpenCounter = 0L
 
-    fun openFullscreen(list: List<RemoteMedia>, index: Int) {
+    fun openFullscreen(list: List<RemoteMedia>, index: Int, fromResults: Boolean = list === results) {
         if (list.isNotEmpty()) {
             val state = FullscreenState(
                 list = list,
                 index = index.coerceIn(0, list.size - 1),
-                isFromResults = (list === results),
+                isFromResults = fromResults,
                 openId = ++fullscreenOpenCounter
             )
             fullscreenState = state
             fullscreenViewedIndex = state.index
+            fullscreenViewedKey = list[state.index].mediaKey
             resolveTagCategories(list[state.index])
             if (state.isFromResults) recordOpenedForRecommendations(list[state.index])
         }
     }
 
     private fun recordHistory(entry: com.booru.app.data.db.HistoryEntity) {
-        if (isIncognito) return
+        if (suppressRecording) return
         viewModelScope.launch(Dispatchers.IO) {
             runCatching { historyDao.insert(entry) }.onFailure { Log.w(TAG, "History write failed: ${it.message}") }
         }
@@ -1845,7 +1967,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun recordViewed(media: RemoteMedia) {
-        if (isIncognito || !viewedForHistory.add(media.mediaKey)) return
+        if (suppressRecording || !viewedForHistory.add(media.mediaKey)) return
         recordHistory(com.booru.app.data.db.HistoryEntity.fromMedia(com.booru.app.data.db.HistoryEntity.KIND_VIEW, media))
     }
 
@@ -1873,7 +1995,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun recordOpenedForRecommendations(media: RemoteMedia) {
-        if (isIncognito || media.tags.isBlank()) return
+        if (suppressRecording || media.tags.isBlank()) return
         if (!viewedForRecommendations.add(media.mediaKey)) return
         viewModelScope.launch { prefs.recordViewedTags(media.tags) }
     }
@@ -1899,7 +2021,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun resolveTagCategories(media: RemoteMedia) {
-        if (isIncognito || media.tagList.isEmpty()) return
+        if (suppressRecording || media.tagList.isEmpty()) return
         viewModelScope.launch {
             if (com.booru.app.data.TagCategoryCache.resolve(media.tagList)) recalculateRecommendationTags()
         }
@@ -1908,24 +2030,25 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun markNotInterested(media: RemoteMedia) {
         notInterestedKeys.add(media.mediaKey)
         results = results.filterNot { it.mediaKey == media.mediaKey }
-        if (!isIncognito && media.tags.isNotBlank()) {
+        if (!suppressRecording && media.tags.isNotBlank()) {
             viewModelScope.launch { prefs.recordNotInterestedTags(media.tags) }
         }
     }
 
     private fun recordSavedForRecommendations(media: RemoteMedia) {
-        if (isIncognito || media.tags.isBlank()) return
+        if (suppressRecording || media.tags.isBlank()) return
         viewModelScope.launch { prefs.recordSavedTags(media.tags) }
     }
 
     var activeDownloads by mutableStateOf<Set<String>>(emptySet()); private set
     var isSettingWallpaper by mutableStateOf(false); private set
 
-    private val _messages = kotlinx.coroutines.flow.MutableSharedFlow<String>(extraBufferCapacity = 16)
-    val messages: kotlinx.coroutines.flow.SharedFlow<String> = _messages
+    // Buffered channel so messages posted while no collector is active (e.g. app locked) are delivered later.
+    private val _messages = Channel<String>(Channel.BUFFERED)
+    val messages: Flow<String> = _messages.receiveAsFlow()
 
     fun postMessage(message: String) {
-        _messages.tryEmit(message)
+        _messages.trySend(message)
     }
 
     private fun toast(message: String) = postMessage(message)
@@ -1981,6 +2104,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         if (fullscreenViewedIndex != index && index >= 0) {
             fullscreenViewedIndex = index
             (if (state.isFromResults) results else state.list).getOrNull(index)?.let { resolveTagCategories(it) }
+        }
+    }
+
+    fun updateFullscreenMedia(media: RemoteMedia) {
+        if (fullscreenState == null) return
+        if (fullscreenViewedKey != media.mediaKey) {
+            fullscreenViewedKey = media.mediaKey
+            resolveTagCategories(media)
         }
     }
 

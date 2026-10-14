@@ -7,6 +7,8 @@ import okhttp3.Request
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 import com.booru.app.data.network.NetworkClient
+import com.booru.app.data.network.await
+import kotlinx.coroutines.CancellationException
 
 data class AppUpdateInfo(
     val latestVersion: String,
@@ -59,7 +61,7 @@ object UpdateChecker {
                 .header("Accept", "application/vnd.github.v3+json")
                 .build()
 
-            client.newCall(request).execute().use { response ->
+            client.newCall(request).await().use { response ->
                 if (!response.isSuccessful) return@runCatching null
                 val bodyStr = response.body?.string() ?: return@runCatching null
                 val json = JSONObject(bodyStr)
@@ -96,7 +98,10 @@ object UpdateChecker {
                     null
                 }
             }
-        }.getOrNull()
+        }.getOrElse {
+            if (it is CancellationException) throw it
+            null
+        }
     }
 
     data class SemVer(
@@ -140,11 +145,12 @@ object UpdateChecker {
 
         companion object {
             fun parse(raw: String): SemVer {
-                val clean = raw.trim().removePrefix("v").removePrefix("V")
+                val clean = raw.trim().removePrefix("v").removePrefix("V").substringBefore("+")
                 val versionPart = clean.substringBefore("-")
                 val prePart = if (clean.contains("-")) clean.substringAfter("-") else null
 
-                val numbers = versionPart.split(".").mapNotNull { it.toIntOrNull() }
+                // Keep positions: a part like "3rc1" reads as 3 and a missing one as 0, instead of shifting later parts left.
+                val numbers = versionPart.split(".").map { part -> part.takeWhile { it.isDigit() }.toIntOrNull() ?: 0 }
                 val major = numbers.getOrElse(0) { 0 }
                 val minor = numbers.getOrElse(1) { 0 }
                 val patch = numbers.getOrElse(2) { 0 }

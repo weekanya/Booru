@@ -22,6 +22,7 @@ object BooruCacheManager {
     const val MAX_MEDIA_CACHE_BYTES = 100L * 1024L * 1024L
     private const val TAG = "BooruCacheManager"
     private val HEX = "0123456789abcdef".toCharArray()
+    private val EXTENSION = Regex("[A-Za-z0-9]{1,5}")
 
     private val httpClient = NetworkClient.baseClient.newBuilder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -48,10 +49,16 @@ object BooruCacheManager {
         return String(out)
     }
 
+    // Extension of the last path segment only (case kept so existing file names still match), else "jpg".
+    private fun extensionOf(url: String): String {
+        val ext = url.substringBefore("?").substringBefore("#").substringAfterLast("/").substringAfterLast(".", "")
+        return if (EXTENSION.matches(ext)) ext else "jpg"
+    }
+
     fun getFavoriteFileForUrl(context: Context, url: String): File? {
         if (url.isBlank()) return null
         val hash = urlToHash(url)
-        val ext = url.substringAfterLast(".").substringBefore("?").ifBlank { "jpg" }
+        val ext = extensionOf(url)
         val file = File(getFavoritesMediaDir(context), "$hash.$ext")
         return if (file.exists() && file.length() > 0) file else null
     }
@@ -66,7 +73,7 @@ object BooruCacheManager {
         for (url in urlsToCache) {
             coroutineContext.ensureActive()
             val hash = urlToHash(url)
-            val ext = url.substringAfterLast(".").substringBefore("?").ifBlank { "jpg" }
+            val ext = extensionOf(url)
             val targetFile = File(getFavoritesMediaDir(context), "$hash.$ext")
             if (targetFile.exists() && targetFile.length() > 0) continue
 

@@ -62,6 +62,7 @@ import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -136,7 +137,7 @@ fun SettingsScreen(
     var newBlacklistTag by remember { mutableStateOf("") }
     var showLanguageBottomSheet by remember { mutableStateOf(false) }
     var showStatsScreen by remember { mutableStateOf(false) }
-    var showOfflineSheet by remember { mutableStateOf(false) }
+    var showOfflineSheet by rememberSaveable { mutableStateOf(false) }
     var showFeedSourcesSheet by remember { mutableStateOf(false) }
     var blacklistFilterQuery by remember { mutableStateOf("") }
     var editingCustomSource by remember { mutableStateOf<CustomBooruSource?>(null) }
@@ -485,8 +486,11 @@ fun SettingsScreen(
                                 customUrl = ""
                                 customApiKey = ""
                                 customUserId = ""
-                                editingCustomSource = null
-                                scope.launch { keyboardSheet.hide() }.invokeOnCompletion { showAddCustomSourceDialog = false }
+                                scope.launch { keyboardSheet.hide() }.invokeOnCompletion {
+                                    // Cleared only after the close animation so the sheet title doesn't flip mid-hide.
+                                    editingCustomSource = null
+                                    showAddCustomSourceDialog = false
+                                }
                             }
                         },
                         shapes = ButtonDefaults.shapes(shape = CircleShape, pressedShape = ButtonDefaults.pressedShape),
@@ -534,6 +538,7 @@ fun SettingsScreen(
                 onDismissRequest = {
                     showBlacklistDialog = false
                     blacklistFilterQuery = ""
+                    newBlacklistTag = ""
                 },
                 sheetState = sheetState,
                 containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -542,6 +547,7 @@ fun SettingsScreen(
                 KeyboardSheetEffects(keyboardSheet, onDismiss = {
                     showBlacklistDialog = false
                     blacklistFilterQuery = ""
+                    newBlacklistTag = ""
                 })
                 Column(
                     modifier = Modifier
@@ -846,6 +852,7 @@ fun SettingsScreen(
                             scope.launch { keyboardSheet.hide() }.invokeOnCompletion {
                                 showBlacklistDialog = false
                                 blacklistFilterQuery = ""
+                                newBlacklistTag = ""
                             }
                         },
                         shapes = ButtonDefaults.shapes(shape = CircleShape, pressedShape = ButtonDefaults.pressedShape),
@@ -1161,82 +1168,84 @@ fun SettingsScreen(
 
                             if (vm.customSources.isNotEmpty()) {
                                 vm.customSources.forEach { customSource ->
-                                    SettingsDivider()
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                editingCustomSource = customSource
-                                                customName = customSource.name
-                                                customUrl = customSource.baseUrl
-                                                customEngine = customSource.engine
-                                                customApiKey = vm.getCustomSourceApiKey(customSource.id)
-                                                customUserId = vm.getCustomSourceUserId(customSource.id)
-                                                customNameError = null; customUrlError = null; customAccessError = null
-                                                showAddCustomSourceDialog = true
-                                            }
-                                            .padding(horizontal = 20.dp, vertical = 12.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                Text(
-                                                    customSource.name,
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = MaterialTheme.colorScheme.onSurface
-                                                )
-                                                Surface(
-                                                    shape = CircleShape,
-                                                    color = MaterialTheme.colorScheme.primaryContainer
+                                    key(customSource.id) {
+                                        SettingsDivider()
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable {
+                                                    editingCustomSource = customSource
+                                                    customName = customSource.name
+                                                    customUrl = customSource.baseUrl
+                                                    customEngine = customSource.engine
+                                                    customApiKey = vm.getCustomSourceApiKey(customSource.id)
+                                                    customUserId = vm.getCustomSourceUserId(customSource.id)
+                                                    customNameError = null; customUrlError = null; customAccessError = null
+                                                    showAddCustomSourceDialog = true
+                                                }
+                                                .padding(horizontal = 20.dp, vertical = 12.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                                 ) {
                                                     Text(
-                                                        text = customSource.engine.name,
-                                                        style = MaterialTheme.typography.labelSmall,
-                                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        customSource.name,
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        fontWeight = FontWeight.SemiBold,
+                                                        color = MaterialTheme.colorScheme.onSurface
                                                     )
+                                                    Surface(
+                                                        shape = CircleShape,
+                                                        color = MaterialTheme.colorScheme.primaryContainer
+                                                    ) {
+                                                        Text(
+                                                            text = customSource.engine.name,
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                                        )
+                                                    }
                                                 }
+                                                Spacer(Modifier.height(2.dp))
+                                                Text(
+                                                    customSource.baseUrl,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
                                             }
-                                            Spacer(Modifier.height(2.dp))
-                                            Text(
-                                                customSource.baseUrl,
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis
+                                            IconButton(
+                                                onClick = {
+                                                    editingCustomSource = customSource
+                                                    customName = customSource.name
+                                                    customUrl = customSource.baseUrl
+                                                    customEngine = customSource.engine
+                                                    customApiKey = vm.getCustomSourceApiKey(customSource.id)
+                                                    customUserId = vm.getCustomSourceUserId(customSource.id)
+                                                    customNameError = null; customUrlError = null; customAccessError = null
+                                                    showAddCustomSourceDialog = true
+                                                }
+                                            ) {
+                                                Icon(
+                                                    Icons.Rounded.Edit,
+                                                    contentDescription = Strings.tr(lang, "Edit", "Изменить", "編集", "编辑", "편집", "تعديل"),
+                                                    tint = MaterialTheme.colorScheme.primary
+                                                )
+                                            }
+                                            AnimatedConfirmDeleteButton(
+                                                onConfirmed = {
+                                                    vm.removeCustomSource(customSource.id)
+                                                },
+                                                lang = lang,
+                                                initialIcon = Icons.Rounded.DeleteOutline,
+                                                confirmText = Strings.confirmDeleteAction(lang),
+                                                compact = true
                                             )
                                         }
-                                        IconButton(
-                                            onClick = {
-                                                editingCustomSource = customSource
-                                                customName = customSource.name
-                                                customUrl = customSource.baseUrl
-                                                customEngine = customSource.engine
-                                                customApiKey = vm.getCustomSourceApiKey(customSource.id)
-                                                customUserId = vm.getCustomSourceUserId(customSource.id)
-                                                customNameError = null; customUrlError = null; customAccessError = null
-                                                showAddCustomSourceDialog = true
-                                            }
-                                        ) {
-                                            Icon(
-                                                Icons.Rounded.Edit,
-                                                contentDescription = Strings.tr(lang, "Edit", "Изменить", "編集", "编辑", "편집", "تعديل"),
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
-                                        }
-                                        AnimatedConfirmDeleteButton(
-                                            onConfirmed = {
-                                                vm.removeCustomSource(customSource.id)
-                                            },
-                                            lang = lang,
-                                            initialIcon = Icons.Rounded.DeleteOutline,
-                                            confirmText = Strings.confirmDeleteAction(lang),
-                                            compact = true
-                                        )
                                     }
                                 }
                             }
