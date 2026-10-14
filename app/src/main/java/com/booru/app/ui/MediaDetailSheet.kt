@@ -298,7 +298,14 @@ private fun MediaDetailSheetContent(
                         key = { page -> mediaList.getOrNull(page)?.mediaKey ?: page }
                     ) { page ->
                         val item = mediaList.getOrNull(page) ?: return@HorizontalPager
-                        if (item.isVideo) {
+                        if (item.isVideo && showTrueFullscreen) {
+                            coil3.compose.AsyncImage(
+                                model = item.gridImageUrl(vm.effectiveImageQuality != com.booru.app.data.ImageQuality.SAVER),
+                                contentDescription = null,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else if (item.isVideo) {
                             BooruVideoPlayer(
                                 videoUrl = vm.resolveVideoUrl(item),
                                 lang = lang,

@@ -230,15 +230,6 @@ object Strings {
         else -> "APPEARANCE & THEMES"
     }
 
-    fun languageSection(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "ЯЗЫК ИНТЕРФЕЙСА"
-        AppLanguage.JAPANESE -> "言語"
-        AppLanguage.CHINESE -> "语言"
-        AppLanguage.KOREAN -> "언어"
-        AppLanguage.ARABIC -> "اللغة"
-        else -> "LANGUAGE"
-    }
-
     fun languageTitle(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Язык приложения"
         AppLanguage.JAPANESE -> "アプリの言語"
@@ -273,15 +264,6 @@ object Strings {
         AppLanguage.KOREAN -> "화질"
         AppLanguage.ARABIC -> "جودة الصورة"
         else -> "Quality"
-    }
-
-    fun imageQualityDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Разрешение контента при просмотре"
-        AppLanguage.JAPANESE -> "メディアのデフォルト解像度"
-        AppLanguage.CHINESE -> "查看媒体时的默认分辨率"
-        AppLanguage.KOREAN -> "미디어 기본 해상도"
-        AppLanguage.ARABIC -> "الدقة الافتراضية للوسائط"
-        else -> "Default resolution for media"
     }
 
     fun qualityOriginal(lang: AppLanguage) = when (lang) {
@@ -320,15 +302,6 @@ object Strings {
         else -> "Custom Booru Sources"
     }
 
-    fun customSourcesDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Подключение сторонних Booru-сайтов"
-        AppLanguage.JAPANESE -> "外部Booruサイトを追加"
-        AppLanguage.CHINESE -> "添加第三方Booru站点"
-        AppLanguage.KOREAN -> "외부 Booru 사이트 추가"
-        AppLanguage.ARABIC -> "إضافة مواقع Booru خارجية"
-        else -> "Add third-party Danbooru or Gelbooru websites"
-    }
-
     fun addSourceTitle(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Добавить Booru источник"
         AppLanguage.JAPANESE -> "Booruを追加"
@@ -365,15 +338,6 @@ object Strings {
         else -> "API Engine"
     }
 
-    fun sourceAddedSuccess(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Источник добавлен"
-        AppLanguage.JAPANESE -> "ソースを追加しました"
-        AppLanguage.CHINESE -> "已添加图站源"
-        AppLanguage.KOREAN -> "소스가 추가되었습니다"
-        AppLanguage.ARABIC -> "تمت إضافة المصدر"
-        else -> "Source added"
-    }
-
     fun editSourceTitle(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Редактировать Booru источник"
         AppLanguage.JAPANESE -> "Booruを編集"
@@ -381,42 +345,6 @@ object Strings {
         AppLanguage.KOREAN -> "Booru 편집"
         AppLanguage.ARABIC -> "تعديل مصدر Booru"
         else -> "Edit Booru Source"
-    }
-
-    fun sourceUpdatedSuccess(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Источник обновлен"
-        AppLanguage.JAPANESE -> "ソースを更新しました"
-        AppLanguage.CHINESE -> "图站源已更新"
-        AppLanguage.KOREAN -> "소스가 업데이트되었습니다"
-        AppLanguage.ARABIC -> "تم تحديث المصدر"
-        else -> "Source updated"
-    }
-
-    fun sourceRemovedSuccess(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Источник удален"
-        AppLanguage.JAPANESE -> "ソースを削除しました"
-        AppLanguage.CHINESE -> "已移除图站源"
-        AppLanguage.KOREAN -> "소스가 삭제되었습니다"
-        AppLanguage.ARABIC -> "تم حذف المصدر"
-        else -> "Source removed"
-    }
-
-    fun deleteSourceConfirm(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Удалить этот источник?"
-        AppLanguage.JAPANESE -> "このソースを削除しますか？"
-        AppLanguage.CHINESE -> "确定删除此图站源？"
-        AppLanguage.KOREAN -> "이 소스를 삭제하시겠습니까?"
-        AppLanguage.ARABIC -> "هل تريد حذف هذا المصدر؟"
-        else -> "Remove this source?"
-    }
-
-    fun invalidHttpsUrlError(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "URL должен начинаться с https://"
-        AppLanguage.JAPANESE -> "URLは https:// で始まる必要があります"
-        AppLanguage.CHINESE -> "网址必须以 https:// 开头"
-        AppLanguage.KOREAN -> "URL은 https:// 로 시작해야 합니다"
-        AppLanguage.ARABIC -> "يجب أن يبدأ الرابط بـ https://"
-        else -> "URL must start with https://"
     }
 
     fun emptySourceNameError(lang: AppLanguage) = when (lang) {
@@ -498,24 +426,6 @@ object Strings {
         AppLanguage.KOREAN -> "새로운 기능"
         AppLanguage.ARABIC -> "ما الجديد"
         else -> "What's new"
-    }
-
-    fun updateAvailableTitle(lang: AppLanguage, version: String) = when (lang) {
-        AppLanguage.RUSSIAN -> "Доступно обновление ($version)"
-        AppLanguage.JAPANESE -> "アップデートがあります ($version)"
-        AppLanguage.CHINESE -> "有新版本可用 ($version)"
-        AppLanguage.KOREAN -> "새 업데이트 가능 ($version)"
-        AppLanguage.ARABIC -> "يتوفر تحديث ($version)"
-        else -> "Update Available ($version)"
-    }
-
-    fun updateAvailableDesc(lang: AppLanguage, version: String) = when (lang) {
-        AppLanguage.RUSSIAN -> "На GitHub вышла новая версия ($version). Хотите скачать обновление?"
-        AppLanguage.JAPANESE -> "新しいバージョン ($version) が公開されています。ダウンロードしますか？"
-        AppLanguage.CHINESE -> "GitHub上有新版本 ($version)，是否下载更新？"
-        AppLanguage.KOREAN -> "새 버전 ($version)이 출시되었습니다. 다운로드하시겠습니까?"
-        AppLanguage.ARABIC -> "يتوفر إصدار جديد ($version) على GitHub. هل ترغب في تنزيله؟"
-        else -> "A new version ($version) is available on GitHub. Would you like to download it?"
     }
 
     fun updateButton(lang: AppLanguage) = when (lang) {
@@ -608,15 +518,6 @@ object Strings {
         else -> "Could not reach GitHub servers. Please check your internet connection."
     }
 
-    fun savedPostsCount(count: Int, lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "$count сохранённых постов"
-        AppLanguage.JAPANESE -> "$count 件の保存済み投稿"
-        AppLanguage.CHINESE -> "$count 个已收藏帖子"
-        AppLanguage.KOREAN -> "${count}개의 저장된 게시물"
-        AppLanguage.ARABIC -> "$count منشور محفوظ"
-        else -> "$count saved posts"
-    }
-
     fun favoritesEmptyTitle(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "В избранном пока пусто"
         AppLanguage.JAPANESE -> "お気に入りは空です"
@@ -642,15 +543,6 @@ object Strings {
         AppLanguage.KOREAN -> "탐색으로 이동"
         AppLanguage.ARABIC -> "الانتقال إلى الاستكشاف"
         else -> "Go to Explore"
-    }
-
-    fun filterFavorites(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Фильтр по тегам в избранном..."
-        AppLanguage.JAPANESE -> "お気に入りをタグで絞り込み..."
-        AppLanguage.CHINESE -> "按标签筛选收藏..."
-        AppLanguage.KOREAN -> "태그로 즐겨찾기 필터링..."
-        AppLanguage.ARABIC -> "تصفية المفضلة حسب الوسم..."
-        else -> "Filter favorites by tag..."
     }
 
     fun favFilterAll(lang: AppLanguage) = when (lang) {
@@ -716,15 +608,6 @@ object Strings {
         else -> "Oldest first"
     }
 
-    fun favSortSource(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "По источнику"
-        AppLanguage.JAPANESE -> "ソース順"
-        AppLanguage.CHINESE -> "按来源"
-        AppLanguage.KOREAN -> "소스별"
-        AppLanguage.ARABIC -> "حسب المصدر"
-        else -> "By source"
-    }
-
     fun favSearchHint(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Поиск по тегам, источнику..."
         AppLanguage.JAPANESE -> "タグやソースで検索..."
@@ -752,24 +635,6 @@ object Strings {
         else -> "Reset"
     }
 
-    fun clearFavoritesConfirm(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Очистить избранное?"
-        AppLanguage.JAPANESE -> "お気に入りをすべて削除？"
-        AppLanguage.CHINESE -> "清空全部收藏？"
-        AppLanguage.KOREAN -> "즐겨찾기를 모두 지우시겠습니까?"
-        AppLanguage.ARABIC -> "هل تريد مسح كل المفضلة؟"
-        else -> "Clear all favorites?"
-    }
-
-    fun clearFavoritesDesc(count: Int, lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Все сохранённые посты ($count) будут удалены из избранного."
-        AppLanguage.JAPANESE -> "保存された $count 件の投稿が削除されます。"
-        AppLanguage.CHINESE -> "将从收藏中删除所有 $count 个帖子。"
-        AppLanguage.KOREAN -> "저장된 ${count}개의 게시물이 즐겨찾기에서 제거됩니다."
-        AppLanguage.ARABIC -> "سيتم حذف جميع المنشورات المحفوظة البالغ عددها $count من المفضلة."
-        else -> "All $count saved posts will be removed from favorites."
-    }
-
     fun loadingOriginal(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Скачивание в полном качестве начато..."
         AppLanguage.JAPANESE -> "オリジナル画質をダウンロード中..."
@@ -788,15 +653,6 @@ object Strings {
         else -> "Copy Tag"
     }
 
-    fun tagCopied(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Тег скопирован в буфер"
-        AppLanguage.JAPANESE -> "クリップボードにコピーしました"
-        AppLanguage.CHINESE -> "标签已复制到剪贴板"
-        AppLanguage.KOREAN -> "태그가 클립보드에 복사되었습니다"
-        AppLanguage.ARABIC -> "تم نسخ الوسم إلى الحافظة"
-        else -> "Tag copied to clipboard"
-    }
-
     fun addToBlacklist(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "В чёрный список"
         AppLanguage.JAPANESE -> "ブロックリストに追加"
@@ -813,24 +669,6 @@ object Strings {
         AppLanguage.KOREAN -> "블랙리스트에서 제거"
         AppLanguage.ARABIC -> "إزالة من القائمة السوداء"
         else -> "Remove from Blacklist"
-    }
-
-    fun tagAddedToBlacklist(tag: String, lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "«$tag» добавлен в чёрный список"
-        AppLanguage.JAPANESE -> "「$tag」をブロックリストに追加しました"
-        AppLanguage.CHINESE -> "已将 \"$tag\" 加入黑名单"
-        AppLanguage.KOREAN -> "\"$tag\" 태그가 블랙리스트에 추가되었습니다"
-        AppLanguage.ARABIC -> "تمت إضافة \"$tag\" إلى القائمة السوداء"
-        else -> "\"$tag\" added to blacklist"
-    }
-
-    fun tagRemovedFromBlacklist(tag: String, lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "«$tag» удален из чёрного списка"
-        AppLanguage.JAPANESE -> "「$tag」をブロックリストから削除しました"
-        AppLanguage.CHINESE -> "已将 \"$tag\" 从黑名单移除"
-        AppLanguage.KOREAN -> "\"$tag\" 태그가 블랙리스트에서 제거되었습니다"
-        AppLanguage.ARABIC -> "تمت إزالة \"$tag\" من القائمة السوداء"
-        else -> "\"$tag\" removed from blacklist"
     }
 
     fun tagBlacklistedStatus(lang: AppLanguage) = when (lang) {
@@ -887,24 +725,6 @@ object Strings {
         else -> "Refresh"
     }
 
-    fun pullToRefresh(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Потяните для обновления"
-        AppLanguage.JAPANESE -> "引っ張って更新"
-        AppLanguage.CHINESE -> "下拉刷新"
-        AppLanguage.KOREAN -> "당겨서 새로고침"
-        AppLanguage.ARABIC -> "اسحب للتحديث"
-        else -> "Pull to refresh"
-    }
-
-    fun releaseToRefresh(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Отпустите для обновления"
-        AppLanguage.JAPANESE -> "離して更新"
-        AppLanguage.CHINESE -> "释放刷新"
-        AppLanguage.KOREAN -> "놓아서 새로고침"
-        AppLanguage.ARABIC -> "أفلت للتحديث"
-        else -> "Release to refresh"
-    }
-
     fun closeBtn(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Закрыть"
         AppLanguage.JAPANESE -> "閉じる"
@@ -912,15 +732,6 @@ object Strings {
         AppLanguage.KOREAN -> "닫기"
         AppLanguage.ARABIC -> "إغلاق"
         else -> "Close"
-    }
-
-    fun loadingText(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Загрузка..."
-        AppLanguage.JAPANESE -> "読み込み中..."
-        AppLanguage.CHINESE -> "加载中..."
-        AppLanguage.KOREAN -> "로딩 중..."
-        AppLanguage.ARABIC -> "جاري التحميل..."
-        else -> "Loading..."
     }
 
     fun nothingFound(lang: AppLanguage) = when (lang) {
@@ -1019,15 +830,6 @@ object Strings {
         else -> "Connection timed out for $source. Please check your network."
     }
 
-    fun invalidCredentialsDesc(source: String, lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Неверные учетные данные для $source. Проверьте ключи в Настройках."
-        AppLanguage.JAPANESE -> "$source の認証情報が無効です。設定でキーを確認してください。"
-        AppLanguage.CHINESE -> "$source 凭据无效。请在设置中检查 API Key。"
-        AppLanguage.KOREAN -> "$source 인증 정보가 잘못되었습니다. 설정에서 확인하세요."
-        AppLanguage.ARABIC -> "بيانات اعتماد $source غير صالحة. يرجى التحقق من المفاتيح في الإعدادات."
-        else -> "Invalid credentials for $source. Please check your keys in Settings."
-    }
-
     fun genericErrorTitle(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Ошибка"
         AppLanguage.JAPANESE -> "エラー"
@@ -1055,24 +857,6 @@ object Strings {
         else -> "Failed to load data. Please check your internet connection."
     }
 
-    fun scoreLabel(score: Int, lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "$score очков"
-        AppLanguage.JAPANESE -> "$score スコア"
-        AppLanguage.CHINESE -> "$score 分"
-        AppLanguage.KOREAN -> "$score 점"
-        AppLanguage.ARABIC -> "$score نقطة"
-        else -> "$score score"
-    }
-
-    fun tagsLabel(count: Int, lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Теги ($count)"
-        AppLanguage.JAPANESE -> "タグ ($count)"
-        AppLanguage.CHINESE -> "标签 ($count)"
-        AppLanguage.KOREAN -> "태그 ($count)"
-        AppLanguage.ARABIC -> "الوسوم ($count)"
-        else -> "Tags ($count)"
-    }
-
     fun noTags(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Теги для этого поста не найдены"
         AppLanguage.JAPANESE -> "タグがありません"
@@ -1080,15 +864,6 @@ object Strings {
         AppLanguage.KOREAN -> "태그 없음"
         AppLanguage.ARABIC -> "لا توجد وسوم لهذا المنشور"
         else -> "No tags found for this post"
-    }
-
-    fun infoAndTags(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Инфо и теги"
-        AppLanguage.JAPANESE -> "詳細とタグ"
-        AppLanguage.CHINESE -> "详情与标签"
-        AppLanguage.KOREAN -> "정보 및 태그"
-        AppLanguage.ARABIC -> "المعلومات والوسوم"
-        else -> "Info & Tags"
     }
 
     fun resolution(lang: AppLanguage) = when (lang) {
@@ -1107,15 +882,6 @@ object Strings {
         AppLanguage.KOREAN -> "소스"
         AppLanguage.ARABIC -> "المصدر"
         else -> "Source"
-    }
-
-    fun keysSavedToast(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Ключи сохранены!"
-        AppLanguage.JAPANESE -> "キーを保存しました！"
-        AppLanguage.CHINESE -> "密钥已保存！"
-        AppLanguage.KOREAN -> "키가 저장되었습니다!"
-        AppLanguage.ARABIC -> "تم حفظ المفاتيح!"
-        else -> "Keys saved!"
     }
 
     fun rule34DialogDesc(lang: AppLanguage) = when (lang) {
@@ -1199,15 +965,6 @@ object Strings {
         else -> "$enabled of $total enabled"
     }
 
-    fun sourceToggleDesc(enabled: Boolean, lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> if (enabled) "Используется в ленте и поиске" else "Отключён"
-        AppLanguage.JAPANESE -> if (enabled) "フィードと検索で使用" else "無効"
-        AppLanguage.CHINESE -> if (enabled) "用于信息流和搜索" else "已停用"
-        AppLanguage.KOREAN -> if (enabled) "피드와 검색에 사용" else "사용 안 함"
-        AppLanguage.ARABIC -> if (enabled) "مستخدم في الخلاصة والبحث" else "معطّل"
-        else -> if (enabled) "Used in feed and search" else "Disabled"
-    }
-
     fun tagBlacklistTitle(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Чёрный список тегов"
         AppLanguage.JAPANESE -> "タグブロックリスト"
@@ -1251,42 +1008,6 @@ object Strings {
         AppLanguage.KOREAN -> "차단된 태그가 없습니다"
         AppLanguage.ARABIC -> "لا توجد وسوم محظورة بعد"
         else -> "No blocked tags added yet"
-    }
-
-    fun clearAllBlacklist(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Очистить всё"
-        AppLanguage.JAPANESE -> "すべて削除"
-        AppLanguage.CHINESE -> "清空全部"
-        AppLanguage.KOREAN -> "모두 삭제"
-        AppLanguage.ARABIC -> "مسح الكل"
-        else -> "Clear all"
-    }
-
-    fun quickPresets(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Быстрые фильтры:"
-        AppLanguage.JAPANESE -> "人気のプリセット:"
-        AppLanguage.CHINESE -> "常用预设:"
-        AppLanguage.KOREAN -> "인기 프리셋:"
-        AppLanguage.ARABIC -> "الإعدادات المسبقة الشائعة:"
-        else -> "Popular presets:"
-    }
-
-    fun clearBlacklistConfirmTitle(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Очистить чёрный список?"
-        AppLanguage.JAPANESE -> "ブロックリストを空にしますか？"
-        AppLanguage.CHINESE -> "清空标签黑名单？"
-        AppLanguage.KOREAN -> "블랙리스트를 초기화하시겠습니까?"
-        AppLanguage.ARABIC -> "هل تريد مسح قائمة الوسوم المحظورة؟"
-        else -> "Clear Tag Blacklist?"
-    }
-
-    fun clearBlacklistConfirmDesc(count: Int, lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Все $count заблокированных тегов будут удалены."
-        AppLanguage.JAPANESE -> "$count 件のブロックタグがすべて削除されます。"
-        AppLanguage.CHINESE -> "将删除全部 $count 个屏蔽标签。"
-        AppLanguage.KOREAN -> "차단된 ${count}개의 태그가 모두 삭제됩니다."
-        AppLanguage.ARABIC -> "سيتم حذف جميع الوسوم المحظورة البالغ عددها $count."
-        else -> "All $count blocked tags will be removed."
     }
 
     fun searchPostsWithTag(lang: AppLanguage) = when (lang) {
@@ -1397,42 +1118,6 @@ object Strings {
         else -> "Download failed"
     }
 
-    fun clearCacheTitle(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Очистить кэш"
-        AppLanguage.JAPANESE -> "キャッシュを削除"
-        AppLanguage.CHINESE -> "清除缓存"
-        AppLanguage.KOREAN -> "캐시 삭제"
-        AppLanguage.ARABIC -> "مسح التخزين المؤقت"
-        else -> "Clear cache"
-    }
-
-    fun clearCacheDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Временный кэш ленты (избранное защищено)"
-        AppLanguage.JAPANESE -> "一時的なブラウジングキャッシュ（お気に入りは保護されます）"
-        AppLanguage.CHINESE -> "清除浏览临时缓存（收藏内容不受影响）"
-        AppLanguage.KOREAN -> "임시 탐색 캐시 (즐겨찾기는 안전하게 유지됨)"
-        AppLanguage.ARABIC -> "ذاكرة التخزين المؤقت للتصفح (المفضلة محمية)"
-        else -> "Temporary browsing cache (favorites protected)"
-    }
-
-    fun favoritesStorageDesc(lang: AppLanguage, size: String) = when (lang) {
-        AppLanguage.RUSSIAN -> "Хранилище избранного: $size"
-        AppLanguage.JAPANESE -> "お気に入りの容量: $size"
-        AppLanguage.CHINESE -> "收藏夹占用空间: $size"
-        AppLanguage.KOREAN -> "즐겨찾기 저장공간: $size"
-        AppLanguage.ARABIC -> "مساحة المفضلة: $size"
-        else -> "Favorites storage: $size"
-    }
-
-    fun clearCacheSuccess(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Кэш очищен (Избранное сохранено)"
-        AppLanguage.JAPANESE -> "キャッシュを削除しました"
-        AppLanguage.CHINESE -> "缓存已清除（收藏已保留）"
-        AppLanguage.KOREAN -> "캐시가 삭제되었습니다 (즐겨찾기 보존됨)"
-        AppLanguage.ARABIC -> "تم مسح الذاكرة المؤقتة (تم الحفاظ على المفضلة)"
-        else -> "Cache cleared (Favorites preserved)"
-    }
-
     fun share(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Поделиться"
         AppLanguage.JAPANESE -> "共有"
@@ -1451,24 +1136,6 @@ object Strings {
         else -> "Tags"
     }
 
-    fun downloadComplete(filename: String, lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Сохранено: $filename"
-        AppLanguage.JAPANESE -> "保存完了: $filename"
-        AppLanguage.CHINESE -> "已保存: $filename"
-        AppLanguage.KOREAN -> "저장 완료: $filename"
-        AppLanguage.ARABIC -> "تم الحفظ: $filename"
-        else -> "Saved: $filename"
-    }
-
-    fun errorLoading(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Не удалось загрузить"
-        AppLanguage.JAPANESE -> "読み込みに失敗しました"
-        AppLanguage.CHINESE -> "加载失败"
-        AppLanguage.KOREAN -> "불러오기 실패"
-        AppLanguage.ARABIC -> "فشل التحميل"
-        else -> "Failed to load image"
-    }
-
     fun pressBackAgainToExit(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Нажмите ещё раз для выхода"
         AppLanguage.JAPANESE -> "もう一度戻るを押して終了"
@@ -1476,15 +1143,6 @@ object Strings {
         AppLanguage.KOREAN -> "뒤로 가기를 한 번 더 누르면 종료됩니다"
         AppLanguage.ARABIC -> "اضغط رجوع مرة أخرى للخروج"
         else -> "Press back again to exit"
-    }
-
-    fun recommendationsTitle(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Для вас"
-        AppLanguage.JAPANESE -> "あなたへのおすすめ"
-        AppLanguage.CHINESE -> "为你推荐"
-        AppLanguage.KOREAN -> "추천"
-        AppLanguage.ARABIC -> "لك"
-        else -> "For you"
     }
 
     fun sourceRecommendations(lang: AppLanguage) = when (lang) {
@@ -1523,15 +1181,6 @@ object Strings {
         else -> "Reset smart tag interests and search preferences"
     }
 
-    fun clearRecommendationsSuccess(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Память рекомендаций очищена"
-        AppLanguage.JAPANESE -> "おすすめ履歴を消去しました"
-        AppLanguage.CHINESE -> "推荐偏好已重置"
-        AppLanguage.KOREAN -> "추천 기록이 초기화되었습니다"
-        AppLanguage.ARABIC -> "تم مسح ذاكرة التوصيات"
-        else -> "Recommendation memory cleared"
-    }
-
     fun contentTypeTitle(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Тип контента"
         AppLanguage.JAPANESE -> "コンテンツタイプ"
@@ -1539,15 +1188,6 @@ object Strings {
         AppLanguage.KOREAN -> "콘텐츠 유형"
         AppLanguage.ARABIC -> "نوع المحتوى"
         else -> "Content type"
-    }
-
-    fun contentTypeAll(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Все типы"
-        AppLanguage.JAPANESE -> "すべて"
-        AppLanguage.CHINESE -> "全部类型"
-        AppLanguage.KOREAN -> "모든 유형"
-        AppLanguage.ARABIC -> "جميع الأنواع"
-        else -> "All types"
     }
 
     fun contentTypePhotos(lang: AppLanguage) = when (lang) {
@@ -1604,24 +1244,6 @@ object Strings {
         else -> "Apply"
     }
 
-    fun comicMode(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Режим комикса"
-        AppLanguage.JAPANESE -> "コミックスクロール"
-        AppLanguage.CHINESE -> "条漫滚动模式"
-        AppLanguage.KOREAN -> "웹툰 스크롤"
-        AppLanguage.ARABIC -> "تمرير القصص المصورة"
-        else -> "Comic scroll"
-    }
-
-    fun fitMode(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Вписать"
-        AppLanguage.JAPANESE -> "全体表示"
-        AppLanguage.CHINESE -> "全图适应"
-        AppLanguage.KOREAN -> "화면 맞춤"
-        AppLanguage.ARABIC -> "ملاءمة"
-        else -> "Fit"
-    }
-
     fun chooseLanguageTitle(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Выберите язык"
         AppLanguage.JAPANESE -> "言語を選択"
@@ -1656,24 +1278,6 @@ object Strings {
         AppLanguage.KOREAN -> "시크릿 모드"
         AppLanguage.ARABIC -> "وضع التصفح المتخفي"
         else -> "Incognito"
-    }
-
-    fun incognitoActiveDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "История поиска и рекомендации отключены"
-        AppLanguage.JAPANESE -> "検索履歴とおすすめを一時停止中"
-        AppLanguage.CHINESE -> "搜索历史和推荐已暂停"
-        AppLanguage.KOREAN -> "검색 기록과 추천이 일시 중지됨"
-        AppLanguage.ARABIC -> "تم إيقاف سجل البحث والتوصيات مؤقتًا"
-        else -> "Search history and recommendations are paused"
-    }
-
-    fun recommendationBalance(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Баланс рекомендаций"
-        AppLanguage.JAPANESE -> "おすすめのバランス"
-        AppLanguage.CHINESE -> "推荐比例"
-        AppLanguage.KOREAN -> "추천 비율"
-        AppLanguage.ARABIC -> "توازن التوصيات"
-        else -> "Recommendation balance"
     }
 
     fun feedNewestOnly(lang: AppLanguage) = when (lang) {
@@ -1757,15 +1361,6 @@ object Strings {
         else -> "Unlock"
     }
 
-    fun foldersTitle(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Коллекции"
-        AppLanguage.JAPANESE -> "コレクション"
-        AppLanguage.CHINESE -> "收藏夹"
-        AppLanguage.KOREAN -> "컬렉션"
-        AppLanguage.ARABIC -> "المجموعات"
-        else -> "Collections"
-    }
-
     fun allFavoritesFolder(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Все"
         AppLanguage.JAPANESE -> "すべて"
@@ -1829,42 +1424,6 @@ object Strings {
         else -> "$min min"
     }
 
-    fun gridColumnsTitle(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Сетка галереи"
-        AppLanguage.JAPANESE -> "グリッド列"
-        AppLanguage.CHINESE -> "网格列数"
-        AppLanguage.KOREAN -> "그리드 열"
-        AppLanguage.ARABIC -> "أعمدة الشبكة"
-        else -> "Grid columns"
-    }
-
-    fun gridColumnsAuto(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Авто"
-        AppLanguage.JAPANESE -> "自動"
-        AppLanguage.CHINESE -> "自动"
-        AppLanguage.KOREAN -> "자동"
-        AppLanguage.ARABIC -> "تلقائي"
-        else -> "Auto"
-    }
-
-    fun incognitoModeDesc(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Приватный режим включен"
-        AppLanguage.JAPANESE -> "プライベートモード中"
-        AppLanguage.CHINESE -> "隐私模式已开启"
-        AppLanguage.KOREAN -> "비공개 모드 켜짐"
-        AppLanguage.ARABIC -> "الوضع الخاص مفعّل"
-        else -> "Private mode active"
-    }
-
-    fun brightness(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Яркость"
-        AppLanguage.JAPANESE -> "明るさ"
-        AppLanguage.CHINESE -> "亮度"
-        AppLanguage.KOREAN -> "밝기"
-        AppLanguage.ARABIC -> "السطوع"
-        else -> "Brightness"
-    }
-
     fun volume(lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Громкость"
         AppLanguage.JAPANESE -> "音量"
@@ -1872,15 +1431,6 @@ object Strings {
         AppLanguage.KOREAN -> "볼륨"
         AppLanguage.ARABIC -> "مستوى الصوت"
         else -> "Volume"
-    }
-
-    fun deleteFolderConfirm(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Удалить коллекцию?"
-        AppLanguage.JAPANESE -> "コレクションを削除しますか？"
-        AppLanguage.CHINESE -> "删除此收藏夹？"
-        AppLanguage.KOREAN -> "컬렉션을 삭제할까요?"
-        AppLanguage.ARABIC -> "حذف المجموعة؟"
-        else -> "Delete collection?"
     }
 
     fun biometricUnavailable(lang: AppLanguage) = when (lang) {
@@ -1962,15 +1512,6 @@ object Strings {
         AppLanguage.KOREAN -> "모든 소스에서 검색"
         AppLanguage.ARABIC -> "البحث في كل المصادر"
         else -> "Search in all sources"
-    }
-
-    fun partialResultsNotice(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Некоторые источники не ответили"
-        AppLanguage.JAPANESE -> "一部のソースが応答しませんでした"
-        AppLanguage.CHINESE -> "部分来源没有响应"
-        AppLanguage.KOREAN -> "일부 소스가 응답하지 않았습니다"
-        AppLanguage.ARABIC -> "بعض المصادر لم تستجب"
-        else -> "Some sources didn't respond"
     }
 
     fun favoriteRemoved(lang: AppLanguage) = when (lang) {
