@@ -57,7 +57,6 @@ object OfflineStore {
     private val activeCalls = ConcurrentHashMap.newKeySet<okhttp3.Call>()
     @Volatile private var dir: File? = null
     @Volatile private var indexFile: File? = null
-    // Completed once the saved index has been read; commits must not run before it or they would delete the saved files.
     private val indexLoaded = kotlinx.coroutines.CompletableDeferred<Unit>()
 
     var posts by mutableStateOf<List<RemoteMedia>>(emptyList())
@@ -222,7 +221,6 @@ object OfflineStore {
         val name = hash(url) + "." + extensionOf(url, "jpg")
         val target = File(folder, name)
         if (target.exists() && target.length() > 0) return name
-        // Unique per call so two downloads of the same URL never write into one temp file.
         val temp = try {
             File.createTempFile(name, ".tmp", folder)
         } catch (e: IOException) {
@@ -301,7 +299,6 @@ object OfflineStore {
         withContext(Dispatchers.Main) { sizeBytes = total }
     }
 
-    // Extension of the last path segment only, so extensionless URLs never yield a path like "com/img/123".
     private fun extensionOf(url: String, fallback: String): String {
         val ext = url.substringBefore('?').substringBefore('#').substringAfterLast('/').substringAfterLast('.', "").lowercase()
         return if (EXTENSION.matches(ext)) ext else fallback

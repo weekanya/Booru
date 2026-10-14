@@ -53,7 +53,6 @@ fun MarkdownText(
         for (rawLine in lines) {
             val line = rawLine.trimEnd()
             val fenceTrimmed = line.trim()
-            // A single-line fence (```code```) is a self-contained code line, not a block toggle.
             if (!inCodeBlock && fenceTrimmed.length > 6 && fenceTrimmed.startsWith("```") && fenceTrimmed.endsWith("```")) {
                 Box(
                     modifier = Modifier

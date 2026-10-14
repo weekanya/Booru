@@ -487,7 +487,6 @@ fun SettingsScreen(
                                 customApiKey = ""
                                 customUserId = ""
                                 scope.launch { keyboardSheet.hide() }.invokeOnCompletion {
-                                    // Cleared only after the close animation so the sheet title doesn't flip mid-hide.
                                     editingCustomSource = null
                                     showAddCustomSourceDialog = false
                                 }

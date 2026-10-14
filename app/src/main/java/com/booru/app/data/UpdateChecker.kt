@@ -149,7 +149,6 @@ object UpdateChecker {
                 val versionPart = clean.substringBefore("-")
                 val prePart = if (clean.contains("-")) clean.substringAfter("-") else null
 
-                // Keep positions: a part like "3rc1" reads as 3 and a missing one as 0, instead of shifting later parts left.
                 val numbers = versionPart.split(".").map { part -> part.takeWhile { it.isDigit() }.toIntOrNull() ?: 0 }
                 val major = numbers.getOrElse(0) { 0 }
                 val minor = numbers.getOrElse(1) { 0 }

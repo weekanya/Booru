@@ -1812,8 +1812,6 @@ fun BooruVideoPlayer(
     fun canPlay(): Boolean = activeState.value &&
         lifecycleOwnerState.value.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
 
-    // The player is created lazily, only once this page is active (settled), so that swiping
-    // past neighbour video pages never builds/prepares an ExoPlayer on the main thread mid-swipe.
     var playerState by remember(videoUrl) { mutableStateOf<ExoPlayer?>(null) }
     val exoPlayer = playerState
 
@@ -2184,7 +2182,6 @@ fun BooruVideoPlayer(
 
                 DisposableEffect(Unit) {
                     onDispose {
-                        // Slider left composition mid-drag: cancel the pending seek.
                         if (isSeeking) isSeeking = false
                     }
                 }
@@ -2462,8 +2459,6 @@ internal fun SettlePagerWhenIdle(state: androidx.compose.foundation.pager.PagerS
                                 )
                             )
                         } catch (e: kotlinx.coroutines.CancellationException) {
-                            // A user drag interrupts the settle animation (MutationInterruptedException);
-                            // keep collecting unless this effect itself was cancelled.
                             if (!kotlinx.coroutines.currentCoroutineContext().isActive) throw e
                         }
                     }

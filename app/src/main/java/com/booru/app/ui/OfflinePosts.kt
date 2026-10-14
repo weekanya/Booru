@@ -251,7 +251,6 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                 }
                             }
                             val complete = saved >= count
-                            // Show the real saved total when more than the selected count is stored.
                             val savedShown = maxOf(saved, count)
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),

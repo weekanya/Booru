@@ -601,7 +601,6 @@ fun ExploreScreen(
                         var pinchScale by remember { mutableFloatStateOf(1f) }
                         var pinchPivot by remember { mutableStateOf(TransformOrigin.Center) }
 
-                        // Shorter double-tap window so single taps on cards open without the ~300 ms delay.
                         val baseViewConfiguration = androidx.compose.ui.platform.LocalViewConfiguration.current
                         val snappyViewConfiguration = remember(baseViewConfiguration) {
                             object : androidx.compose.ui.platform.ViewConfiguration by baseViewConfiguration {
@@ -623,7 +622,6 @@ fun ExploreScreen(
                                         var isPinching = false
                                         var currentZoom = 1f
                                         do {
-                                            // Initial pass: see (and consume) multi-touch before the grid's scroll does.
                                             val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Initial)
                                             val downCount = event.changes.count { it.pressed }
                                             if (downCount >= 2) {
@@ -644,7 +642,6 @@ fun ExploreScreen(
                                                 }
                                                 event.changes.forEach { it.consume() }
                                             } else if (isPinching) {
-                                                // Remaining finger after a pinch must not scroll or click the grid.
                                                 event.changes.forEach { it.consume() }
                                             }
                                         } while (event.changes.any { it.pressed })

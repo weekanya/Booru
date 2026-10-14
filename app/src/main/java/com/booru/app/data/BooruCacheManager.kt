@@ -49,7 +49,6 @@ object BooruCacheManager {
         return String(out)
     }
 
-    // Extension of the last path segment only (case kept so existing file names still match), else "jpg".
     private fun extensionOf(url: String): String {
         val ext = url.substringBefore("?").substringBefore("#").substringAfterLast("/").substringAfterLast(".", "")
         return if (EXTENSION.matches(ext)) ext else "jpg"

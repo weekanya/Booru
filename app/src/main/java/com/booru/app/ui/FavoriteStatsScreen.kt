@@ -1004,8 +1004,6 @@ private fun ActivityChart(stats: FavoriteStats, locale: Locale, lang: AppLanguag
         buckets.forEachIndexed { index, bucket ->
             val viewFraction by animateFloatAsState((bucket.views.toFloat() / max).coerceIn(0f, 1f), Motion.effectsDefault(), label = "viewBar")
             val favFraction by animateFloatAsState((bucket.favorites.toFloat() / max).coerceIn(0f, 1f), Motion.effectsDefault(), label = "favBar")
-            // Columns get very narrow with many buckets (e.g. 30 days), so only label every 5th
-            // column plus the last, skipping a 5th label that would collide with the last one.
             val showLabel = when {
                 stats.bucketSize == BucketSize.HOUR -> index % 6 == 0
                 weekly || buckets.size <= 14 -> true

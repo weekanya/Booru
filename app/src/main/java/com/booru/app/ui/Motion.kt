@@ -224,14 +224,11 @@ fun KeyboardSheetEffects(sheet: KeyboardSheetState, onDismiss: () -> Unit) {
         androidx.compose.runtime.snapshotFlow { sheet.dismissRequested }
             .collect { requested ->
                 if (requested) {
-                    // Reset first so a later request (after an interrupted hide) re-emits.
                     sheet.dismissRequested = false
                     try {
                         sheet.hide()
                         latestOnDismiss.value()
                     } catch (e: kotlinx.coroutines.CancellationException) {
-                        // The hide animation is cancelled when the user grabs the sheet mid-close;
-                        // only rethrow when the effect itself is being cancelled, otherwise keep collecting.
                         if (!currentCoroutineContext().isActive) throw e
                     }
                 }

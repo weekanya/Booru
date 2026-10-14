@@ -118,8 +118,6 @@ fun FavoritesScreen(
     val scope = rememberCoroutineScope()
 
     var filterText by rememberSaveable { mutableStateOf("") }
-    // Debounced copy of filterText that actually drives the (expensive) list filtering,
-    // so typing doesn't re-filter every composed page and the count chip on each keystroke.
     var appliedFilter by remember { mutableStateOf(filterText) }
     LaunchedEffect(Unit) {
         snapshotFlow { filterText }.collectLatest { text ->

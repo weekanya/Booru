@@ -144,7 +144,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var scrollToTopTrigger by mutableStateOf(0L); private set
     var refreshSeed by mutableStateOf(0); private set
     var isIncognito by mutableStateOf(false); private set
-    // Until the persisted incognito flag is read, suppress history/recommendation recording.
     private var incognitoLoaded = false
     private val suppressRecording: Boolean get() = isIncognito || !incognitoLoaded
     var recommendationRatio by mutableFloatStateOf(0.5f); private set
@@ -156,7 +155,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var gridColumnsCount by mutableIntStateOf(0); private set
 
     private var currentPage = 0
-    // Paging state of the last successful search/loadMore, used to restore after a failed refresh.
     private var committedPage = 0
     private var committedHasMore = true
     private val committedRecTagPages = HashMap<String, Int>()
@@ -590,7 +588,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 withContext(Dispatchers.Main) {
                     if (updateDownloadJob === ownJob) {
                         isDownloadingUpdate = false
-                        // OkHttp's readTimeout acts as a stall watchdog: it fires only when no bytes arrive for 30 s.
                         updateDownloadError = if (e is java.io.InterruptedIOException) "Download timed out" else e.message ?: "Download failed"
                     }
                 }
@@ -2043,7 +2040,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var activeDownloads by mutableStateOf<Set<String>>(emptySet()); private set
     var isSettingWallpaper by mutableStateOf(false); private set
 
-    // Buffered channel so messages posted while no collector is active (e.g. app locked) are delivered later.
     private val _messages = Channel<String>(Channel.BUFFERED)
     val messages: Flow<String> = _messages.receiveAsFlow()
 

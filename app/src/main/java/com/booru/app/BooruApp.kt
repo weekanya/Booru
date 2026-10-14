@@ -160,7 +160,6 @@ class BooruApplication : Application(), SingletonImageLoader.Factory {
                             altResp.close()
                         } catch (_: Exception) {}
                     }
-                    // Its body was closed above to free the connection for the retries, so hand back an empty one.
                     return@addInterceptor initialResponse.newBuilder()
                         .body(ByteArray(0).toResponseBody(null))
                         .build()

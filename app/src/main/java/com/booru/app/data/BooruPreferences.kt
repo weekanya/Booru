@@ -42,8 +42,6 @@ enum class ImageQuality(val code: String) {
 
 class BooruPreferences(private val context: Context) {
 
-    // Retry transient read errors first: the fallback below emits once and completes, which would pin every setting
-    // (safe mode included) to its default until the app restarts.
     private val safeData: Flow<Preferences> = context.dataStore.data
         .retryWhen { cause, attempt ->
             (cause is IOException && attempt < 3).also { if (it) delay(200L * (attempt + 1)) }

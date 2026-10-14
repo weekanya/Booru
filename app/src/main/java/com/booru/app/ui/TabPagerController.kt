@@ -46,8 +46,6 @@ class TabPagerController(val pagerState: PagerState, private val scope: Coroutin
                 enter.animateTo(1f, tween(durationMillis = 320, easing = Motion.EmphasizedDecelerate))
             } finally {
                 if (pendingPage == page) pendingPage = null
-                // If the scroll was interrupted (e.g. user drag took priority), the content
-                // would stay invisible at enter=0. Restore it unless a newer select() owns it.
                 if (token == generation && enter.value < 1f) {
                     scope.launch { enter.snapTo(1f) }
                 }

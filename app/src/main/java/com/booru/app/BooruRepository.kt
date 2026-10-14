@@ -117,7 +117,6 @@ class BooruRepository(
     @Volatile private var realbooruPageSize = 0
     @Volatile var excludeFurry = false
 
-
     companion object {
         const val TAG = "BooruRepo"
         const val PAGE_SIZE = 40

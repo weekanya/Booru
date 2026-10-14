@@ -70,8 +70,6 @@ fun AnimatedConfirmDeleteButton(
     fillContentWidth: Boolean = false
 ) {
     var isConfirming by remember { mutableStateOf(false) }
-    // Uptime at which the button was armed; confirm taps arriving faster than a deliberate
-    // second tap (e.g. an accidental double tap) are ignored so destructive actions need intent.
     var armedAt by remember { mutableLongStateOf(0L) }
 
     LaunchedEffect(isConfirming) {
