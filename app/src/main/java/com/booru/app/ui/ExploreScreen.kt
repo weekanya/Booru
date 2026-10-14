@@ -2404,19 +2404,6 @@ private fun FilterSelectionBottomSheet(
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = MaterialTheme.colorScheme.onSurface
                                                 )
-                                                Text(
-                                                    text = Strings.tr(
-                                                        lang,
-                                                        "By tags and by generator data inside the file",
-                                                        "По тегам и по данным генератора внутри файла",
-                                                        "タグとファイル内の生成情報で判定",
-                                                        "根据标签和文件内的生成信息",
-                                                        "태그와 파일 속 생성 정보로 판별",
-                                                        "حسب الوسوم وبيانات المولّد داخل الملف"
-                                                    ),
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
                                             }
                                         }
                                         Switch(
@@ -2471,19 +2458,6 @@ private fun FilterSelectionBottomSheet(
                                                     style = MaterialTheme.typography.bodyLarge,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = MaterialTheme.colorScheme.onSurface
-                                                )
-                                                Text(
-                                                    text = Strings.tr(
-                                                        lang,
-                                                        "Hides furry, anthro and feral posts",
-                                                        "Скрывает фурри, антро и ферал",
-                                                        "ケモノ・獣人・フェラルを非表示",
-                                                        "隐藏兽人、拟人和野兽内容",
-                                                        "퍼리, 수인, 페럴 게시물 숨김",
-                                                        "يخفي منشورات الفوري والأنثرو والحيوانات"
-                                                    ),
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                                 )
                                             }
                                         }

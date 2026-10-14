@@ -1676,7 +1676,7 @@ private fun SettingRowItem(
             .then(
                 if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
             )
-            .padding(horizontal = 20.dp, vertical = 16.dp),
+            .padding(horizontal = 20.dp, vertical = if (subtitle == null) 8.dp else 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
@@ -1743,7 +1743,7 @@ private fun SettingSwitchItem(
                     onCheckedChange(it)
                 }
             )
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(horizontal = 20.dp, vertical = if (subtitle == null) 8.dp else 14.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
