@@ -16,8 +16,6 @@ enum class Rating(val code: String) {
                 else -> UNKNOWN
             }
         }
-
-        fun fromCode(code: String?): Rating = fromString(code)
     }
 }
 
@@ -38,14 +36,19 @@ data class RemoteMedia(
     val mediaKey: String
         get() = if (id.isNotBlank()) "${(sourceId.ifBlank { source }).lowercase().trim()}_$id" else url
 
+    val contentKey: String by lazy {
+        sequenceOf(url, sample, preview)
+            .mapNotNull { MD5_PATTERN.find(it.substringBefore('?'))?.value?.lowercase() }
+            .firstOrNull()
+            ?.let { "md5:$it" }
+            ?: mediaKey
+    }
+
     val ratingType: Rating
         get() = Rating.fromString(rating)
 
     val isSafe: Boolean
         get() = ratingType == Rating.SAFE
-
-    val isQuestionable: Boolean
-        get() = ratingType == Rating.QUESTIONABLE
 
     val isExplicit: Boolean
         get() = ratingType == Rating.EXPLICIT
@@ -94,6 +97,8 @@ data class RemoteMedia(
             ?: preview.ifBlank { sample.ifBlank { url } }
     }
 }
+
+private val MD5_PATTERN = Regex("(?<![0-9a-fA-F])[0-9a-fA-F]{32}(?![0-9a-fA-F])")
 
 private fun isVideoFileUrl(value: String): Boolean {
     val clean = value.substringBefore("?").lowercase()

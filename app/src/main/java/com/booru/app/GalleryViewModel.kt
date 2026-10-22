@@ -50,7 +50,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import com.booru.app.data.network.NetworkClient
 import java.io.File
@@ -78,9 +77,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var updateDownloadError by mutableStateOf<String?>(null); private set
     var downloadedApkFile by mutableStateOf<File?>(null); private set
 
-    var cacheSizeFormatted by mutableStateOf("0 B"); private set
-    var favoritesStorageSizeFormatted by mutableStateOf("0 B"); private set
-    var isClearingCache by mutableStateOf(false); private set
 
     var results by mutableStateOf<List<RemoteMedia>>(emptyList()); private set
     var loading by mutableStateOf(false); private set
@@ -293,10 +289,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             if (initialFavorites != null) {
                 launch(Dispatchers.IO) {
                     runCatching { BooruCacheManager.pruneOrphanedFavoritesMedia(getApplication(), initialFavorites) }
-                    updateCacheSize()
                 }
-            } else {
-                updateCacheSize()
             }
         }
     }
@@ -440,10 +433,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         isDownloadingUpdate = false
         updateDownloadProgress = 0f
         updateDownloadProgressText = "0%"
-    }
-
-    fun downloadAndInstallUpdate(context: Context, info: AppUpdateInfo) {
-        downloadUpdate(context, info)
     }
 
     fun downloadUpdate(context: Context, info: AppUpdateInfo) {
@@ -655,53 +644,29 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 pm.getPackageInfo(context.packageName, PackageManager.GET_SIGNING_CERTIFICATES)
             }
 
-            val currentVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                currentInfo.longVersionCode
-            } else {
-                @Suppress("DEPRECATION")
-                currentInfo.versionCode.toLong()
-            }
-            val apkVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                archiveInfo.longVersionCode
-            } else {
-                @Suppress("DEPRECATION")
-                archiveInfo.versionCode.toLong()
-            }
-            if (apkVersionCode < currentVersionCode) {
+            if (archiveInfo.longVersionCode < currentInfo.longVersionCode) {
                 return false
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                val apkSigningInfo = archiveInfo.signingInfo ?: return false
-                val curSigningInfo = currentInfo.signingInfo ?: return false
+            val apkSigningInfo = archiveInfo.signingInfo ?: return false
+            val curSigningInfo = currentInfo.signingInfo ?: return false
 
-                if (apkSigningInfo.hasMultipleSigners() || curSigningInfo.hasMultipleSigners()) {
-                    if (apkSigningInfo.hasMultipleSigners() != curSigningInfo.hasMultipleSigners()) return false
-                    val apkSigners = apkSigningInfo.apkContentsSigners?.map { it.toByteArray() } ?: return false
-                    val curSigners = curSigningInfo.apkContentsSigners?.map { it.toByteArray() } ?: return false
-                    if (apkSigners.size != curSigners.size) return false
-                    apkSigners.all { apkSig -> curSigners.any { curSig -> apkSig.contentEquals(curSig) } }
-                } else {
-                    val apkCurrent = apkSigningInfo.apkContentsSigners?.firstOrNull()?.toByteArray() ?: return false
-                    val curCurrent = curSigningInfo.apkContentsSigners?.firstOrNull()?.toByteArray() ?: return false
-
-                    if (apkCurrent.contentEquals(curCurrent)) {
-                        true
-                    } else {
-                        val apkHistory = apkSigningInfo.signingCertificateHistory?.map { it.toByteArray() } ?: emptyList()
-                        val curHistory = curSigningInfo.signingCertificateHistory?.map { it.toByteArray() } ?: emptyList()
-                        curHistory.any { it.contentEquals(apkCurrent) } || apkHistory.any { it.contentEquals(curCurrent) }
-                    }
-                }
+            if (apkSigningInfo.hasMultipleSigners() || curSigningInfo.hasMultipleSigners()) {
+                if (apkSigningInfo.hasMultipleSigners() != curSigningInfo.hasMultipleSigners()) return false
+                val apkSigners = apkSigningInfo.apkContentsSigners?.map { it.toByteArray() } ?: return false
+                val curSigners = curSigningInfo.apkContentsSigners?.map { it.toByteArray() } ?: return false
+                if (apkSigners.size != curSigners.size) return false
+                apkSigners.all { apkSig -> curSigners.any { curSig -> apkSig.contentEquals(curSig) } }
             } else {
-                @Suppress("DEPRECATION")
-                val apkSignatures = archiveInfo.signatures?.map { it.toByteArray() } ?: return false
-                @Suppress("DEPRECATION")
-                val currentSignatures = currentInfo.signatures?.map { it.toByteArray() } ?: return false
-                if (apkSignatures.isEmpty() || currentSignatures.isEmpty()) return false
-                if (apkSignatures.size != currentSignatures.size) return false
-                apkSignatures.all { apkSig ->
-                    currentSignatures.any { curSig -> apkSig.contentEquals(curSig) }
+                val apkCurrent = apkSigningInfo.apkContentsSigners?.firstOrNull()?.toByteArray() ?: return false
+                val curCurrent = curSigningInfo.apkContentsSigners?.firstOrNull()?.toByteArray() ?: return false
+
+                if (apkCurrent.contentEquals(curCurrent)) {
+                    true
+                } else {
+                    val apkHistory = apkSigningInfo.signingCertificateHistory?.map { it.toByteArray() } ?: emptyList()
+                    val curHistory = curSigningInfo.signingCertificateHistory?.map { it.toByteArray() } ?: emptyList()
+                    curHistory.any { it.contentEquals(apkCurrent) } || apkHistory.any { it.contentEquals(curCurrent) }
                 }
             }
         } catch (_: Exception) {
@@ -993,10 +958,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             val accepted = withContext(Dispatchers.Default) { items.filter { accepts(it) } }
             var added = 0
             for (item in accepted) {
-                if (seen.add(item.mediaKey)) {
-                    collected.add(item)
-                    added++
-                }
+                if (item.mediaKey in seen || item.contentKey in seen) continue
+                seen.add(item.mediaKey)
+                seen.add(item.contentKey)
+                collected.add(item)
+                added++
             }
             return added
         }
@@ -1133,7 +1099,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 if (searchGen != currentSearchGeneration) return@launch
                 advanceRecTagPages(recTags)
                 currentPage = batch.lastPage
-                results = batch.items.filterNot { it.mediaKey in notInterestedKeys }
+                results = batch.items.filterNot { it.mediaKey in notInterestedKeys }.distinctBy { it.contentKey }
                 hasMore = batch.hasMore
                 commitPaging()
                 resultsEpoch++
@@ -1183,7 +1149,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 (0 until REC_TAGS_PER_PAGE).map { offset -> active[(startIndex + offset) % active.size] }
             }
         } else emptyList()
-        val existingKeys = results.mapTo(HashSet()) { it.mediaKey }
+        val existingKeys = HashSet<String>().apply { results.forEach { add(it.mediaKey); add(it.contentKey) } }
         val tagPages = recTags.associateWith { recTagPages[it] ?: 0 }
 
         loadMoreJob?.cancel()
@@ -1196,7 +1162,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 currentPage = batch.lastPage
                 if (batch.items.isNotEmpty()) {
                     emptyLoadMoreStreak = 0
-                    results = (results + batch.items.filterNot { it.mediaKey in notInterestedKeys }).distinctBy { it.mediaKey }
+                    results = (results + batch.items.filterNot { it.mediaKey in notInterestedKeys }).distinctBy { it.mediaKey }.distinctBy { it.contentKey }
                     hasMore = batch.hasMore
                     scanForAiTraces(batch.items, searchGen)
                 } else {
@@ -1221,12 +1187,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun retryLoadMore() {
         loadMoreError = false
         loadMore()
-    }
-
-    fun applySort(order: SortOrder) {
-        if (sortOrder == order) return
-        sortOrder = order
-        search(source, query, safeMode)
     }
 
     fun searchTag(tag: String, targetSource: String = source) {
@@ -1355,7 +1315,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 } else {
                     BooruCacheManager.saveFavoriteMedia(getApplication(), media)
                 }
-                updateCacheSize()
             } catch (c: CancellationException) {
                 throw c
             } catch (e: Exception) {
@@ -1390,10 +1349,19 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to prune favorites media: ${e.message}", e)
                 }
-                updateCacheSize()
             }
         }
     }
+
+    private fun keysNotSavedMessage(): String = com.booru.app.data.Strings.tr(
+        language,
+        "Keys work until restart: secure storage is unavailable",
+        "Ключи работают до перезапуска: защищённое хранилище недоступно",
+        "キーは再起動まで有効です：安全なストレージを利用できません",
+        "密钥仅在重启前有效：安全存储不可用",
+        "키는 재시작 전까지만 유지됩니다: 보안 저장소를 사용할 수 없습니다",
+        "المفاتيح تعمل حتى إعادة التشغيل: التخزين الآمن غير متاح"
+    )
 
     private fun favoriteErrorMessage(): String = com.booru.app.data.Strings.tr(
         language,
@@ -1404,33 +1372,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         "즐겨찾기를 업데이트할 수 없습니다",
         "تعذّر تحديث المفضلة"
     )
-
-    private suspend fun computeCacheSizes(): Pair<String, String> = withContext(Dispatchers.IO) {
-        val browsingBytes = BooruCacheManager.getBrowsingCacheSizeBytes(getApplication())
-        val favsBytes = BooruCacheManager.getFavoritesStorageSizeBytes(getApplication())
-        BooruCacheManager.formatBytes(browsingBytes) to BooruCacheManager.formatBytes(favsBytes)
-    }
-
-    fun updateCacheSize() {
-        viewModelScope.launch {
-            val (browsing, favs) = computeCacheSizes()
-            cacheSizeFormatted = browsing
-            favoritesStorageSizeFormatted = favs
-        }
-    }
-
-    fun clearCache(onComplete: () -> Unit = {}) {
-        if (isClearingCache) return
-        viewModelScope.launch {
-            isClearingCache = true
-            BooruCacheManager.clearBrowsingCache(getApplication())
-            val (browsing, favs) = computeCacheSizes()
-            cacheSizeFormatted = browsing
-            favoritesStorageSizeFormatted = favs
-            isClearingCache = false
-            onComplete()
-        }
-    }
 
     fun isFavorite(media: RemoteMedia): Boolean {
         return media.mediaKey in favoriteKeys
@@ -1448,10 +1389,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             prefs.setPalette(palette)
             this@GalleryViewModel.palette = palette
         }
-    }
-
-    fun setDynamicColorEnabled(enabled: Boolean) {
-        viewModelScope.launch { prefs.setDynamicColor(enabled) }
     }
 
     fun updateLanguage(lang: AppLanguage) {
@@ -1597,34 +1534,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun removeSearchHistoryItem(item: String) {
-        viewModelScope.launch {
-            prefs.removeSearchQuery(item)
-        }
-    }
-
-    fun setSafeModeEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            prefs.setSafeMode(enabled)
-            safeMode = enabled
-            if (enabled) {
-                excludeSafe = false
-            }
-            search(source, query, enabled)
-        }
-    }
-
-    fun setExcludeSafeEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            prefs.setExcludeSafe(enabled)
-            excludeSafe = enabled
-            if (enabled) {
-                safeMode = false
-            }
-            search(source, query, safeMode)
-        }
-    }
-
     fun updateDataSaverOnMobile(enabled: Boolean) {
         dataSaverOnMobile = enabled
         viewModelScope.launch { prefs.setDataSaverOnMobile(enabled) }
@@ -1635,17 +1544,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         super.onCleared()
     }
 
-    fun setNoAiEnabled(enabled: Boolean) {
-        viewModelScope.launch {
-            prefs.setNoAiFilter(enabled)
-            noAi = enabled
-            search(source, query, safeMode)
-        }
-    }
-
     fun saveRule34Keys(userId: String, apiKey: String) {
-        secureStorage.setRule34UserId(userId)
-        secureStorage.setRule34ApiKey(apiKey)
+        val stored = secureStorage.setRule34UserId(userId) and secureStorage.setRule34ApiKey(apiKey)
+        if (!stored) postMessage(keysNotSavedMessage())
         rule34UserId = userId.trim()
         rule34ApiKey = apiKey.trim()
         cachedCredentials = null
@@ -1656,8 +1557,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun saveGelbooruKeys(userId: String, apiKey: String) {
-        secureStorage.setGelbooruUserId(userId)
-        secureStorage.setGelbooruApiKey(apiKey)
+        val stored = secureStorage.setGelbooruUserId(userId) and secureStorage.setGelbooruApiKey(apiKey)
+        if (!stored) postMessage(keysNotSavedMessage())
         gelbooruUserId = userId.trim()
         gelbooruApiKey = apiKey.trim()
         cachedCredentials = null
@@ -1673,20 +1574,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearHistory() {
         viewModelScope.launch { prefs.clearSearchHistory() }
-    }
-
-    fun toggleContentType(type: ContentType) {
-        selectedContentTypes = if (selectedContentTypes.contains(type)) {
-            selectedContentTypes - type
-        } else {
-            selectedContentTypes + type
-        }
-        refresh()
-    }
-
-    fun clearContentTypes() {
-        selectedContentTypes = emptySet()
-        refresh()
     }
 
     fun clearRecommendationMemory(onDone: () -> Unit = {}) {
@@ -1846,12 +1733,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun resolveThumbnailUrl(media: RemoteMedia): String = when (imageQuality) {
-        ImageQuality.SAVER -> media.preview.ifBlank { media.sample.ifBlank { media.url } }
-        ImageQuality.ORIGINAL -> media.sample.ifBlank { media.url.ifBlank { media.preview } }
-        ImageQuality.SAMPLE -> media.sample.ifBlank { media.preview.ifBlank { media.url } }
-    }
-
     fun getSourceDisplayName(key: String): String {
         if (key == BooruRepository.SOURCE_ALL || key.equals("all sources", ignoreCase = true)) {
             return com.booru.app.data.Strings.sourceRecommendations(language)
@@ -1861,7 +1742,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     var fullscreenState by mutableStateOf<FullscreenState?>(null)
         private set
-    private var fullscreenViewedIndex = -1
     private var fullscreenViewedKey: String? = null
     private var fullscreenOpenCounter = 0L
 
@@ -1874,7 +1754,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 openId = ++fullscreenOpenCounter
             )
             fullscreenState = state
-            fullscreenViewedIndex = state.index
             fullscreenViewedKey = list[state.index].mediaKey
             resolveTagCategories(list[state.index])
             if (state.isFromResults) recordOpenedForRecommendations(list[state.index])
@@ -1890,7 +1769,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     val offlineDownloading: Boolean get() = com.booru.app.data.OfflineDownloader.downloading
     val offlineDone: Int get() = com.booru.app.data.OfflineDownloader.done
-    val offlineTarget: Int get() = com.booru.app.data.OfflineDownloader.target
     val offlineGoal: Int get() = com.booru.app.data.OfflineDownloader.goal
     val offlineBase: Int get() = com.booru.app.data.OfflineDownloader.base
     val offlinePhase: Int get() = com.booru.app.data.OfflineDownloader.phase
@@ -2095,14 +1973,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun updateFullscreenIndex(index: Int) {
-        val state = fullscreenState ?: return
-        if (fullscreenViewedIndex != index && index >= 0) {
-            fullscreenViewedIndex = index
-            (if (state.isFromResults) results else state.list).getOrNull(index)?.let { resolveTagCategories(it) }
-        }
-    }
-
     fun updateFullscreenMedia(media: RemoteMedia) {
         if (fullscreenState == null) return
         if (fullscreenViewedKey != media.mediaKey) {
@@ -2139,16 +2009,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             BooruRepository.SOURCE_SAFEBOORU to "safebooru"
         )
 
-        fun getRecommendationRatio(tagCount: Int): Float {
-            return when (tagCount) {
-                0 -> 0.0f
-                1 -> 0.65f
-                2 -> 0.75f
-                3 -> 0.80f
-                else -> 0.85f
-            }
-        }
-
         fun blendRecommendationFeed(
             generalPosts: List<RemoteMedia>,
             tagPosts: List<List<RemoteMedia>>,
@@ -2156,9 +2016,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             existingKeys: Set<String> = emptySet(),
             maxPerTag: Int = Int.MAX_VALUE
         ): List<RemoteMedia> {
-            val nonNullGeneral = generalPosts.filterNot { it.mediaKey in existingKeys }
+            val nonNullGeneral = generalPosts.filterNot { it.mediaKey in existingKeys || it.contentKey in existingKeys }
             val nonNullTagPosts = tagPosts.map { list ->
-                list.filterNot { it.mediaKey in existingKeys }.take(maxPerTag)
+                list.filterNot { it.mediaKey in existingKeys || it.contentKey in existingKeys }.take(maxPerTag)
             }
 
             if (nonNullGeneral.isEmpty() && nonNullTagPosts.all { it.isEmpty() }) return emptyList()
@@ -2172,7 +2032,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 for (q in tagQueues) {
                     if (q.isNotEmpty()) {
                         val item = q.removeFirst()
-                        if (seen.add(item.mediaKey)) {
+                        if (item.mediaKey !in seen && item.contentKey !in seen) {
+                            seen.add(item.mediaKey)
+                            seen.add(item.contentKey)
                             recQueue.add(item)
                         }
                     }
@@ -2185,7 +2047,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
             val genQueue = ArrayDeque<RemoteMedia>()
             for (item in nonNullGeneral) {
-                if (seen.add(item.mediaKey)) {
+                if (item.mediaKey !in seen && item.contentKey !in seen) {
+                    seen.add(item.mediaKey)
+                    seen.add(item.contentKey)
                     genQueue.add(item)
                 }
             }

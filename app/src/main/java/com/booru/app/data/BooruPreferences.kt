@@ -265,10 +265,6 @@ class BooruPreferences(private val context: Context) {
         context.dataStore.edit { it[KEY_IGNORED_UPDATE_VERSION] = version }
     }
 
-    suspend fun clearIgnoredUpdateVersion() {
-        context.dataStore.edit { it.remove(KEY_IGNORED_UPDATE_VERSION) }
-    }
-
     val disabledSources: Flow<Set<String>> = read { prefs ->
         prefs[KEY_DISABLED_SOURCES] ?: emptySet()
     }
@@ -622,31 +618,6 @@ class BooruPreferences(private val context: Context) {
 
     suspend fun clearTagBlacklist() {
         context.dataStore.edit { it.remove(KEY_TAG_BLACKLIST) }
-    }
-
-    suspend fun saveFavorites(favs: List<RemoteMedia>) {
-        val serialized = serializeFavorites(favs)
-        context.dataStore.edit { it[KEY_FAVORITES_JSON] = serialized }
-    }
-
-    private fun serializeFavorites(list: List<RemoteMedia>): String {
-        val arr = JSONArray()
-        list.forEach { item ->
-            val obj = JSONObject().apply {
-                put("id", item.id)
-                put("url", item.url)
-                put("preview", item.preview)
-                put("sample", item.sample)
-                put("tags", item.tags)
-                put("score", item.score)
-                put("source", item.source)
-                put("rating", item.rating)
-                put("width", item.width)
-                put("height", item.height)
-            }
-            arr.put(obj)
-        }
-        return arr.toString()
     }
 
     private fun deserializeFavorites(json: String): List<RemoteMedia> {

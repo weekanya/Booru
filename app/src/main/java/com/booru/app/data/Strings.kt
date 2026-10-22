@@ -1110,12 +1110,12 @@ object Strings {
     }
 
     fun clearRecommendationsTitle(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Сбросить рекомендации"
-        AppLanguage.JAPANESE -> "おすすめをリセット"
-        AppLanguage.CHINESE -> "重置推荐"
-        AppLanguage.KOREAN -> "추천 초기화"
-        AppLanguage.ARABIC -> "إعادة ضبط التوصيات"
-        else -> "Reset recommendations"
+        AppLanguage.RUSSIAN -> "Стереть память рекомендаций"
+        AppLanguage.JAPANESE -> "おすすめ履歴を消去"
+        AppLanguage.CHINESE -> "重置推荐记忆"
+        AppLanguage.KOREAN -> "추천 기록 초기화"
+        AppLanguage.ARABIC -> "مسح ذاكرة التوصيات"
+        else -> "Clear recommendation memory"
     }
 
     fun contentTypeTitle(lang: AppLanguage) = when (lang) {
@@ -1269,6 +1269,15 @@ object Strings {
         AppLanguage.KOREAN -> "생체 인증 잠금"
         AppLanguage.ARABIC -> "القفل البيومتري"
         else -> "Biometric Lock"
+    }
+
+    fun biometricLockSubtitle(lang: AppLanguage) = when (lang) {
+        AppLanguage.RUSSIAN -> "Блокировка при входе в приложение"
+        AppLanguage.JAPANESE -> "アプリを開くときに認証を要求"
+        AppLanguage.CHINESE -> "打开应用时需要验证"
+        AppLanguage.KOREAN -> "앱을 열 때 인증 필요"
+        AppLanguage.ARABIC -> "طلب المصادقة عند فتح التطبيق"
+        else -> "Require authentication when opening app"
     }
 
     fun appLocked(lang: AppLanguage) = when (lang) {

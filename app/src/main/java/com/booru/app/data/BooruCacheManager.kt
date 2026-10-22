@@ -8,7 +8,6 @@ import com.booru.app.RemoteMedia
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.io.IOException
@@ -180,34 +179,6 @@ object BooruCacheManager {
         }
     }
 
-    fun getBrowsingCacheSizeBytes(context: Context): Long {
-        var size = calculateDirSize(context.cacheDir)
-        try {
-            context.externalCacheDir?.let {
-                size += calculateDirSize(it)
-            }
-        } catch (_: Exception) {}
-        return size
-    }
-
-    fun getFavoritesStorageSizeBytes(context: Context): Long {
-        return calculateDirSize(getFavoritesMediaDir(context))
-    }
-
-    fun getCacheSizeBytes(context: Context): Long {
-        return getBrowsingCacheSizeBytes(context)
-    }
-
-    private fun calculateDirSize(dir: File): Long {
-        if (!dir.exists()) return 0L
-        var size = 0L
-        val files = dir.listFiles() ?: return 0L
-        for (file in files) {
-            size += if (file.isDirectory) calculateDirSize(file) else file.length()
-        }
-        return size
-    }
-
     fun formatBytes(bytes: Long): String {
         return when {
             bytes < 1024 -> "$bytes B"
@@ -253,39 +224,5 @@ object BooruCacheManager {
         try {
             context.externalCacheDir?.listFiles()?.forEach { it.deleteRecursively() }
         } catch (_: Exception) {}
-    }
-
-    @OptIn(coil3.annotation.ExperimentalCoilApi::class)
-    suspend fun clearBrowsingCache(context: Context) = withContext(Dispatchers.IO) {
-        try {
-            coil3.SingletonImageLoader.get(context).memoryCache?.clear()
-            coil3.SingletonImageLoader.get(context).diskCache?.clear()
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to clear Coil image cache", e)
-        }
-
-        try {
-            com.booru.app.BooruVideoCache.clearVideoCache(context)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to clear video cache", e)
-        }
-
-        try {
-            context.cacheDir.listFiles()?.forEach { file ->
-                if (file.name != "image_cache" && file.name != "booru_video_cache") {
-                    file.deleteRecursively()
-                }
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to clear internal cacheDir", e)
-        }
-
-        try {
-            context.externalCacheDir?.listFiles()?.forEach { file ->
-                file.deleteRecursively()
-            }
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to clear externalCacheDir", e)
-        }
     }
 }

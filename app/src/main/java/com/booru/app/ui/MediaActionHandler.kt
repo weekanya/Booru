@@ -4,8 +4,6 @@ import android.app.WallpaperManager
 import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
-import android.media.MediaScannerConnection
-import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import coil3.toBitmap
@@ -19,9 +17,7 @@ import com.booru.app.data.ImageQuality
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.io.File
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
@@ -56,7 +52,6 @@ object MediaActionHandler {
         quality: ImageQuality
     ): Result<String> {
         var insertedUri: android.net.Uri? = null
-        var targetPreQFile: File? = null
         var isSuccess = false
 
         return try {
@@ -131,86 +126,43 @@ object MediaActionHandler {
 
                 val inputStream = body.byteStream()
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val contentValues = ContentValues().apply {
-                        put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
-                        put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                        put(
-                            MediaStore.MediaColumns.RELATIVE_PATH,
-                            if (isVideoMedia) "${Environment.DIRECTORY_MOVIES}/Booru" else "${Environment.DIRECTORY_PICTURES}/Booru"
-                        )
-                        put(MediaStore.MediaColumns.IS_PENDING, 1)
-                    }
-
-                    val collection = if (isVideoMedia) {
-                        MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-                    } else {
-                        MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-                    }
-
-                    val uri = context.contentResolver.insert(collection, contentValues)
-                        ?: throw IOException("MediaStore insert failed")
-                    insertedUri = uri
-
-                    context.contentResolver.openOutputStream(uri)?.use { outStream ->
-                        val buffer = ByteArray(8192)
-                        var bytesRead: Int
-                        var totalRead = 0L
-                        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                            totalRead += bytesRead
-                            if (totalRead > MAX_DOWNLOAD_BYTES) {
-                                throw IOException("Download exceeded maximum allowed size")
-                            }
-                            outStream.write(buffer, 0, bytesRead)
-                        }
-                    } ?: throw IOException("Could not open stream for saving")
-
-                    contentValues.clear()
-                    contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
-                    context.contentResolver.update(uri, contentValues, null, null)
-                    isSuccess = true
-                } else {
-                    val targetDir = File(
-                        Environment.getExternalStoragePublicDirectory(
-                            if (isVideoMedia) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES
-                        ),
-                        "Booru"
-                    ).apply { mkdirs() }
-
-                    val targetFile = File(targetDir, filename)
-                    val tempFile = File(targetDir, "$filename.tmp")
-                    targetPreQFile = tempFile
-
-                    tempFile.outputStream().use { outStream ->
-                        val buffer = ByteArray(8192)
-                        var bytesRead: Int
-                        var totalRead = 0L
-                        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                            totalRead += bytesRead
-                            if (totalRead > MAX_DOWNLOAD_BYTES) {
-                                throw IOException("Download exceeded maximum allowed size")
-                            }
-                            outStream.write(buffer, 0, bytesRead)
-                        }
-                    }
-
-                    if (!tempFile.exists() || tempFile.length() == 0L) {
-                        throw IOException("Downloaded file is empty")
-                    }
-
-                    if (!tempFile.renameTo(targetFile)) {
-                        throw IOException("Failed to rename temporary file to target")
-                    }
-                    targetPreQFile = targetFile
-
-                    MediaScannerConnection.scanFile(
-                        context,
-                        arrayOf(targetFile.absolutePath),
-                        arrayOf(mimeType),
-                        null
+                val contentValues = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                    put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                    put(
+                        MediaStore.MediaColumns.RELATIVE_PATH,
+                        if (isVideoMedia) "${Environment.DIRECTORY_MOVIES}/Booru" else "${Environment.DIRECTORY_PICTURES}/Booru"
                     )
-                    isSuccess = true
+                    put(MediaStore.MediaColumns.IS_PENDING, 1)
                 }
+
+                val collection = if (isVideoMedia) {
+                    MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                } else {
+                    MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+                }
+
+                val uri = context.contentResolver.insert(collection, contentValues)
+                    ?: throw IOException("MediaStore insert failed")
+                insertedUri = uri
+
+                context.contentResolver.openOutputStream(uri)?.use { outStream ->
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    var totalRead = 0L
+                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                        totalRead += bytesRead
+                        if (totalRead > MAX_DOWNLOAD_BYTES) {
+                            throw IOException("Download exceeded maximum allowed size")
+                        }
+                        outStream.write(buffer, 0, bytesRead)
+                    }
+                } ?: throw IOException("Could not open stream for saving")
+
+                contentValues.clear()
+                contentValues.put(MediaStore.MediaColumns.IS_PENDING, 0)
+                context.contentResolver.update(uri, contentValues, null, null)
+                isSuccess = true
 
                 Result.success(filename)
             }
@@ -222,9 +174,6 @@ object MediaActionHandler {
             if (!isSuccess) {
                 insertedUri?.let { uri ->
                     runCatching { context.contentResolver.delete(uri, null, null) }
-                }
-                targetPreQFile?.let { f ->
-                    runCatching { if (f.exists()) f.delete() }
                 }
             }
         }
@@ -270,25 +219,13 @@ object MediaActionHandler {
             val wallpaperManager = WallpaperManager.getInstance(context)
             when (target) {
                 1 -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM)
-                    } else {
-                        wallpaperManager.setBitmap(bitmap)
-                    }
+                    wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM)
                 }
                 2 -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK)
-                    } else {
-                        wallpaperManager.setBitmap(bitmap)
-                    }
+                    wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_LOCK)
                 }
                 3 -> {
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                        wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK)
-                    } else {
-                        wallpaperManager.setBitmap(bitmap)
-                    }
+                    wallpaperManager.setBitmap(bitmap, null, true, WallpaperManager.FLAG_SYSTEM or WallpaperManager.FLAG_LOCK)
                 }
                 else -> return Result.failure(IllegalArgumentException("Unknown wallpaper target: $target"))
             }

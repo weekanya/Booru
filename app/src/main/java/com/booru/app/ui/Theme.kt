@@ -198,7 +198,6 @@ object ShapeTokens {
     val LargeIncreased = RoundedCornerShape(20.dp)
     val ExtraLarge = RoundedCornerShape(28.dp)
     val ExtraLargeIncreased = RoundedCornerShape(32.dp)
-    val ExtraExtraLarge = RoundedCornerShape(48.dp)
     val ExtraLargeTop = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     val ExtraLargeIncreasedTop = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
     val ConnectedStart = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 8.dp, bottomEnd = 8.dp)

@@ -2,42 +2,28 @@
 
 package com.booru.app.ui
 
-import android.app.Activity
-import android.app.WallpaperManager
 import android.content.ClipData
 import android.content.ClipboardManager
-import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
-import android.graphics.drawable.BitmapDrawable
-import android.media.MediaScannerConnection
 import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import android.provider.MediaStore
 import android.view.ViewGroup
-import androidx.core.graphics.drawable.toBitmap
 import java.util.Locale
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -47,7 +33,6 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroidSize
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.combinedClickable
@@ -84,7 +69,6 @@ import coil3.compose.SubcomposeAsyncImage
 import coil3.request.crossfade
 import coil3.request.allowHardware
 import coil3.compose.SubcomposeAsyncImageContent
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -100,10 +84,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import coil3.SingletonImageLoader
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
-import coil3.request.SuccessResult
 import com.booru.app.GalleryViewModel
 import com.booru.app.RemoteMedia
 import com.booru.app.data.AppLanguage
@@ -112,34 +94,10 @@ import com.booru.app.data.Strings
 import com.booru.app.data.TagClassifier
 import com.booru.app.data.TagCategory
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
-import okhttp3.OkHttpClient
-import com.booru.app.data.network.NetworkClient
-import java.io.File
-import java.io.IOException
-import java.util.concurrent.TimeUnit
-
-@Composable
-fun MediaDetailSheet(
-    media: RemoteMedia,
-    vm: GalleryViewModel,
-    onDismiss: () -> Unit,
-    onNavigateToExplore: (() -> Unit)? = null
-) {
-    MediaDetailSheet(
-        initialIndex = 0,
-        mediaList = listOf(media),
-        vm = vm,
-        onDismiss = onDismiss,
-        onLoadMore = null,
-        onNavigateToExplore = onNavigateToExplore
-    )
-}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -199,20 +157,9 @@ private fun MediaDetailSheetContent(
     var selectedTagForAction by remember { mutableStateOf<String?>(null) }
     var isTagsExpanded by remember { mutableStateOf(false) }
     var showTrueFullscreen by remember { mutableStateOf(false) }
-    var showMoreMenu by remember { mutableStateOf(false) }
     val videoPositions = remember { HashMap<String, Long>() }
 
     val sheetState = rememberExpandedSheetState()
-    var isDismissingSheet by remember { mutableStateOf(false) }
-    val dismissSheetAnimated: () -> Unit = {
-        if (!isDismissingSheet) {
-            isDismissingSheet = true
-            coroutineScope.launch {
-                sheetState.hide()
-                onDismiss()
-            }
-        }
-    }
 
     val currentMedia = mediaList.getOrNull(pagerState.settledPage) ?: mediaList.first()
     val isDownloading = currentMedia.mediaKey in vm.activeDownloads
@@ -228,8 +175,6 @@ private fun MediaDetailSheetContent(
     LaunchedEffect(pagerState) {
         androidx.compose.runtime.snapshotFlow { pagerState.currentPage }.collect { isCurrentPageZoomed = false }
     }
-
-    SettlePagerWhenIdle(pagerState)
 
     val latestLoadMore by rememberUpdatedState(onLoadMore)
     LaunchedEffect(pagerState, mediaList) {
@@ -290,7 +235,7 @@ private fun MediaDetailSheetContent(
                 ) {
                     HorizontalPager(
                         state = pagerState,
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().then(rememberSettleOnRelease(pagerState)),
                         beyondViewportPageCount = 1,
                         pageSpacing = 12.dp,
                         flingBehavior = viewerFlingBehavior(pagerState),
@@ -311,7 +256,7 @@ private fun MediaDetailSheetContent(
                                 lang = lang,
                                 previewUrl = item.gridImageUrl(vm.effectiveImageQuality != com.booru.app.data.ImageQuality.SAVER),
                                 modifier = Modifier.fillMaxSize(),
-                                isActive = pagerState.settledPage == page && !showTrueFullscreen && !isDismissingSheet,
+                                isActive = pagerState.settledPage == page && !showTrueFullscreen,
                                 onFullscreen = { showTrueFullscreen = true },
                                 allowPrefetch = !vm.isDataSaverActive,
                                 positionHandoff = videoPositions
@@ -999,7 +944,9 @@ private fun MediaDetailSheetContent(
 
                     Spacer(Modifier.height(12.dp))
                     var newFolderName by remember { mutableStateOf("") }
+                    val reservedNames = remember(lang) { setOf("all", "все", Strings.allFavoritesFolder(lang).lowercase()) }
                     val canCreate = newFolderName.isNotBlank() &&
+                        newFolderName.trim().lowercase() !in reservedNames &&
                         vm.customFolders.none { it.equals(newFolderName.trim(), ignoreCase = true) }
                     fun create() {
                         if (!canCreate) return
@@ -1583,52 +1530,6 @@ fun DetailZoomableImage(
     }
 }
 
-@Composable
-private fun WallpaperOptionItem(
-    icon: ImageVector,
-    title: String,
-    onClick: () -> Unit
-) {
-    val pressSource2 = remember { MutableInteractionSource() }
-    Surface(
-        onClick = onClick,
-        shape = pressMorphShape(pressSource2, resting = 12.dp),
-        interactionSource = pressSource2,
-        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-        modifier = Modifier
-            .fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Surface(
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.primaryContainer,
-                modifier = Modifier.size(30.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            }
-            Spacer(Modifier.width(10.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-    }
-}
-
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun OptInFlowDetailTags(
@@ -1888,13 +1789,11 @@ fun BooruVideoPlayer(
 
     DisposableEffect(exoPlayer) {
         val player = exoPlayer
-        if (player != null) com.booru.app.BooruVideoCache.acquirePlayer()
         onDispose {
             if (player != null) {
                 val pos = player.currentPosition
                 if (pos > 0L) positionHandoff?.set(videoUrl, pos)
                 player.release()
-                com.booru.app.BooruVideoCache.releasePlayer()
             }
         }
     }
@@ -2450,27 +2349,29 @@ internal fun rememberViewerList(source: List<RemoteMedia>): List<RemoteMedia> {
 }
 
 @Composable
-internal fun SettlePagerWhenIdle(state: androidx.compose.foundation.pager.PagerState) {
-    LaunchedEffect(state) {
-        androidx.compose.runtime.snapshotFlow { state.isScrollInProgress }
-            .collect { scrolling ->
-                if (!scrolling) {
-                    kotlinx.coroutines.delay(48)
-                    if (!state.isScrollInProgress && kotlin.math.abs(state.currentPageOffsetFraction) > 0.02f) {
-                        try {
-                            state.animateScrollToPage(
-                                state.currentPage,
-                                animationSpec = androidx.compose.animation.core.spring(
-                                    dampingRatio = 1f,
-                                    stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
-                                )
-                            )
-                        } catch (e: kotlinx.coroutines.CancellationException) {
-                            if (!kotlinx.coroutines.currentCoroutineContext().isActive) throw e
-                        }
+internal fun rememberSettleOnRelease(state: androidx.compose.foundation.pager.PagerState): Modifier {
+    val scope = rememberCoroutineScope()
+    return Modifier.pointerInput(state) {
+        awaitEachGesture {
+            awaitFirstDown(requireUnconsumed = false, pass = androidx.compose.ui.input.pointer.PointerEventPass.Final)
+            do {
+                val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Final)
+            } while (event.changes.any { it.pressed })
+            scope.launch {
+                withFrameNanos { }
+                withFrameNanos { }
+                if (!state.isScrollInProgress && abs(state.currentPageOffsetFraction) > 0.001f) {
+                    try {
+                        state.animateScrollToPage(
+                            state.currentPage,
+                            animationSpec = tween(220, easing = androidx.compose.animation.core.LinearOutSlowInEasing)
+                        )
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        if (!kotlinx.coroutines.currentCoroutineContext().isActive) throw e
                     }
                 }
             }
+        }
     }
 }
 
@@ -2478,5 +2379,6 @@ internal fun SettlePagerWhenIdle(state: androidx.compose.foundation.pager.PagerS
 internal fun viewerFlingBehavior(state: androidx.compose.foundation.pager.PagerState) =
     androidx.compose.foundation.pager.PagerDefaults.flingBehavior(
         state = state,
-        snapPositionalThreshold = 0.2f
+        snapPositionalThreshold = 0.2f,
+        snapAnimationSpec = tween(300, easing = androidx.compose.animation.core.LinearOutSlowInEasing)
     )

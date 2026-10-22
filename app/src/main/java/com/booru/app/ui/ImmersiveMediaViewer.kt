@@ -5,10 +5,8 @@ package com.booru.app.ui
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateOffsetAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -17,6 +15,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
@@ -46,9 +45,7 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.ZoomOutMap
 import androidx.compose.material3.LoadingIndicator
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -142,8 +139,6 @@ fun ImmersiveMediaViewer(
     }
 
     var backProgress by remember { mutableFloatStateOf(0f) }
-
-    SettlePagerWhenIdle(pagerState)
 
     LaunchedEffect(pagerState.settledPage) {
         mediaList.getOrNull(pagerState.settledPage)?.let { vm.recordViewed(it) }
@@ -278,7 +273,7 @@ fun ImmersiveMediaViewer(
             ) {
                 HorizontalPager(
                     state = pagerState,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize().then(rememberSettleOnRelease(pagerState)),
                     userScrollEnabled = !isPageZoomed && abs(dragDismissOffsetY) < 15f,
                     beyondViewportPageCount = 1,
                     pageSpacing = 16.dp,
@@ -523,6 +518,7 @@ fun FullscreenZoomableImage(
     var rawScale by remember { mutableFloatStateOf(1f) }
     var rawOffset by remember { mutableStateOf(Offset.Zero) }
     var detailLoadError by remember(media.id, media.url) { mutableStateOf(false) }
+    var retryKey by remember(media.id, media.url) { mutableIntStateOf(0) }
     val thumbnailKey = remember(media.mediaKey, vm.effectiveImageQuality) {
         media.gridImageUrl(vm.effectiveImageQuality != com.booru.app.data.ImageQuality.SAVER)
     }
@@ -721,6 +717,7 @@ fun FullscreenZoomableImage(
                     .data(detailTargetUrl)
                     .placeholderMemoryCacheKey(thumbnailKey)
                     .crossfade(260)
+                    .apply { if (retryKey > 0) memoryCacheKeyExtra("retry", retryKey.toString()) }
                     .allowHardware(!media.isGif)
                     .listener(
                         onSuccess = { _, result ->
@@ -758,12 +755,22 @@ fun FullscreenZoomableImage(
                         LoadingIndicator(modifier = Modifier.size(44.dp), color = MaterialTheme.colorScheme.primary)
                     }
                 } else if (state is coil3.compose.AsyncImagePainter.State.Error) {
-                    Icon(
-                        Icons.Rounded.BrokenImage,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.outlineVariant,
-                        modifier = Modifier.size(48.dp)
-                    )
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable {
+                                detailLoadError = false
+                                retryKey++
+                            }
+                    ) {
+                        Icon(
+                            Icons.Rounded.BrokenImage,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
                 } else {
                     SubcomposeAsyncImageContent()
                 }

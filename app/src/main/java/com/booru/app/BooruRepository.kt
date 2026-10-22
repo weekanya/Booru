@@ -127,9 +127,6 @@ class BooruRepository(
         private const val MULTI_SOURCE_TIMEOUT_MS = 4500L
         private const val DANBOORU_FREE_TAG_LIMIT = 2
 
-        val EXPLICIT_RATINGS = setOf("e", "explicit", "q", "questionable")
-        val SAFE_RATINGS = setOf("s", "safe", "g", "general")
-        val MEDIA_EXTENSIONS = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp", "avif", "mp4", "webm", "mkv", "mov", "zip")
 
         const val SOURCE_ALL = "All sources"
         const val SOURCE_SAFEBOORU = "Safebooru"
@@ -171,23 +168,6 @@ class BooruRepository(
             }
         }
     }
-
-    suspend fun search(
-        source: String,
-        tags: String,
-        safeMode: Boolean,
-        excludeSafe: Boolean = false,
-        noAi: Boolean = false,
-        page: Int = 0,
-        sortOrder: SortOrder = SortOrder.NEWEST,
-        contentTypes: Set<ContentType> = emptySet(),
-        credentials: BooruCredentials = BooruCredentials(),
-        customSources: List<CustomBooruSource> = emptyList(),
-        limit: Int = PAGE_SIZE,
-        excludeSources: Set<String> = emptySet()
-    ): List<RemoteMedia> = searchPage(
-        source, tags, safeMode, excludeSafe, noAi, page, sortOrder, contentTypes, credentials, customSources, limit, excludeSources
-    ).items
 
     suspend fun searchPage(
         source: String,
@@ -310,7 +290,7 @@ class BooruRepository(
             }
         }
         SearchPage(
-            items = filteredResults.distinctBy { it.mediaKey },
+            items = filteredResults.distinctBy { it.mediaKey }.distinctBy { it.contentKey },
             rawCount = allResults.size,
             failedSources = failures.map { it.first }
         )

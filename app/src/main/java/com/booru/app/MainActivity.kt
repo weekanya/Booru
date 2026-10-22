@@ -9,7 +9,6 @@ import androidx.compose.animation.SizeTransform
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import android.content.Intent
-import android.content.res.Configuration
 import android.hardware.biometrics.BiometricManager
 import android.hardware.biometrics.BiometricPrompt
 import android.net.Uri
@@ -27,13 +26,8 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
@@ -44,7 +38,6 @@ import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -75,17 +68,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsCompat
 import com.booru.app.data.AppLanguage
 import com.booru.app.ui.pressMorphShape
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.booru.app.data.Strings
-import com.booru.app.data.BooruCacheManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import com.booru.app.ui.BooruTheme
 import com.booru.app.ui.ExploreScreen
@@ -118,10 +105,8 @@ class MainActivity : ComponentActivity() {
             WindowManager.LayoutParams.FLAG_SECURE,
             WindowManager.LayoutParams.FLAG_SECURE
         )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            window.attributes.layoutInDisplayCutoutMode =
-                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-        }
+        window.attributes.layoutInDisplayCutoutMode =
+            WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
         super.onCreate(savedInstanceState)
         isAppLocked.value = vm.biometricLockEnabled && !vm.hasUnlockedSession
         setContent {
@@ -306,6 +291,13 @@ fun BooruApp(
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = Strings.biometricLockSubtitle(lang),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
                     )
                     Spacer(Modifier.height(32.dp))
                     Button(
@@ -1085,7 +1077,7 @@ private fun UpdateBottomSheet(
                                 UpdateStage.Available -> UpdatePrimaryButton(
                                     text = Strings.updateButton(lang),
                                     icon = Icons.Rounded.SystemUpdate,
-                                    onClick = { vm.downloadAndInstallUpdate(context, info) }
+                                    onClick = { vm.downloadUpdate(context, info) }
                                 )
                                 UpdateStage.Downloading -> OutlinedButton(
                                     onClick = {
@@ -1115,7 +1107,7 @@ private fun UpdateBottomSheet(
                                     UpdatePrimaryButton(
                                         text = Strings.updateButton(lang),
                                         icon = Icons.Rounded.Refresh,
-                                        onClick = { vm.downloadAndInstallUpdate(context, info) }
+                                        onClick = { vm.downloadUpdate(context, info) }
                                     )
                                     FilledTonalButton(
                                         onClick = {
@@ -1150,7 +1142,7 @@ private fun UpdateBottomSheet(
                                         leadingIcon = Icons.Rounded.Refresh,
                                         onLeading = {
                                             vm.deleteDownloadedApk()
-                                            vm.downloadAndInstallUpdate(context, info)
+                                            vm.downloadUpdate(context, info)
                                         },
                                         trailingText = Strings.closeBtn(lang),
                                         onTrailing = close

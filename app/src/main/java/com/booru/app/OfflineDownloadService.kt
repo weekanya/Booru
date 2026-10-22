@@ -7,7 +7,6 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -39,7 +38,7 @@ class OfflineDownloadService : Service() {
     }
 
     private fun promote(): Boolean {
-        val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC else 0
+        val type = ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
         foreground = runCatching { ServiceCompat.startForeground(this, PROGRESS_ID, buildProgress(), type) }.isSuccess
         if (!foreground) {
             OfflineDownloader.cancel()
@@ -142,7 +141,6 @@ class OfflineDownloadService : Service() {
     )
 
     private fun createChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         val manager = getSystemService(NotificationManager::class.java) ?: return
         val name = Strings.tr(OfflineDownloader.language, "Offline downloads", "Офлайн-загрузки", "オフラインダウンロード", "离线下载", "오프라인 다운로드", "التنزيلات بلا إنترنت")
         manager.createNotificationChannel(NotificationChannel(CHANNEL_ID, name, NotificationManager.IMPORTANCE_LOW))

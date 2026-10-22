@@ -10,21 +10,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.selection.toggleable
 import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -32,9 +21,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -42,9 +28,6 @@ import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -74,7 +57,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.booru.app.BooruRepository
 import com.booru.app.GalleryViewModel
 import com.booru.app.data.ImageQuality
@@ -86,16 +68,7 @@ import com.booru.app.data.AppLanguage
 import com.booru.app.data.Strings
 import kotlinx.coroutines.launch
 
-enum class SettingsCategory(
-    val titleRu: String,
-    val titleEn: String,
-    val icon: ImageVector
-) {
-    APPEARANCE("Внешний вид", "Appearance", Icons.Rounded.Palette),
-    SOURCES("Источники", "Sources", Icons.Rounded.Cloud),
-    CONTENT("Контент", "Content", Icons.Rounded.Tune),
-    SYSTEM("Система", "System", Icons.Rounded.Security)
-}
+enum class SettingsCategory { APPEARANCE, SOURCES, CONTENT, SYSTEM }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,10 +80,6 @@ fun SettingsScreen(
     val showMessage = LocalShowMessage.current
     val lang = vm.language
     val scope = rememberCoroutineScope()
-
-    LaunchedEffect(Unit) {
-        vm.updateCacheSize()
-    }
 
     var rule34User by remember(vm.rule34UserId) { mutableStateOf(vm.rule34UserId) }
     var rule34Key by remember(vm.rule34ApiKey) { mutableStateOf(vm.rule34ApiKey) }
@@ -129,7 +98,6 @@ fun SettingsScreen(
     var customUrl by remember { mutableStateOf("") }
     var customNameError by remember { mutableStateOf<String?>(null) }
     var customUrlError by remember { mutableStateOf<String?>(null) }
-    var showCustomApiKey by remember { mutableStateOf(false) }
     var customAccessError by remember { mutableStateOf<String?>(null) }
     var customEngine by remember { mutableStateOf(BooruEngine.GELBOORU) }
     var customApiKey by remember { mutableStateOf("") }
@@ -1676,7 +1644,8 @@ private fun SettingRowItem(
             .then(
                 if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
             )
-            .padding(horizontal = 20.dp, vertical = if (subtitle == null) 8.dp else 16.dp),
+            .heightIn(min = if (subtitle == null) 64.dp else 76.dp)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
@@ -1743,7 +1712,8 @@ private fun SettingSwitchItem(
                     onCheckedChange(it)
                 }
             )
-            .padding(horizontal = 20.dp, vertical = if (subtitle == null) 8.dp else 14.dp),
+            .heightIn(min = if (subtitle == null) 64.dp else 76.dp)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {

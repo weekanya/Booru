@@ -198,17 +198,6 @@ object BooruVideoCache {
     @Volatile
     private var simpleCache: androidx.media3.datasource.cache.SimpleCache? = null
     private val lock = Any()
-    private val activePlayers = java.util.concurrent.atomic.AtomicInteger(0)
-
-    fun acquirePlayer() {
-        activePlayers.incrementAndGet()
-    }
-
-    fun releasePlayer() {
-        activePlayers.decrementAndGet()
-    }
-
-    fun hasActivePlayers(): Boolean = activePlayers.get() > 0
 
     private const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     private const val FIRST_CHUNK_BYTES = 256L * 1024
@@ -365,38 +354,6 @@ object BooruVideoCache {
                     simpleCache = it
                 }
             }
-        }
-    }
-
-    fun clearVideoCache(context: android.content.Context) {
-        synchronized(lock) {
-            if (activePlayers.get() > 0) {
-                try {
-                    simpleCache?.keys?.toList()?.forEach { key ->
-                        try {
-                            simpleCache?.removeResource(key)
-                        } catch (_: Exception) {}
-                    }
-                } catch (_: Exception) {}
-                return
-            }
-            try {
-                simpleCache?.keys?.toList()?.forEach { key ->
-                    try {
-                        simpleCache?.removeResource(key)
-                    } catch (_: Exception) {}
-                }
-            } catch (_: Exception) {}
-            try {
-                simpleCache?.release()
-            } catch (_: Exception) {}
-            simpleCache = null
-            try {
-                val videoDir = java.io.File(context.applicationContext.cacheDir, "booru_video_cache")
-                if (videoDir.exists()) {
-                    deleteCacheDirectory(context, videoDir)
-                }
-            } catch (_: Exception) {}
         }
     }
 

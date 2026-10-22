@@ -1,8 +1,6 @@
 package com.booru.app.ui
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -54,17 +52,6 @@ fun SegmentedSectionHeader(title: String, icon: ImageVector, modifier: Modifier 
             color = MaterialTheme.colorScheme.primary
         )
     }
-}
-
-@Composable
-fun SegmentedGroupTitle(title: String, modifier: Modifier = Modifier) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold,
-        color = MaterialTheme.colorScheme.onSurface,
-        modifier = modifier.padding(start = 4.dp, top = 8.dp)
-    )
 }
 
 @Composable
