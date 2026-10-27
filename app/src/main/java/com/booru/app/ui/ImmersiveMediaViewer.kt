@@ -422,7 +422,7 @@ fun ImmersiveMediaViewer(
                 }
             }
 
-            val currentMediaItem = mediaList.getOrNull(pagerState.settledPage)
+            val currentMediaItem = mediaList.getOrNull(pagerState.currentPage)
             AnimatedVisibility(
                 visible = showControls && isContentVisible && (currentMediaItem?.isVideo == false) && abs(dragDismissOffsetY) < 25f,
                 enter = fadeIn() + slideInVertically { it },
@@ -522,15 +522,9 @@ fun FullscreenZoomableImage(
     val thumbnailKey = remember(media.mediaKey, vm.effectiveImageQuality) {
         media.gridImageUrl(vm.effectiveImageQuality != com.booru.app.data.ImageQuality.SAVER)
     }
-    var detectedRatio by remember(media.id, media.url) {
-        mutableFloatStateOf(
-            if (media.width > 0 && media.height > 0) {
-                media.height.toFloat() / media.width.toFloat()
-            } else 1f
-        )
+    val isComic = remember(media.mediaKey) {
+        media.width > 0 && media.height > 0 && media.height.toFloat() / media.width.toFloat() >= 3.0f
     }
-
-    val isComic = detectedRatio >= 3.0f
 
     LaunchedEffect(isActive) {
         if (!isActive) {
@@ -579,29 +573,24 @@ fun FullscreenZoomableImage(
             contentAlignment = Alignment.TopCenter
         ) {
             SubcomposeAsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(detailTargetUrl)
-                    .size(coil3.size.Size(1080, 4096))
-                    .placeholderMemoryCacheKey(thumbnailKey)
-                    .crossfade(260)
-                    .allowHardware(false)
-                    .listener(
-                        onSuccess = { _, result ->
-                            val w = result.image.width
-                            val h = result.image.height
-                            if (w > 0 && h > 0) {
-                                detectedRatio = h.toFloat() / w.toFloat()
+                model = remember(media.mediaKey, detailTargetUrl, thumbnailKey, retryKey) {
+                    ImageRequest.Builder(context)
+                        .data(detailTargetUrl)
+                        .size(coil3.size.Size(1080, 4096))
+                        .placeholderMemoryCacheKey(thumbnailKey)
+                        .crossfade(260)
+                        .allowHardware(false)
+                        .listener(
+                            onError = { _, _ ->
+                                if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
+                                    detailLoadError = true
+                                } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
+                                    detailLoadError = true
+                                }
                             }
-                        },
-                        onError = { _, _ ->
-                            if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
-                                detailLoadError = true
-                            } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
-                                detailLoadError = true
-                            }
-                        }
-                    )
-                    .build(),
+                        )
+                        .build()
+                },
                 contentDescription = media.tagList.take(6).joinToString(", "),
                 contentScale = ContentScale.FillWidth,
                 modifier = Modifier.fillMaxWidth()
@@ -713,29 +702,24 @@ fun FullscreenZoomableImage(
             contentAlignment = Alignment.Center
         ) {
             SubcomposeAsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(detailTargetUrl)
-                    .placeholderMemoryCacheKey(thumbnailKey)
-                    .crossfade(260)
-                    .apply { if (retryKey > 0) memoryCacheKeyExtra("retry", retryKey.toString()) }
-                    .allowHardware(!media.isGif)
-                    .listener(
-                        onSuccess = { _, result ->
-                            val w = result.image.width
-                            val h = result.image.height
-                            if (w > 0 && h > 0) {
-                                detectedRatio = h.toFloat() / w.toFloat()
+                model = remember(media.mediaKey, detailTargetUrl, thumbnailKey, retryKey) {
+                    ImageRequest.Builder(context)
+                        .data(detailTargetUrl)
+                        .placeholderMemoryCacheKey(thumbnailKey)
+                        .crossfade(260)
+                        .apply { if (retryKey > 0) memoryCacheKeyExtra("retry", retryKey.toString()) }
+                        .allowHardware(!media.isGif)
+                        .listener(
+                            onError = { _, _ ->
+                                if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
+                                    detailLoadError = true
+                                } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
+                                    detailLoadError = true
+                                }
                             }
-                        },
-                        onError = { _, _ ->
-                            if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
-                                detailLoadError = true
-                            } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
-                                detailLoadError = true
-                            }
-                        }
-                    )
-                    .build(),
+                        )
+                        .build()
+                },
                 contentDescription = media.tagList.take(6).joinToString(", "),
                 modifier = Modifier
                     .fillMaxSize()
@@ -748,31 +732,29 @@ fun FullscreenZoomableImage(
                 contentScale = ContentScale.Fit
             ) {
                 val state = painter.state.collectAsState().value
-                if (state is coil3.compose.AsyncImagePainter.State.Loading) {
-                    val scope = this
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        scope.SubcomposeAsyncImageContent()
+                val imageScope = this
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    imageScope.SubcomposeAsyncImageContent()
+                    if (state is coil3.compose.AsyncImagePainter.State.Loading) {
                         LoadingIndicator(modifier = Modifier.size(44.dp), color = MaterialTheme.colorScheme.primary)
+                    } else if (state is coil3.compose.AsyncImagePainter.State.Error) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clickable {
+                                    detailLoadError = false
+                                    retryKey++
+                                }
+                        ) {
+                            Icon(
+                                Icons.Rounded.BrokenImage,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.outlineVariant,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
                     }
-                } else if (state is coil3.compose.AsyncImagePainter.State.Error) {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clickable {
-                                detailLoadError = false
-                                retryKey++
-                            }
-                    ) {
-                        Icon(
-                            Icons.Rounded.BrokenImage,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.outlineVariant,
-                            modifier = Modifier.size(48.dp)
-                        )
-                    }
-                } else {
-                    SubcomposeAsyncImageContent()
                 }
             }
         }

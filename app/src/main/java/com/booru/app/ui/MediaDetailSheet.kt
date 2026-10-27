@@ -161,7 +161,7 @@ private fun MediaDetailSheetContent(
 
     val sheetState = rememberExpandedSheetState()
 
-    val currentMedia = mediaList.getOrNull(pagerState.settledPage) ?: mediaList.first()
+    val currentMedia = mediaList.getOrNull(pagerState.currentPage) ?: mediaList.first()
     val isDownloading = currentMedia.mediaKey in vm.activeDownloads
     val isSettingWallpaper = vm.isSettingWallpaper
 
@@ -204,10 +204,10 @@ private fun MediaDetailSheetContent(
                 resetZoomKey++
                 isCurrentPageZoomed = false
             }
-            Box {
+            Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .verticalScroll(rememberScrollState())
                     .padding(bottom = 36.dp)
             ) {
@@ -1223,15 +1223,9 @@ fun DetailZoomableImage(
     val thumbnailKey = remember(media.mediaKey, vm.effectiveImageQuality) {
         media.gridImageUrl(vm.effectiveImageQuality != com.booru.app.data.ImageQuality.SAVER)
     }
-    var detectedRatio by remember(media.id, media.url) {
-        mutableFloatStateOf(
-            if (media.width > 0 && media.height > 0) {
-                media.height.toFloat() / media.width.toFloat()
-            } else 1f
-        )
+    val isComic = remember(media.mediaKey) {
+        media.width > 0 && media.height > 0 && media.height.toFloat() / media.width.toFloat() >= 3.0f
     }
-
-    val isComic = detectedRatio >= 3.0f
 
     LaunchedEffect(isActive) {
         if (!isActive) {
@@ -1264,29 +1258,24 @@ fun DetailZoomableImage(
             contentAlignment = Alignment.TopCenter
         ) {
             SubcomposeAsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(detailTargetUrl)
-                    .size(coil3.size.Size(1080, 4096))
-                    .placeholderMemoryCacheKey(thumbnailKey)
-                    .crossfade(260)
-                    .allowHardware(false)
-                    .listener(
-                        onSuccess = { _, result ->
-                            val w = result.image.width
-                            val h = result.image.height
-                            if (w > 0 && h > 0) {
-                                detectedRatio = h.toFloat() / w.toFloat()
+                model = remember(media.mediaKey, detailTargetUrl, thumbnailKey, retryKey) {
+                    ImageRequest.Builder(context)
+                        .data(detailTargetUrl)
+                        .size(coil3.size.Size(1080, 4096))
+                        .placeholderMemoryCacheKey(thumbnailKey)
+                        .crossfade(260)
+                        .allowHardware(false)
+                        .listener(
+                            onError = { _, _ ->
+                                if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
+                                    detailLoadError = true
+                                } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
+                                    detailLoadError = true
+                                }
                             }
-                        },
-                        onError = { _, _ ->
-                            if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
-                                detailLoadError = true
-                            } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
-                                detailLoadError = true
-                            }
-                        }
-                    )
-                    .build(),
+                        )
+                        .build()
+                },
                 contentDescription = media.tagList.take(6).joinToString(", "),
                 contentScale = ContentScale.FillWidth,
                 modifier = Modifier.fillMaxWidth()
@@ -1429,29 +1418,24 @@ fun DetailZoomableImage(
             contentAlignment = Alignment.Center
         ) {
             SubcomposeAsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(detailTargetUrl)
-                    .placeholderMemoryCacheKey(thumbnailKey)
-                    .crossfade(260)
-                    .apply { if (retryKey > 0) memoryCacheKeyExtra("retry", retryKey.toString()) }
-                    .allowHardware(!media.isGif)
-                    .listener(
-                        onSuccess = { _, result ->
-                            val w = result.image.width
-                            val h = result.image.height
-                            if (w > 0 && h > 0) {
-                                detectedRatio = h.toFloat() / w.toFloat()
+                model = remember(media.mediaKey, detailTargetUrl, thumbnailKey, retryKey) {
+                    ImageRequest.Builder(context)
+                        .data(detailTargetUrl)
+                        .placeholderMemoryCacheKey(thumbnailKey)
+                        .crossfade(260)
+                        .apply { if (retryKey > 0) memoryCacheKeyExtra("retry", retryKey.toString()) }
+                        .allowHardware(!media.isGif)
+                        .listener(
+                            onError = { _, _ ->
+                                if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
+                                    detailLoadError = true
+                                } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
+                                    detailLoadError = true
+                                }
                             }
-                        },
-                        onError = { _, _ ->
-                            if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
-                                detailLoadError = true
-                            } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
-                                detailLoadError = true
-                            }
-                        }
-                    )
-                    .build(),
+                        )
+                        .build()
+                },
                 contentDescription = media.tagList.take(6).joinToString(", "),
                 modifier = Modifier
                     .fillMaxSize()
@@ -1464,40 +1448,38 @@ fun DetailZoomableImage(
                 contentScale = ContentScale.Fit
             ) {
                 val state = painter.state.collectAsState().value
-                if (state is coil3.compose.AsyncImagePainter.State.Loading) {
-                    val scope = this
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        scope.SubcomposeAsyncImageContent()
+                val imageScope = this
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    imageScope.SubcomposeAsyncImageContent()
+                    if (state is coil3.compose.AsyncImagePainter.State.Loading) {
                         LoadingIndicator(modifier = Modifier.size(40.dp), color = MaterialTheme.colorScheme.primary)
+                    } else if (state is coil3.compose.AsyncImagePainter.State.Error) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clickable {
+                                    detailLoadError = false
+                                    retryKey++
+                                },
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                Icons.Rounded.BrokenImage,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(40.dp)
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = Strings.imageLoadFailed(vm.language),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 24.dp)
+                            )
+                        }
                     }
-                } else if (state is coil3.compose.AsyncImagePainter.State.Error) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clickable {
-                                detailLoadError = false
-                                retryKey++
-                            },
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            Icons.Rounded.BrokenImage,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(40.dp)
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = Strings.imageLoadFailed(vm.language),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(horizontal = 24.dp)
-                        )
-                    }
-                } else {
-                    SubcomposeAsyncImageContent()
                 }
             }
 
@@ -1895,10 +1877,12 @@ fun BooruVideoPlayer(
     ) {
         if (previewUrl.isNotBlank() && !isReady) {
             AsyncImage(
-                model = ImageRequest.Builder(context)
-                    .data(previewUrl)
-                    .crossfade(200)
-                    .build(),
+                model = remember(previewUrl) {
+                    ImageRequest.Builder(context)
+                        .data(previewUrl)
+                        .crossfade(200)
+                        .build()
+                },
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit
@@ -2370,7 +2354,10 @@ internal fun rememberSettleOnRelease(state: androidx.compose.foundation.pager.Pa
                     try {
                         state.animateScrollToPage(
                             state.currentPage,
-                            animationSpec = tween(220, easing = androidx.compose.animation.core.LinearOutSlowInEasing)
+                            animationSpec = spring(
+                                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                                stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
+                            )
                         )
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         if (!kotlinx.coroutines.currentCoroutineContext().isActive) throw e
@@ -2386,5 +2373,8 @@ internal fun viewerFlingBehavior(state: androidx.compose.foundation.pager.PagerS
     androidx.compose.foundation.pager.PagerDefaults.flingBehavior(
         state = state,
         snapPositionalThreshold = 0.2f,
-        snapAnimationSpec = tween(300, easing = androidx.compose.animation.core.LinearOutSlowInEasing)
+        snapAnimationSpec = spring(
+            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+        )
     )
