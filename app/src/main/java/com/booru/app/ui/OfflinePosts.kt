@@ -15,6 +15,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -104,7 +105,7 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                     .fillMaxWidth()
                     .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 24.dp)
                     .padding(bottom = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -123,7 +124,7 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                             else -> 0
                         }
                     )
-                    Spacer(Modifier.width(14.dp))
+                    Spacer(Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             offlineTitle(lang),
@@ -166,10 +167,10 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(start = 16.dp, end = 12.dp, top = 14.dp, bottom = 14.dp)
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 16.dp)
                             ) {
                                 ThumbStack(OfflineStore.posts.take(4))
-                                Spacer(Modifier.width(14.dp))
+                                Spacer(Modifier.width(16.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         Strings.tr(lang, "$saved posts", "Постов: $saved", "$saved 件", "$saved 个帖子", "게시물 ${saved}개", "$saved منشور"),
@@ -198,16 +199,16 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                     if (isDownloading) {
                         DownloadProgress(vm, lang)
                     } else {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
                                 Strings.tr(lang, "How many posts to keep", "Сколько постов хранить", "保存する投稿数", "保留多少帖子", "보관할 게시물 수", "عدد المنشورات المحفوظة"),
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = scheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = 4.dp)
+                                modifier = Modifier.padding(start = 8.dp)
                             )
                             OFFLINE_OPTIONS.chunked(2).forEach { row ->
-                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     row.forEach { option ->
                                         CountTile(
                                             option = option,
@@ -525,7 +526,7 @@ fun OfflinePostsScreen(vm: GalleryViewModel, lang: AppLanguage, onClose: () -> U
     Surface(color = scheme.surface, modifier = Modifier.fillMaxSize()) {
         Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp, top = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
@@ -545,7 +546,7 @@ fun OfflinePostsScreen(vm: GalleryViewModel, lang: AppLanguage, onClose: () -> U
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = scheme.onSurface,
-                modifier = Modifier.padding(start = 20.dp, top = 4.dp, bottom = 8.dp)
+                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp)
             )
             val counts = remember(all) {
                 mapOf(
@@ -562,7 +563,7 @@ fun OfflinePostsScreen(vm: GalleryViewModel, lang: AppLanguage, onClose: () -> U
                 Triple(OfflineFilter.VIDEOS, Strings.tr(lang, "Videos", "Видео", "動画", "视频", "동영상", "فيديو"), Icons.Rounded.PlayCircle)
             )
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
             ) {
                 options.forEachIndexed { index, (value, label, icon) ->
@@ -583,7 +584,7 @@ fun OfflinePostsScreen(vm: GalleryViewModel, lang: AppLanguage, onClose: () -> U
                         ),
                         color = container,
                         contentColor = content,
-                        modifier = Modifier.weight(1f).height(72.dp).semantics { role = Role.Tab }
+                        modifier = Modifier.weight(1f).height(64.dp).semantics { role = Role.Tab }
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -591,14 +592,13 @@ fun OfflinePostsScreen(vm: GalleryViewModel, lang: AppLanguage, onClose: () -> U
                             modifier = Modifier.fillMaxSize()
                         ) {
                             Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Spacer(Modifier.height(2.dp))
                             Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
                             Text("${counts[value] ?: 0}", style = MaterialTheme.typography.labelSmall, maxLines = 1)
                         }
                     }
                 }
             }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(8.dp))
             if (items.isEmpty()) {
                 Column(
                     modifier = Modifier.fillMaxSize().padding(32.dp),
@@ -622,7 +622,7 @@ fun OfflinePostsScreen(vm: GalleryViewModel, lang: AppLanguage, onClose: () -> U
                 LazyVerticalStaggeredGrid(
                     columns = StaggeredGridCells.Adaptive(minSize = 160.dp),
                     state = gridState,
-                    contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 24.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalItemSpacing = 8.dp,
                     modifier = Modifier.fillMaxSize()
@@ -666,8 +666,8 @@ private fun OfflineCard(media: RemoteMedia, modifier: Modifier, onClick: () -> U
         if (media.isVideo || media.isGif) {
             Surface(
                 shape = CircleShape,
-                color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f),
-                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                color = Color.Black.copy(alpha = 0.55f),
+                contentColor = Color.White,
                 modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
             ) {
                 Icon(

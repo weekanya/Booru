@@ -258,7 +258,10 @@ fun BooruApp(
         }
         val lockLifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
         LaunchedEffect(lockLifecycle) {
-            lockLifecycle.withResumed { onUnlockRequest() }
+            try {
+                lockLifecycle.withResumed { onUnlockRequest() }
+            } catch (_: androidx.lifecycle.LifecycleDestroyedException) {
+            }
         }
         BooruTheme(
             themeMode = vm.themeMode,

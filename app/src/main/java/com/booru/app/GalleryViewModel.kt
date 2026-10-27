@@ -745,7 +745,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         recorded: Map<String, Float>
     ): List<String> {
         val blocked = blacklist.mapTo(HashSet()) { it.lowercase() }
-        val tagWeights = mutableMapOf<String, Float>()
+        val favoriteWeights = HashMap<String, Float>()
         val docFreq = HashMap<String, Int>()
         for ((rank, fav) in favorites.withIndex()) {
             val recency = Math.pow(0.5, rank.toDouble() / FAVORITE_RECENCY_HALF_RANK).toFloat().coerceAtLeast(FAVORITE_RECENCY_FLOOR)
@@ -755,38 +755,52 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 val tag = TagClassifier.normalizeTag(rawTag)
                 if (!TagClassifier.isRecommendationCandidate(tag)) continue
                 if (tag in blocked) continue
-                val category = TagClassifier.classify(tag).category
-                val multiplier = when (category) {
+                if (!seenInFav.add(tag)) continue
+                val multiplier = when (TagClassifier.classify(tag).category) {
                     TagCategory.CHARACTER -> 5.0f
                     TagCategory.COPYRIGHT -> 4.0f
                     TagCategory.ARTIST -> 3.5f
                     TagCategory.GENERAL -> 1.0f
                     else -> 0.2f
                 }
-                tagWeights[tag] = (tagWeights[tag] ?: 0f) + (3f * multiplier * recency)
-                if (seenInFav.add(tag)) docFreq[tag] = (docFreq[tag] ?: 0) + 1
+                favoriteWeights[tag] = (favoriteWeights[tag] ?: 0f) + multiplier * recency
+                docFreq[tag] = (docFreq[tag] ?: 0) + 1
             }
         }
         if (favorites.size >= 8) {
             for ((tag, df) in docFreq) {
-                val share = df.toFloat() / favorites.size
-                if (share > 0.4f) tagWeights[tag] = (tagWeights[tag] ?: 0f) * 0.3f
+                if (df.toFloat() / favorites.size > 0.4f) favoriteWeights[tag] = (favoriteWeights[tag] ?: 0f) * 0.3f
             }
         }
+        val behaviorWeights = HashMap<String, Float>()
         for ((tag, count) in recorded) {
             val clean = TagClassifier.normalizeTag(tag)
             if (!TagClassifier.isRecommendationCandidate(clean)) continue
             if (clean in blocked) continue
-            val category = TagClassifier.classify(clean).category
-            val multiplier = when (category) {
+            val multiplier = when (TagClassifier.classify(clean).category) {
                 TagCategory.CHARACTER -> 2.5f
                 TagCategory.COPYRIGHT -> 2.0f
                 TagCategory.ARTIST -> 2.0f
                 else -> 1.0f
             }
-            tagWeights[clean] = (tagWeights[clean] ?: 0f) + (count * multiplier)
+            behaviorWeights[clean] = (behaviorWeights[clean] ?: 0f) + count * multiplier
         }
-        return tagWeights.entries
+        val favoriteMax = favoriteWeights.values.maxOrNull()?.takeIf { it > 0f }
+        val behaviorMax = behaviorWeights.values.maxOfOrNull { kotlin.math.abs(it) }?.takeIf { it > 0f }
+        val favoriteShare = when {
+            favoriteMax == null -> 0f
+            behaviorMax == null -> 1f
+            else -> REC_FAVORITE_SHARE
+        }
+        val combined = HashMap<String, Float>()
+        if (favoriteMax != null) {
+            for ((tag, w) in favoriteWeights) combined[tag] = w / favoriteMax * favoriteShare
+        }
+        if (behaviorMax != null) {
+            for ((tag, w) in behaviorWeights) combined[tag] = (combined[tag] ?: 0f) + w / behaviorMax * (1f - favoriteShare)
+        }
+        return combined.entries
+            .filter { it.value > 0f }
             .sortedByDescending { it.value }
             .take(60)
             .map { it.key }
@@ -1025,7 +1039,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val cm = connectivity ?: return@runCatching true
         val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return@runCatching false
         caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-            caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            (caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) ||
+                caps.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN))
     }.getOrDefault(true)
 
     private fun describeFailure(e: Throwable): String {
@@ -1550,12 +1565,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun markForegrounded() {
-        val wasAwayLong = isBackgrounded && android.os.SystemClock.elapsedRealtime() - lastBackgroundAt >= FEED_STALE_MS
+        val awayMs = if (isBackgrounded) android.os.SystemClock.elapsedRealtime() - lastBackgroundAt else 0L
         isBackgrounded = false
-        if (!wasAwayLong || fullscreenState != null || showOfflinePosts) return
-        if (source != BooruRepository.SOURCE_ALL || query.isNotBlank()) {
+        if (awayMs < FEED_STALE_MS || fullscreenState != null || showOfflinePosts) return
+        val onRecommendations = source == BooruRepository.SOURCE_ALL && query.isBlank()
+        if (!onRecommendations && awayMs >= RETURN_TO_RECOMMENDATIONS_MS) {
             search(BooruRepository.SOURCE_ALL, "", safeMode)
-        } else if (!loading && !isRefreshing) {
+        } else if (onRecommendations && !loading && !isRefreshing) {
             refresh()
         }
     }
@@ -2106,7 +2122,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         private const val REC_SEEN_LIMIT = 5000
         private const val FAVORITE_RECENCY_HALF_RANK = 40.0
         private const val FAVORITE_RECENCY_FLOOR = 0.2f
-        private const val FEED_STALE_MS = 15 * 60 * 1000L
+        private const val REC_FAVORITE_SHARE = 0.5f
+        private const val FEED_STALE_MS = 5 * 60 * 1000L
+        private const val RETURN_TO_RECOMMENDATIONS_MS = 15 * 60 * 1000L
         private val REC_TAG_EXCLUDED_SOURCES = setOf("realbooru")
         private val BUILT_IN_SOURCE_KEYS = mapOf(
             BooruRepository.SOURCE_RULE34 to "rule34",

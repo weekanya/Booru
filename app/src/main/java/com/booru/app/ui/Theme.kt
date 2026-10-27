@@ -367,18 +367,30 @@ fun paletteColorScheme(
     context: android.content.Context,
     palette: AppPalette,
     isDark: Boolean
-): ColorScheme = when {
-    palette == AppPalette.MONET && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-        if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+): ColorScheme {
+    if (palette == AppPalette.MONET && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        return if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
     }
-    palette == AppPalette.AMOLED -> if (isDark) AmoledDark else VioletLight
-    palette == AppPalette.SAKURA -> if (isDark) SakuraDark else SakuraLight
-    palette == AppPalette.OCEAN -> if (isDark) OceanDark else OceanLight
-    palette == AppPalette.EMERALD -> if (isDark) EmeraldDark else EmeraldLight
-    palette == AppPalette.SUNSET -> if (isDark) SunsetDark else SunsetLight
-    palette == AppPalette.GRAPHITE -> if (isDark) GraphiteDark else GraphiteLight
-    else -> if (isDark) VioletDark else VioletLight
+    val (light, dark) = when (palette) {
+        AppPalette.AMOLED -> VioletLight to AmoledDark
+        AppPalette.SAKURA -> SakuraLight to SakuraDark
+        AppPalette.OCEAN -> OceanLight to OceanDark
+        AppPalette.EMERALD -> EmeraldLight to EmeraldDark
+        AppPalette.SUNSET -> SunsetLight to SunsetDark
+        AppPalette.GRAPHITE -> GraphiteLight to GraphiteDark
+        else -> VioletLight to VioletDark
+    }
+    return if (isDark) dark.completedWith(light, isDark = true) else light.completedWith(dark, isDark = false)
 }
+
+private fun ColorScheme.completedWith(opposite: ColorScheme, isDark: Boolean): ColorScheme = copy(
+    surfaceTint = primary,
+    inversePrimary = opposite.primary,
+    inverseSurface = opposite.surfaceContainerHighest,
+    inverseOnSurface = if (isDark) surfaceContainerHigh else surfaceContainer,
+    surfaceDim = if (isDark) surface else surfaceContainerHighest,
+    surfaceBright = if (isDark) surfaceContainerHighest else surface
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

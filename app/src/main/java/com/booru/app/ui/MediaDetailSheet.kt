@@ -1940,7 +1940,7 @@ fun BooruVideoPlayer(
                 modifier = Modifier.padding(24.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp),
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Icon(
@@ -1957,15 +1957,15 @@ fun BooruVideoPlayer(
                         textAlign = TextAlign.Center
                     )
                     Spacer(Modifier.height(12.dp))
-                    FilledTonalButton(
+                    FilledTonalIconButton(
                         onClick = {
                             playbackError = false
                             exoPlayer?.prepare()
                             exoPlayer?.playWhenReady = canPlay() && !userPaused
                         },
-                        shape = CircleShape
+                        shapes = IconButtonDefaults.shapes()
                     ) {
-                        Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Rounded.Refresh, contentDescription = Strings.tr(lang, "Retry", "Повторить", "再試行", "重试", "다시 시도", "إعادة المحاولة"))
                     }
                 }
             }
@@ -1980,7 +1980,7 @@ fun BooruVideoPlayer(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(20.dp)
+                horizontalArrangement = Arrangement.spacedBy(24.dp)
             ) {
                 FilledTonalIconButton(
                     onClick = {
@@ -1992,7 +1992,7 @@ fun BooruVideoPlayer(
                         }
                     },
                     modifier = Modifier
-                        .size(46.dp),
+                        .size(48.dp),
                     shapes = IconButtonDefaults.shapes(shape = CircleShape, pressedShape = IconButtonDefaults.smallPressedShape),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = Color.Black.copy(alpha = 0.6f)
@@ -2000,7 +2000,7 @@ fun BooruVideoPlayer(
                 ) {
                     Icon(
                         Icons.Rounded.Replay10,
-                        contentDescription = "Rewind 10s",
+                        contentDescription = Strings.tr(lang, "Rewind 10 seconds", "Назад на 10 секунд", "10秒戻る", "后退 10 秒", "10초 뒤로", "رجوع 10 ثوانٍ"),
                         tint = Color.White,
                         modifier = Modifier.size(26.dp)
                     )
@@ -2024,7 +2024,7 @@ fun BooruVideoPlayer(
                         }
                     },
                     modifier = Modifier
-                        .size(60.dp),
+                        .size(64.dp),
                     shapes = IconButtonDefaults.shapes(shape = CircleShape, pressedShape = IconButtonDefaults.smallPressedShape),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = MaterialTheme.colorScheme.primary
@@ -2049,7 +2049,7 @@ fun BooruVideoPlayer(
                         }
                     },
                     modifier = Modifier
-                        .size(46.dp),
+                        .size(48.dp),
                     shapes = IconButtonDefaults.shapes(shape = CircleShape, pressedShape = IconButtonDefaults.smallPressedShape),
                     colors = IconButtonDefaults.filledTonalIconButtonColors(
                         containerColor = Color.Black.copy(alpha = 0.6f)
@@ -2057,7 +2057,7 @@ fun BooruVideoPlayer(
                 ) {
                     Icon(
                         Icons.Rounded.Forward10,
-                        contentDescription = "Forward 10s",
+                        contentDescription = Strings.tr(lang, "Forward 10 seconds", "Вперёд на 10 секунд", "10秒進む", "前进 10 秒", "10초 앞으로", "تقديم 10 ثوانٍ"),
                         tint = Color.White,
                         modifier = Modifier.size(26.dp)
                     )
@@ -2082,8 +2082,8 @@ fun BooruVideoPlayer(
                     .padding(
                         start = 16.dp,
                         end = 16.dp,
-                        top = 10.dp,
-                        bottom = if (isExternalControls) 20.dp else 10.dp
+                        top = 8.dp,
+                        bottom = if (isExternalControls) 24.dp else 8.dp
                     )
             ) {
                 val sliderPosition = when {
