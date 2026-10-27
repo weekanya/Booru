@@ -83,7 +83,7 @@
 
 ## Features
 
-<details open>
+<details>
 <summary><b>Sources</b></summary>
 <br>
 
