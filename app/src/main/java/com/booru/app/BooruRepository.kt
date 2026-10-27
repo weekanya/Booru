@@ -10,8 +10,6 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.sync.Semaphore
-import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Credentials
@@ -121,7 +119,6 @@ class BooruRepository(
         const val TAG = "BooruRepo"
         const val PAGE_SIZE = 40
         const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 BooruClient/1.0"
-        private const val MAX_CONCURRENT_REQUESTS = 8
         private const val MAX_RETRY_AFTER_SECONDS = 2
         private const val SINGLE_SOURCE_TIMEOUT_MS = 9000L
         private const val MULTI_SOURCE_TIMEOUT_MS = 4500L
@@ -219,23 +216,19 @@ class BooruRepository(
 
         val timeoutMs = if (targets.size == 1) SINGLE_SOURCE_TIMEOUT_MS else MULTI_SOURCE_TIMEOUT_MS
         val pageLimit = limit.coerceIn(1, PAGE_SIZE)
-        val semaphore = Semaphore(MAX_CONCURRENT_REQUESTS)
-
         val outcomes = coroutineScope {
             targets.map { key ->
                 async {
-                    semaphore.withPermit {
-                        try {
-                            val list = withTimeoutOrNull(timeoutMs) {
-                                requestSourceWithRetry(key, tags.trim(), safeMode, excludeSafe, noAi, page, sortOrder, contentTypes, credentials, customSources, pageLimit)
-                            } ?: throw BooruTimeoutException(key, "${getSourceDisplayName(key, customSources)} timed out")
-                            key to Result.success(list)
-                        } catch (c: kotlinx.coroutines.CancellationException) {
-                            throw c
-                        } catch (e: Exception) {
-                            Log.e(TAG, "[$key] Error: ${sanitizeErrorMessage(e.message)}")
-                            key to Result.failure(e)
-                        }
+                    try {
+                        val list = withTimeoutOrNull(timeoutMs) {
+                            requestSourceWithRetry(key, tags.trim(), safeMode, excludeSafe, noAi, page, sortOrder, contentTypes, credentials, customSources, pageLimit)
+                        } ?: throw BooruTimeoutException(key, "${getSourceDisplayName(key, customSources)} timed out")
+                        key to Result.success(list)
+                    } catch (c: kotlinx.coroutines.CancellationException) {
+                        throw c
+                    } catch (e: Exception) {
+                        Log.e(TAG, "[$key] Error: ${sanitizeErrorMessage(e.message)}")
+                        key to Result.failure(e)
                     }
                 }
             }.awaitAll()
@@ -253,9 +246,11 @@ class BooruRepository(
             val auth = errors.filterIsInstance<BooruAuthException>().firstOrNull()
             if (errors.size == targets.size) {
                 val network = errors.firstOrNull { it is IOException || it is BooruTimeoutException }
+                val isTimeout = { e: Throwable -> e is BooruTimeoutException || e is SocketTimeoutException }
                 when {
                     auth != null && (targets.size == 1 || errors.all { it is BooruAuthException }) -> throw auth
                     targets.size == 1 -> throw errors.first()
+                    errors.all(isTimeout) -> throw BooruTimeoutException(source, "${getSourceDisplayName(source, customSources)} timed out")
                     network != null && errors.all { it is IOException || it is BooruTimeoutException || it is BooruAuthException } ->
                         throw BooruNetworkException(network)
                     auth != null -> throw auth
@@ -349,7 +344,7 @@ class BooruRepository(
                 when {
                     source == SOURCE_GELBOORU -> fetchGelbooruSuggestions("https://gelbooru.com", q)
                     source == SOURCE_YANDE -> fetchMoebooruSuggestions("https://yande.re", q)
-                    source == SOURCE_KONACHAN -> fetchMoebooruSuggestions("https://konachan.net", q)
+                    source == SOURCE_KONACHAN -> fetchMoebooruSuggestions("https://konachan.com", q)
                     source == SOURCE_SAFEBOORU -> withGelbooruCategories(q) { fetchRule34StyleSuggestions("https://safebooru.org/autocomplete.php", q) }
                     else -> withGelbooruCategories(q) { fetchRule34StyleSuggestions("https://api.rule34.xxx/autocomplete.php", q) }
                 }
@@ -902,7 +897,7 @@ class BooruRepository(
         val baseUrl = when (key) {
             "safebooru" -> "https://safebooru.org/index.php?page=dapi&s=post&q=index&json=1"
             "yande"     -> "https://yande.re/post.json"
-            "konachan"  -> "https://konachan.net/post.json"
+            "konachan"  -> "https://konachan.com/post.json"
             "tbib"      -> "https://tbib.org/index.php?page=dapi&s=post&q=index&json=1"
             "gelbooru"  -> "https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1"
             "rule34"    -> "https://api.rule34.xxx/index.php?page=dapi&s=post&q=index&json=1"
@@ -943,7 +938,7 @@ class BooruRepository(
             "safebooru" -> reqBuilder.header("Referer", "https://safebooru.org/")
             "tbib"      -> reqBuilder.header("Referer", "https://tbib.org/")
             "yande"     -> reqBuilder.header("Referer", "https://yande.re/")
-            "konachan"  -> reqBuilder.header("Referer", "https://konachan.net/")
+            "konachan"  -> reqBuilder.header("Referer", "https://konachan.com/")
         }
 
         val req = reqBuilder.build()
@@ -1226,7 +1221,6 @@ class BooruRepository(
         }
 
         val cleanFile = fileUrl.substringBefore("?").lowercase()
-        val isVideo = cleanFile.endsWith(".mp4") || cleanFile.endsWith(".webm") || cleanFile.endsWith(".mkv") || cleanFile.endsWith(".mov") || (fileObj?.optString("ext")?.lowercase() in listOf("mp4", "webm", "mkv", "mov"))
         val isGif = cleanFile.endsWith(".gif") || image.substringBefore("?").lowercase().endsWith(".gif") || (fileObj?.optString("ext")?.lowercase() == "gif")
 
         val previewObj = o.optJSONObject("preview")

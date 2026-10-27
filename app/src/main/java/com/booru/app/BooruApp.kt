@@ -27,6 +27,7 @@ import okhttp3.ResponseBody.Companion.asResponseBody
 import okio.buffer
 import okio.source
 
+import com.booru.app.data.network.BooruHeaders
 import com.booru.app.data.network.NetworkClient
 
 class BooruApplication : Application(), SingletonImageLoader.Factory {
@@ -37,9 +38,16 @@ class BooruApplication : Application(), SingletonImageLoader.Factory {
         com.booru.app.data.OfflineStore.init(this)
         CoroutineScope(Dispatchers.IO).launch { com.booru.app.data.OfflineStore.load() }
         CoroutineScope(Dispatchers.IO).launch { com.booru.app.data.TagCategoryCache.ensureLoaded() }
-        val trash = BooruCacheManager.moveBrowsingCacheToTrash(this)
+        val clearOnLaunch = BooruCacheManager.isClearOnLaunchEnabled(this)
+        val trash = if (clearOnLaunch) {
+            BooruCacheManager.moveBrowsingCacheToTrash(this)
+        } else {
+            BooruCacheManager.leftoverTrash(this)
+        }
         CoroutineScope(Dispatchers.IO).launch {
-            BooruCacheManager.deleteTrash(this@BooruApplication, trash)
+            BooruCacheManager.deleteTrash(this@BooruApplication, trash, clearExternal = clearOnLaunch)
+            val currentVersion = runCatching { packageManager.getPackageInfo(packageName, 0).versionName }.getOrNull()
+            if (currentVersion != null) BooruCacheManager.pruneStaleUpdates(this@BooruApplication, currentVersion)
         }
     }
 
@@ -74,18 +82,8 @@ class BooruApplication : Application(), SingletonImageLoader.Factory {
                         .build()
                 }
 
-                val referer = when {
-                    url.contains("gelbooru.com") -> "https://gelbooru.com/"
-                    url.contains("rule34.xxx") -> "https://rule34.xxx/"
-                    url.contains("realbooru.com") -> "https://realbooru.com/"
-                    url.contains("tbib.org") -> "https://tbib.org/"
-                    url.contains("safebooru.org") -> "https://safebooru.org/"
-                    url.contains("yande.re") -> "https://yande.re/"
-                    url.contains("konachan") -> "https://konachan.net/"
-                    else -> "${originalRequest.url.scheme}://${originalRequest.url.host}/"
-                }
-
-                val userAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                val referer = BooruHeaders.refererFor(url)
+                val userAgent = BooruHeaders.BROWSER_USER_AGENT
 
                 val newRequest = originalRequest.newBuilder()
                     .header("User-Agent", userAgent)
@@ -104,7 +102,7 @@ class BooruApplication : Application(), SingletonImageLoader.Factory {
                         url.contains("gelbooru.com") ||
                         url.contains("rule34.xxx")
 
-                if (isBooruDomain && (initialResponse.code == 404 || initialResponse.code == 302 || initialResponse.code == 403)) {
+                if (isBooruDomain && initialResponse.code == 404) {
                     initialResponse.close()
                     val candidateUrls = LinkedHashSet<String>()
                     val query = if (url.contains("?")) "?" + url.substringAfter("?") else ""
@@ -132,8 +130,6 @@ class BooruApplication : Application(), SingletonImageLoader.Factory {
                         candidateUrls.add("$baseWithoutExt.png$query")
                         candidateUrls.add("$baseWithoutExt.gif$query")
                         candidateUrls.add("$baseWithoutExt.webp$query")
-                        candidateUrls.add("$baseWithoutExt.mp4$query")
-                        candidateUrls.add("$baseWithoutExt.webm$query")
                         candidateUrls.add("$sampleDir/sample_$filename.jpg$query")
                         candidateUrls.add("$thumbDir/thumbnail_$filename.jpg$query")
                     } else if (cleanUrl.contains("/thumbnails/")) {
@@ -199,7 +195,7 @@ object BooruVideoCache {
     private var simpleCache: androidx.media3.datasource.cache.SimpleCache? = null
     private val lock = Any()
 
-    private const val USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    private const val USER_AGENT = BooruHeaders.BROWSER_USER_AGENT
     private const val FIRST_CHUNK_BYTES = 256L * 1024
     private const val CHUNK_BYTES = 1024L * 1024
     private const val PREFETCH_WORKERS = 4
@@ -215,16 +211,7 @@ object BooruVideoCache {
             .build()
     }
 
-    fun refererFor(url: String): String = when {
-        url.contains("gelbooru.com") -> "https://gelbooru.com/"
-        url.contains("rule34.xxx") -> "https://rule34.xxx/"
-        url.contains("realbooru.com") -> "https://realbooru.com/"
-        url.contains("tbib.org") -> "https://tbib.org/"
-        url.contains("safebooru.org") -> "https://safebooru.org/"
-        url.contains("yande.re") -> "https://yande.re/"
-        url.contains("konachan") -> "https://konachan.net/"
-        else -> "https://gelbooru.com/"
-    }
+    fun refererFor(url: String): String = BooruHeaders.refererFor(url)
 
     fun httpDataSourceFactory(url: String, client: OkHttpClient = playerClient): androidx.media3.datasource.okhttp.OkHttpDataSource.Factory =
         androidx.media3.datasource.okhttp.OkHttpDataSource.Factory(client)

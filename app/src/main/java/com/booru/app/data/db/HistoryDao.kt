@@ -10,8 +10,8 @@ interface HistoryDao {
     @Insert
     suspend fun insert(entry: HistoryEntity)
 
-    @Query("SELECT * FROM history WHERE at >= :since ORDER BY at DESC")
-    suspend fun since(since: Long): List<HistoryEntity>
+    @Query("SELECT * FROM history ORDER BY at DESC LIMIT :limit")
+    suspend fun recent(limit: Int): List<HistoryEntity>
 
     @Query("SELECT COUNT(*) FROM history")
     suspend fun count(): Int

@@ -258,7 +258,7 @@ private fun MediaDetailSheetContent(
                                 modifier = Modifier.fillMaxSize(),
                                 isActive = pagerState.settledPage == page && !showTrueFullscreen,
                                 onFullscreen = { showTrueFullscreen = true },
-                                allowPrefetch = !vm.isDataSaverActive,
+                                allowPrefetch = !vm.isMeteredNetwork,
                                 positionHandoff = videoPositions
                             )
                         } else {
@@ -1287,7 +1287,7 @@ fun DetailZoomableImage(
                         }
                     )
                     .build(),
-                contentDescription = media.tags,
+                contentDescription = media.tagList.take(6).joinToString(", "),
                 contentScale = ContentScale.FillWidth,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -1452,7 +1452,7 @@ fun DetailZoomableImage(
                         }
                     )
                     .build(),
-                contentDescription = media.tags,
+                contentDescription = media.tagList.take(6).joinToString(", "),
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
@@ -1744,9 +1744,15 @@ fun BooruVideoPlayer(
             .setPrioritizeTimeOverSizeThresholds(true)
             .build()
 
+        val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
+            .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+            .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MOVIE)
+            .build()
         playerState = ExoPlayer.Builder(context)
             .setMediaSourceFactory(mediaSourceFactory)
             .setLoadControl(loadControl)
+            .setAudioAttributes(audioAttributes, true)
+            .setHandleAudioBecomingNoisy(true)
             .build().apply {
                 val mediaItem = if (offlineFile != null) MediaItem.fromUri(android.net.Uri.fromFile(offlineFile)) else MediaItem.fromUri(videoUrl)
                 setMediaItem(mediaItem)

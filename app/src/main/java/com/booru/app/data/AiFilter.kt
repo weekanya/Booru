@@ -18,6 +18,9 @@ object AiFilter {
         "dall_e",
         "dalle",
         "synthetic",
+        "synthetic_media",
+        "synthetic_image",
+        "synthetic_art",
         "created_by_ai",
         "created-by-ai",
         "ai_art",
@@ -30,36 +33,13 @@ object AiFilter {
         "deep_fake"
     )
 
-    val AI_COMPOUNDS = setOf(
-        "ai_generated",
-        "ai-generated",
-        "novelai",
-        "novel_ai",
-        "novel-ai",
-        "stable_diffusion",
-        "stablediffusion",
-        "stable-diffusion",
-        "midjourney",
-        "dall-e",
-        "dall_e",
-        "dalle",
-        "synthetic",
-        "created_by_ai",
-        "created-by-ai",
-        "ai_art",
-        "ai-art",
-        "ai_upscale",
-        "ai-upscale",
-        "ai_assisted",
-        "ai-assisted",
-        "deepfake",
-        "deep_fake"
-    )
+    private val AI_COMPOUNDS = AI_TAG_EXACT - "synthetic"
+
+    private val TAG_SPLIT = Regex("[\\s,]+")
 
     fun isAiGeneratedPost(tags: String): Boolean {
         if (tags.isBlank()) return false
-        val tokens = tags.split(Regex("[\\s,]+"))
-        return tokens.any { isAiTag(it) }
+        return tags.split(TAG_SPLIT).any { isAiTag(it) }
     }
 
     fun isAiTag(rawTag: String): Boolean {

@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit
 
 object AiImageScanner {
     private const val TAG = "AiImageScanner"
-    private const val HEADER_BYTES = 64 * 1024L
+    private const val HEADER_BYTES = 32 * 1024L
     private const val PARALLELISM = 4
     private const val TIMEOUT_MS = 8_000L
     private const val CACHE_SIZE = 4_000
@@ -80,7 +80,7 @@ object AiImageScanner {
                 val request = Request.Builder()
                     .url(url)
                     .header("User-Agent", BooruRepository.USER_AGENT)
-                    .header("Referer", com.booru.app.BooruVideoCache.refererFor(url))
+                    .header("Referer", com.booru.app.data.network.BooruHeaders.refererFor(url))
                     .header("Range", "bytes=0-${HEADER_BYTES - 1}")
                     .build()
                 client.newCall(request).await().use { response ->

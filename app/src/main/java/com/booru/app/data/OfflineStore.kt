@@ -7,8 +7,8 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.booru.app.BooruRepository
-import com.booru.app.BooruVideoCache
 import com.booru.app.RemoteMedia
+import com.booru.app.data.network.BooruHeaders
 import com.booru.app.data.network.NetworkClient
 import com.booru.app.data.network.await
 import kotlinx.coroutines.Dispatchers
@@ -231,7 +231,7 @@ object OfflineStore {
             val request = Request.Builder()
                 .url(url)
                 .header("User-Agent", BooruRepository.USER_AGENT)
-                .header("Referer", BooruVideoCache.refererFor(url))
+                .header("Referer", BooruHeaders.refererFor(url))
                 .build()
             val call = client.newCall(request)
             activeCalls.add(call)

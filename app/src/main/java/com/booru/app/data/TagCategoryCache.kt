@@ -27,7 +27,7 @@ object TagCategoryCache {
     private const val UNKNOWN = -1
     private const val FAILURE_BACKOFF_MS = 10 * 60 * 1000L
 
-    private val categories = ConcurrentHashMap<String, Int>()
+    private val categories: MutableMap<String, Int> = java.util.Collections.synchronizedMap(LinkedHashMap())
     private val loadMutex = Mutex()
     private val writeMutex = Mutex()
     @Volatile private var loaded = false
@@ -198,11 +198,17 @@ object TagCategoryCache {
         withContext(Dispatchers.IO) {
             runCatching {
                 val f = file ?: return@runCatching
-                if (categories.size > MAX_ENTRIES) {
-                    categories.keys.toList().take(categories.size - MAX_ENTRIES).forEach { categories.remove(it) }
-                }
                 val obj = JSONObject()
-                for ((k, v) in categories) obj.put(k, v)
+                synchronized(categories) {
+                    val iterator = categories.keys.iterator()
+                    var excess = categories.size - MAX_ENTRIES
+                    while (excess > 0 && iterator.hasNext()) {
+                        iterator.next()
+                        iterator.remove()
+                        excess--
+                    }
+                    for ((k, v) in categories) obj.put(k, v)
+                }
                 val tmp = File(f.parentFile, "$FILE_NAME.tmp")
                 tmp.writeText(obj.toString())
                 if (!tmp.renameTo(f)) {

@@ -14,6 +14,7 @@ import java.io.IOException
 import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
+import com.booru.app.data.network.BooruHeaders
 import com.booru.app.data.network.NetworkClient
 
 object BooruCacheManager {
@@ -77,26 +78,15 @@ object BooruCacheManager {
 
             val tempFile = File(getFavoritesMediaDir(context), "$hash.$ext.tmp")
             try {
-                val referer = when {
-                    url.contains("gelbooru.com") -> "https://gelbooru.com/"
-                    url.contains("rule34.xxx") -> "https://rule34.xxx/"
-                    url.contains("realbooru.com") -> "https://realbooru.com/"
-                    url.contains("tbib.org") -> "https://tbib.org/"
-                    url.contains("safebooru.org") -> "https://safebooru.org/"
-                    url.contains("yande.re") -> "https://yande.re/"
-                    url.contains("konachan") -> "https://konachan.net/"
-                    else -> "https://gelbooru.com/"
-                }
-
                 val req = Request.Builder()
                     .url(url)
-                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36")
-                    .header("Referer", referer)
+                    .header("User-Agent", BooruHeaders.BROWSER_USER_AGENT)
+                    .header("Referer", BooruHeaders.refererFor(url))
                     .build()
 
                 httpClient.newCall(req).await().use { resp ->
-                    if (resp.isSuccessful && resp.body != null) {
-                        val body = resp.body!!
+                    val body = resp.body
+                    if (resp.isSuccessful && body != null) {
                         val contentLength = body.contentLength()
                         if (contentLength > MAX_MEDIA_CACHE_BYTES) {
                             throw IOException("Media Content-Length $contentLength exceeds limit of $MAX_MEDIA_CACHE_BYTES")
@@ -189,7 +179,18 @@ object BooruCacheManager {
     }
 
     private const val TRASH_PREFIX = "cache_trash_"
-    private val KEPT_ON_LAUNCH = setOf("updates")
+    private const val UPDATES_DIR = "updates"
+    private val KEPT_ON_LAUNCH = setOf(UPDATES_DIR)
+    private const val LAUNCH_PREFS = "booru_launch"
+    private const val KEY_CLEAR_ON_LAUNCH = "clear_cache_on_launch"
+    private const val STALE_UPDATE_MS = 24L * 60 * 60 * 1000
+
+    fun isClearOnLaunchEnabled(context: Context): Boolean =
+        context.getSharedPreferences(LAUNCH_PREFS, Context.MODE_PRIVATE).getBoolean(KEY_CLEAR_ON_LAUNCH, true)
+
+    fun setClearOnLaunchEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(LAUNCH_PREFS, Context.MODE_PRIVATE).edit().putBoolean(KEY_CLEAR_ON_LAUNCH, enabled).apply()
+    }
 
     fun moveBrowsingCacheToTrash(context: Context): List<File> {
         val moved = mutableListOf<File>()
@@ -209,7 +210,10 @@ object BooruCacheManager {
         return moved
     }
 
-    fun deleteTrash(context: Context, entries: List<File>) {
+    fun leftoverTrash(context: Context): List<File> =
+        context.cacheDir.listFiles()?.filter { it.name.startsWith(TRASH_PREFIX) }.orEmpty()
+
+    fun deleteTrash(context: Context, entries: List<File>, clearExternal: Boolean = true) {
         for (entry in entries) {
             try {
                 if (entry.isDirectory && entry.name.endsWith("booru_video_cache")) {
@@ -221,8 +225,22 @@ object BooruCacheManager {
                 Log.w(TAG, "Failed to delete cache entry ${entry.name}", e)
             }
         }
-        try {
-            context.externalCacheDir?.listFiles()?.forEach { it.deleteRecursively() }
-        } catch (_: Exception) {}
+        if (clearExternal) {
+            try {
+                context.externalCacheDir?.listFiles()?.forEach { it.deleteRecursively() }
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun pruneStaleUpdates(context: Context, currentVersion: String) {
+        val files = File(context.cacheDir, UPDATES_DIR).listFiles() ?: return
+        val now = System.currentTimeMillis()
+        for (file in files) {
+            val version = file.name.removePrefix("booru_").removeSuffix(".tmp").removeSuffix(".apk")
+            val stale = file.name.endsWith(".tmp") ||
+                now - file.lastModified() > STALE_UPDATE_MS ||
+                !UpdateChecker.isNewerVersion(version, currentVersion)
+            if (stale) runCatching { file.delete() }
+        }
     }
 }

@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import com.booru.app.data.AppLanguage
 import com.booru.app.ui.pressMorphShape
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.withResumed
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.booru.app.data.Strings
 import kotlinx.coroutines.launch
@@ -255,10 +256,13 @@ fun BooruApp(
         BackHandler(enabled = true) {
             (context as? Activity)?.finish()
         }
+        val lockLifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+        LaunchedEffect(lockLifecycle) {
+            lockLifecycle.withResumed { onUnlockRequest() }
+        }
         BooruTheme(
             themeMode = vm.themeMode,
-            palette = vm.palette,
-            useDynamicColor = vm.useDynamicColor
+            palette = vm.palette
         ) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
@@ -370,8 +374,7 @@ fun BooruApp(
     CompositionLocalProvider(LocalLayoutDirection provides layoutDirection, LocalShowMessage provides showMessage, LocalMessageRouter provides messageRouter) {
         BooruTheme(
             themeMode = vm.themeMode,
-            palette = vm.palette,
-            useDynamicColor = vm.useDynamicColor
+            palette = vm.palette
         ) {
             Surface(
                 modifier = Modifier.fillMaxSize(),

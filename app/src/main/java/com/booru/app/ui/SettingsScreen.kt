@@ -1308,6 +1308,16 @@ fun SettingsScreen(
                                     }
                                 }
                             }
+
+                            SettingsDivider()
+
+                            SettingSwitchItem(
+                                title = Strings.tr(lang, "Clear cache on launch", "Очищать кеш при запуске", "起動時にキャッシュを消去", "启动时清除缓存", "시작 시 캐시 삭제", "مسح ذاكرة التخزين عند التشغيل"),
+                                subtitle = null,
+                                icon = Icons.Rounded.CleaningServices,
+                                checked = vm.clearCacheOnLaunch,
+                                onCheckedChange = { vm.updateClearCacheOnLaunch(it) }
+                            )
                         }
 
                         Spacer(Modifier.height(20.dp))

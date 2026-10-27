@@ -4,6 +4,8 @@ import com.booru.app.RemoteMedia
 
 object TagBlacklistMatcher {
 
+    private val patternCache = java.util.concurrent.ConcurrentHashMap<String, Regex>()
+
     fun matchesTag(pattern: String, tag: String): Boolean {
         if (pattern.isBlank() || tag.isBlank()) return false
         val p = pattern.trim().lowercase()
@@ -24,8 +26,10 @@ object TagBlacklistMatcher {
             }
         }
 
-        val regexPattern = p.split('*').joinToString(".*", prefix = "^", postfix = "$") { Regex.escape(it) }
-        return runCatching { Regex(regexPattern).matches(t) }.getOrDefault(false)
+        val regex = patternCache.getOrPut(p) {
+            p.split('*').joinToString(".*", prefix = "^", postfix = "$") { Regex.escape(it) }.toRegex()
+        }
+        return regex.matches(t)
     }
 
     fun isBlacklisted(media: RemoteMedia, blacklist: Collection<String>): Boolean {

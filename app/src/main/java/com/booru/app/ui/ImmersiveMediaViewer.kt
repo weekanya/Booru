@@ -290,7 +290,7 @@ fun ImmersiveMediaViewer(
                             modifier = Modifier.fillMaxSize(),
                             isActive = pagerState.settledPage == page && !isClosing,
                             isExternalControls = true,
-                            allowPrefetch = !vm.isDataSaverActive,
+                            allowPrefetch = !vm.isMeteredNetwork,
                             externalShowControls = showControls,
                             onToggleControls = {
                                 showControls = !showControls
@@ -350,7 +350,7 @@ fun ImmersiveMediaViewer(
                             shapes = IconButtonDefaults.shapes(),
                             border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
                         ) {
-                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = com.booru.app.data.Strings.tr(vm.language, "Back", "Назад", "戻る", "返回", "뒤로", "رجوع"))
                         }
 
                         Row(
@@ -402,7 +402,7 @@ fun ImmersiveMediaViewer(
                             ) {
                                 Icon(
                                     if (isFav) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                    contentDescription = "Favorite"
+                                    contentDescription = com.booru.app.data.Strings.tr(vm.language, "Favorite", "В избранное", "お気に入り", "收藏", "즐겨찾기", "المفضلة")
                                 )
                             }
 
@@ -415,7 +415,7 @@ fun ImmersiveMediaViewer(
                                 shapes = IconButtonDefaults.shapes(),
                                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
                             ) {
-                                Icon(Icons.Rounded.Download, contentDescription = "Download")
+                                Icon(Icons.Rounded.Download, contentDescription = com.booru.app.data.Strings.downloadBtn(vm.language))
                             }
                         }
                     }
@@ -493,7 +493,7 @@ fun ImmersiveMediaViewer(
                                 shapes = IconButtonDefaults.shapes(),
                                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.18f))
                             ) {
-                                Icon(Icons.Rounded.ZoomOutMap, contentDescription = "Reset Zoom")
+                                Icon(Icons.Rounded.ZoomOutMap, contentDescription = com.booru.app.data.Strings.tr(vm.language, "Reset zoom", "Сбросить масштаб", "ズームをリセット", "重置缩放", "확대 초기화", "إعادة ضبط التكبير"))
                             }
                         }
                     }
@@ -602,7 +602,7 @@ fun FullscreenZoomableImage(
                         }
                     )
                     .build(),
-                contentDescription = media.tags,
+                contentDescription = media.tagList.take(6).joinToString(", "),
                 contentScale = ContentScale.FillWidth,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -736,7 +736,7 @@ fun FullscreenZoomableImage(
                         }
                     )
                     .build(),
-                contentDescription = media.tags,
+                contentDescription = media.tagList.take(6).joinToString(", "),
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {

@@ -324,7 +324,6 @@ val BooruTypography = Typography(
 fun BooruTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     palette: AppPalette = AppPalette.MONET,
-    useDynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
     val isSystemDark = isSystemInDarkTheme()
@@ -335,7 +334,7 @@ fun BooruTheme(
     }
 
     val context = LocalContext.current
-    val colorScheme = paletteColorScheme(context, palette, isDark, useDynamicColor)
+    val colorScheme = paletteColorScheme(context, palette, isDark)
 
     val view = LocalView.current
     if (!view.isInEditMode) {
@@ -367,10 +366,9 @@ val LocalIsDarkTheme = staticCompositionLocalOf { false }
 fun paletteColorScheme(
     context: android.content.Context,
     palette: AppPalette,
-    isDark: Boolean,
-    useDynamicColor: Boolean = true
+    isDark: Boolean
 ): ColorScheme = when {
-    palette == AppPalette.MONET && useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+    palette == AppPalette.MONET && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
         if (isDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
     }
     palette == AppPalette.AMOLED -> if (isDark) AmoledDark else VioletLight

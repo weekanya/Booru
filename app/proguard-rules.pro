@@ -17,21 +17,19 @@
 
 -dontwarn okhttp3.**
 -dontwarn okio.**
--keep class okhttp3.** { *; }
--keep interface okhttp3.** { *; }
 
--keep class coil3.** { *; }
 -dontwarn coil3.**
 
--keep class androidx.media3.** { *; }
 -dontwarn androidx.media3.**
 
--keep class org.jsoup.** { *; }
 -dontwarn org.jsoup.**
 
--keep class androidx.security.crypto.** { *; }
 -dontwarn androidx.security.crypto.**
 
 -keep class com.booru.app.data.CustomBooruSource { *; }
 -keep class com.booru.app.data.BooruEngine { *; }
 
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+}

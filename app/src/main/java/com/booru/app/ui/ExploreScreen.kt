@@ -196,6 +196,7 @@ fun ExploreScreen(
                     loader.enqueue(
                         ImageRequest.Builder(context)
                             .data(url)
+                            .size(PREFETCH_DECODE_PX)
                             .memoryCachePolicy(CachePolicy.DISABLED)
                             .build()
                     )
@@ -377,9 +378,10 @@ fun ExploreScreen(
             }
 
             vm.error?.let { rawErr ->
-                val displayMessage = remember(rawErr, vm.isAuthError, vm.authErrorSource, vm.authErrorCode, vm.isNetworkError, lang) {
+                val displayMessage = remember(rawErr, vm.isAuthError, vm.authErrorSource, vm.authErrorCode, vm.isNetworkError, vm.isTimeoutError, lang) {
                     val srcName = vm.authErrorSource?.let { vm.getSourceDisplayName(it) } ?: vm.getSourceDisplayName(vm.source)
                     when {
+                        vm.isTimeoutError -> Strings.timeoutErrorDesc(srcName, lang)
                         vm.isNetworkError -> Strings.offlineDesc(lang)
                         vm.isAuthError -> {
                             Strings.authErrorDesc(srcName, vm.authErrorCode, lang)
@@ -388,9 +390,9 @@ fun ExploreScreen(
                             Strings.rateLimitErrorDesc(srcName, null, lang)
                         }
                         vm.authErrorCode != null -> {
-                            Strings.httpErrorDesc(srcName, vm.authErrorCode!!, lang)
+                            Strings.httpErrorDesc(srcName, vm.authErrorCode ?: 0, lang)
                         }
-                        rawErr.contains("timeout", ignoreCase = true) -> {
+                        rawErr.contains("timeout", ignoreCase = true) || rawErr.contains("timed out", ignoreCase = true) -> {
                             Strings.timeoutErrorDesc(srcName, lang)
                         }
                         rawErr.contains("Insecure HTTP", ignoreCase = true) -> {
@@ -1703,6 +1705,7 @@ private fun EmptyResultActions(vm: GalleryViewModel, lang: AppLanguage) {
 }
 
 private const val PREFETCH_AHEAD = 14
+private const val PREFETCH_DECODE_PX = 96
 
 internal fun tokenRangeAt(text: String, cursor: Int): IntRange {
     val c = cursor.coerceIn(0, text.length)

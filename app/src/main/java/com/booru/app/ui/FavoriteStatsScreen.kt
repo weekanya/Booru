@@ -124,6 +124,7 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, int
 
     var favorites by remember { mutableStateOf<List<FavoriteEntity>?>(null) }
     var history by remember { mutableStateOf<List<HistoryEntity>>(emptyList()) }
+    var historyCount by remember { mutableIntStateOf(0) }
     var period by rememberSaveable { mutableStateOf(StatsPeriod.WEEK) }
     var lookupProgress by remember { mutableStateOf<Pair<Int, Int>?>(null) }
 
@@ -132,11 +133,12 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, int
 
     if (confirmClear) {
         ClearHistorySheet(
-            entries = history.size,
+            entries = historyCount,
             lang = lang,
             onConfirm = {
                 onClearHistory()
                 history = emptyList()
+                historyCount = 0
             },
             onDismiss = { confirmClear = false }
         )
@@ -145,8 +147,9 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, int
     LaunchedEffect(Unit) {
         val db = AppDatabase.getDatabase(context)
         val (favs, events) = withContext(Dispatchers.IO) {
-            db.favoriteDao().getAllFavoritesList() to runCatching { db.historyDao().since(0L) }.getOrDefault(emptyList())
+            db.favoriteDao().getAllFavoritesList() to runCatching { db.historyDao().recent(STATS_HISTORY_LIMIT) }.getOrDefault(emptyList())
         }
+        historyCount = withContext(Dispatchers.IO) { runCatching { db.historyDao().count() }.getOrDefault(events.size) }
         TagCategoryCache.ensureLoaded()
         history = events
         favorites = favs
@@ -154,7 +157,8 @@ private fun FavoriteStatsContent(lang: AppLanguage, allowTagLookup: Boolean, int
 
     LaunchedEffect(favorites, lookupAttempt) {
         val list = favorites ?: return@LaunchedEffect
-        val tags = FavoriteStats.allTags(list, history)
+        val events = history
+        val tags = withContext(Dispatchers.Default) { FavoriteStats.allTags(list, events) }
         if (!allowTagLookup || tags.isEmpty()) return@LaunchedEffect
         lookupProgress = 0 to 1
         try {
@@ -1236,3 +1240,5 @@ private fun SectionHeader(text: String) {
         modifier = Modifier.padding(start = 8.dp, top = 8.dp)
     )
 }
+
+private const val STATS_HISTORY_LIMIT = 20_000

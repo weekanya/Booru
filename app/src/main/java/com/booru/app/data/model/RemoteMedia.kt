@@ -87,7 +87,7 @@ data class RemoteMedia(
             "safebooru" -> if (id.isNotBlank()) "https://safebooru.org/index.php?page=post&s=view&id=$id" else url
             "tbib" -> if (id.isNotBlank()) "https://tbib.org/index.php?page=post&s=view&id=$id" else url
             "yande" -> if (id.isNotBlank()) "https://yande.re/post/show/$id" else url
-            "konachan" -> if (id.isNotBlank()) "https://konachan.net/post/show/$id" else url
+            "konachan" -> if (id.isNotBlank()) "https://konachan.com/post/show/$id" else url
             else -> url
         }
 

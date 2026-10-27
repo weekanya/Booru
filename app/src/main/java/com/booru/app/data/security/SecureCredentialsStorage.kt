@@ -11,34 +11,43 @@ class SecureCredentialsStorage(context: Context) {
 
     private val memoryCache = ConcurrentHashMap<String, String>()
 
-    private val prefs: SharedPreferences? = createEncryptedPrefs(context)
-        ?: run {
-            Log.w("SecureCredentials", "Encrypted storage is unreadable, recreating it")
-            runCatching { context.deleteSharedPreferences(SECURE_PREFS_NAME) }
-            createEncryptedPrefs(context)
-        }
+    private val appContext = context.applicationContext
 
-    private fun createEncryptedPrefs(context: Context): SharedPreferences? = try {
-        val masterKey = MasterKey.Builder(context)
+    private val prefs: SharedPreferences? by lazy { openPrefs() }
+
+    private fun openPrefs(): SharedPreferences? {
+        var lastError: Exception? = null
+        repeat(2) {
+            try {
+                return createEncryptedPrefs()
+            } catch (e: Exception) {
+                lastError = e
+                Log.w("SecureCredentials", "Encrypted storage open failed: ${e.javaClass.simpleName}")
+            }
+        }
+        if (lastError !is java.security.GeneralSecurityException && lastError !is java.io.IOException) return null
+        Log.w("SecureCredentials", "Encrypted storage is unreadable, recreating it")
+        runCatching { appContext.deleteSharedPreferences(SECURE_PREFS_NAME) }
+        return try {
+            createEncryptedPrefs()
+        } catch (e: Exception) {
+            Log.e("SecureCredentials", "Hardware-backed keystore unavailable: ${e.message}")
+            null
+        }
+    }
+
+    private fun createEncryptedPrefs(): SharedPreferences {
+        val masterKey = MasterKey.Builder(appContext)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
 
-        EncryptedSharedPreferences.create(
-            context,
+        return EncryptedSharedPreferences.create(
+            appContext,
             SECURE_PREFS_NAME,
             masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
-    } catch (e: Exception) {
-        Log.e("SecureCredentials", "Hardware-backed keystore unavailable: ${e.message}")
-        null
-    }
-
-    init {
-        if (prefs != null) {
-            runCatching { context.deleteSharedPreferences("booru_fallback_credentials") }
-        }
+        ).also { runCatching { appContext.deleteSharedPreferences("booru_fallback_credentials") } }
     }
 
     companion object {

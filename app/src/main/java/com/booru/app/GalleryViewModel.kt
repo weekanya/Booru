@@ -110,12 +110,16 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             val metered = !caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
             viewModelScope.launch { isMeteredNetwork = metered }
         }
+
+        override fun onLost(network: android.net.Network) {
+            val metered = runCatching { connectivity?.isActiveNetworkMetered == true }.getOrDefault(false)
+            viewModelScope.launch { isMeteredNetwork = metered }
+        }
     }
     var sortOrder by mutableStateOf(SortOrder.NEWEST); private set
 
     var themeMode by mutableStateOf(ThemeMode.SYSTEM); private set
     var palette by mutableStateOf(AppPalette.MONET); private set
-    var useDynamicColor by mutableStateOf(true); private set
     var language by mutableStateOf(AppLanguage.ENGLISH); private set
 
     var rule34UserId by mutableStateOf(""); private set
@@ -164,6 +168,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     private var emptyLoadMoreStreak = 0
     var loadMoreError by mutableStateOf(false); private set
     var isNetworkError by mutableStateOf(false); private set
+    var isTimeoutError by mutableStateOf(false); private set
     var resultsEpoch by mutableIntStateOf(0); private set
     private val favoriteMutex = Mutex()
 
@@ -190,8 +195,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             biometricLockEnabled = readPref(prefs.biometricLockEnabled, false)
             biometricLockTimeoutMin = readPref(prefs.biometricLockTimeoutMin, 0)
             lockStateLoaded = true
+            val secureAvailable = withContext(Dispatchers.IO) { secureStorage.isSecureStorageAvailable }
             try {
-                if (secureStorage.isSecureStorageAvailable) {
+                if (secureAvailable) {
                     prefs.migrateLegacyCredentialsAndCustomSources(secureStorage)
                 }
             } catch (c: CancellationException) {
@@ -199,10 +205,18 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             } catch (e: Exception) {
                 Log.w(TAG, "Credential migration failed: ${e.message}", e)
             }
-            rule34UserId = secureStorage.getRule34UserId()
-            rule34ApiKey = secureStorage.getRule34ApiKey()
-            gelbooruUserId = secureStorage.getGelbooruUserId()
-            gelbooruApiKey = secureStorage.getGelbooruApiKey()
+            val storedKeys = withContext(Dispatchers.IO) {
+                listOf(
+                    secureStorage.getRule34UserId(),
+                    secureStorage.getRule34ApiKey(),
+                    secureStorage.getGelbooruUserId(),
+                    secureStorage.getGelbooruApiKey()
+                )
+            }
+            rule34UserId = storedKeys[0]
+            rule34ApiKey = storedKeys[1]
+            gelbooruUserId = storedKeys[2]
+            gelbooruApiKey = storedKeys[3]
 
             try {
                 val legacyFavs = prefs.favorites.first()
@@ -280,6 +294,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             imageQuality = readPref(prefs.imageQuality, ImageQuality.SAMPLE)
             offlineCount = readPref(prefs.offlineCount, 200)
             disabledSources = readPref(prefs.disabledSources, emptySet())
+            notInterestedKeys.addAll(readPref(prefs.notInterestedKeys, emptyList()))
 
             search(source, "", safeMode)
 
@@ -300,9 +315,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
         viewModelScope.launch {
             prefs.palette.collect { palette = it }
-        }
-        viewModelScope.launch {
-            prefs.dynamicColor.collect { useDynamicColor = it }
         }
         viewModelScope.launch {
             prefs.language.collect { language = it }
@@ -591,9 +603,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun installApk(context: Context, file: File) {
         val context: Context = context.applicationContext
         viewModelScope.launch {
+            if (!withContext(Dispatchers.IO) { file.exists() }) {
+                if (downloadedApkFile == file) downloadedApkFile = null
+                updateDownloadError = "Downloaded APK is missing"
+                return@launch
+            }
             val verified = withContext(Dispatchers.IO) { verifyApkSignature(context, file) }
             if (!verified) {
                 withContext(Dispatchers.IO) { if (file.exists()) file.delete() }
+                if (downloadedApkFile == file) downloadedApkFile = null
                 updateDownloadError = "APK signature verification failed"
                 return@launch
             }
@@ -990,7 +1008,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             results = emptyList()
             hasMore = false
         }
-        isNetworkError = e is BooruNetworkException || e is IOException
+        isTimeoutError = e is BooruTimeoutException || e is java.net.SocketTimeoutException
+        isNetworkError = !isTimeoutError && (e is BooruNetworkException || e is IOException)
         when (e) {
             is BooruAuthException -> {
                 isAuthError = true
@@ -1045,6 +1064,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
         error = null
         isNetworkError = false
+        isTimeoutError = false
         isAuthError = false
         authErrorSource = null
         authErrorCode = null
@@ -1534,6 +1554,13 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    var clearCacheOnLaunch by mutableStateOf(BooruCacheManager.isClearOnLaunchEnabled(application)); private set
+
+    fun updateClearCacheOnLaunch(enabled: Boolean) {
+        clearCacheOnLaunch = enabled
+        BooruCacheManager.setClearOnLaunchEnabled(getApplication(), enabled)
+    }
+
     fun updateDataSaverOnMobile(enabled: Boolean) {
         dataSaverOnMobile = enabled
         viewModelScope.launch { prefs.setDataSaverOnMobile(enabled) }
@@ -1582,9 +1609,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         query = ""
         recordedRecTagsMap = emptyMap()
         viewedForRecommendations.clear()
+        notInterestedKeys.clear()
         viewModelScope.launch {
             prefs.setDefaultSource(BooruRepository.SOURCE_ALL)
             prefs.clearRecommendationData()
+            prefs.clearNotInterestedKeys()
             recalculateRecommendationTags()
             onDone()
         }
@@ -1621,6 +1650,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         isAuthError = false
         authErrorSource = null
         authErrorCode = null
+        isNetworkError = false
+        isTimeoutError = false
     }
 
     var disabledSources by mutableStateOf<Set<String>>(emptySet()); private set
@@ -1701,9 +1732,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         source.equals(target.key, ignoreCase = true)
                 )
         if (isCurrentSourceDeleted || availableSources.none { it.equals(source, ignoreCase = true) }) {
-            source = BooruRepository.SOURCE_ALL
             viewModelScope.launch { prefs.setDefaultSource(BooruRepository.SOURCE_ALL) }
-            refresh()
+            search(BooruRepository.SOURCE_ALL, query, safeMode)
         }
     }
 
@@ -1905,6 +1935,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun markNotInterested(media: RemoteMedia) {
         notInterestedKeys.add(media.mediaKey)
         results = results.filterNot { it.mediaKey == media.mediaKey }
+        viewModelScope.launch {
+            try {
+                prefs.addNotInterestedKey(media.mediaKey)
+            } catch (c: CancellationException) {
+                throw c
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to persist hidden post: ${e.message}", e)
+            }
+        }
         if (!suppressRecording && media.tags.isNotBlank()) {
             viewModelScope.launch { prefs.recordNotInterestedTags(media.tags) }
         }

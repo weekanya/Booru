@@ -56,7 +56,6 @@ class BooruPreferences(private val context: Context) {
     companion object {
         val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         val KEY_COLOR_PALETTE = stringPreferencesKey("color_palette")
-        val KEY_DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val KEY_SAFE_MODE = booleanPreferencesKey("safe_mode")
         val KEY_EXCLUDE_SAFE = booleanPreferencesKey("exclude_safe")
         val KEY_NO_AI = booleanPreferencesKey("no_ai_filter")
@@ -93,6 +92,8 @@ class BooruPreferences(private val context: Context) {
         val KEY_CUSTOM_FOLDERS = stringSetPreferencesKey("custom_folders")
         val KEY_GRID_COLUMNS_COUNT = intPreferencesKey("grid_columns_count")
         val KEY_DISABLED_SOURCES = stringSetPreferencesKey("disabled_sources")
+        val KEY_NOT_INTERESTED = stringPreferencesKey("not_interested_keys")
+        private const val NOT_INTERESTED_MAX = 3000
     }
 
     val themeMode: Flow<ThemeMode> = read { prefs ->
@@ -106,10 +107,6 @@ class BooruPreferences(private val context: Context) {
     val palette: Flow<AppPalette> = read { prefs ->
         val code = prefs[KEY_COLOR_PALETTE] ?: "monet"
         AppPalette.entries.find { it.code == code } ?: AppPalette.MONET
-    }
-
-    val dynamicColor: Flow<Boolean> = read { prefs ->
-        prefs[KEY_DYNAMIC_COLOR] ?: true
     }
 
     val safeMode: Flow<Boolean> = read { prefs ->
@@ -269,6 +266,31 @@ class BooruPreferences(private val context: Context) {
         prefs[KEY_DISABLED_SOURCES] ?: emptySet()
     }
 
+    val notInterestedKeys: Flow<List<String>> = read { prefs ->
+        parseStringArray(prefs[KEY_NOT_INTERESTED])
+    }
+
+    suspend fun addNotInterestedKey(mediaKey: String) {
+        if (mediaKey.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val updated = (parseStringArray(prefs[KEY_NOT_INTERESTED]).filterNot { it == mediaKey } + mediaKey)
+                .takeLast(NOT_INTERESTED_MAX)
+            prefs[KEY_NOT_INTERESTED] = JSONArray(updated).toString()
+        }
+    }
+
+    suspend fun clearNotInterestedKeys() {
+        context.dataStore.edit { it.remove(KEY_NOT_INTERESTED) }
+    }
+
+    private fun parseStringArray(json: String?): List<String> {
+        if (json.isNullOrBlank()) return emptyList()
+        return runCatching {
+            val arr = JSONArray(json)
+            (0 until arr.length()).mapNotNull { i -> arr.optString(i).takeIf { it.isNotBlank() } }
+        }.getOrDefault(emptyList())
+    }
+
     suspend fun setDisabledSources(keys: Set<String>) {
         context.dataStore.edit { it[KEY_DISABLED_SOURCES] = keys }
     }
@@ -283,10 +305,6 @@ class BooruPreferences(private val context: Context) {
 
     suspend fun setPalette(palette: AppPalette) {
         context.dataStore.edit { it[KEY_COLOR_PALETTE] = palette.code }
-    }
-
-    suspend fun setDynamicColor(enabled: Boolean) {
-        context.dataStore.edit { it[KEY_DYNAMIC_COLOR] = enabled }
     }
 
     suspend fun setSafeMode(enabled: Boolean) {
