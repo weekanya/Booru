@@ -75,8 +75,19 @@ object TagClassifier {
         "safe", "general", "questionable", "explicit", "uncensored", "censored"
     )
 
+    fun normalizeTag(raw: String): String {
+        var tag = raw.trim().lowercase()
+        if (tag.contains('&')) tag = org.jsoup.parser.Parser.unescapeEntities(tag, false)
+        tag = tag.trim(',', ';', '"', '\'').trimEnd('.')
+        if (tag.length > 2 && tag.startsWith("(") && tag.endsWith(")") && tag.count { it == '(' } == 1) tag = tag.substring(1, tag.length - 1)
+        while (tag.startsWith("(") && tag.count { it == '(' } > tag.count { it == ')' }) tag = tag.drop(1)
+        while (tag.endsWith(")") && tag.count { it == ')' } > tag.count { it == '(' }) tag = tag.dropLast(1)
+        if (tag.count { it == '(' } > tag.count { it == ')' } && tag.contains("_(")) tag += ")"
+        return tag.trim()
+    }
+
     fun isRecommendationCandidate(tag: String): Boolean {
-        val lower = tag.trim().lowercase().trim(',', ';', '.', '(', ')', '"', '\'')
+        val lower = normalizeTag(tag)
         if (lower.length <= 1 || lower.contains(":") || lower.startsWith("-")) return false
         if (COUNT_PERSON_REGEX.matches(lower)) return false
         if (lower in COMMON_GENERAL_DESCRIPTORS) return false

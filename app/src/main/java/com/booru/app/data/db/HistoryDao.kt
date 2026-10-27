@@ -13,6 +13,9 @@ interface HistoryDao {
     @Query("SELECT * FROM history ORDER BY at DESC LIMIT :limit")
     suspend fun recent(limit: Int): List<HistoryEntity>
 
+    @Query("SELECT DISTINCT mediaKey FROM history WHERE kind = :kind AND at >= :since AND mediaKey != '' ORDER BY at DESC LIMIT :limit")
+    suspend fun recentKeys(kind: String, since: Long, limit: Int): List<String>
+
     @Query("SELECT COUNT(*) FROM history")
     suspend fun count(): Int
 

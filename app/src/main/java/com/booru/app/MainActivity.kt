@@ -266,54 +266,44 @@ fun BooruApp(
         ) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.background
+                color = MaterialTheme.colorScheme.surface
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(32.dp),
+                        .systemBarsPadding()
+                        .padding(horizontal = 32.dp, vertical = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.primaryContainer,
-                        modifier = Modifier.size(88.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                imageVector = Icons.Rounded.Fingerprint,
-                                contentDescription = null,
-                                modifier = Modifier.size(48.dp),
-                                tint = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(24.dp))
-                    Text(
-                        text = Strings.appLocked(lang),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = Strings.biometricLockSubtitle(lang),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center
+                    ExpressiveBadge(
+                        polygon = MaterialShapes.Cookie9Sided,
+                        icon = Icons.Rounded.Lock,
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        size = 128.dp
                     )
                     Spacer(Modifier.height(32.dp))
+                    Text(
+                        text = Strings.appLocked(lang),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(40.dp))
                     Button(
                         onClick = onUnlockRequest,
-                        shapes = ButtonDefaults.shapes(shape = ShapeTokens.LargeIncreased, pressedShape = ButtonDefaults.pressedShape),
+                        shapes = ButtonDefaults.shapes(),
+                        contentPadding = ButtonDefaults.MediumContentPadding,
                         modifier = Modifier
-                            .fillMaxWidth(0.6f)
-                            .height(50.dp)
+                            .fillMaxWidth()
+                            .widthIn(max = 320.dp)
+                            .heightIn(min = ButtonDefaults.MediumContainerHeight)
                     ) {
-                        Icon(Icons.Rounded.LockOpen, null, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(Strings.unlockApp(lang), fontWeight = FontWeight.Bold)
+                        Icon(Icons.Rounded.Fingerprint, contentDescription = null, modifier = Modifier.size(ButtonDefaults.MediumIconSize))
+                        Spacer(Modifier.width(ButtonDefaults.MediumIconSpacing))
+                        Text(Strings.unlockApp(lang), style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }

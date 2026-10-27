@@ -71,6 +71,11 @@ class BooruTimeoutException(
 
 class BooruNetworkException(cause: Throwable) : BooruException(cause.message ?: "Network unavailable", cause)
 
+class BooruBlockedException(
+    val sourceKey: String,
+    message: String = "$sourceKey blocked the request"
+) : BooruException(message)
+
 data class SearchPage(
     val items: List<RemoteMedia>,
     val rawCount: Int,
@@ -114,6 +119,27 @@ class BooruRepository(
 ) {
     @Volatile private var realbooruPageSize = 0
     @Volatile var excludeFurry = false
+    private val blockedUntil = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    private fun isBlocked(key: String): Boolean {
+        val until = blockedUntil[key] ?: return false
+        if (System.currentTimeMillis() < until) return true
+        blockedUntil.remove(key, until)
+        return false
+    }
+
+    private fun checkBlocked(key: String, displayName: String, code: Int, body: String) {
+        if (code != 403 && code != 503) return
+        val isCloudflare = body.contains("cloudflare", ignoreCase = true)
+        val isBlockPage = body.contains("you have been blocked", ignoreCase = true) ||
+            body.contains("Attention Required", ignoreCase = true) ||
+            body.contains("Just a moment", ignoreCase = true) ||
+            body.contains("cf-chl", ignoreCase = true)
+        if (isCloudflare && isBlockPage) {
+            blockedUntil[key] = System.currentTimeMillis() + BLOCK_COOLDOWN_MS
+            throw BooruBlockedException(key, "$displayName blocked the request")
+        }
+    }
 
     companion object {
         const val TAG = "BooruRepo"
@@ -123,6 +149,7 @@ class BooruRepository(
         private const val SINGLE_SOURCE_TIMEOUT_MS = 9000L
         private const val MULTI_SOURCE_TIMEOUT_MS = 4500L
         private const val DANBOORU_FREE_TAG_LIMIT = 2
+        private const val BLOCK_COOLDOWN_MS = 15 * 60 * 1000L
 
 
         const val SOURCE_ALL = "All sources"
@@ -207,10 +234,12 @@ class BooruRepository(
                 if (credentials.gelbooruApiKey.isBlank()) add("gelbooru")
             }
         }
-        val targets = allTargets.filterNot { it in excludeSources || it in keyless }
-            .ifEmpty { allTargets.filterNot { it in excludeSources } }
+        val blocked = if (allTargets.size > 1) allTargets.filterTo(HashSet()) { isBlocked(it) } else emptySet()
+        val targets = allTargets.filterNot { it in excludeSources || it in keyless || it in blocked }
+            .ifEmpty { allTargets.filterNot { it in excludeSources || it in blocked } }
 
         if (targets.isEmpty()) {
+            blocked.firstOrNull()?.let { throw BooruBlockedException(it, "${getSourceDisplayName(it, customSources)} blocked the request") }
             return@withContext SearchPage(emptyList(), 0)
         }
 
@@ -241,21 +270,22 @@ class BooruRepository(
             res.onFailure { failures.add(key to it) }
         }
 
-        if (allResults.isEmpty() && failures.isNotEmpty()) {
+        if (allResults.isEmpty() && failures.isNotEmpty() && failures.size == targets.size) {
             val errors = failures.map { it.second }
             val auth = errors.filterIsInstance<BooruAuthException>().firstOrNull()
-            if (errors.size == targets.size) {
-                val network = errors.firstOrNull { it is IOException || it is BooruTimeoutException }
-                val isTimeout = { e: Throwable -> e is BooruTimeoutException || e is SocketTimeoutException }
-                when {
-                    auth != null && (targets.size == 1 || errors.all { it is BooruAuthException }) -> throw auth
-                    targets.size == 1 -> throw errors.first()
-                    errors.all(isTimeout) -> throw BooruTimeoutException(source, "${getSourceDisplayName(source, customSources)} timed out")
-                    network != null && errors.all { it is IOException || it is BooruTimeoutException || it is BooruAuthException } ->
-                        throw BooruNetworkException(network)
-                    auth != null -> throw auth
-                    else -> throw BooruException(errors.joinToString("\n") { sanitizeErrorMessage(it.message ?: "Load failed") })
-                }
+            val blockedError = errors.filterIsInstance<BooruBlockedException>().firstOrNull()
+            val network = errors.firstOrNull { it is IOException && it !is SocketTimeoutException }
+            val isTimeout = { e: Throwable -> e is BooruTimeoutException || e is SocketTimeoutException }
+            val isTransport = { e: Throwable -> e is IOException || isTimeout(e) || e is BooruAuthException || e is BooruBlockedException }
+            when {
+                targets.size == 1 -> throw errors.first()
+                network != null && errors.all(isTransport) -> throw BooruNetworkException(network)
+                errors.all(isTimeout) -> throw BooruTimeoutException(source, "${getSourceDisplayName(source, customSources)} timed out")
+                blockedError != null && errors.all { it is BooruBlockedException } -> throw blockedError
+                auth != null && errors.all { it is BooruAuthException } -> throw auth
+                auth != null -> throw auth
+                blockedError != null -> throw blockedError
+                else -> throw BooruException(errors.joinToString("\n") { sanitizeErrorMessage(it.message ?: "Load failed") })
             }
         }
 
@@ -838,6 +868,7 @@ class BooruRepository(
                 val code = response.code
                 val body = response.body?.string() ?: ""
                 if (!response.isSuccessful) {
+                    checkBlocked(custom.id, custom.name, code, body)
                     if (code == 429) {
                         val retryAfter = parseRetryAfter(response.header("Retry-After"))
                         throw BooruHttpException(sourceKey = custom.id, statusCode = code, retryAfterSec = retryAfter, message = "Rate limited by ${custom.name}")
@@ -871,6 +902,7 @@ class BooruRepository(
                 val code = response.code
                 val body = response.body?.string() ?: ""
                 if (!response.isSuccessful) {
+                    checkBlocked("realbooru", SOURCE_REALBOORU, code, body)
                     if (code == 429) {
                         val retryAfter = parseRetryAfter(response.header("Retry-After"))
                         throw BooruHttpException(sourceKey = "realbooru", statusCode = code, retryAfterSec = retryAfter, message = "Rate limited by Realbooru")
@@ -948,6 +980,7 @@ class BooruRepository(
             val body = response.body?.string() ?: ""
 
             if (!response.isSuccessful) {
+                checkBlocked(key, getSourceDisplayName(key, customSources), code, body)
                 if (code == 401 || code == 403) {
                     throw BooruAuthException(
                         sourceKey = key,
@@ -1158,7 +1191,7 @@ class BooruRepository(
         customSources: List<CustomBooruSource>,
         noAi: Boolean
     ): RemoteMedia? {
-        val tags = extractTags(o).trim()
+        val tags = extractTags(o).trim().let { if (it.contains('&')) org.jsoup.parser.Parser.unescapeEntities(it, false) else it }
         if (noAi && com.booru.app.data.AiFilter.isAiGeneratedPost(tags)) {
             return null
         }

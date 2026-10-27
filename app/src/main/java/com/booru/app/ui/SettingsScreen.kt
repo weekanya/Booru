@@ -1123,6 +1123,7 @@ fun SettingsScreen(
                                                     customNameError = null; customUrlError = null; customAccessError = null
                                                     showAddCustomSourceDialog = true
                                                 }
+                                                .heightIn(min = 76.dp)
                                                 .padding(horizontal = 20.dp, vertical = 12.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
@@ -1654,7 +1655,7 @@ private fun SettingRowItem(
             .then(
                 if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
             )
-            .heightIn(min = if (subtitle == null) 64.dp else 76.dp)
+            .heightIn(min = 76.dp)
             .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1722,7 +1723,7 @@ private fun SettingSwitchItem(
                     onCheckedChange(it)
                 }
             )
-            .heightIn(min = if (subtitle == null) 64.dp else 76.dp)
+            .heightIn(min = 76.dp)
             .padding(horizontal = 20.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween

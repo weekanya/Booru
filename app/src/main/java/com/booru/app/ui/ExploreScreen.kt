@@ -378,9 +378,12 @@ fun ExploreScreen(
             }
 
             vm.error?.let { rawErr ->
-                val displayMessage = remember(rawErr, vm.isAuthError, vm.authErrorSource, vm.authErrorCode, vm.isNetworkError, vm.isTimeoutError, lang) {
+                val displayMessage = remember(rawErr, vm.isAuthError, vm.authErrorSource, vm.authErrorCode, vm.isNetworkError, vm.isTimeoutError, vm.isBlockedError, vm.isUnreachableError, lang) {
                     val srcName = vm.authErrorSource?.let { vm.getSourceDisplayName(it) } ?: vm.getSourceDisplayName(vm.source)
                     when {
+                        vm.isBlockedError -> Strings.sourceBlockedDesc(srcName, lang)
+                        vm.isUnreachableError && vm.authErrorSource == null && vm.source == BooruRepository.SOURCE_ALL -> Strings.sourcesUnreachableDesc(lang)
+                        vm.isUnreachableError -> Strings.sourceUnreachableDesc(srcName, lang)
                         vm.isTimeoutError -> Strings.timeoutErrorDesc(srcName, lang)
                         vm.isNetworkError -> Strings.offlineDesc(lang)
                         vm.isAuthError -> {
@@ -423,6 +426,8 @@ fun ExploreScreen(
                                 imageVector = when {
                                     vm.isAuthError -> Icons.Rounded.Key
                                     vm.isNetworkError -> Icons.Rounded.WifiOff
+                                    vm.isBlockedError -> Icons.Rounded.Block
+                                    vm.isUnreachableError -> Icons.Rounded.CloudOff
                                     else -> Icons.Rounded.Warning
                                 },
                                 contentDescription = null,
@@ -437,6 +442,8 @@ fun ExploreScreen(
                                 text = when {
                                     vm.isAuthError -> Strings.authErrorTitle(lang)
                                     vm.isNetworkError -> Strings.offlineTitle(lang)
+                                    vm.isBlockedError -> Strings.tr(lang, "Access blocked", "Доступ заблокирован", "アクセスがブロックされました", "访问被阻止", "접근이 차단됨", "تم حظر الوصول")
+                                    vm.isUnreachableError -> Strings.tr(lang, "Source unavailable", "Источник недоступен", "ソースに接続できません", "来源不可用", "소스를 사용할 수 없음", "المصدر غير متاح")
                                     else -> Strings.genericErrorTitle(lang)
                                 },
                                 style = MaterialTheme.typography.titleMedium,
@@ -579,17 +586,8 @@ fun ExploreScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     textAlign = TextAlign.Center
                                 )
-                                Spacer(Modifier.height(14.dp))
+                                Spacer(Modifier.height(20.dp))
                                 EmptyResultActions(vm = vm, lang = lang)
-                                Spacer(Modifier.height(8.dp))
-                                FilledTonalButton(
-                                    onClick = { vm.refresh(isPull = false) },
-                                    shape = CircleShape
-                                ) {
-                                    Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(16.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(Strings.refreshBtn(lang))
-                                }
                             }
                         }
                     } else {
@@ -1661,47 +1659,93 @@ private fun EmptyResultActions(vm: GalleryViewModel, lang: AppLanguage) {
     val canJoin = plainTokens.size in 2..4 && plainTokens.none { it.contains(':') || it.startsWith("-") || it.startsWith("~") || it.contains('*') }
     val hasFilters = vm.safeMode || vm.excludeSafe || vm.noAi || vm.noFurry || vm.selectedContentTypes.isNotEmpty()
     val canWiden = vm.source != BooruRepository.SOURCE_ALL && query.isNotEmpty()
-    if (!canJoin && !hasFilters && !canWiden) return
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth()
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.widthIn(max = 360.dp)
     ) {
-        if (canJoin) {
-            val joined = plainTokens.joinToString("_")
-            SuggestionChip(
-                onClick = { vm.search(vm.source, joined, vm.safeMode) },
-                label = { Text(Strings.searchAsOneTag(lang).format(joined), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                icon = { Icon(Icons.Rounded.JoinInner, null, modifier = Modifier.size(SuggestionChipDefaults.IconSize)) },
-                shape = CircleShape
-            )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(ButtonDefaults.MediumContainerHeight)
+        ) {
+            Button(
+                onClick = { vm.refresh(isPull = false) },
+                shapes = emptyActionShapes(if (hasFilters) GroupPosition.Leading else null),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+            ) {
+                Icon(Icons.Rounded.Refresh, null, modifier = Modifier.size(ButtonDefaults.MediumIconSize))
+                Spacer(Modifier.width(ButtonDefaults.MediumIconSpacing))
+                Text(Strings.refreshBtn(lang), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (hasFilters) {
+                FilledTonalButton(
+                    onClick = {
+                        vm.applyAllFilters(
+                            contentTypes = emptySet(),
+                            sortOrder = vm.sortOrder,
+                            safeMode = false,
+                            excludeSafe = false,
+                            noAi = false,
+                            noFurry = false
+                        )
+                    },
+                    shapes = emptyActionShapes(GroupPosition.Trailing),
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                ) {
+                    Icon(Icons.Rounded.FilterAltOff, null, modifier = Modifier.size(ButtonDefaults.MediumIconSize))
+                    Spacer(Modifier.width(ButtonDefaults.MediumIconSpacing))
+                    Text(Strings.resetFilters(lang), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
         }
-        if (canWiden) {
-            SuggestionChip(
-                onClick = { vm.selectSource(BooruRepository.SOURCE_ALL) },
-                label = { Text(Strings.searchInAllSources(lang)) },
-                icon = { Icon(Icons.Rounded.AutoAwesome, null, modifier = Modifier.size(SuggestionChipDefaults.IconSize)) },
-                shape = CircleShape
-            )
-        }
-        if (hasFilters) {
-            SuggestionChip(
-                onClick = {
-                    vm.applyAllFilters(
-                        contentTypes = emptySet(),
-                        sortOrder = vm.sortOrder,
-                        safeMode = false,
-                        excludeSafe = false,
-                        noAi = false,
-                        noFurry = false
+        if (canJoin || canWiden) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (canJoin) {
+                    val joined = plainTokens.joinToString("_")
+                    SuggestionChip(
+                        onClick = { vm.search(vm.source, joined, vm.safeMode) },
+                        label = { Text(Strings.searchAsOneTag(lang).format(joined), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        icon = { Icon(Icons.Rounded.JoinInner, null, modifier = Modifier.size(SuggestionChipDefaults.IconSize)) },
+                        shape = CircleShape
                     )
-                },
-                label = { Text(Strings.resetFilters(lang)) },
-                icon = { Icon(Icons.Rounded.FilterAltOff, null, modifier = Modifier.size(SuggestionChipDefaults.IconSize)) },
-                shape = CircleShape
-            )
+                }
+                if (canWiden) {
+                    SuggestionChip(
+                        onClick = { vm.selectSource(BooruRepository.SOURCE_ALL) },
+                        label = { Text(Strings.searchInAllSources(lang)) },
+                        icon = { Icon(Icons.Rounded.AutoAwesome, null, modifier = Modifier.size(SuggestionChipDefaults.IconSize)) },
+                        shape = CircleShape
+                    )
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun emptyActionShapes(position: GroupPosition?): ButtonShapes = when (position) {
+    GroupPosition.Leading -> ButtonDefaults.shapes(
+        shape = RoundedCornerShape(topStart = 28.dp, bottomStart = 28.dp, topEnd = 8.dp, bottomEnd = 8.dp),
+        pressedShape = RoundedCornerShape(topStart = 16.dp, bottomStart = 16.dp, topEnd = 4.dp, bottomEnd = 4.dp)
+    )
+    GroupPosition.Trailing -> ButtonDefaults.shapes(
+        shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp, topEnd = 28.dp, bottomEnd = 28.dp),
+        pressedShape = RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp, topEnd = 16.dp, bottomEnd = 16.dp)
+    )
+    else -> ButtonDefaults.shapes()
 }
 
 private const val PREFETCH_AHEAD = 14

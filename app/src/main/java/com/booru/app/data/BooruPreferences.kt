@@ -63,7 +63,6 @@ class BooruPreferences(private val context: Context) {
         val KEY_DATA_SAVER_MOBILE = booleanPreferencesKey("data_saver_mobile")
         val KEY_OFFLINE_COUNT = intPreferencesKey("offline_count")
         val KEY_LANGUAGE = stringPreferencesKey("app_language")
-        val KEY_DEFAULT_SOURCE = stringPreferencesKey("default_source")
         val KEY_SEARCH_HISTORY = stringSetPreferencesKey("search_history")
         val KEY_SEARCH_HISTORY_JSON = stringPreferencesKey("search_history_json")
         val KEY_FAVORITES_JSON = stringPreferencesKey("favorites_json")
@@ -146,10 +145,6 @@ class BooruPreferences(private val context: Context) {
         AppLanguage.entries.find { it.code == code } ?: AppLanguage.ENGLISH
     }
 
-    val defaultSource: Flow<String> = read { prefs ->
-        prefs[KEY_DEFAULT_SOURCE] ?: "All sources"
-    }
-
     val searchHistory: Flow<List<String>> = read { prefs ->
         val jsonStr = prefs[KEY_SEARCH_HISTORY_JSON]
         if (!jsonStr.isNullOrBlank()) {
@@ -174,7 +169,9 @@ class BooruPreferences(private val context: Context) {
             val keys = obj.keys()
             while (keys.hasNext()) {
                 val k = keys.next()
-                map[k] = obj.optDouble(k, 0.0).toFloat()
+                val tag = TagClassifier.normalizeTag(k)
+                if (tag.isBlank()) continue
+                map[tag] = (map[tag] ?: 0f) + obj.optDouble(k, 0.0).toFloat()
             }
         }
         return map
@@ -335,10 +332,6 @@ class BooruPreferences(private val context: Context) {
 
     suspend fun setLanguage(lang: AppLanguage) {
         context.dataStore.edit { it[KEY_LANGUAGE] = lang.code }
-    }
-
-    suspend fun setDefaultSource(source: String) {
-        context.dataStore.edit { it[KEY_DEFAULT_SOURCE] = source }
     }
 
     suspend fun clearLegacyFavorites() {
@@ -517,7 +510,7 @@ class BooruPreferences(private val context: Context) {
         if (tags.isEmpty()) return
         context.dataStore.edit { prefs ->
             val blacklist = prefs[KEY_TAG_BLACKLIST] ?: emptySet()
-            val candidates = tags.map { it.trim().lowercase().trim(',', ';', '.', '(', ')', '"', '\'') }
+            val candidates = tags.map { TagClassifier.normalizeTag(it) }
                 .filter { TagClassifier.isRecommendationCandidate(it) && !blacklist.contains(it) }
                 .toSet()
             if (candidates.isEmpty()) return@edit

@@ -169,6 +169,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     var loadMoreError by mutableStateOf(false); private set
     var isNetworkError by mutableStateOf(false); private set
     var isTimeoutError by mutableStateOf(false); private set
+    var isBlockedError by mutableStateOf(false); private set
+    var isUnreachableError by mutableStateOf(false); private set
     var resultsEpoch by mutableIntStateOf(0); private set
     private val favoriteMutex = Mutex()
 
@@ -232,7 +234,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 Log.w(TAG, "Legacy favorites migration failed: ${e.message}", e)
             }
 
-            val initialSource = readPref(prefs.defaultSource, BooruRepository.SOURCE_ALL)
             val initialSafe = readPref(prefs.safeMode, false)
             val initialExcludeSafe = readPref(prefs.excludeSafe, false)
             val initialNoAi = readPref(prefs.noAiFilter, false)
@@ -256,9 +257,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 favoriteKeys = initialFavorites.mapTo(HashSet()) { it.mediaKey }
             }
             customSources = initialCustom
-            val isCustomValid = initialCustom.any { (it.key == initialSource || it.id == initialSource) && it.enabled }
-            val isBuiltInValid = BooruRepository.AVAILABLE_SOURCES.contains(initialSource)
-            source = if (isBuiltInValid || isCustomValid) initialSource else BooruRepository.SOURCE_ALL
+            source = BooruRepository.SOURCE_ALL
             safeMode = initialSafe
             excludeSafe = initialExcludeSafe
             noAi = initialNoAi
@@ -748,11 +747,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val blocked = blacklist.mapTo(HashSet()) { it.lowercase() }
         val tagWeights = mutableMapOf<String, Float>()
         val docFreq = HashMap<String, Int>()
-        for (fav in favorites) {
+        for ((rank, fav) in favorites.withIndex()) {
+            val recency = Math.pow(0.5, rank.toDouble() / FAVORITE_RECENCY_HALF_RANK).toFloat().coerceAtLeast(FAVORITE_RECENCY_FLOOR)
             val tags = if (fav.tagList.isNotEmpty()) fav.tagList else fav.tags.split(Regex("[\\s,]+"))
             val seenInFav = HashSet<String>()
             for (rawTag in tags) {
-                val tag = rawTag.trim().lowercase().trim(',', ';', '.', '(', ')', '"', '\'')
+                val tag = TagClassifier.normalizeTag(rawTag)
                 if (!TagClassifier.isRecommendationCandidate(tag)) continue
                 if (tag in blocked) continue
                 val category = TagClassifier.classify(tag).category
@@ -763,7 +763,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     TagCategory.GENERAL -> 1.0f
                     else -> 0.2f
                 }
-                tagWeights[tag] = (tagWeights[tag] ?: 0f) + (3f * multiplier)
+                tagWeights[tag] = (tagWeights[tag] ?: 0f) + (3f * multiplier * recency)
                 if (seenInFav.add(tag)) docFreq[tag] = (docFreq[tag] ?: 0) + 1
             }
         }
@@ -774,7 +774,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             }
         }
         for ((tag, count) in recorded) {
-            val clean = tag.trim().lowercase().trim(',', ';', '.', '(', ')', '"', '\'')
+            val clean = TagClassifier.normalizeTag(tag)
             if (!TagClassifier.isRecommendationCandidate(clean)) continue
             if (clean in blocked) continue
             val category = TagClassifier.classify(clean).category
@@ -801,9 +801,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             return
         }
         source = resolved
-        viewModelScope.launch {
-            prefs.setDefaultSource(resolved)
-        }
         search(resolved, query, safeMode)
     }
 
@@ -868,7 +865,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val blacklist: List<String>,
         val credentials: BooruCredentials,
         val customSources: List<CustomBooruSource>,
-        val disabledSourceKeys: Set<String>
+        val disabledSourceKeys: Set<String>,
+        val recExclude: Set<String> = emptySet()
     )
 
     private data class FeedBatch(
@@ -893,6 +891,24 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     )
 
     private val recTagPages = HashMap<String, Int>()
+
+    private suspend fun recommendationExclusions(): Set<String> {
+        val seen = if (suppressRecording) emptyList() else withContext(Dispatchers.IO) {
+            runCatching {
+                historyDao.recentKeys(
+                    com.booru.app.data.db.HistoryEntity.KIND_VIEW,
+                    System.currentTimeMillis() - REC_SEEN_WINDOW_MS,
+                    REC_SEEN_LIMIT
+                )
+            }.getOrDefault(emptyList())
+        }
+        val favorites = favoritesList
+        return HashSet<String>(seen.size + favorites.size * 2).apply {
+            addAll(seen)
+            addAll(viewedForHistory)
+            favorites.forEach { add(it.mediaKey); add(it.contentKey) }
+        }
+    }
 
     private fun advanceRecTagPages(tags: List<String>) {
         for (tag in tags) recTagPages[tag] = (recTagPages[tag] ?: 0) + 1
@@ -948,7 +964,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
         val hideVideos = contentTypes.isNotEmpty() && !contentTypes.contains(ContentType.VIDEOS)
         val genList = generalResult.getOrNull()?.items.orEmpty().let { list -> if (hideVideos) list.filterNot { it.isVideo } else list }
-        val tagLists = taggedResults.map { r -> r.getOrNull()?.items.orEmpty().let { list -> if (hideVideos) list.filterNot { it.isVideo } else list } }
+        val tagLists = taggedResults.map { r ->
+            r.getOrNull()?.items.orEmpty().filterNot { (hideVideos && it.isVideo) || it.mediaKey in recExclude || it.contentKey in recExclude }
+        }
         val blended = withContext(Dispatchers.Default) {
             blendRecommendationFeed(
                 genList,
@@ -1003,13 +1021,44 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         return FeedBatch(collected, lastPage, hasMore)
     }
 
+    private fun hasInternet(): Boolean = runCatching {
+        val cm = connectivity ?: return@runCatching true
+        val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return@runCatching false
+        caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            caps.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }.getOrDefault(true)
+
+    private fun describeFailure(e: Throwable): String {
+        val lang = language
+        val sourceKey = when (e) {
+            is BooruBlockedException -> e.sourceKey
+            is BooruAuthException -> e.sourceKey
+            is BooruTimeoutException -> e.sourceKey
+            else -> source
+        }
+        val name = getSourceDisplayName(sourceKey)
+        return when {
+            e is BooruBlockedException -> com.booru.app.data.Strings.sourceBlockedDesc(name, lang)
+            e is BooruAuthException -> com.booru.app.data.Strings.authErrorDesc(name, e.statusCode, lang)
+            e is BooruTimeoutException || e is java.net.SocketTimeoutException -> com.booru.app.data.Strings.timeoutErrorDesc(name, lang)
+            (e is BooruNetworkException || e is IOException) && !hasInternet() -> com.booru.app.data.Strings.offlineDesc(lang)
+            (e is BooruNetworkException || e is IOException) && sourceKey == BooruRepository.SOURCE_ALL -> com.booru.app.data.Strings.sourcesUnreachableDesc(lang)
+            e is BooruNetworkException || e is IOException -> com.booru.app.data.Strings.sourceUnreachableDesc(name, lang)
+            else -> e.message ?: com.booru.app.data.Strings.failedToLoad(lang)
+        }
+    }
+
     private fun applyFailure(e: Throwable, keepResults: Boolean) {
         if (!keepResults) {
             results = emptyList()
             hasMore = false
         }
         isTimeoutError = e is BooruTimeoutException || e is java.net.SocketTimeoutException
-        isNetworkError = !isTimeoutError && (e is BooruNetworkException || e is IOException)
+        isBlockedError = e is BooruBlockedException
+        val transportFailure = !isTimeoutError && (e is BooruNetworkException || e is IOException)
+        val online = hasInternet()
+        isNetworkError = transportFailure && !online
+        isUnreachableError = transportFailure && online
         when (e) {
             is BooruAuthException -> {
                 isAuthError = true
@@ -1020,6 +1069,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 isAuthError = e.statusCode == 401 || e.statusCode == 403
                 authErrorSource = e.sourceKey
                 authErrorCode = e.statusCode
+            }
+            is BooruBlockedException -> {
+                isAuthError = false
+                authErrorSource = e.sourceKey
+                authErrorCode = null
             }
             else -> {
                 isAuthError = false
@@ -1065,6 +1119,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         error = null
         isNetworkError = false
         isTimeoutError = false
+        isBlockedError = false
+        isUnreachableError = false
         isAuthError = false
         authErrorSource = null
         authErrorCode = null
@@ -1112,9 +1168,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
         searchJob = viewModelScope.launch {
             try {
-                var batch = params.fetchFeed(0, emptySet(), recTags.ifEmpty { null })
+                val feedParams = if (recTags.isNotEmpty()) params.copy(recExclude = recommendationExclusions()) else params
+                var batch = feedParams.fetchFeed(0, emptySet(), recTags.ifEmpty { null })
                 if (batch.items.isEmpty() && recTags.isNotEmpty()) {
-                    batch = params.fetchFeed(0, emptySet(), null)
+                    batch = feedParams.fetchFeed(0, emptySet(), null)
                 }
                 if (searchGen != currentSearchGeneration) return@launch
                 advanceRecTagPages(recTags)
@@ -1176,7 +1233,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         loadingMore = true
         loadMoreJob = viewModelScope.launch {
             try {
-                val batch = params.fetchFeed(targetPage, existingKeys, recTags.ifEmpty { null }, tagPages)
+                val feedParams = if (recTags.isNotEmpty()) params.copy(recExclude = recommendationExclusions()) else params
+                val batch = feedParams.fetchFeed(targetPage, existingKeys, recTags.ifEmpty { null }, tagPages)
                 if (searchGen != currentSearchGeneration) return@launch
                 advanceRecTagPages(recTags)
                 currentPage = batch.lastPage
@@ -1492,7 +1550,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun markForegrounded() {
+        val wasAwayLong = isBackgrounded && android.os.SystemClock.elapsedRealtime() - lastBackgroundAt >= FEED_STALE_MS
         isBackgrounded = false
+        if (!wasAwayLong || fullscreenState != null || showOfflinePosts) return
+        if (source != BooruRepository.SOURCE_ALL || query.isNotBlank()) {
+            search(BooruRepository.SOURCE_ALL, "", safeMode)
+        } else if (!loading && !isRefreshing) {
+            refresh()
+        }
     }
 
     fun setBiometricLock(enabled: Boolean, timeoutMin: Int = biometricLockTimeoutMin) {
@@ -1611,7 +1676,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewedForRecommendations.clear()
         notInterestedKeys.clear()
         viewModelScope.launch {
-            prefs.setDefaultSource(BooruRepository.SOURCE_ALL)
             prefs.clearRecommendationData()
             prefs.clearNotInterestedKeys()
             recalculateRecommendationTags()
@@ -1652,6 +1716,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         authErrorCode = null
         isNetworkError = false
         isTimeoutError = false
+        isBlockedError = false
+        isUnreachableError = false
     }
 
     var disabledSources by mutableStateOf<Set<String>>(emptySet()); private set
@@ -1732,7 +1798,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                         source.equals(target.key, ignoreCase = true)
                 )
         if (isCurrentSourceDeleted || availableSources.none { it.equals(source, ignoreCase = true) }) {
-            viewModelScope.launch { prefs.setDefaultSource(BooruRepository.SOURCE_ALL) }
             search(BooruRepository.SOURCE_ALL, query, safeMode)
         }
     }
@@ -1840,7 +1905,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 } catch (c: CancellationException) {
                     throw c
                 } catch (e: Exception) {
-                    if (++failures >= 3 || collected.isEmpty()) throw e
+                    if (++failures >= 3 || collected.isEmpty()) throw BooruException(describeFailure(e), e)
                     page++
                     continue
                 }
@@ -2037,6 +2102,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         private const val REC_MAX_PER_TAG = 6
         private const val REC_TAG_PAGE_LIMIT = 15
         private const val FILTERED_TARGET_COUNT = 24
+        private const val REC_SEEN_WINDOW_MS = 3L * 24 * 60 * 60 * 1000
+        private const val REC_SEEN_LIMIT = 5000
+        private const val FAVORITE_RECENCY_HALF_RANK = 40.0
+        private const val FAVORITE_RECENCY_FLOOR = 0.2f
+        private const val FEED_STALE_MS = 15 * 60 * 1000L
         private val REC_TAG_EXCLUDED_SOURCES = setOf("realbooru")
         private val BUILT_IN_SOURCE_KEYS = mapOf(
             BooruRepository.SOURCE_RULE34 to "rule34",

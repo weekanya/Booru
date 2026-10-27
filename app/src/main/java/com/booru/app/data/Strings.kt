@@ -803,6 +803,36 @@ object Strings {
         else -> "Insecure HTTP connections are not allowed for '$source'. Please use HTTPS in Settings."
     }
 
+    fun sourceBlockedDesc(source: String, lang: AppLanguage) = tr(
+        lang,
+        "$source blocks requests from your network. Try another network or VPN, or pick a different source.",
+        "$source блокирует запросы из вашей сети. Попробуйте другую сеть или VPN либо выберите другой источник.",
+        "$source はお使いのネットワークからのリクエストをブロックしています。別のネットワークやVPNを試すか、別のソースを選んでください。",
+        "$source 屏蔽了来自你网络的请求。请尝试其他网络或 VPN，或选择其他来源。",
+        "$source 이(가) 현재 네트워크의 요청을 차단하고 있습니다. 다른 네트워크나 VPN을 사용하거나 다른 소스를 선택하세요.",
+        "يحظر $source الطلبات من شبكتك. جرّب شبكة أخرى أو VPN أو اختر مصدرًا آخر."
+    )
+
+    fun sourcesUnreachableDesc(lang: AppLanguage) = tr(
+        lang,
+        "Internet works, but the sources can't be reached. Check your VPN or DNS, or try another network.",
+        "Интернет есть, но источники недоступны. Проверьте VPN или DNS либо попробуйте другую сеть.",
+        "インターネットには接続されていますが、ソースに接続できません。VPNやDNSを確認するか、別のネットワークを試してください。",
+        "网络正常，但无法连接任何来源。请检查 VPN 或 DNS，或尝试其他网络。",
+        "인터넷은 연결되어 있지만 소스에 접속할 수 없습니다. VPN이나 DNS를 확인하거나 다른 네트워크를 사용해 보세요.",
+        "الإنترنت يعمل، لكن تعذّر الوصول إلى المصادر. تحقّق من VPN أو DNS أو جرّب شبكة أخرى."
+    )
+
+    fun sourceUnreachableDesc(source: String, lang: AppLanguage) = tr(
+        lang,
+        "Internet works, but $source can't be reached. The site may be down or blocked in your network — try a VPN.",
+        "Интернет есть, но $source недоступен. Сайт может лежать или быть заблокирован в вашей сети — попробуйте VPN.",
+        "インターネットには接続されていますが、$source に接続できません。サイトの障害か、ネットワークでブロックされている可能性があります。VPNを試してください。",
+        "网络正常，但无法连接 $source。该网站可能已宕机或在你的网络中被屏蔽，请尝试 VPN。",
+        "인터넷은 연결되어 있지만 $source 에 접속할 수 없습니다. 사이트가 다운되었거나 네트워크에서 차단되었을 수 있습니다. VPN을 사용해 보세요.",
+        "الإنترنت يعمل، لكن تعذّر الوصول إلى $source. قد يكون الموقع متوقفًا أو محظورًا في شبكتك — جرّب VPN."
+    )
+
     fun timeoutErrorDesc(source: String, lang: AppLanguage) = when (lang) {
         AppLanguage.RUSSIAN -> "Превышено время ожидания ответа от $source. Проверьте соединение."
         AppLanguage.JAPANESE -> "$source からの応答がタイムアウトしました。接続を確認してください。"
@@ -1269,15 +1299,6 @@ object Strings {
         AppLanguage.KOREAN -> "생체 인증 잠금"
         AppLanguage.ARABIC -> "القفل البيومتري"
         else -> "Biometric Lock"
-    }
-
-    fun biometricLockSubtitle(lang: AppLanguage) = when (lang) {
-        AppLanguage.RUSSIAN -> "Блокировка при входе в приложение"
-        AppLanguage.JAPANESE -> "アプリを開くときに認証を要求"
-        AppLanguage.CHINESE -> "打开应用时需要验证"
-        AppLanguage.KOREAN -> "앱을 열 때 인증 필요"
-        AppLanguage.ARABIC -> "طلب المصادقة عند فتح التطبيق"
-        else -> "Require authentication when opening app"
     }
 
     fun appLocked(lang: AppLanguage) = when (lang) {

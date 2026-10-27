@@ -2,12 +2,14 @@
 <data-extraction-rules>
     <cloud-backup>
         <exclude domain="sharedpref" path="booru_secure_credentials.xml" />
+        <exclude domain="sharedpref" path="booru_credentials_v2.xml" />
         <exclude domain="file" path="favorites_media" />
         <exclude domain="file" path="offline_media" />
         <exclude domain="file" path="offline_index.json" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="sharedpref" path="booru_secure_credentials.xml" />
+        <exclude domain="sharedpref" path="booru_credentials_v2.xml" />
         <exclude domain="file" path="favorites_media" />
         <exclude domain="file" path="offline_media" />
         <exclude domain="file" path="offline_index.json" />
