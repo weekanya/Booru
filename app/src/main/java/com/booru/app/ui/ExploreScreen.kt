@@ -2185,10 +2185,7 @@ private fun FilterSelectionBottomSheet(
 
     var tempContentTypes by remember { mutableStateOf(vm.selectedContentTypes) }
     val isRealbooru = vm.source.equals("realbooru", ignoreCase = true) || vm.source.equals(BooruRepository.SOURCE_REALBOORU, ignoreCase = true)
-    var tempSortOrder by remember {
-        val initial = if (isRealbooru && vm.sortOrder == SortOrder.SCORE) SortOrder.NEWEST else vm.sortOrder
-        mutableStateOf(initial)
-    }
+    var tempSortOrder by remember { mutableStateOf(vm.sortOrder) }
     var tempSafeMode by remember { mutableStateOf(vm.safeMode) }
     var tempExcludeSafe by remember { mutableStateOf(vm.excludeSafe) }
     var tempNoAi by remember { mutableStateOf(vm.noAi) }
@@ -2579,9 +2576,9 @@ private fun FilterSelectionBottomSheet(
                                             modifier = Modifier.fillMaxWidth(),
                                             horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
                                         ) {
-                                            val sortOrders = listOfNotNull(
+                                            val sortOrders = listOf(
                                                 Triple(SortOrder.NEWEST, Strings.sortNewest(lang), Icons.Rounded.Schedule),
-                                                if (!isRealbooru) Triple(SortOrder.SCORE, Strings.sortScore(lang), Icons.Rounded.Star) else null,
+                                                Triple(SortOrder.SCORE, Strings.sortScore(lang), Icons.Rounded.Star),
                                                 Triple(SortOrder.RANDOM, Strings.sortRandom(lang), Icons.Rounded.Shuffle)
                                             )
                                             sortOrders.forEachIndexed { orderIndex, (order, label, icon) ->

@@ -60,6 +60,8 @@ class BooruPreferences(private val context: Context) {
         val KEY_EXCLUDE_SAFE = booleanPreferencesKey("exclude_safe")
         val KEY_NO_AI = booleanPreferencesKey("no_ai_filter")
         val KEY_NO_FURRY = booleanPreferencesKey("no_furry_filter")
+        val KEY_SORT_ORDER = stringPreferencesKey("sort_order")
+        val KEY_CONTENT_TYPES = stringSetPreferencesKey("content_types")
         val KEY_DATA_SAVER_MOBILE = booleanPreferencesKey("data_saver_mobile")
         val KEY_OFFLINE_COUNT = intPreferencesKey("offline_count")
         val KEY_LANGUAGE = stringPreferencesKey("app_language")
@@ -93,6 +95,7 @@ class BooruPreferences(private val context: Context) {
         val KEY_DISABLED_SOURCES = stringSetPreferencesKey("disabled_sources")
         val KEY_NOT_INTERESTED = stringPreferencesKey("not_interested_keys")
         private const val NOT_INTERESTED_MAX = 3000
+        private val DEFAULT_DISABLED_SOURCES = setOf("tbib")
     }
 
     val themeMode: Flow<ThemeMode> = read { prefs ->
@@ -126,6 +129,22 @@ class BooruPreferences(private val context: Context) {
 
     suspend fun setNoFurryFilter(enabled: Boolean) {
         context.dataStore.edit { it[KEY_NO_FURRY] = enabled }
+    }
+
+    val sortOrder: Flow<com.booru.app.SortOrder> = read { prefs ->
+        com.booru.app.SortOrder.entries.find { it.name == prefs[KEY_SORT_ORDER] } ?: com.booru.app.SortOrder.NEWEST
+    }
+
+    suspend fun setSortOrder(order: com.booru.app.SortOrder) {
+        context.dataStore.edit { it[KEY_SORT_ORDER] = order.name }
+    }
+
+    val contentTypes: Flow<Set<com.booru.app.ContentType>> = read { prefs ->
+        prefs[KEY_CONTENT_TYPES].orEmpty().mapNotNullTo(HashSet()) { name -> com.booru.app.ContentType.entries.find { it.name == name } }
+    }
+
+    suspend fun setContentTypes(types: Set<com.booru.app.ContentType>) {
+        context.dataStore.edit { it[KEY_CONTENT_TYPES] = types.mapTo(HashSet()) { type -> type.name } }
     }
 
     val offlineCount: Flow<Int> = read { prefs ->
@@ -260,7 +279,7 @@ class BooruPreferences(private val context: Context) {
     }
 
     val disabledSources: Flow<Set<String>> = read { prefs ->
-        prefs[KEY_DISABLED_SOURCES] ?: emptySet()
+        prefs[KEY_DISABLED_SOURCES] ?: DEFAULT_DISABLED_SOURCES
     }
 
     val notInterestedKeys: Flow<List<String>> = read { prefs ->

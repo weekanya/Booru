@@ -150,6 +150,9 @@ class BooruRepository(
         private const val MULTI_SOURCE_TIMEOUT_MS = 4500L
         private const val DANBOORU_FREE_TAG_LIMIT = 2
         private const val BLOCK_COOLDOWN_MS = 15 * 60 * 1000L
+        private const val KONACHAN_TAG_LIMIT = 8
+        private const val MAX_BLACKLIST_QUERY_TAGS = 10
+        private val BLACKLIST_QUERY_SOURCES = setOf("rule34", "realbooru", "safebooru", "tbib", "yande", "konachan")
 
 
         const val SOURCE_ALL = "All sources"
@@ -205,7 +208,9 @@ class BooruRepository(
         credentials: BooruCredentials = BooruCredentials(),
         customSources: List<CustomBooruSource> = emptyList(),
         limit: Int = PAGE_SIZE,
-        excludeSources: Set<String> = emptySet()
+        excludeSources: Set<String> = emptySet(),
+        popular: Boolean = false,
+        excludeTags: List<String> = emptyList()
     ): SearchPage = withContext(Dispatchers.IO) {
         val ratingless = source == SOURCE_REALBOORU
         val effectiveSafe = safeMode && !ratingless
@@ -254,7 +259,7 @@ class BooruRepository(
                 async {
                     try {
                         val list = withTimeoutOrNull(timeoutMs) {
-                            requestSourceWithRetry(key, tags.trim(), effectiveSafe, effectiveExcludeSafe, noAi, page, sortOrder, contentTypes, credentials, customSources, pageLimit)
+                            requestSourceWithRetry(key, tags.trim(), effectiveSafe, effectiveExcludeSafe, noAi, page, sortOrder, contentTypes, credentials, customSources, pageLimit, popular, excludeTags)
                         } ?: throw BooruTimeoutException(key, "${getSourceDisplayName(key, customSources)} timed out")
                         key to Result.success(list)
                     } catch (c: kotlinx.coroutines.CancellationException) {
@@ -537,9 +542,12 @@ class BooruRepository(
         key: String,
         sortOrder: SortOrder,
         customSources: List<CustomBooruSource> = emptyList(),
-        contentTypes: Set<ContentType> = emptySet()
+        contentTypes: Set<ContentType> = emptySet(),
+        popular: Boolean = false,
+        excludeTags: Collection<String> = emptyList()
     ): String {
         val parts = mutableListOf<String>()
+        val optional = mutableListOf<String>()
 
         val cleaned = normalizeUserTags(userTags)
         val cleanedTokens = cleaned.split(' ').filter { it.isNotBlank() }.toSet()
@@ -645,12 +653,16 @@ class BooruRepository(
             }
         }
 
-        val isStrictTagLimit = key == "gelbooru" || key == "safebooru"
+        val isStrictTagLimit = key == "gelbooru"
+
+        if (popular && cleanedTokens.none { it.startsWith("score:") }) {
+            popularScoreThreshold(key, custom)?.let { parts.add("score:>=$it") }
+        }
 
         if (noAi && !isStrictTagLimit) {
             for (queryTag in com.booru.app.data.AiFilter.EXCLUDE_QUERY_TAGS) {
                 if (queryTag !in cleanedTokens) {
-                    parts.add(queryTag)
+                    optional.add(queryTag)
                 }
             }
         }
@@ -658,13 +670,25 @@ class BooruRepository(
         if (excludeFurry && !isStrictTagLimit && cleanedTokens.none { com.booru.app.data.FurryFilter.isFurryTag(it) }) {
             for (queryTag in com.booru.app.data.FurryFilter.EXCLUDE_QUERY_TAGS) {
                 if (queryTag !in cleanedTokens && queryTag.removePrefix("-") !in cleanedTokens) {
-                    parts.add(queryTag)
+                    optional.add(queryTag)
                 }
             }
         }
 
-        val effectiveSortOrder = if (key == "realbooru" && sortOrder == SortOrder.SCORE) SortOrder.NEWEST else sortOrder
-        when (effectiveSortOrder) {
+        if (custom == null && key in BLACKLIST_QUERY_SOURCES) {
+            excludeTags.asSequence()
+                .map { it.trim().lowercase() }
+                .filter { it.isNotBlank() && !it.contains('*') && !it.contains(':') && !it.startsWith("-") && it !in cleanedTokens }
+                .map { "-$it" }
+                .filter { it !in cleanedTokens && it !in optional }
+                .distinct()
+                .take(MAX_BLACKLIST_QUERY_TAGS)
+                .forEach { optional.add(it) }
+        }
+
+        val hasUserSort = cleanedTokens.any { it.startsWith("sort:") || it.startsWith("order:") }
+        val effectiveSortOrder = if (popular) SortOrder.NEWEST else sortOrder
+        if (!hasUserSort) when (effectiveSortOrder) {
             SortOrder.SCORE -> {
                 if (custom != null) {
                     when (custom.engine) {
@@ -674,7 +698,7 @@ class BooruRepository(
                 } else {
                     when (key) {
                         "yande", "konachan" -> parts.add("order:score")
-                        "rule34", "tbib", "gelbooru", "safebooru" -> parts.add("sort:score:desc")
+                        "rule34", "tbib", "gelbooru", "safebooru", "realbooru" -> parts.add("sort:score:desc")
                     }
                 }
             }
@@ -687,39 +711,50 @@ class BooruRepository(
                 } else {
                     when (key) {
                         "yande", "konachan" -> parts.add("order:random")
-                        "rule34", "gelbooru" -> parts.add("sort:random")
-                        "safebooru", "realbooru", "tbib" -> Unit
+                        "rule34", "gelbooru", "safebooru", "realbooru", "tbib" -> parts.add("sort:random")
                     }
                 }
             }
             SortOrder.NEWEST -> {
-                val hasExplicitSort = parts.any { it.startsWith("sort:") || it.startsWith("order:") }
-                if (!hasExplicitSort) {
-                    if (custom != null) {
-                        when (custom.engine) {
-                            BooruEngine.MOEBOORU, BooruEngine.DANBOORU -> parts.add("order:id_desc")
-                            BooruEngine.GELBOORU -> parts.add("sort:id:desc")
-                        }
-                    } else {
-                        when (key) {
-                            "yande", "konachan" -> parts.add("order:id_desc")
-                            "rule34", "tbib", "realbooru" -> parts.add("sort:id:desc")
-                            "gelbooru", "safebooru" -> {
-                                if (parts.size < 2) {
-                                    parts.add("sort:id:desc")
-                                }
-                            }
-                        }
+                if (custom != null) {
+                    when (custom.engine) {
+                        BooruEngine.MOEBOORU, BooruEngine.DANBOORU -> parts.add("order:id_desc")
+                        BooruEngine.GELBOORU -> parts.add("sort:id:desc")
+                    }
+                } else {
+                    when (key) {
+                        "yande", "konachan" -> parts.add("order:id_desc")
+                        "rule34", "tbib", "realbooru", "safebooru" -> parts.add("sort:id:desc")
+                        "gelbooru" -> if (parts.size < 2) parts.add("sort:id:desc")
                     }
                 }
             }
         }
 
         if (custom != null && custom.engine == BooruEngine.DANBOORU && !custom.cleanBaseUrl.contains("e621") && !custom.cleanBaseUrl.contains("e926")) {
-            return limitDanbooruTags(cleaned, parts)
+            return limitDanbooruTags(cleaned, parts + optional)
+        }
+
+        val tagLimit = if (custom == null && key == "konachan") KONACHAN_TAG_LIMIT else Int.MAX_VALUE
+        var tagCount = parts.sumOf { part -> part.split(' ').count { it.isNotBlank() } }
+        for (extra in optional) {
+            if (tagCount >= tagLimit) break
+            parts.add(extra)
+            tagCount++
         }
 
         return parts.joinToString(" ")
+    }
+
+    private fun popularScoreThreshold(key: String, custom: CustomBooruSource?): Int? = when {
+        custom != null -> when (custom.engine) {
+            BooruEngine.MOEBOORU -> 50
+            BooruEngine.GELBOORU -> 20
+            BooruEngine.DANBOORU -> null
+        }
+        key == "yande" || key == "konachan" || key == "rule34" || key == "gelbooru" -> 50
+        key == "safebooru" || key == "realbooru" || key == "tbib" -> 20
+        else -> null
     }
 
     private fun limitDanbooruTags(cleaned: String, parts: List<String>): String {
@@ -750,7 +785,9 @@ class BooruRepository(
         contentTypes: Set<ContentType> = emptySet(),
         credentials: BooruCredentials,
         customSources: List<CustomBooruSource> = emptyList(),
-        limit: Int = PAGE_SIZE
+        limit: Int = PAGE_SIZE,
+        popular: Boolean = false,
+        excludeTags: List<String> = emptyList()
     ): List<RemoteMedia> {
         val maxAttempts = 2
         var lastException: Exception? = null
@@ -758,7 +795,7 @@ class BooruRepository(
         for (attempt in 0 until maxAttempts) {
             val retryDelay: Long
             try {
-                return requestSource(key, userTags, safe, excludeSafe, noAi, page, sortOrder, contentTypes, credentials, customSources, limit)
+                return requestSource(key, userTags, safe, excludeSafe, noAi, page, sortOrder, contentTypes, credentials, customSources, limit, popular, excludeTags)
             } catch (c: kotlinx.coroutines.CancellationException) {
                 throw c
             } catch (auth: BooruAuthException) {
@@ -800,9 +837,11 @@ class BooruRepository(
         contentTypes: Set<ContentType> = emptySet(),
         credentials: BooruCredentials,
         customSources: List<CustomBooruSource> = emptyList(),
-        limit: Int = PAGE_SIZE
+        limit: Int = PAGE_SIZE,
+        popular: Boolean = false,
+        excludeTags: List<String> = emptyList()
     ): List<RemoteMedia> {
-        val tagQuery = buildTagQuery(userTags, safe, excludeSafe, noAi, key, sortOrder, customSources, contentTypes)
+        val tagQuery = buildTagQuery(userTags, safe, excludeSafe, noAi, key, sortOrder, customSources, contentTypes, popular, excludeTags)
 
         val custom = customSources.find { it.id == key || it.key == key }
         if (custom != null) {

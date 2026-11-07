@@ -305,6 +305,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             noAi = initialNoAi
             noFurry = readPref(prefs.noFurryFilter, false)
             repo.excludeFurry = noFurry
+            sortOrder = readPref(prefs.sortOrder, SortOrder.NEWEST)
+            selectedContentTypes = readPref(prefs.contentTypes, emptySet())
             tagBlacklist = initialBlacklist
             recommendationTags = withContext(Dispatchers.Default) {
                 computeRecommendationTags(favoritesList, tagBlacklist, recordedRecTagsMap)
@@ -987,6 +989,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             .take(REC_ACTIVE_POOL)
     }
 
+    private val FeedParams.popular: Boolean
+        get() = sortOrder == SortOrder.SCORE && tags.isBlank()
+
     private suspend fun FeedParams.page(tags: String, page: Int, sort: SortOrder = sortOrder, limit: Int = BooruRepository.PAGE_SIZE, excludeSources: Set<String> = emptySet()): SearchPage =
         repo.searchPage(
             source = source,
@@ -995,12 +1000,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             excludeSafe = excludeSafe,
             noAi = noAi,
             page = page,
-            sortOrder = sort,
+            sortOrder = if (popular && sort != SortOrder.RANDOM) SortOrder.NEWEST else sort,
             contentTypes = contentTypes,
             credentials = credentials,
             customSources = customSources,
             limit = limit,
-            excludeSources = excludeSources + disabledSourceKeys
+            excludeSources = excludeSources + disabledSourceKeys,
+            popular = popular,
+            excludeTags = blacklist
         )
 
     private fun FeedParams.accepts(item: RemoteMedia): Boolean {
@@ -1579,6 +1586,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 prefs.setExcludeSafe(excludeSafe)
                 prefs.setNoAiFilter(noAi)
                 prefs.setNoFurryFilter(noFurry)
+                prefs.setSortOrder(sortOrder)
+                prefs.setContentTypes(contentTypes)
             }
             search(source, query, safeMode, isPullRefresh = false)
         }
