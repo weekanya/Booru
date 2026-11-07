@@ -1,4 +1,4 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 
 package com.booru.app.ui
 
@@ -28,10 +28,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -81,6 +87,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import coil3.compose.AsyncImage
 import coil3.compose.SubcomposeAsyncImage
 import coil3.request.crossfade
 import coil3.request.allowHardware
@@ -140,8 +147,9 @@ fun ImmersiveMediaViewer(
 
     var backProgress by remember { mutableFloatStateOf(0f) }
 
-    LaunchedEffect(pagerState.settledPage) {
-        mediaList.getOrNull(pagerState.settledPage)?.let {
+    val restingPage = rememberRestingPage(pagerState)
+    LaunchedEffect(restingPage) {
+        mediaList.getOrNull(restingPage)?.let {
             vm.updateFullscreenMedia(it)
             vm.recordViewed(it)
         }
@@ -276,22 +284,23 @@ fun ImmersiveMediaViewer(
             ) {
                 HorizontalPager(
                     state = pagerState,
-                    modifier = Modifier.fillMaxSize().then(rememberSettleOnRelease(pagerState)),
-                    userScrollEnabled = !isPageZoomed && abs(dragDismissOffsetY) < 15f,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .viewerSwipe(pagerState, enabled = !isPageZoomed && abs(dragDismissOffsetY) < 15f),
+                    userScrollEnabled = false,
                     beyondViewportPageCount = 1,
                     pageSpacing = 16.dp,
-                    flingBehavior = viewerFlingBehavior(pagerState),
                     key = { page -> mediaList.getOrNull(page)?.mediaKey ?: page }
                 ) { page ->
+                    if (!rememberPageReady(pagerState, page)) return@HorizontalPager
                     val item = mediaList.getOrNull(page) ?: return@HorizontalPager
-                    val isCurrent = (pagerState.currentPage == page)
                     if (item.isVideo) {
                         BooruVideoPlayer(
                             videoUrl = vm.resolveVideoUrl(item),
                             previewUrl = item.gridImageUrl(vm.effectiveImageQuality != com.booru.app.data.ImageQuality.SAVER),
                             lang = vm.language,
                             modifier = Modifier.fillMaxSize(),
-                            isActive = pagerState.settledPage == page && !isClosing,
+                            isActive = restingPage == page && !isClosing,
                             isExternalControls = true,
                             allowPrefetch = !vm.isMeteredNetwork,
                             externalShowControls = showControls,
@@ -309,8 +318,8 @@ fun ImmersiveMediaViewer(
                         FullscreenZoomableImage(
                             media = item,
                             vm = vm,
-                            isActive = isCurrent,
-                            resetZoomKey = if (isCurrent) resetZoomKey else 0,
+                            isActive = restingPage == page,
+                            resetZoomKey = if (restingPage == page) resetZoomKey else 0,
                             onZoomChanged = { zoomed ->
                                 if (pagerState.currentPage == page) isPageZoomed = zoomed
                             },
@@ -336,8 +345,12 @@ fun ImmersiveMediaViewer(
                                 colors = listOf(Color.Black.copy(alpha = 0.80f), Color.Transparent)
                             )
                         )
-                        .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .windowInsetsPadding(
+                            WindowInsets.statusBarsIgnoringVisibility
+                                .union(WindowInsets.displayCutout)
+                                .only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal)
+                        )
+                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 12.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -440,8 +453,12 @@ fun ImmersiveMediaViewer(
                                 colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
                             )
                         )
-                        .navigationBarsPadding()
-                        .padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 16.dp)
+                        .windowInsetsPadding(
+                            WindowInsets.navigationBarsIgnoringVisibility
+                                .union(WindowInsets.displayCutout)
+                                .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
+                        )
+                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -704,26 +721,10 @@ fun FullscreenZoomableImage(
                 },
             contentAlignment = Alignment.Center
         ) {
-            SubcomposeAsyncImage(
-                model = remember(media.mediaKey, detailTargetUrl, thumbnailKey, retryKey) {
-                    ImageRequest.Builder(context)
-                        .data(detailTargetUrl)
-                        .placeholderMemoryCacheKey(thumbnailKey)
-                        .crossfade(260)
-                        .apply { if (retryKey > 0) memoryCacheKeyExtra("retry", retryKey.toString()) }
-                        .allowHardware(!media.isGif)
-                        .listener(
-                            onError = { _, _ ->
-                                if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
-                                    detailLoadError = true
-                                } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
-                                    detailLoadError = true
-                                }
-                            }
-                        )
-                        .build()
-                },
-                contentDescription = media.tagList.take(6).joinToString(", "),
+            var imageState by remember(media.mediaKey, detailTargetUrl, retryKey) {
+                mutableStateOf<coil3.compose.AsyncImagePainter.State>(coil3.compose.AsyncImagePainter.State.Empty)
+            }
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
@@ -732,31 +733,51 @@ fun FullscreenZoomableImage(
                         translationX = animatedOffset.x
                         translationY = animatedOffset.y
                     },
-                contentScale = ContentScale.Fit
+                contentAlignment = Alignment.Center
             ) {
-                val state = painter.state.collectAsState().value
-                val imageScope = this
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    imageScope.SubcomposeAsyncImageContent()
-                    if (state is coil3.compose.AsyncImagePainter.State.Loading) {
-                        LoadingIndicator(modifier = Modifier.size(44.dp), color = MaterialTheme.colorScheme.primary)
-                    } else if (state is coil3.compose.AsyncImagePainter.State.Error) {
-                        Box(
-                            contentAlignment = Alignment.Center,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable {
-                                    detailLoadError = false
-                                    retryKey++
+                AsyncImage(
+                    model = remember(media.mediaKey, detailTargetUrl, thumbnailKey, retryKey) {
+                        ImageRequest.Builder(context)
+                            .data(detailTargetUrl)
+                            .placeholderMemoryCacheKey(thumbnailKey)
+                            .crossfade(260)
+                            .apply { if (retryKey > 0) memoryCacheKeyExtra("retry", retryKey.toString()) }
+                            .allowHardware(!media.isGif)
+                            .listener(
+                                onError = { _, _ ->
+                                    if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
+                                        detailLoadError = true
+                                    } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
+                                        detailLoadError = true
+                                    }
                                 }
-                        ) {
-                            Icon(
-                                Icons.Rounded.BrokenImage,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.outlineVariant,
-                                modifier = Modifier.size(48.dp)
                             )
-                        }
+                            .build()
+                    },
+                    contentDescription = media.tagList.take(6).joinToString(", "),
+                    contentScale = ContentScale.Fit,
+                    onState = { imageState = it },
+                    modifier = Modifier.fillMaxSize()
+                )
+                val state = imageState
+                if (state is coil3.compose.AsyncImagePainter.State.Loading) {
+                    LoadingIndicator(modifier = Modifier.size(44.dp), color = MaterialTheme.colorScheme.primary)
+                } else if (state is coil3.compose.AsyncImagePainter.State.Error) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable {
+                                detailLoadError = false
+                                retryKey++
+                            }
+                    ) {
+                        Icon(
+                            Icons.Rounded.BrokenImage,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier.size(48.dp)
+                        )
                     }
                 }
             }

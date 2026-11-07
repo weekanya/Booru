@@ -207,11 +207,14 @@ class BooruRepository(
         limit: Int = PAGE_SIZE,
         excludeSources: Set<String> = emptySet()
     ): SearchPage = withContext(Dispatchers.IO) {
+        val ratingless = source == SOURCE_REALBOORU
+        val effectiveSafe = safeMode && !ratingless
+        val effectiveExcludeSafe = excludeSafe && !ratingless
         val customMatch = customSources.find { it.id == source || it.key == source }
         val wantsOnlyVideos = contentTypes.contains(ContentType.VIDEOS) && !contentTypes.contains(ContentType.PHOTOS) && !contentTypes.contains(ContentType.GIFS)
         val allTargets = when {
             customMatch != null -> if (!customMatch.enabled) emptyList() else listOf(customMatch.id)
-            source == SOURCE_SAFEBOORU -> if (excludeSafe || wantsOnlyVideos) emptyList() else listOf("safebooru")
+            source == SOURCE_SAFEBOORU -> if (effectiveExcludeSafe || wantsOnlyVideos) emptyList() else listOf("safebooru")
             source == SOURCE_YANDE     -> if (wantsOnlyVideos) emptyList() else listOf("yande")
             source == SOURCE_RULE34    -> listOf("rule34")
             source == SOURCE_GELBOORU  -> listOf("gelbooru")
@@ -219,13 +222,14 @@ class BooruRepository(
             source == SOURCE_TBIB      -> if (wantsOnlyVideos) emptyList() else listOf("tbib")
             source == SOURCE_KONACHAN  -> if (wantsOnlyVideos) emptyList() else listOf("konachan")
             else -> {
-                if (wantsOnlyVideos) {
+                val all = if (wantsOnlyVideos) {
                     listOf("rule34", "gelbooru", "realbooru")
-                } else if (excludeSafe) {
+                } else if (effectiveExcludeSafe) {
                     listOf("rule34", "gelbooru", "realbooru", "tbib", "yande", "konachan")
                 } else {
                     listOf("rule34", "gelbooru", "realbooru", "tbib", "yande", "konachan", "safebooru")
                 }
+                if (effectiveSafe) all - "realbooru" else all
             }
         }
         val keyless = buildSet {
@@ -250,7 +254,7 @@ class BooruRepository(
                 async {
                     try {
                         val list = withTimeoutOrNull(timeoutMs) {
-                            requestSourceWithRetry(key, tags.trim(), safeMode, excludeSafe, noAi, page, sortOrder, contentTypes, credentials, customSources, pageLimit)
+                            requestSourceWithRetry(key, tags.trim(), effectiveSafe, effectiveExcludeSafe, noAi, page, sortOrder, contentTypes, credentials, customSources, pageLimit)
                         } ?: throw BooruTimeoutException(key, "${getSourceDisplayName(key, customSources)} timed out")
                         key to Result.success(list)
                     } catch (c: kotlinx.coroutines.CancellationException) {
@@ -289,7 +293,7 @@ class BooruRepository(
             }
         }
 
-        val filteredResults = filterMediaList(allResults, safeMode, excludeSafe, noAi)
+        val filteredResults = filterMediaList(allResults, effectiveSafe, effectiveExcludeSafe, noAi)
 
         if (targets.size > 1 && filteredResults.isNotEmpty()) {
             if (sortOrder == SortOrder.RANDOM) {
@@ -614,7 +618,7 @@ class BooruRepository(
                 when (key) {
                     "yande", "konachan" -> parts.add("rating:s")
                     "gelbooru"          -> parts.add("rating:general")
-                    "rule34", "tbib", "realbooru" -> parts.add("rating:safe")
+                    "rule34", "tbib" -> parts.add("rating:safe")
                     "safebooru"         -> Unit
                 }
             }
@@ -635,7 +639,7 @@ class BooruRepository(
                 when (key) {
                     "yande", "konachan" -> parts.add("-rating:s")
                     "gelbooru"          -> parts.add("-rating:general")
-                    "rule34", "tbib", "realbooru" -> parts.add("-rating:safe")
+                    "rule34", "tbib" -> parts.add("-rating:safe")
                     "safebooru"         -> Unit
                 }
             }

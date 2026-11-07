@@ -15,6 +15,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateTo
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.core.spring
@@ -30,6 +31,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitHorizontalTouchSlopOrCancellation
+import androidx.compose.foundation.gestures.horizontalDrag
 import androidx.compose.foundation.gestures.calculateCentroidSize
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
@@ -97,6 +100,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -161,12 +165,19 @@ private fun MediaDetailSheetContent(
 
     val sheetState = rememberExpandedSheetState()
 
-    val currentMedia = mediaList.getOrNull(pagerState.currentPage) ?: mediaList.first()
+    val restingPage = rememberRestingPage(pagerState)
+    val currentMedia = mediaList.getOrNull(restingPage) ?: mediaList.first()
+    val pageMedia = mediaList.getOrNull(pagerState.currentPage) ?: currentMedia
+    var tagCategoryVersion by remember { mutableIntStateOf(com.booru.app.data.TagCategoryCache.version) }
+    LaunchedEffect(pagerState) {
+        androidx.compose.runtime.snapshotFlow { com.booru.app.data.TagCategoryCache.version to pagerState.isScrollInProgress }
+            .collect { (version, scrolling) -> if (!scrolling) tagCategoryVersion = version }
+    }
     val isDownloading = currentMedia.mediaKey in vm.activeDownloads
     val isSettingWallpaper = vm.isSettingWallpaper
 
-    LaunchedEffect(pagerState.settledPage) {
-        mediaList.getOrNull(pagerState.settledPage)?.let {
+    LaunchedEffect(restingPage) {
+        mediaList.getOrNull(restingPage)?.let {
             vm.updateFullscreenMedia(it)
             vm.recordViewed(it)
         }
@@ -224,24 +235,28 @@ private fun MediaDetailSheetContent(
                     ) {}
                 }
     
+                val windowHeight = with(androidx.compose.ui.platform.LocalDensity.current) {
+                    androidx.compose.ui.platform.LocalWindowInfo.current.containerSize.height.toDp()
+                }
+                val frameHeight = (windowHeight * 0.62f).coerceIn(360.dp, 640.dp)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 360.dp, max = 560.dp)
-                        .padding(horizontal = 16.dp)
-                        .clip(ShapeTokens.ExtraLargeIncreased)
-                        .background(MaterialTheme.colorScheme.surfaceContainerHigh),
+                        .height(frameHeight)
+                        .clip(ShapeTokens.ExtraLarge),
                     contentAlignment = Alignment.Center
                 ) {
                     HorizontalPager(
                         state = pagerState,
-                        modifier = Modifier.fillMaxSize().then(rememberSettleOnRelease(pagerState)),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .viewerSwipe(pagerState, enabled = !isCurrentPageZoomed),
                         beyondViewportPageCount = 1,
                         pageSpacing = 12.dp,
-                        flingBehavior = viewerFlingBehavior(pagerState),
-                        userScrollEnabled = !isCurrentPageZoomed,
+                        userScrollEnabled = false,
                         key = { page -> mediaList.getOrNull(page)?.mediaKey ?: page }
                     ) { page ->
+                        if (!rememberPageReady(pagerState, page)) return@HorizontalPager
                         val item = mediaList.getOrNull(page) ?: return@HorizontalPager
                         if (item.isVideo && showTrueFullscreen) {
                             coil3.compose.AsyncImage(
@@ -256,7 +271,7 @@ private fun MediaDetailSheetContent(
                                 lang = lang,
                                 previewUrl = item.gridImageUrl(vm.effectiveImageQuality != com.booru.app.data.ImageQuality.SAVER),
                                 modifier = Modifier.fillMaxSize(),
-                                isActive = pagerState.settledPage == page && !showTrueFullscreen,
+                                isActive = restingPage == page && !showTrueFullscreen,
                                 onFullscreen = { showTrueFullscreen = true },
                                 allowPrefetch = !vm.isMeteredNetwork,
                                 positionHandoff = videoPositions
@@ -265,8 +280,8 @@ private fun MediaDetailSheetContent(
                             DetailZoomableImage(
                                 media = item,
                                 vm = vm,
-                                isActive = (pagerState.currentPage == page),
-                                resetZoomKey = if (pagerState.currentPage == page) resetZoomKey else 0,
+                                isActive = restingPage == page,
+                                resetZoomKey = if (restingPage == page) resetZoomKey else 0,
                                 onZoomChanged = { zoomed ->
                                     if (pagerState.currentPage == page) {
                                         isCurrentPageZoomed = zoomed
@@ -279,7 +294,7 @@ private fun MediaDetailSheetContent(
                     Row(
                         modifier = Modifier
                             .align(Alignment.TopStart)
-                            .padding(14.dp),
+                            .padding(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -288,7 +303,7 @@ private fun MediaDetailSheetContent(
                             color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.90f),
                         ) {
                             Text(
-                                text = currentMedia.source.uppercase(),
+                                text = pageMedia.source.uppercase(),
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface,
@@ -296,9 +311,9 @@ private fun MediaDetailSheetContent(
                             )
                         }
     
-                        RatingBadge(currentMedia.rating, lang)
+                        RatingBadge(pageMedia.rating, lang)
     
-                        if (currentMedia.isGif) {
+                        if (pageMedia.isGif) {
                             Surface(
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.95f)
@@ -311,7 +326,7 @@ private fun MediaDetailSheetContent(
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
                             }
-                        } else if (currentMedia.isVideo) {
+                        } else if (pageMedia.isVideo) {
                             Surface(
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.95f)
@@ -330,7 +345,7 @@ private fun MediaDetailSheetContent(
                     Row(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
-                            .padding(14.dp),
+                            .padding(16.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -351,12 +366,12 @@ private fun MediaDetailSheetContent(
                     }
     
                     androidx.compose.animation.AnimatedVisibility(
-                        visible = !isCurrentPageZoomed && !currentMedia.isVideo,
+                        visible = !isCurrentPageZoomed && !pageMedia.isVideo,
                         enter = fadeIn(Motion.effectsDefault()) + scaleIn(Motion.spatialFast(), initialScale = 0.8f),
                         exit = fadeOut(Motion.effectsFast()) + scaleOut(Motion.effectsFast(), targetScale = 0.8f),
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(12.dp)
+                            .padding(16.dp)
                     ) {
                         val pressSource1 = remember { MutableInteractionSource() }
                         Surface(
@@ -788,6 +803,7 @@ private fun MediaDetailSheetContent(
                                 )
                                 OptInFlowDetailTags(
                                     tags = currentMedia.tagList,
+                                    categoryVersion = tagCategoryVersion,
                                     blacklistedTags = vm.tagBlacklist,
                                     lang = lang,
                                     onTagClick = { tag ->
@@ -1226,6 +1242,11 @@ fun DetailZoomableImage(
     val isComic = remember(media.mediaKey) {
         media.width > 0 && media.height > 0 && media.height.toFloat() / media.width.toFloat() >= 3.0f
     }
+    val knownAspect = remember(media.mediaKey) {
+        if (media.width > 0 && media.height > 0) media.width.toFloat() / media.height else null
+    }
+    var loadedAspect by remember(media.mediaKey) { mutableStateOf<Float?>(null) }
+    val imageAspect = knownAspect ?: loadedAspect
 
     LaunchedEffect(isActive) {
         if (!isActive) {
@@ -1417,68 +1438,79 @@ fun DetailZoomableImage(
                 },
             contentAlignment = Alignment.Center
         ) {
-            SubcomposeAsyncImage(
-                model = remember(media.mediaKey, detailTargetUrl, thumbnailKey, retryKey) {
-                    ImageRequest.Builder(context)
-                        .data(detailTargetUrl)
-                        .placeholderMemoryCacheKey(thumbnailKey)
-                        .crossfade(260)
-                        .apply { if (retryKey > 0) memoryCacheKeyExtra("retry", retryKey.toString()) }
-                        .allowHardware(!media.isGif)
-                        .listener(
-                            onError = { _, _ ->
-                                if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
-                                    detailLoadError = true
-                                } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
-                                    detailLoadError = true
-                                }
-                            }
-                        )
-                        .build()
-                },
-                contentDescription = media.tagList.take(6).joinToString(", "),
+            var imageState by remember(media.mediaKey, detailTargetUrl, retryKey) {
+                mutableStateOf<coil3.compose.AsyncImagePainter.State>(coil3.compose.AsyncImagePainter.State.Empty)
+            }
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .then(if (imageAspect != null) Modifier.aspectRatio(imageAspect) else Modifier.fillMaxSize())
                     .graphicsLayer {
                         scaleX = animatedScale
                         scaleY = animatedScale
                         translationX = animatedOffset.x
                         translationY = animatedOffset.y
+                        shape = ShapeTokens.ExtraLarge
+                        clip = true
                     },
-                contentScale = ContentScale.Fit
+                contentAlignment = Alignment.Center
             ) {
-                val state = painter.state.collectAsState().value
-                val imageScope = this
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    imageScope.SubcomposeAsyncImageContent()
-                    if (state is coil3.compose.AsyncImagePainter.State.Loading) {
-                        LoadingIndicator(modifier = Modifier.size(40.dp), color = MaterialTheme.colorScheme.primary)
-                    } else if (state is coil3.compose.AsyncImagePainter.State.Error) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable {
-                                    detailLoadError = false
-                                    retryKey++
+                AsyncImage(
+                    model = remember(media.mediaKey, detailTargetUrl, thumbnailKey, retryKey) {
+                        ImageRequest.Builder(context)
+                            .data(detailTargetUrl)
+                            .placeholderMemoryCacheKey(thumbnailKey)
+                            .crossfade(260)
+                            .apply { if (retryKey > 0) memoryCacheKeyExtra("retry", retryKey.toString()) }
+                            .allowHardware(!media.isGif)
+                            .listener(
+                                onSuccess = { _, result ->
+                                    if (knownAspect == null && result.image.width > 0 && result.image.height > 0) {
+                                        loadedAspect = result.image.width.toFloat() / result.image.height
+                                    }
                                 },
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                Icons.Rounded.BrokenImage,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.size(40.dp)
+                                onError = { _, _ ->
+                                    if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
+                                        detailLoadError = true
+                                    } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
+                                        detailLoadError = true
+                                    }
+                                }
                             )
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                text = Strings.imageLoadFailed(vm.language),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(horizontal = 24.dp)
-                            )
-                        }
+                            .build()
+                    },
+                    contentDescription = media.tagList.take(6).joinToString(", "),
+                    contentScale = ContentScale.Fit,
+                    onState = { imageState = it },
+                    modifier = Modifier.fillMaxSize()
+                )
+                val state = imageState
+                if (state is coil3.compose.AsyncImagePainter.State.Loading) {
+                    LoadingIndicator(modifier = Modifier.size(40.dp), color = MaterialTheme.colorScheme.primary)
+                } else if (state is coil3.compose.AsyncImagePainter.State.Error) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable {
+                                detailLoadError = false
+                                retryKey++
+                            },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            Icons.Rounded.BrokenImage,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(40.dp)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = Strings.imageLoadFailed(vm.language),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 24.dp)
+                        )
                     }
                 }
             }
@@ -1493,7 +1525,7 @@ fun DetailZoomableImage(
                     shapes = IconButtonDefaults.shapes(shape = CircleShape, pressedShape = IconButtonDefaults.smallPressedShape),
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(14.dp)
+                        .padding(16.dp)
                         .size(40.dp)
                 ) {
                     Icon(
@@ -1518,6 +1550,7 @@ private fun OptInFlowDetailTags(
     tags: List<String>,
     onTagClick: (String) -> Unit,
     onTagLongClick: (String) -> Unit,
+    categoryVersion: Int = 0,
     blacklistedTags: Collection<String> = emptyList(),
     lang: AppLanguage = AppLanguage.ENGLISH
 ) {
@@ -1536,7 +1569,7 @@ private fun OptInFlowDetailTags(
         }
         return
     }
-    val groups = remember(tags, com.booru.app.data.TagCategoryCache.version) {
+    val groups = remember(tags, categoryVersion) {
         val order = listOf(TagCategory.ARTIST, TagCategory.CHARACTER, TagCategory.COPYRIGHT, TagCategory.GENERAL, TagCategory.META)
         val byCategory = tags.map { TagClassifier.classify(it) }.groupBy { it.category }
         order.mapNotNull { cat -> byCategory[cat]?.let { cat to it } }
@@ -1652,6 +1685,7 @@ private fun RatingBadge(rating: String, lang: AppLanguage) {
 }
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun BooruVideoPlayer(
     videoUrl: String,
@@ -2063,11 +2097,22 @@ fun BooruVideoPlayer(
                             listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
                         )
                     )
+                    .then(
+                        if (isExternalControls) {
+                            Modifier.windowInsetsPadding(
+                                WindowInsets.navigationBarsIgnoringVisibility
+                                    .union(WindowInsets.displayCutout)
+                                    .only(WindowInsetsSides.Bottom + WindowInsetsSides.Horizontal)
+                            )
+                        } else {
+                            Modifier
+                        }
+                    )
                     .padding(
                         start = 16.dp,
                         end = 16.dp,
                         top = 8.dp,
-                        bottom = if (isExternalControls) 24.dp else 8.dp
+                        bottom = if (isExternalControls) 16.dp else 8.dp
                     )
             ) {
                 val sliderPosition = when {
@@ -2339,42 +2384,105 @@ internal fun rememberViewerList(source: List<RemoteMedia>): List<RemoteMedia> {
 }
 
 @Composable
-internal fun rememberSettleOnRelease(state: androidx.compose.foundation.pager.PagerState): Modifier {
-    val scope = rememberCoroutineScope()
-    return Modifier.pointerInput(state) {
-        awaitEachGesture {
-            awaitFirstDown(requireUnconsumed = false, pass = androidx.compose.ui.input.pointer.PointerEventPass.Final)
-            do {
-                val event = awaitPointerEvent(androidx.compose.ui.input.pointer.PointerEventPass.Final)
-            } while (event.changes.any { it.pressed })
-            scope.launch {
-                withFrameNanos { }
-                withFrameNanos { }
-                if (!state.isScrollInProgress && abs(state.currentPageOffsetFraction) > 0.001f) {
-                    try {
-                        state.animateScrollToPage(
-                            state.currentPage,
-                            animationSpec = spring(
-                                dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
-                                stiffness = androidx.compose.animation.core.Spring.StiffnessMedium
-                            )
-                        )
-                    } catch (e: kotlinx.coroutines.CancellationException) {
-                        if (!kotlinx.coroutines.currentCoroutineContext().isActive) throw e
-                    }
-                }
-            }
-        }
+internal fun rememberRestingPage(state: androidx.compose.foundation.pager.PagerState): Int {
+    var resting by remember(state) { mutableIntStateOf(state.currentPage) }
+    LaunchedEffect(state) {
+        androidx.compose.runtime.snapshotFlow {
+            if (!state.isScrollInProgress && abs(state.currentPageOffsetFraction) < 0.001f) state.currentPage else null
+        }.collect { page -> if (page != null) resting = page }
     }
+    return resting
 }
 
 @Composable
-internal fun viewerFlingBehavior(state: androidx.compose.foundation.pager.PagerState) =
-    androidx.compose.foundation.pager.PagerDefaults.flingBehavior(
-        state = state,
-        snapPositionalThreshold = 0.2f,
-        snapAnimationSpec = spring(
-            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
-            stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
-        )
-    )
+internal fun rememberPageReady(state: androidx.compose.foundation.pager.PagerState, page: Int): Boolean {
+    var ready by remember(state, page) {
+        mutableStateOf(androidx.compose.runtime.snapshots.Snapshot.withoutReadObservation { !state.isScrollInProgress })
+    }
+    if (!ready) {
+        LaunchedEffect(state, page) {
+            androidx.compose.runtime.snapshotFlow {
+                !state.isScrollInProgress || abs(state.currentPage + state.currentPageOffsetFraction - page) < 1f
+            }.first { it }
+            ready = true
+        }
+    }
+    return ready
+}
+
+@Composable
+internal fun Modifier.viewerSwipe(state: androidx.compose.foundation.pager.PagerState, enabled: Boolean): Modifier {
+    val scope = rememberCoroutineScope()
+    val rtl = androidx.compose.ui.platform.LocalLayoutDirection.current == androidx.compose.ui.unit.LayoutDirection.Rtl
+    val flingThreshold = with(androidx.compose.ui.platform.LocalDensity.current) { 400.dp.toPx() }
+    val view = androidx.compose.ui.platform.LocalView.current
+    val frameNanos = remember(view) { (1_000_000_000f / (view.display?.refreshRate?.takeIf { it > 0f } ?: 60f)).toLong() }
+    val latestEnabled by rememberUpdatedState(enabled)
+    return pointerInput(state, rtl, flingThreshold, frameNanos) {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            if (!latestEnabled) return@awaitEachGesture
+            var overSlop = 0f
+            val start = awaitHorizontalTouchSlopOrCancellation(down.id) { change, over ->
+                change.consume()
+                overSlop = over
+            } ?: return@awaitEachGesture
+            val direction = if (rtl) 1f else -1f
+            val tracker = androidx.compose.ui.input.pointer.util.VelocityTracker()
+            tracker.addPosition(down.uptimeMillis, down.position)
+            tracker.addPosition(start.uptimeMillis, start.position)
+            val deltas = kotlinx.coroutines.channels.Channel<Float>(kotlinx.coroutines.channels.Channel.UNLIMITED)
+            val release = kotlinx.coroutines.CompletableDeferred<Float>()
+            val startPage = state.currentPage
+            scope.launch(Dispatchers.Main.immediate) {
+                state.scroll(androidx.compose.foundation.MutatePriority.UserInput) {
+                    for (delta in deltas) scrollBy(delta)
+                    val velocity = release.await()
+                    val position = state.currentPage + state.currentPageOffsetFraction
+                    val target = when {
+                        velocity > flingThreshold -> kotlin.math.floor(position).toInt() + 1
+                        velocity < -flingThreshold -> kotlin.math.ceil(position).toInt() - 1
+                        position - startPage > 0.2f -> startPage + 1
+                        position - startPage < -0.2f -> startPage - 1
+                        else -> startPage
+                    }.coerceIn(startPage - 1, startPage + 1).coerceIn(0, (state.pageCount - 1).coerceAtLeast(0))
+                    val pageExtent = (state.layoutInfo.pageSize + state.layoutInfo.pageSpacing).toFloat()
+                    val distance = (target - position) * pageExtent
+                    if (abs(distance) < 0.5f) {
+                        scrollBy(distance)
+                        return@scroll
+                    }
+                    var travelled = 0f
+                    androidx.compose.animation.core.AnimationState(
+                        initialValue = 0f,
+                        initialVelocity = velocity,
+                        lastFrameTimeNanos = System.nanoTime() - frameNanos
+                    ).animateTo(
+                        targetValue = distance,
+                        animationSpec = spring(
+                            dampingRatio = androidx.compose.animation.core.Spring.DampingRatioNoBouncy,
+                            stiffness = androidx.compose.animation.core.Spring.StiffnessMedium,
+                            visibilityThreshold = 1f
+                        ),
+                        sequentialAnimation = true
+                    ) {
+                        val next = if (distance > 0f) value.coerceAtMost(distance) else value.coerceAtLeast(distance)
+                        this@scroll.scrollBy(next - travelled)
+                        travelled = next
+                        if (next == distance) cancelAnimation()
+                    }
+                    if (travelled != distance) scrollBy(distance - travelled)
+                }
+            }
+            if (overSlop != 0f) deltas.trySend(direction * overSlop)
+            val completed = horizontalDrag(start.id) { change ->
+                tracker.addPosition(change.uptimeMillis, change.position)
+                val dx = change.position.x - change.previousPosition.x
+                if (dx != 0f) deltas.trySend(direction * dx)
+                change.consume()
+            }
+            release.complete(if (completed) direction * tracker.calculateVelocity().x else 0f)
+            deltas.close()
+        }
+    }
+}

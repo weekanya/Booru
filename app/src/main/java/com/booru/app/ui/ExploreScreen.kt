@@ -263,7 +263,7 @@ fun ExploreScreen(
                     )
                 }
 
-                val activeFilterCount = (if (vm.safeMode || vm.excludeSafe) 1 else 0) +
+                val activeFilterCount = (if (vm.ratingFilterApplies && (vm.safeMode || vm.excludeSafe)) 1 else 0) +
                         (if (vm.noAi) 1 else 0) +
                         (if (vm.noFurry) 1 else 0) +
                         (if (vm.sortOrder != SortOrder.NEWEST) 1 else 0) +
@@ -1657,7 +1657,7 @@ private fun EmptyResultActions(vm: GalleryViewModel, lang: AppLanguage) {
         query.split(Regex("\\s+")).filter { it.isNotBlank() }
     }
     val canJoin = plainTokens.size in 2..4 && plainTokens.none { it.contains(':') || it.startsWith("-") || it.startsWith("~") || it.contains('*') }
-    val hasFilters = vm.safeMode || vm.excludeSafe || vm.noAi || vm.noFurry || vm.selectedContentTypes.isNotEmpty()
+    val hasFilters = (vm.ratingFilterApplies && (vm.safeMode || vm.excludeSafe)) || vm.noAi || vm.noFurry || vm.selectedContentTypes.isNotEmpty()
     val canWiden = vm.source != BooruRepository.SOURCE_ALL && query.isNotEmpty()
 
     Column(
@@ -2304,7 +2304,7 @@ private fun FilterSelectionBottomSheet(
                             verticalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
                                 Card(
-                                    shape = segmentedListShape(0, 4),
+                                    shape = segmentedListShape(0, if (isRealbooru) 3 else 4),
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -2354,7 +2354,9 @@ private fun FilterSelectionBottomSheet(
                                     }
                                 }
     
-                                Card(
+                                val filterCardCount = if (isRealbooru) 3 else 4
+                                val toggleCardOffset = if (isRealbooru) 1 else 2
+                                if (!isRealbooru) Card(
                                     shape = segmentedListShape(1, 4),
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                                     modifier = Modifier.fillMaxWidth()
@@ -2413,7 +2415,7 @@ private fun FilterSelectionBottomSheet(
                                 }
     
                                 Card(
-                                    shape = segmentedListShape(2, 4),
+                                    shape = segmentedListShape(toggleCardOffset, filterCardCount),
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
@@ -2481,7 +2483,7 @@ private fun FilterSelectionBottomSheet(
                                 }
 
                                 Card(
-                                    shape = segmentedListShape(3, 4),
+                                    shape = segmentedListShape(toggleCardOffset + 1, filterCardCount),
                                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {

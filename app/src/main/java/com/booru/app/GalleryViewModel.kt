@@ -62,6 +62,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     private val repo = BooruRepository()
     val prefs = BooruPreferences(application)
+    private val appearancePrefs = application.getSharedPreferences(APPEARANCE_PREFS, Context.MODE_PRIVATE)
     private val secureStorage = SecureCredentialsStorage(application)
     private val favoriteDao = AppDatabase.getDatabase(application).favoriteDao()
     private val historyDao = AppDatabase.getDatabase(application).historyDao()
@@ -102,6 +103,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     val isDataSaverActive: Boolean get() = dataSaverOnMobile && isMeteredNetwork
 
+    val ratingFilterApplies: Boolean get() = source != BooruRepository.SOURCE_REALBOORU
+
     val effectiveImageQuality: ImageQuality get() = if (isDataSaverActive) ImageQuality.SAVER else imageQuality
 
     private val connectivity = application.getSystemService(android.net.ConnectivityManager::class.java)
@@ -118,9 +121,37 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
     var sortOrder by mutableStateOf(SortOrder.NEWEST); private set
 
-    var themeMode by mutableStateOf(ThemeMode.SYSTEM); private set
-    var palette by mutableStateOf(AppPalette.MONET); private set
-    var language by mutableStateOf(AppLanguage.ENGLISH); private set
+    var themeMode by mutableStateOf(
+        appearancePrefs.getString(KEY_THEME, null)?.let { code -> ThemeMode.entries.find { it.code == code } } ?: ThemeMode.SYSTEM
+    ); private set
+    var palette by mutableStateOf(
+        appearancePrefs.getString(KEY_PALETTE, null)?.let { code -> AppPalette.entries.find { it.code == code } } ?: AppPalette.MONET
+    ); private set
+    var language by mutableStateOf(
+        appearancePrefs.getString(KEY_LANGUAGE, null)?.let { code -> AppLanguage.entries.find { it.code == code } } ?: AppLanguage.ENGLISH
+    ); private set
+
+    private fun rememberAppearance() {
+        appearancePrefs.edit()
+            .putString(KEY_THEME, themeMode.code)
+            .putString(KEY_PALETTE, palette.code)
+            .putString(KEY_LANGUAGE, language.code)
+            .apply()
+        applySystemNightMode(themeMode)
+    }
+
+    private fun applySystemNightMode(mode: ThemeMode) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
+        val uiModeManager = getApplication<Application>().getSystemService(android.app.UiModeManager::class.java) ?: return
+        val target = when (mode) {
+            ThemeMode.DARK -> android.app.UiModeManager.MODE_NIGHT_YES
+            ThemeMode.LIGHT -> android.app.UiModeManager.MODE_NIGHT_NO
+            ThemeMode.SYSTEM -> android.app.UiModeManager.MODE_NIGHT_AUTO
+        }
+        if (appearancePrefs.getInt(KEY_APPLIED_NIGHT_MODE, -1) == target) return
+        runCatching { uiModeManager.setApplicationNightMode(target) }
+            .onSuccess { appearancePrefs.edit().putInt(KEY_APPLIED_NIGHT_MODE, target).apply() }
+    }
 
     var rule34UserId by mutableStateOf(""); private set
     var rule34ApiKey by mutableStateOf(""); private set
@@ -189,6 +220,10 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         viewModelScope.launch {
+            themeMode = readPref(prefs.themeMode, themeMode)
+            palette = readPref(prefs.palette, palette)
+            language = readPref(prefs.language, language)
+            rememberAppearance()
             val persistedIncognito = readPref(prefs.incognitoFlow, false)
             if (!incognitoLoaded) {
                 isIncognito = persistedIncognito
@@ -238,9 +273,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             val initialSafe = readPref(prefs.safeMode, false)
             val initialExcludeSafe = readPref(prefs.excludeSafe, false)
             val initialNoAi = readPref(prefs.noAiFilter, false)
-            val initialLang = readPref(prefs.language, AppLanguage.ENGLISH)
-            val initialTheme = readPref(prefs.themeMode, ThemeMode.SYSTEM)
-            val initialPalette = readPref(prefs.palette, AppPalette.MONET)
             val initialCustom = readPref(prefs.customSources, emptyList())
             val initialBlacklist = readPref(prefs.tagBlacklist, emptyList())
             val initialRecMap = readPref(prefs.recommendationTags, emptyMap())
@@ -273,9 +305,6 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             noAi = initialNoAi
             noFurry = readPref(prefs.noFurryFilter, false)
             repo.excludeFurry = noFurry
-            language = initialLang
-            themeMode = initialTheme
-            palette = initialPalette
             tagBlacklist = initialBlacklist
             recommendationTags = withContext(Dispatchers.Default) {
                 computeRecommendationTags(favoritesList, tagBlacklist, recordedRecTagsMap)
@@ -322,13 +351,22 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     private fun startLongLivedObservers() {
         viewModelScope.launch {
-            prefs.themeMode.collect { themeMode = it }
+            prefs.themeMode.collect {
+                themeMode = it
+                rememberAppearance()
+            }
         }
         viewModelScope.launch {
-            prefs.palette.collect { palette = it }
+            prefs.palette.collect {
+                palette = it
+                rememberAppearance()
+            }
         }
         viewModelScope.launch {
-            prefs.language.collect { language = it }
+            prefs.language.collect {
+                language = it
+                rememberAppearance()
+            }
         }
         viewModelScope.launch {
             prefs.safeMode.collect { safeMode = it }
@@ -1120,7 +1158,12 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         isPullRefresh: Boolean = false
     ) {
         val searchGen = ++currentSearchGeneration
-        recTagPages.clear()
+        if (!isPullRefresh) recTagPages.clear()
+        val shownKeys = if (isPullRefresh && tags.isBlank()) {
+            HashSet<String>().apply { results.forEach { add(it.mediaKey); add(it.contentKey) } }
+        } else {
+            emptySet()
+        }
         searchJob?.cancel()
         loadMoreJob?.cancel()
         loadMoreToken++
@@ -1198,7 +1241,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         searchJob = viewModelScope.launch {
             try {
                 val feedParams = if (recTags.isNotEmpty()) params.copy(recExclude = recommendationExclusions()) else params
-                var batch = feedParams.fetchFeed(0, emptySet(), recTags.ifEmpty { null })
+                var batch = feedParams.fetchFeed(0, if (recTags.isNotEmpty()) shownKeys else emptySet(), recTags.ifEmpty { null })
                 if (batch.items.isEmpty() && recTags.isNotEmpty()) {
                     batch = feedParams.fetchFeed(0, emptySet(), null)
                 }
@@ -1489,6 +1532,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             prefs.setThemeMode(mode)
             themeMode = mode
+            rememberAppearance()
         }
     }
 
@@ -1496,6 +1540,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             prefs.setPalette(palette)
             this@GalleryViewModel.palette = palette
+            rememberAppearance()
         }
     }
 
@@ -1503,6 +1548,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             prefs.setLanguage(lang)
             language = lang
+            rememberAppearance()
         }
     }
 
@@ -2145,6 +2191,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     companion object {
         private const val TAG = "GalleryViewModel"
+        private const val APPEARANCE_PREFS = "booru_appearance"
+        private const val KEY_THEME = "theme_mode"
+        private const val KEY_PALETTE = "palette"
+        private const val KEY_LANGUAGE = "language"
+        private const val KEY_APPLIED_NIGHT_MODE = "applied_night_mode"
         private const val SEARCH_DEDUPE_MS = 10 * 60 * 1000L
         private const val OFFLINE_MAX_PAGES = 80
         private const val OFFLINE_COLLECT_MS = 90_000L

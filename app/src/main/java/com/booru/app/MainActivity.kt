@@ -247,7 +247,9 @@ fun BooruApp(
     }
 
     if (!vm.lockStateLoaded) {
-        Box(modifier = Modifier.fillMaxSize())
+        BooruTheme(themeMode = vm.themeMode, palette = vm.palette) {
+            Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {}
+        }
         return
     }
 

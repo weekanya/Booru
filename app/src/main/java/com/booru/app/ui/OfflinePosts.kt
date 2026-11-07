@@ -40,7 +40,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
@@ -141,8 +143,8 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                     ) {
                         Surface(shape = CircleShape, color = scheme.tertiaryContainer, contentColor = scheme.onTertiaryContainer) {
                             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                                Icon(Icons.Rounded.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(Modifier.width(6.dp))
+                                Icon(Icons.Rounded.CheckCircle, contentDescription = null, modifier = Modifier.size(AssistChipDefaults.IconSize))
+                                Spacer(Modifier.width(8.dp))
                                 Text("+${added.coerceAtLeast(0)}", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                             }
                         }
@@ -205,7 +207,7 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = scheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = 8.dp)
+                                modifier = Modifier.padding(start = 16.dp)
                             )
                             OFFLINE_OPTIONS.chunked(2).forEach { row ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -240,11 +242,11 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                     onClick = startDownload,
                                     enabled = !complete,
                                     shape = if (saved > 0) ShapeTokens.ConnectedStart else CircleShape,
-                                    contentPadding = PaddingValues(horizontal = 20.dp),
-                                    modifier = Modifier.weight(1f).height(56.dp)
+                                    contentPadding = ButtonDefaults.MediumContentPadding,
+                                    modifier = Modifier.weight(1f).height(ButtonDefaults.MediumContainerHeight)
                                 ) {
-                                    Icon(if (complete) Icons.Rounded.CheckCircle else Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(22.dp))
-                                    Spacer(Modifier.width(10.dp))
+                                    Icon(if (complete) Icons.Rounded.CheckCircle else Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(ButtonDefaults.MediumIconSize))
+                                    Spacer(Modifier.width(ButtonDefaults.MediumIconSpacing))
                                     Text(
                                         if (complete) {
                                             Strings.tr(lang, "All $savedShown saved", "Все $savedShown сохранены", "$savedShown 件すべて保存済み", "已全部保存 $savedShown 个", "${savedShown}개 모두 저장됨", "تم حفظ $savedShown كلها")
@@ -262,7 +264,7 @@ fun OfflineSheet(vm: GalleryViewModel, lang: AppLanguage, onDismiss: () -> Unit)
                                     AnimatedConfirmDeleteButton(
                                         onConfirmed = { vm.deleteOfflinePosts() },
                                         lang = lang,
-                                        height = 56.dp,
+                                        height = ButtonDefaults.MediumContainerHeight,
                                         idleContainerColor = scheme.errorContainer,
                                         idleContentColor = scheme.onErrorContainer,
                                         shape = ShapeTokens.ConnectedEnd
@@ -324,7 +326,7 @@ private fun OfflineHeroBadge(state: Int) {
         2 -> scheme.onTertiaryContainer
         else -> scheme.onPrimaryContainer
     }
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(52.dp)) {
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(56.dp)) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -400,7 +402,7 @@ private fun CountTile(option: CountOption, lang: AppLanguage, selected: Boolean,
 private fun ThumbStack(items: List<RemoteMedia>) {
     val context = LocalContext.current
     val scheme = MaterialTheme.colorScheme
-    Box(modifier = Modifier.width((40 + (items.size - 1).coerceAtLeast(0) * 18).dp).height(40.dp)) {
+    Box(modifier = Modifier.width((40 + (items.size - 1).coerceAtLeast(0) * 16).dp).height(40.dp)) {
         items.forEachIndexed { index, media ->
             val url = media.preview.ifBlank { media.sample }
             AsyncImage(
@@ -408,7 +410,7 @@ private fun ThumbStack(items: List<RemoteMedia>) {
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
-                    .offset(x = (index * 18).dp)
+                    .offset(x = (index * 16).dp)
                     .size(40.dp)
                     .clip(CircleShape)
                     .background(scheme.surfaceContainerHighest)
@@ -495,11 +497,12 @@ private fun DownloadProgress(vm: GalleryViewModel, lang: AppLanguage) {
             onClick = { vm.cancelOfflineDownload() },
             shapes = ButtonDefaults.shapes(),
             colors = ButtonDefaults.filledTonalButtonColors(containerColor = scheme.errorContainer, contentColor = scheme.onErrorContainer),
-            modifier = Modifier.fillMaxWidth().height(56.dp)
+            contentPadding = ButtonDefaults.MediumContentPadding,
+            modifier = Modifier.fillMaxWidth().height(ButtonDefaults.MediumContainerHeight)
         ) {
-            Icon(Icons.Rounded.Stop, contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(8.dp))
-            Text(Strings.tr(lang, "Stop", "Остановить", "停止", "停止", "중지", "إيقاف"), fontWeight = FontWeight.Bold)
+            Icon(Icons.Rounded.Stop, contentDescription = null, modifier = Modifier.size(ButtonDefaults.MediumIconSize))
+            Spacer(Modifier.width(ButtonDefaults.MediumIconSpacing))
+            Text(Strings.tr(lang, "Stop", "Остановить", "停止", "停止", "중지", "إيقاف"), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -523,31 +526,54 @@ fun OfflinePostsScreen(vm: GalleryViewModel, lang: AppLanguage, onClose: () -> U
         }
     }
     val gridState = rememberLazyStaggeredGridState()
-    Surface(color = scheme.surface, modifier = Modifier.fillMaxSize()) {
-        Column(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(start = 8.dp, end = 16.dp, top = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = Strings.tr(lang, "Back", "Назад", "戻る", "返回", "뒤로", "رجوع"))
-                }
-                Spacer(Modifier.weight(1f))
-                Surface(shape = CircleShape, color = scheme.secondaryContainer, contentColor = scheme.onSecondaryContainer) {
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
-                        Icon(Icons.Rounded.OfflinePin, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text(BooruCacheManager.formatBytes(OfflineStore.sizeBytes), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+    Scaffold(
+        containerColor = scheme.surface,
+        contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top),
+        modifier = Modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection),
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        offlineTitle(lang),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onClose, shapes = IconButtonDefaults.shapes()) {
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = Strings.tr(lang, "Back", "Назад", "戻る", "返回", "뒤로", "رجوع"))
                     }
-                }
-            }
-            Text(
-                offlineTitle(lang),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = scheme.onSurface,
-                modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp)
+                },
+                actions = {
+                    Surface(
+                        shape = CircleShape,
+                        color = scheme.secondaryContainer,
+                        contentColor = scheme.onSecondaryContainer,
+                        modifier = Modifier.padding(end = 12.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                            Icon(Icons.Rounded.OfflinePin, contentDescription = null, modifier = Modifier.size(AssistChipDefaults.IconSize))
+                            Spacer(Modifier.width(8.dp))
+                            Text(BooruCacheManager.formatBytes(OfflineStore.sizeBytes), style = MaterialTheme.typography.labelLarge)
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = scheme.surface,
+                    scrolledContainerColor = scheme.surfaceContainer
+                ),
+                scrollBehavior = scrollBehavior
             )
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
             val counts = remember(all) {
                 mapOf(
                     OfflineFilter.ALL to all.size,
@@ -557,57 +583,61 @@ fun OfflinePostsScreen(vm: GalleryViewModel, lang: AppLanguage, onClose: () -> U
                 )
             }
             val options = listOf(
-                Triple(OfflineFilter.ALL, Strings.tr(lang, "All", "Все", "すべて", "全部", "전체", "الكل"), Icons.Rounded.GridView),
-                Triple(OfflineFilter.IMAGES, Strings.tr(lang, "Images", "Фото", "画像", "图片", "이미지", "صور"), Icons.Rounded.Image),
-                Triple(OfflineFilter.GIFS, "GIF", Icons.Rounded.Gif),
-                Triple(OfflineFilter.VIDEOS, Strings.tr(lang, "Videos", "Видео", "動画", "视频", "동영상", "فيديو"), Icons.Rounded.PlayCircle)
+                OfflineFilter.ALL to Strings.tr(lang, "All", "Все", "すべて", "全部", "전체", "الكل"),
+                OfflineFilter.IMAGES to Strings.tr(lang, "Images", "Фото", "画像", "图片", "이미지", "صور"),
+                OfflineFilter.GIFS to "GIF",
+                OfflineFilter.VIDEOS to Strings.tr(lang, "Videos", "Видео", "動画", "视频", "동영상", "فيديو")
             )
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
-            ) {
-                options.forEachIndexed { index, (value, label, icon) ->
-                    val selected = filter == value
-                    val outer by androidx.compose.animation.core.animateDpAsState(if (selected) 36.dp else 20.dp, Motion.spatialFast(), label = "filterOuter")
-                    val inner by androidx.compose.animation.core.animateDpAsState(if (selected) 36.dp else 6.dp, Motion.spatialFast(), label = "filterInner")
-                    val first = index == 0
-                    val last = index == options.lastIndex
-                    val container by androidx.compose.animation.animateColorAsState(if (selected) scheme.primary else scheme.surfaceContainerHigh, Motion.effectsDefault(), label = "filterColor")
-                    val content by androidx.compose.animation.animateColorAsState(if (selected) scheme.onPrimary else scheme.onSurface, Motion.effectsDefault(), label = "filterContent")
-                    Surface(
-                        onClick = { filter = value },
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(
-                            topStart = if (first) outer else inner,
-                            bottomStart = if (first) outer else inner,
-                            topEnd = if (last) outer else inner,
-                            bottomEnd = if (last) outer else inner
-                        ),
-                        color = container,
-                        contentColor = content,
-                        modifier = Modifier.weight(1f).height(64.dp).semantics { role = Role.Tab }
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxSize()
+            ToggleGroupColors {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentWidth(Alignment.CenterHorizontally)
+                        .readableContentWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)
+                ) {
+                    options.forEachIndexed { index, (value, label) ->
+                        val selected = filter == value
+                        ToggleButton(
+                            checked = selected,
+                            onCheckedChange = { filter = value },
+                            shapes = groupPosition(index, options.size).toggleShapes(),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = ButtonDefaults.MediumContainerHeight)
+                                .semantics { role = Role.Tab }
                         ) {
-                            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 1, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
-                            Text("${counts[value] ?: 0}", style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    label,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                    maxLines = 1
+                                )
+                                Text(
+                                    "${counts[value] ?: 0}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    maxLines = 1
+                                )
+                            }
                         }
                     }
                 }
             }
-            Spacer(Modifier.height(8.dp))
             if (items.isEmpty()) {
                 Column(
-                    modifier = Modifier.fillMaxSize().padding(32.dp),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 32.dp, vertical = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
                     Surface(shape = CircleShape, color = scheme.surfaceContainerHigh, modifier = Modifier.size(72.dp)) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.Rounded.CloudOff, contentDescription = null, tint = scheme.primary, modifier = Modifier.size(34.dp))
+                            Icon(Icons.Rounded.CloudOff, contentDescription = null, tint = scheme.primary, modifier = Modifier.size(32.dp))
                         }
                     }
                     Spacer(Modifier.height(16.dp))
@@ -619,10 +649,11 @@ fun OfflinePostsScreen(vm: GalleryViewModel, lang: AppLanguage, onClose: () -> U
                     )
                 }
             } else {
+                val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
                 LazyVerticalStaggeredGrid(
                     columns = StaggeredGridCells.Adaptive(minSize = 160.dp),
                     state = gridState,
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp + navBottom),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalItemSpacing = 8.dp,
                     modifier = Modifier.fillMaxSize()

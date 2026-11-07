@@ -98,7 +98,7 @@ object RealbooruHtmlParser {
                 isVideo -> if (isWebm) "webm" else "mp4"
                 isGif -> "gif"
                 dataExt in listOf("png", "jpg", "jpeg", "webp") -> dataExt
-                else -> ""
+                else -> "jpeg"
             }
 
             val originalUrl = if (directUrl.isNotBlank()) {
@@ -116,6 +116,9 @@ object RealbooruHtmlParser {
 
             val sampleUrl = if (isVideo) {
                 previewUrl
+                    .replace("/thumbnails/", "/images/")
+                    .replace("/thumbnail_", "/")
+                    .replace(Regex("\\.[a-zA-Z0-9]+$"), ".jpg")
             } else {
                 previewUrl
                     .replace("/thumbnails/", "/samples/")
