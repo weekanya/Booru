@@ -267,10 +267,11 @@ class BooruPreferences(private val context: Context) {
         parseStringArray(prefs[KEY_NOT_INTERESTED])
     }
 
-    suspend fun addNotInterestedKey(mediaKey: String) {
-        if (mediaKey.isBlank()) return
+    suspend fun addNotInterestedKeys(keys: List<String>) {
+        val clean = keys.filter { it.isNotBlank() }.distinct()
+        if (clean.isEmpty()) return
         context.dataStore.edit { prefs ->
-            val updated = (parseStringArray(prefs[KEY_NOT_INTERESTED]).filterNot { it == mediaKey } + mediaKey)
+            val updated = (parseStringArray(prefs[KEY_NOT_INTERESTED]).filterNot { it in clean } + clean)
                 .takeLast(NOT_INTERESTED_MAX)
             prefs[KEY_NOT_INTERESTED] = JSONArray(updated).toString()
         }

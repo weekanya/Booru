@@ -79,7 +79,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
 
     var results by mutableStateOf<List<RemoteMedia>>(emptyList()); private set
-    var loading by mutableStateOf(false); private set
+    var loading by mutableStateOf(true); private set
     var isRefreshing by mutableStateOf(false); private set
     var isPullRefreshing by mutableStateOf(false); private set
     var isTabRefreshing by mutableStateOf(false); private set
@@ -219,6 +219,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             rule34ApiKey = storedKeys[1]
             gelbooruUserId = storedKeys[2]
             gelbooruApiKey = storedKeys[3]
+            cachedCredentials = null
 
             try {
                 val legacyFavs = prefs.favorites.first()
@@ -256,7 +257,16 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 favoritesList = initialFavorites
                 favoriteKeys = initialFavorites.mapTo(HashSet()) { it.mediaKey }
             }
+            withContext(Dispatchers.IO) {
+                if (secureStorage.isSecureStorageAvailable) {
+                    initialCustom.forEach {
+                        secureStorage.getCustomApiKey(it.id)
+                        secureStorage.getCustomUserId(it.id)
+                    }
+                }
+            }
             customSources = initialCustom
+            cachedCredentials = null
             source = BooruRepository.SOURCE_ALL
             safeMode = initialSafe
             excludeSafe = initialExcludeSafe
@@ -302,7 +312,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
             if (initialFavorites != null) {
                 launch(Dispatchers.IO) {
-                    runCatching { BooruCacheManager.pruneOrphanedFavoritesMedia(getApplication(), initialFavorites) }
+                    runCatching {
+                        BooruCacheManager.pruneOrphanedFavoritesMedia(getApplication(), initialFavorites, keepNewerThanMs = FAVORITE_PRUNE_GRACE_MS)
+                    }
                 }
             }
         }
@@ -880,7 +892,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val credentials: BooruCredentials,
         val customSources: List<CustomBooruSource>,
         val disabledSourceKeys: Set<String>,
-        val recExclude: Set<String> = emptySet()
+        val recExclude: Set<String> = emptySet(),
+        val allowFurry: Boolean = false
     )
 
     private data class FeedBatch(
@@ -901,7 +914,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         blacklist = tagBlacklist,
         credentials = getCredentials(),
         customSources = customSources,
-        disabledSourceKeys = disabledSources
+        disabledSourceKeys = disabledSources,
+        allowFurry = tags.split(Regex("[\\s,]+")).any { !it.startsWith("-") && com.booru.app.data.FurryFilter.isFurryTag(it) }
     )
 
     private val recTagPages = HashMap<String, Int>()
@@ -953,7 +967,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
 
     private fun FeedParams.accepts(item: RemoteMedia): Boolean {
         if (com.booru.app.data.TagBlacklistMatcher.isBlacklisted(item, blacklist)) return false
-        if (noFurry && com.booru.app.data.FurryFilter.isFurryPost(item.tags)) return false
+        if (noFurry && !allowFurry && com.booru.app.data.FurryFilter.isFurryPost(item.tags)) return false
         if (contentTypes.isEmpty()) return true
         return (contentTypes.contains(ContentType.PHOTOS) && !item.isVideo && !item.isGif) ||
             (contentTypes.contains(ContentType.VIDEOS) && item.isVideo) ||
@@ -1191,7 +1205,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 if (searchGen != currentSearchGeneration) return@launch
                 advanceRecTagPages(recTags)
                 currentPage = batch.lastPage
-                results = batch.items.filterNot { it.mediaKey in notInterestedKeys }.distinctBy { it.contentKey }
+                results = batch.items.filterNot { isNotInterested(it) }.distinctBy { it.contentKey }
                 hasMore = batch.hasMore
                 commitPaging()
                 resultsEpoch++
@@ -1255,7 +1269,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 currentPage = batch.lastPage
                 if (batch.items.isNotEmpty()) {
                     emptyLoadMoreStreak = 0
-                    results = (results + batch.items.filterNot { it.mediaKey in notInterestedKeys }).distinctBy { it.mediaKey }.distinctBy { it.contentKey }
+                    results = (results + batch.items.filterNot { isNotInterested(it) }).distinctBy { it.mediaKey }.distinctBy { it.contentKey }
                     hasMore = batch.hasMore
                     scanForAiTraces(batch.items, searchGen)
                 } else {
@@ -1404,6 +1418,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         val job = viewModelScope.launch {
             try {
                 if (wasFav) {
+                    delay(FAVORITE_MEDIA_REMOVE_DELAY_MS)
                     BooruCacheManager.removeFavoriteMedia(getApplication(), media, favoritesList)
                 } else {
                     BooruCacheManager.saveFavoriteMedia(getApplication(), media)
@@ -1652,9 +1667,20 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         super.onCleared()
     }
 
+    private val credentialWriteMutex = Mutex()
+
+    private fun writeCredentials(onWritten: () -> Unit = {}, write: () -> Boolean) {
+        viewModelScope.launch {
+            val stored = credentialWriteMutex.withLock {
+                withContext(Dispatchers.IO) { runCatching(write).getOrDefault(false) }
+            }
+            if (!stored) postMessage(keysNotSavedMessage())
+            onWritten()
+        }
+    }
+
     fun saveRule34Keys(userId: String, apiKey: String) {
-        val stored = secureStorage.setRule34UserId(userId) and secureStorage.setRule34ApiKey(apiKey)
-        if (!stored) postMessage(keysNotSavedMessage())
+        writeCredentials { secureStorage.setRule34UserId(userId) and secureStorage.setRule34ApiKey(apiKey) }
         rule34UserId = userId.trim()
         rule34ApiKey = apiKey.trim()
         cachedCredentials = null
@@ -1665,8 +1691,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun saveGelbooruKeys(userId: String, apiKey: String) {
-        val stored = secureStorage.setGelbooruUserId(userId) and secureStorage.setGelbooruApiKey(apiKey)
-        if (!stored) postMessage(keysNotSavedMessage())
+        writeCredentials { secureStorage.setGelbooruUserId(userId) and secureStorage.setGelbooruApiKey(apiKey) }
         gelbooruUserId = userId.trim()
         gelbooruApiKey = apiKey.trim()
         cachedCredentials = null
@@ -1786,17 +1811,23 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             return false
         }
         val safeSource = source.copy(baseUrl = sanitizeBooruBaseUrl(source.baseUrl))
-        if (secureStorage.isSecureStorageAvailable) {
-            if (apiKey.isNotBlank()) secureStorage.setCustomApiKey(safeSource.id, apiKey)
-            else secureStorage.removeCustomApiKey(safeSource.id)
-
-            if (userId.isNotBlank()) secureStorage.setCustomUserId(safeSource.id, userId)
-            else secureStorage.removeCustomUserId(safeSource.id)
-        }
         val updated = customSources.filterNot { it.id == safeSource.id } + safeSource
         customSources = updated
         cachedCredentials = null
         viewModelScope.launch { prefs.saveCustomSources(updated) }
+        writeCredentials(
+            onWritten = {
+                cachedCredentials = null
+                if (this.source == safeSource.id || this.source == safeSource.key) search(this.source, query, safeMode)
+            }
+        ) {
+            if (!secureStorage.isSecureStorageAvailable) return@writeCredentials true
+            val keyOk = if (apiKey.isNotBlank()) secureStorage.setCustomApiKey(safeSource.id, apiKey)
+                else secureStorage.removeCustomApiKey(safeSource.id)
+            val userOk = if (userId.isNotBlank()) secureStorage.setCustomUserId(safeSource.id, userId)
+                else secureStorage.removeCustomUserId(safeSource.id)
+            keyOk && userOk
+        }
         return true
     }
 
@@ -1807,7 +1838,9 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         cachedCredentials = null
         viewModelScope.launch {
             prefs.saveCustomSources(updated)
-            secureStorage.removeCustomCredentials(sourceId)
+            credentialWriteMutex.withLock {
+                withContext(Dispatchers.IO) { runCatching { secureStorage.removeCustomCredentials(sourceId) } }
+            }
         }
         val isCurrentSourceDeleted = target != null && (
                 source.equals(target.id, ignoreCase = true) ||
@@ -1927,6 +1960,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 }
                 val fresh = batch.items.filter { item ->
                     item.mediaKey !in skipKeys &&
+                        item.contentKey !in skipKeys &&
                         !com.booru.app.data.OfflineStore.contains(item.mediaKey) &&
                         !(params.noAi && com.booru.app.data.AiImageScanner.cachedVerdict(item) == true)
                 }
@@ -2013,12 +2047,16 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    private fun isNotInterested(item: RemoteMedia): Boolean =
+        item.mediaKey in notInterestedKeys || item.contentKey in notInterestedKeys
+
     fun markNotInterested(media: RemoteMedia) {
-        notInterestedKeys.add(media.mediaKey)
-        results = results.filterNot { it.mediaKey == media.mediaKey }
+        val keys = listOf(media.mediaKey, media.contentKey).distinct()
+        notInterestedKeys.addAll(keys)
+        results = results.filterNot { isNotInterested(it) }
         viewModelScope.launch {
             try {
-                prefs.addNotInterestedKey(media.mediaKey)
+                prefs.addNotInterestedKeys(keys)
             } catch (c: CancellationException) {
                 throw c
             } catch (e: Exception) {
@@ -2125,6 +2163,8 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         private const val REC_FAVORITE_SHARE = 0.5f
         private const val FEED_STALE_MS = 5 * 60 * 1000L
         private const val RETURN_TO_RECOMMENDATIONS_MS = 15 * 60 * 1000L
+        private const val FAVORITE_MEDIA_REMOVE_DELAY_MS = 15_000L
+        private const val FAVORITE_PRUNE_GRACE_MS = 10 * 60 * 1000L
         private val REC_TAG_EXCLUDED_SOURCES = setOf("realbooru")
         private val BUILT_IN_SOURCE_KEYS = mapOf(
             BooruRepository.SOURCE_RULE34 to "rule34",

@@ -141,7 +141,10 @@ fun ImmersiveMediaViewer(
     var backProgress by remember { mutableFloatStateOf(0f) }
 
     LaunchedEffect(pagerState.settledPage) {
-        mediaList.getOrNull(pagerState.settledPage)?.let { vm.recordViewed(it) }
+        mediaList.getOrNull(pagerState.settledPage)?.let {
+            vm.updateFullscreenMedia(it)
+            vm.recordViewed(it)
+        }
     }
 
     val latestLoadMore by rememberUpdatedState(onLoadMore)

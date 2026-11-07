@@ -651,7 +651,7 @@ class BooruRepository(
             }
         }
 
-        if (excludeFurry && !isStrictTagLimit) {
+        if (excludeFurry && !isStrictTagLimit && cleanedTokens.none { com.booru.app.data.FurryFilter.isFurryTag(it) }) {
             for (queryTag in com.booru.app.data.FurryFilter.EXCLUDE_QUERY_TAGS) {
                 if (queryTag !in cleanedTokens && queryTag.removePrefix("-") !in cleanedTokens) {
                     parts.add(queryTag)
@@ -670,10 +670,7 @@ class BooruRepository(
                 } else {
                     when (key) {
                         "yande", "konachan" -> parts.add("order:score")
-                        "rule34", "tbib" -> parts.add("sort:score:desc")
-                        "gelbooru", "safebooru" -> {
-                            if (parts.size < 2) parts.add("sort:score:desc")
-                        }
+                        "rule34", "tbib", "gelbooru", "safebooru" -> parts.add("sort:score:desc")
                     }
                 }
             }
@@ -686,10 +683,7 @@ class BooruRepository(
                 } else {
                     when (key) {
                         "yande", "konachan" -> parts.add("order:random")
-                        "rule34" -> parts.add("sort:random")
-                        "gelbooru" -> {
-                            if (parts.size < 2) parts.add("sort:random")
-                        }
+                        "rule34", "gelbooru" -> parts.add("sort:random")
                         "safebooru", "realbooru", "tbib" -> Unit
                     }
                 }

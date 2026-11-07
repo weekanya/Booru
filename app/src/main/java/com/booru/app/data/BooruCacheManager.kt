@@ -147,8 +147,10 @@ object BooruCacheManager {
 
     suspend fun pruneOrphanedFavoritesMedia(
         context: Context,
-        activeFavorites: List<RemoteMedia>
+        activeFavorites: List<RemoteMedia>,
+        keepNewerThanMs: Long = 0L
     ) = withContext(Dispatchers.IO) {
+        val keepAfter = System.currentTimeMillis() - keepNewerThanMs
         val validUrls = activeFavorites.flatMap {
             listOf(it.preview, it.sample, it.url)
         }.filter { it.isNotBlank() }.toSet()
@@ -158,6 +160,7 @@ object BooruCacheManager {
         val files = dir.listFiles() ?: return@withContext
         for (file in files) {
             val name = file.name
+            if (keepNewerThanMs > 0L && file.lastModified() >= keepAfter) continue
             if (name.endsWith(".tmp")) {
                 file.delete()
                 continue

@@ -444,12 +444,8 @@ fun SettingsScreen(
                                 baseUrl = cleanUrl,
                                 engine = customEngine
                             )
-                            val wasActiveSource = editingCustomSource != null && (editingCustomSource?.id == vm.source || editingCustomSource?.key == vm.source)
                             val success = vm.addCustomSource(newSource, customApiKey.trim(), customUserId.trim())
                             if (success) {
-                                if (wasActiveSource) {
-                                    vm.selectSource(newSource.id)
-                                }
                                 customName = ""
                                 customUrl = ""
                                 customApiKey = ""

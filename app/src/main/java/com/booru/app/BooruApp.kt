@@ -319,7 +319,7 @@ object BooruVideoCache {
                                     throw e
                                 } catch (_: Exception) {
                                     failures++
-                                    true
+                                    false
                                 }
                                 if (!claimed) skipped.add(start to len)
                             }
