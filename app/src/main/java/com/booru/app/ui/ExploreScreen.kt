@@ -761,7 +761,7 @@ fun ExploreScreen(
             ) {
                 Icon(
                     Icons.Rounded.Search,
-                    contentDescription = "Search",
+                    contentDescription = Strings.tr(lang, "Search", "Поиск", "検索", "搜索", "검색", "بحث"),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(22.dp)
                 )
@@ -825,7 +825,7 @@ fun ExploreScreen(
                 ) {
                     Icon(
                         imageVector = if (vm.isIncognito) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                        contentDescription = "Incognito",
+                        contentDescription = Strings.tr(lang, "Incognito", "Инкогнито", "シークレット", "无痕模式", "시크릿", "التصفح المتخفي"),
                         tint = if (vm.isIncognito) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
                     )
@@ -970,7 +970,7 @@ fun ExploreScreen(
                                 IconButton(onClick = { submitSearch(localQuery.text) }) {
                                     Icon(
                                         Icons.Rounded.Search,
-                                        contentDescription = "Search",
+                                        contentDescription = Strings.tr(lang, "Search", "Поиск", "検索", "搜索", "검색", "بحث"),
                                         tint = MaterialTheme.colorScheme.primary
                                     )
                                 }
@@ -978,7 +978,7 @@ fun ExploreScreen(
                             IconButton(onClick = { vm.toggleIncognito() }, modifier = Modifier.size(48.dp)) {
                                 Icon(
                                     imageVector = if (vm.isIncognito) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                                    contentDescription = "Incognito",
+                                    contentDescription = Strings.tr(lang, "Incognito", "Инкогнито", "シークレット", "无痕模式", "시크릿", "التصفح المتخفي"),
                                     tint = if (vm.isIncognito) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -1054,7 +1054,7 @@ fun ExploreScreen(
                                     ) {
                                         Icon(
                                             Icons.Rounded.Search,
-                                            contentDescription = "Search",
+                                            contentDescription = Strings.tr(lang, "Search", "Поиск", "検索", "搜索", "검색", "بحث"),
                                             tint = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.size(20.dp)
                                         )

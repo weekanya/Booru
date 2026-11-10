@@ -501,7 +501,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun downloadUpdate(context: Context, info: AppUpdateInfo) {
         if (isDownloadingUpdate) return
         if (info.apkDownloadUrl.isNullOrBlank()) {
-            updateDownloadError = "No APK file found in this release"
+            updateDownloadError = com.booru.app.data.Strings.tr(language, "No APK file found in this release", "В этом релизе нет APK-файла", "このリリースに APK ファイルがありません", "此版本中没有 APK 文件", "이 릴리스에 APK 파일이 없습니다", "لا يوجد ملف APK في هذا الإصدار")
             return
         }
         val context: Context = context.applicationContext
@@ -640,7 +640,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 withContext(Dispatchers.Main) {
                     if (updateDownloadJob === ownJob) {
                         isDownloadingUpdate = false
-                        updateDownloadError = if (e is java.io.InterruptedIOException) "Download timed out" else e.message ?: "Download failed"
+                        updateDownloadError = if (e is java.io.InterruptedIOException) {
+                            com.booru.app.data.Strings.tr(language, "Download timed out", "Время загрузки истекло", "ダウンロードがタイムアウトしました", "下载超时", "다운로드 시간이 초과되었습니다", "انتهت مهلة التنزيل")
+                        } else {
+                            e.message ?: com.booru.app.data.Strings.downloadFailed(language)
+                        }
                     }
                 }
             } finally {
@@ -656,14 +660,14 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             if (!withContext(Dispatchers.IO) { file.exists() }) {
                 if (downloadedApkFile == file) downloadedApkFile = null
-                updateDownloadError = "Downloaded APK is missing"
+                updateDownloadError = com.booru.app.data.Strings.tr(language, "Downloaded APK is missing", "Скачанный APK не найден", "ダウンロードした APK が見つかりません", "找不到已下载的 APK", "다운로드한 APK를 찾을 수 없습니다", "ملف APK الذي تم تنزيله مفقود")
                 return@launch
             }
             val verified = withContext(Dispatchers.IO) { verifyApkSignature(context, file) }
             if (!verified) {
                 withContext(Dispatchers.IO) { if (file.exists()) file.delete() }
                 if (downloadedApkFile == file) downloadedApkFile = null
-                updateDownloadError = "APK signature verification failed"
+                updateDownloadError = com.booru.app.data.Strings.tr(language, "APK signature verification failed", "Подпись APK не прошла проверку", "APK の署名を検証できませんでした", "APK 签名验证失败", "APK 서명 확인에 실패했습니다", "فشل التحقق من توقيع APK")
                 return@launch
             }
             launchApkInstaller(context, file)
@@ -683,7 +687,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             }
             context.startActivity(intent)
         } catch (e: Exception) {
-            updateDownloadError = "Installation error: ${e.message}"
+            updateDownloadError = com.booru.app.data.Strings.tr(language, "Installation error", "Ошибка установки", "インストールエラー", "安装出错", "설치 오류", "خطأ في التثبيت") + ": ${e.message}"
         }
     }
 
@@ -1864,15 +1868,15 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         userId: String = ""
     ): Boolean {
         if (!isHttpsBooruUrl(source.baseUrl)) {
-            error = "Custom source URL must use a valid HTTPS URL"
+            error = com.booru.app.data.Strings.customSourceUrlError(language)
             return false
         }
         if (isBuiltInSourceName(source.name)) {
-            error = "Custom source name cannot conflict with built-in sources"
+            error = com.booru.app.data.Strings.customSourceNameError(language)
             return false
         }
         if (source.name.isBlank()) {
-            error = "Custom source name cannot be empty"
+            error = com.booru.app.data.Strings.emptySourceNameError(language)
             return false
         }
         val safeSource = source.copy(baseUrl = sanitizeBooruBaseUrl(source.baseUrl))

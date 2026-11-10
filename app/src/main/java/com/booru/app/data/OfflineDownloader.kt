@@ -87,7 +87,7 @@ object OfflineDownloader {
             } catch (c: CancellationException) {
                 throw c
             } catch (e: Exception) {
-                if (job === own) error = e.message ?: "Download failed"
+                if (job === own) error = e.message ?: Strings.downloadFailed(lang)
             } finally {
                 withContext(NonCancellable) {
                     if (job === own) {

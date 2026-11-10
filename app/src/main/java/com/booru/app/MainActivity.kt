@@ -720,7 +720,7 @@ fun BooruApp(
                                 .fillMaxWidth()
                                 .heightIn(min = ButtonDefaults.MediumContainerHeight)
                         ) {
-                            Text("OK", style = MaterialTheme.typography.titleMedium)
+                            Text(Strings.tr(lang, "OK", "ОК", "OK", "确定", "확인", "موافق"), style = MaterialTheme.typography.titleMedium)
                         }
                     }
                 }
