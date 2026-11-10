@@ -153,6 +153,7 @@ class BooruRepository(
         private const val KONACHAN_TAG_LIMIT = 8
         private const val MAX_BLACKLIST_QUERY_TAGS = 10
         private val BLACKLIST_QUERY_SOURCES = setOf("rule34", "realbooru", "safebooru", "tbib", "yande", "konachan")
+        private val LABEL_COUNT = Regex("\\((\\d+)\\)\\s*$")
 
 
         const val SOURCE_ALL = "All sources"
@@ -427,7 +428,7 @@ class BooruRepository(
             val label = o.optString("label").ifBlank { value }
             val count = countKeys.firstNotNullOfOrNull { k ->
                 if (o.has(k)) o.optString(k).replace(",", "").toIntOrNull() else null
-            } ?: 0
+            } ?: label.takeIf { it != value }?.let { LABEL_COUNT.find(it)?.groupValues?.get(1)?.toIntOrNull() } ?: 0
             val type = typeKeys.firstNotNullOfOrNull { k ->
                 o.optString(k).takeIf { it.isNotBlank() && it != "null" }
             }.orEmpty()
