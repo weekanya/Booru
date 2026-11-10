@@ -17,6 +17,7 @@ import com.booru.app.data.BooruCacheManager
 import com.booru.app.data.ImageQuality
 import com.booru.app.data.OfflineStore
 import com.booru.app.data.network.BooruHeaders
+import com.booru.app.data.network.MediaFallbackInterceptor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -37,6 +38,7 @@ object MediaActionHandler {
         .readTimeout(60, TimeUnit.SECONDS)
         .callTimeout(5, TimeUnit.MINUTES)
         .followRedirects(true)
+        .addInterceptor(MediaFallbackInterceptor(allowThumbnail = false))
         .build()
 
     suspend fun downloadMedia(

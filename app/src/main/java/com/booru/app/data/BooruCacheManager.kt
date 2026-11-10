@@ -15,6 +15,7 @@ import java.security.MessageDigest
 import java.util.concurrent.TimeUnit
 
 import com.booru.app.data.network.BooruHeaders
+import com.booru.app.data.network.MediaFallbackInterceptor
 import com.booru.app.data.network.NetworkClient
 
 object BooruCacheManager {
@@ -27,6 +28,7 @@ object BooruCacheManager {
     private val httpClient = NetworkClient.baseClient.newBuilder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
+        .addInterceptor(MediaFallbackInterceptor(allowThumbnail = false))
         .build()
 
     @Volatile

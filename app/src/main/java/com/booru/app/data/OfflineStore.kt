@@ -9,6 +9,7 @@ import androidx.compose.runtime.setValue
 import com.booru.app.BooruRepository
 import com.booru.app.RemoteMedia
 import com.booru.app.data.network.BooruHeaders
+import com.booru.app.data.network.MediaFallbackInterceptor
 import com.booru.app.data.network.NetworkClient
 import com.booru.app.data.network.await
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +50,7 @@ object OfflineStore {
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .callTimeout(5, TimeUnit.MINUTES)
+            .addInterceptor(MediaFallbackInterceptor(allowThumbnail = false))
             .build()
     }
     private val urlToFile = ConcurrentHashMap<String, String>()

@@ -22,12 +22,12 @@ import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Protocol
 import okhttp3.Response
-import okhttp3.ResponseBody.Companion.toResponseBody
 import okhttp3.ResponseBody.Companion.asResponseBody
 import okio.buffer
 import okio.source
 
 import com.booru.app.data.network.BooruHeaders
+import com.booru.app.data.network.MediaFallbackInterceptor
 import com.booru.app.data.network.NetworkClient
 
 class BooruApplication : Application(), SingletonImageLoader.Factory {
@@ -91,78 +91,9 @@ class BooruApplication : Application(), SingletonImageLoader.Factory {
                     .header("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
                     .build()
 
-                val initialResponse = chain.proceed(newRequest)
-                if (initialResponse.isSuccessful) {
-                    return@addInterceptor initialResponse
-                }
-
-                val isBooruDomain = url.contains("realbooru.com") ||
-                        url.contains("safebooru.org") ||
-                        url.contains("tbib.org") ||
-                        url.contains("gelbooru.com") ||
-                        url.contains("rule34.xxx")
-
-                if (isBooruDomain && initialResponse.code == 404) {
-                    initialResponse.close()
-                    val candidateUrls = LinkedHashSet<String>()
-                    val query = if (url.contains("?")) "?" + url.substringAfter("?") else ""
-                    val cleanUrl = url.substringBefore("?")
-
-                    if (cleanUrl.contains("/samples/")) {
-                        val filename = cleanUrl.substringAfterLast("/sample_").substringBefore(".")
-                        val dir = cleanUrl.substringBeforeLast("/sample_").replace("/samples/", "/images/")
-                        val thumbDir = cleanUrl.substringBeforeLast("/sample_").replace("/samples/", "/thumbnails/")
-
-                        candidateUrls.add("$dir/$filename.jpeg$query")
-                        candidateUrls.add("$dir/$filename.jpg$query")
-                        candidateUrls.add("$dir/$filename.png$query")
-                        candidateUrls.add("$dir/$filename.gif$query")
-                        candidateUrls.add("$dir/$filename.webp$query")
-                        candidateUrls.add("$thumbDir/thumbnail_$filename.jpg$query")
-                    } else if (cleanUrl.contains("/images/")) {
-                        val baseWithoutExt = cleanUrl.substringBeforeLast(".")
-                        val filename = cleanUrl.substringAfterLast("/").substringBefore(".")
-                        val sampleDir = cleanUrl.substringBeforeLast("/").replace("/images/", "/samples/")
-                        val thumbDir = cleanUrl.substringBeforeLast("/").replace("/images/", "/thumbnails/")
-
-                        candidateUrls.add("$baseWithoutExt.jpeg$query")
-                        candidateUrls.add("$baseWithoutExt.jpg$query")
-                        candidateUrls.add("$baseWithoutExt.png$query")
-                        candidateUrls.add("$baseWithoutExt.gif$query")
-                        candidateUrls.add("$baseWithoutExt.webp$query")
-                        candidateUrls.add("$sampleDir/sample_$filename.jpg$query")
-                        candidateUrls.add("$thumbDir/thumbnail_$filename.jpg$query")
-                    } else if (cleanUrl.contains("/thumbnails/")) {
-                        val filename = cleanUrl.substringAfterLast("/thumbnail_").substringBefore(".")
-                        val thumbDir = cleanUrl.substringBeforeLast("/thumbnail_")
-                        candidateUrls.add("$thumbDir/thumbnail_$filename.jpg$query")
-                        candidateUrls.add("$thumbDir/thumbnail_$filename.jpeg$query")
-                        candidateUrls.add("$thumbDir/thumbnail_$filename.png$query")
-                    }
-
-                    for (candidate in candidateUrls) {
-                        if (candidate == url) continue
-                        val altReq = originalRequest.newBuilder()
-                            .url(candidate)
-                            .header("User-Agent", userAgent)
-                            .header("Referer", referer)
-                            .header("Accept", "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8")
-                            .build()
-                        try {
-                            val altResp = chain.proceed(altReq)
-                            if (altResp.isSuccessful) {
-                                return@addInterceptor altResp
-                            }
-                            altResp.close()
-                        } catch (_: Exception) {}
-                    }
-                    return@addInterceptor initialResponse.newBuilder()
-                        .body(ByteArray(0).toResponseBody(null))
-                        .build()
-                }
-
-                return@addInterceptor initialResponse
+                chain.proceed(newRequest)
             }
+            .addInterceptor(MediaFallbackInterceptor(allowThumbnail = true))
             .build()
 
         return ImageLoader.Builder(this)
