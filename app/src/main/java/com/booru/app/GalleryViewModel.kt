@@ -760,6 +760,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
     fun dismissUpdate() {
         updateInfo = null
         isDownloadingUpdate = false
+        updateDownloadError = null
     }
 
     fun clearManualCheckResult() {
@@ -1252,6 +1253,11 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 if (batch.items.isEmpty() && recTags.isNotEmpty()) {
                     batch = feedParams.fetchFeed(0, emptySet(), null)
                 }
+                var emptyRounds = 0
+                while (batch.hasMore && emptyRounds < EMPTY_FIRST_PAGE_ROUNDS && batch.items.all { isNotInterested(it) }) {
+                    emptyRounds++
+                    batch = feedParams.fetchFeed(batch.lastPage + 1, emptySet(), null)
+                }
                 if (searchGen != currentSearchGeneration) return@launch
                 advanceRecTagPages(recTags)
                 currentPage = batch.lastPage
@@ -1352,6 +1358,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             ?: customSources.find { (it.id == targetSource || it.key == targetSource) && it.enabled }?.id
             ?: source
         source = finalSource
+        showOfflinePosts = false
         search(finalSource, cleanTag, safeMode)
     }
 
@@ -1427,6 +1434,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
             favoriteKeys = favoriteKeys + key
             insertFavoriteAt(media, if (restore) restoreIndex else null)
         }
+        recalculateRecommendationTags()
         val recordTags = !wasFav && !suppressRecording
         if (recordTags) resolveTagCategories(media)
         viewModelScope.launch {
@@ -1451,6 +1459,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                     favoriteKeys = favoriteKeys - key
                     favoritesList = favoritesList.filterNot { it.mediaKey == key }
                 }
+                recalculateRecommendationTags()
                 postMessage(favoriteErrorMessage())
                 return@launch
             }
@@ -1500,6 +1509,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
                 }
                 favoritesList = emptyList()
                 favoriteKeys = emptySet()
+                recalculateRecommendationTags()
                 try {
                     BooruCacheManager.pruneOrphanedFavoritesMedia(getApplication(), emptyList())
                 } catch (c: CancellationException) {
@@ -2216,6 +2226,7 @@ class GalleryViewModel(application: Application) : AndroidViewModel(application)
         private const val REC_MAX_PER_TAG = 6
         private const val REC_TAG_PAGE_LIMIT = 15
         private const val FILTERED_TARGET_COUNT = 24
+        private const val EMPTY_FIRST_PAGE_ROUNDS = 2
         private const val REC_SEEN_WINDOW_MS = 3L * 24 * 60 * 60 * 1000
         private const val REC_SEEN_LIMIT = 5000
         private const val FAVORITE_RECENCY_HALF_RANK = 40.0
