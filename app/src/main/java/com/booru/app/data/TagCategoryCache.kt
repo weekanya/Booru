@@ -9,8 +9,13 @@ import androidx.compose.runtime.setValue
 import com.booru.app.data.network.NetworkClient
 import com.booru.app.data.network.await
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
@@ -26,6 +31,8 @@ object TagCategoryCache {
     private const val MAX_ENTRIES = 40_000
     private const val UNKNOWN = -1
     private const val FAILURE_BACKOFF_MS = 10 * 60 * 1000L
+    private const val FALLBACK_BATCH = 40
+    private const val FALLBACK_PARALLELISM = 4
 
     private val categories: MutableMap<String, Int> = java.util.Collections.synchronizedMap(LinkedHashMap())
     private val loadMutex = Mutex()
@@ -33,7 +40,9 @@ object TagCategoryCache {
     @Volatile private var loaded = false
     @Volatile private var file: File? = null
     @Volatile private var pausedUntil = 0L
+    @Volatile private var primaryPausedUntil = 0L
     private val inFlight = ConcurrentHashMap.newKeySet<String>()
+    private val fallbackChecked = ConcurrentHashMap.newKeySet<String>()
 
     private const val LOOKUP_USER_AGENT = "BooruApp/7.0 (Android; +https://github.com/weekanya/Booru)"
     private val TAG_ELEMENT = Regex("<tag\\s[^>]*>")
@@ -47,6 +56,7 @@ object TagCategoryCache {
 
     fun clearBackoff() {
         pausedUntil = 0L
+        primaryPausedUntil = 0L
     }
 
     fun init(context: Context) {
@@ -97,20 +107,35 @@ object TagCategoryCache {
         var changed = false
         try {
             for ((index, batch) in batches.withIndex()) {
-                val fetched = fetchBatch(batch)
-                if (fetched == null) {
+                val primary = if (System.currentTimeMillis() < primaryPausedUntil) null else fetchFromDanbooru(batch)
+                if (primary != null) {
+                    if (lookupFailed) withContext(Dispatchers.Main) { lookupFailed = false }
+                    for (name in batch) categories[name] = primary[name] ?: UNKNOWN
+                    changed = true
+                    onProgress(index + 1, batches.size)
+                    continue
+                }
+                if (System.currentTimeMillis() >= primaryPausedUntil) {
+                    primaryPausedUntil = System.currentTimeMillis() + FAILURE_BACKOFF_MS
+                }
+                val pending = batch.filterNot { it in fallbackChecked }.take(FALLBACK_BATCH)
+                val fallback = if (pending.isEmpty()) emptyMap() else fetchFromSafebooru(pending)
+                if (fallback == null) {
                     pausedUntil = System.currentTimeMillis() + FAILURE_BACKOFF_MS
                     withContext(Dispatchers.Main) { lookupFailed = true }
                     break
                 }
-                if (lookupFailed) withContext(Dispatchers.Main) { lookupFailed = false }
-                for (name in batch) {
-                    val category = fetched.categories[name]
-                    if (category != null) categories[name] = category
-                    else if (fetched.complete) categories[name] = UNKNOWN
+                fallbackChecked.addAll(fallback.keys)
+                for ((name, category) in fallback) {
+                    if (category != UNKNOWN) {
+                        categories[name] = category
+                        changed = true
+                    }
                 }
-                changed = true
+                val covered = batches.size == 1 && batch.all { it in fallbackChecked }
+                if (lookupFailed == covered) withContext(Dispatchers.Main) { lookupFailed = !covered }
                 onProgress(index + 1, batches.size)
+                break
             }
         } finally {
             inFlight.removeAll(missing.toSet())
@@ -122,20 +147,26 @@ object TagCategoryCache {
         return changed
     }
 
-    private class Batch(val categories: Map<String, Int>, val complete: Boolean)
+    private suspend fun fetchFromSafebooru(names: List<String>): Map<String, Int>? = coroutineScope {
+        val permits = Semaphore(FALLBACK_PARALLELISM)
+        val answers = names.map { name ->
+            async { permits.withPermit { fetchSafebooruTag(name) } }
+        }.awaitAll()
+        if (answers.all { it == null }) return@coroutineScope null
+        val result = HashMap<String, Int>()
+        for ((name, category) in names.zip(answers)) {
+            if (category != null) result[name] = category
+        }
+        result
+    }
 
-    private suspend fun fetchBatch(names: List<String>): Batch? =
-        fetchFromDanbooru(names)?.let { Batch(it, complete = true) }
-            ?: fetchFromSafebooru(names)?.let { Batch(it, complete = false) }
-
-    private suspend fun fetchFromSafebooru(names: List<String>): Map<String, Int>? = withContext(Dispatchers.IO) {
+    private suspend fun fetchSafebooruTag(name: String): Int? = withContext(Dispatchers.IO) {
         try {
             val url = "https://safebooru.org/index.php".toHttpUrl().newBuilder()
                 .addQueryParameter("page", "dapi")
                 .addQueryParameter("s", "tag")
                 .addQueryParameter("q", "index")
-                .addQueryParameter("names", names.joinToString(" "))
-                .addQueryParameter("limit", "1000")
+                .addQueryParameter("name", name)
                 .build()
             val request = Request.Builder()
                 .url(url)
@@ -145,14 +176,13 @@ object TagCategoryCache {
                 if (!response.isSuccessful) return@use null
                 val body = response.body?.string().orEmpty()
                 if (!body.contains("<tags")) return@use null
-                val result = HashMap<String, Int>()
                 for (element in TAG_ELEMENT.findAll(body)) {
                     val attrs = ATTRIBUTE.findAll(element.value).associate { it.groupValues[1] to it.groupValues[2] }
-                    val name = attrs["name"]?.let { org.jsoup.parser.Parser.unescapeEntities(it, true) }?.lowercase() ?: continue
+                    val found = attrs["name"]?.let { org.jsoup.parser.Parser.unescapeEntities(it, true) }?.lowercase() ?: continue
                     val type = attrs["type"]?.toIntOrNull() ?: continue
-                    if (name.isNotBlank()) result[name] = type
+                    if (found == name) return@use type
                 }
-                result
+                UNKNOWN
             }
         } catch (c: kotlinx.coroutines.CancellationException) {
             throw c
