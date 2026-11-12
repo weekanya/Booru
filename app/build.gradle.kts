@@ -115,6 +115,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     implementation("androidx.compose.foundation:foundation")
     implementation("io.coil-kt.coil3:coil-compose:3.6.3")
+    implementation("io.github.panpf.zoomimage:zoomimage-compose-coil3:1.7.0")
     implementation("io.coil-kt.coil3:coil-gif:3.6.3")
     implementation("io.coil-kt.coil3:coil-video:3.6.3")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.6.3")

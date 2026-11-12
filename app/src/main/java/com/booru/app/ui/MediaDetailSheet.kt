@@ -1249,7 +1249,7 @@ fun DetailZoomableImage(
     val imageAspect = knownAspect ?: loadedAspect
 
     LaunchedEffect(isActive) {
-        if (!isActive) {
+        if (!isComic && !isActive) {
             rawScale = 1f
             rawOffset = Offset.Zero
             onZoomChangedLatest(false)
@@ -1257,7 +1257,7 @@ fun DetailZoomableImage(
     }
 
     LaunchedEffect(resetZoomKey) {
-        if (resetZoomKey > 0) {
+        if (!isComic && resetZoomKey > 0) {
             rawScale = 1f
             rawOffset = Offset.Zero
             onZoomChangedLatest(false)
@@ -1271,67 +1271,27 @@ fun DetailZoomableImage(
     }
 
     if (isComic) {
-        val scrollState = rememberScrollState()
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState),
-            contentAlignment = Alignment.TopCenter
-        ) {
-            SubcomposeAsyncImage(
-                model = remember(media.mediaKey, detailTargetUrl, thumbnailKey, retryKey) {
-                    ImageRequest.Builder(context)
-                        .data(detailTargetUrl)
-                        .size(coil3.size.Size(1080, 4096))
-                        .placeholderMemoryCacheKey(thumbnailKey)
-                        .crossfade(260)
-                        .allowHardware(false)
-                        .listener(
-                            onError = { _, _ ->
-                                if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
-                                    detailLoadError = true
-                                } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
-                                    detailLoadError = true
-                                }
-                            }
-                        )
-                        .build()
-                },
-                contentDescription = media.tagList.take(6).joinToString(", "),
-                contentScale = ContentScale.FillWidth,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                val state = painter.state.collectAsState().value
-                if (state is coil3.compose.AsyncImagePainter.State.Loading) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(420.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        LoadingIndicator(modifier = Modifier.size(44.dp), color = MaterialTheme.colorScheme.primary)
-                    }
-                } else if (state is coil3.compose.AsyncImagePainter.State.Error) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(420.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                Icons.Rounded.BrokenImage,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.outlineVariant,
-                                modifier = Modifier.size(40.dp)
-                            )
+        LongImageReader(
+            isActive = isActive,
+            resetZoomKey = resetZoomKey,
+            onZoomChanged = onZoomChanged,
+            model = remember(media.mediaKey, detailTargetUrl, thumbnailKey, retryKey) {
+                ImageRequest.Builder(context)
+                    .data(detailTargetUrl)
+                    .placeholderMemoryCacheKey(thumbnailKey)
+                    .crossfade(260)
+                    .listener(onError = { _, _ ->
+                        if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
+                            detailLoadError = true
+                        } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
+                            detailLoadError = true
                         }
-                    }
-                } else {
-                    SubcomposeAsyncImageContent()
-                }
-            }
-        }
+                    })
+                    .build()
+            },
+            contentDescription = media.tagList.take(6).joinToString(", "),
+            modifier = Modifier.fillMaxSize()
+        )
     } else {
         val animatedScale by animateFloatAsState(
             targetValue = rawScale,

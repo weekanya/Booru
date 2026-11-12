@@ -1368,6 +1368,9 @@ private fun FavoriteCard(
     var isError by remember(media.mediaKey) { mutableStateOf(false) }
     var retryKey by remember(media.mediaKey) { mutableIntStateOf(0) }
 
+    val useTiledThumbnail = !media.isVideo && !media.isGif && media.width > 0 &&
+        media.height.toFloat() / media.width >= 3f && quality != ImageQuality.SAVER && !useFallback
+
     val imageModel = remember(media.mediaKey, useFallback, quality, retryKey) {
         val targetUrl = if (useFallback) {
             media.preview.ifBlank { media.gridImageUrl(false) }
@@ -1416,14 +1419,15 @@ private fun FavoriteCard(
                 .fillMaxWidth()
                 .aspectRatio(aspectRatio)
         ) {
-            AsyncImage(
+            GridThumbnail(
                 model = imageModel,
+                tiled = useTiledThumbnail,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
                 onState = { state ->
                     when (state) {
                         is AsyncImagePainter.State.Error -> {
-                            if (!useFallback && media.preview.isNotBlank() && media.preview != media.gridImageUrl(quality != ImageQuality.SAVER)) {
+                            if (!useFallback && media.preview.isNotBlank() && media.preview != imageModel.data) {
                                 useFallback = true
                             } else {
                                 isError = true
