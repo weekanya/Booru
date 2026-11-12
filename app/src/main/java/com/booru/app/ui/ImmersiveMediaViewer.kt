@@ -40,9 +40,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.BrokenImage
@@ -547,7 +545,7 @@ fun FullscreenZoomableImage(
     }
 
     LaunchedEffect(isActive) {
-        if (!isActive) {
+        if (!isComic && !isActive) {
             rawScale = 1f
             rawOffset = Offset.Zero
             onZoomChangedLatest(false)
@@ -555,7 +553,7 @@ fun FullscreenZoomableImage(
     }
 
     LaunchedEffect(resetZoomKey) {
-        if (resetZoomKey > 0) {
+        if (!isComic && resetZoomKey > 0) {
             rawScale = 1f
             rawOffset = Offset.Zero
             onZoomChangedLatest(false)
@@ -580,70 +578,28 @@ fun FullscreenZoomableImage(
     )
 
     if (isComic) {
-        val scrollState = rememberScrollState()
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = { onToggleControlsLatest() }
-                    )
-                }
-                .verticalScroll(scrollState),
-            contentAlignment = Alignment.TopCenter
-        ) {
-            SubcomposeAsyncImage(
-                model = remember(media.mediaKey, detailTargetUrl, thumbnailKey, retryKey) {
-                    ImageRequest.Builder(context)
-                        .data(detailTargetUrl)
-                        .size(coil3.size.Size(1080, 4096))
-                        .placeholderMemoryCacheKey(thumbnailKey)
-                        .crossfade(260)
-                        .allowHardware(false)
-                        .listener(
-                            onError = { _, _ ->
-                                if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
-                                    detailLoadError = true
-                                } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
-                                    detailLoadError = true
-                                }
-                            }
-                        )
-                        .build()
-                },
-                contentDescription = media.tagList.take(6).joinToString(", "),
-                contentScale = ContentScale.FillWidth,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                val state = painter.state.collectAsState().value
-                if (state is coil3.compose.AsyncImagePainter.State.Loading) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .fillMaxHeight(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        LoadingIndicator(modifier = Modifier.size(48.dp), color = MaterialTheme.colorScheme.primary)
-                    }
-                } else if (state is coil3.compose.AsyncImagePainter.State.Error) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .fillMaxHeight(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Rounded.BrokenImage,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.outlineVariant,
-                            modifier = Modifier.size(48.dp)
-                        )
-                    }
-                } else {
-                    SubcomposeAsyncImageContent()
-                }
-            }
-        }
+        LongImageReader(
+            isActive = isActive,
+            resetZoomKey = resetZoomKey,
+            onZoomChanged = onZoomChanged,
+            model = remember(media.mediaKey, detailTargetUrl, thumbnailKey, retryKey) {
+                ImageRequest.Builder(context)
+                    .data(detailTargetUrl)
+                    .placeholderMemoryCacheKey(thumbnailKey)
+                    .crossfade(260)
+                    .listener(onError = { _, _ ->
+                        if (!detailLoadError && detailTargetUrl != media.sample && media.sample.isNotBlank()) {
+                            detailLoadError = true
+                        } else if (!detailLoadError && detailTargetUrl != media.preview && media.preview.isNotBlank()) {
+                            detailLoadError = true
+                        }
+                    })
+                    .build()
+            },
+            contentDescription = media.tagList.take(6).joinToString(", "),
+            modifier = Modifier.fillMaxSize(),
+            onTap = { onToggleControlsLatest() }
+        )
     } else {
         val baseViewConfiguration = androidx.compose.ui.platform.LocalViewConfiguration.current
         val snappyViewConfiguration = remember(baseViewConfiguration) {
